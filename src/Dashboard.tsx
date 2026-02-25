@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Folder,
@@ -16,6 +17,16 @@ import {
 } from "lucide-react";
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      // ignore
+    }
+    navigate("/");
+  };
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       {/* SIDEBAR: Professional Dark Navigation */}
@@ -58,10 +69,11 @@ const Dashboard: React.FC = () => {
               {[
                 { name: "Profile", icon: User },
                 { name: "Settings", icon: Settings },
-                { name: "Admin", icon: ShieldAlert },
+                { name: "Logout", icon: ShieldAlert },
               ].map((item) => (
                 <button
                   key={item.name}
+                  onClick={() => (item.name === "Logout" ? handleLogout() : undefined)}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
                 >
                   <item.icon className="w-4 h-4" /> {item.name}

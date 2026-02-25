@@ -6,11 +6,58 @@ const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
 
+  const validate = () => {
+    const next: Record<string, string> = {};
+
+    if (!form.email) {
+      next.email = "Email is required";
+    } else {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!re.test(form.email)) next.email = "Enter a valid email address";
+    }
+
+    if (!form.password) {
+      next.password = "Password is required";
+    } else {
+      if (isLogin) {
+        if (form.password.length < 8) {
+          next.password = "Password must be at least 8 characters";
+        }
+      } else {
+        // Registration: require min length + one uppercase, one lowercase, and one number
+        const strongRe = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+        if (form.password.length < 8 || !strongRe.test(form.password)) {
+          next.password = "Password must be at least 8 characters and include uppercase, lowercase, and a number";
+        }
+      }
+    }
+
+    if (!isLogin) {
+      if (!form.firstName) next.firstName = "First name is required";
+      if (!form.lastName) next.lastName = "Last name is required";
+      if (!form.confirmPassword) next.confirmPassword = "Please confirm password";
+      if (form.confirmPassword && form.confirmPassword !== form.password)
+        next.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     navigate("/dashboard");
   };
 
@@ -105,7 +152,7 @@ const Auth: React.FC = () => {
             </button>
           </div>
 
-          <form className="space-y-5" onSubmit={handleLogin}>
+          <form className="space-y-5" onSubmit={handleLogin} noValidate>
             {!isLogin && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 space-y-1">
@@ -115,8 +162,14 @@ const Auth: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Juan"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all"
+                    value={form.firstName}
+                    onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                    aria-invalid={!!errors.firstName}
+                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.firstName ? "border-red-300" : "border-gray-200"}`}
                   />
+                  {errors.firstName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
+                  )}
                 </div>
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-bold text-gray-700 uppercase">
@@ -125,8 +178,14 @@ const Auth: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Dela Cruz"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all"
+                    value={form.lastName}
+                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                    aria-invalid={!!errors.lastName}
+                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.lastName ? "border-red-300" : "border-gray-200"}`}
                   />
+                  {errors.lastName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -140,8 +199,14 @@ const Auth: React.FC = () => {
                 <input
                   type="email"
                   placeholder="you@university.edu"
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  aria-invalid={!!errors.email}
+                  className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.email ? "border-red-300" : "border border-gray-200"}`}
                 />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                )}
               </div>
             </div>
 
@@ -164,8 +229,14 @@ const Auth: React.FC = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder={isLogin ? "••••••••" : "Create a password"}
-                  className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  aria-invalid={!!errors.password}
+                  className={`w-full pl-12 pr-12 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.password ? "border-red-300" : "border border-gray-200"}`}
                 />
+                {errors.password && (
+                  <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -197,6 +268,23 @@ const Auth: React.FC = () => {
                 </span>
               </label>
             </div>
+
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700 uppercase">Confirm Password</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Confirm password"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  aria-invalid={!!errors.confirmPassword}
+                  className={`w-full px-4 py-3 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.confirmPassword ? "border-red-300" : "border border-gray-200"}`}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
 
             <button className="w-full bg-[#249c74] text-white font-bold py-4 rounded-xl hover:bg-[#1e8563] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/10">
               {isLogin ? "Sign In" : "Create Account"}
