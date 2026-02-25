@@ -1,17 +1,88 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { registerUser, loginUser } from "./firebase";
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [registerForm, setRegisterForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
 
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const validate = () => {
+    const next: Record<string, string> = {};
+
+    const email = isLogin ? loginForm.email : registerForm.email;
+    if (!email) {
+      next.email = "Email is required";
+    } else {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!re.test(email)) next.email = "Enter a valid email address";
+    }
+
+    const password = isLogin ? loginForm.password : registerForm.password;
+    if (!password) {
+      next.password = "Password is required";
+    } else {
+      if (isLogin) {
+        if (password.length < 8) {
+          next.password = "Password must be at least 8 characters";
+        }
+      } else {
+        // Registration: require min length + one uppercase, one lowercase, and one number
+        const strongRe = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+        if (password.length < 8 || !strongRe.test(password)) {
+          next.password = "Password must be at least 8 characters and include uppercase, lowercase, and a number";
+        }
+      }
+    }
+
+    if (!isLogin) {
+      if (!registerForm.firstName) next.firstName = "First name is required";
+      if (!registerForm.lastName) next.lastName = "Last name is required";
+      if (!registerForm.confirmPassword) next.confirmPassword = "Please confirm password";
+      if (registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password)
+        next.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setApiError("");
+    if (!validate()) return;
+    try {
+      if (isLogin) {
+        await loginUser(loginForm.email, loginForm.password);
+      } else {
+        await registerUser(registerForm.email, registerForm.password, registerForm.firstName, registerForm.lastName);
+      }
+      navigate("/dashboard");
+    } catch (err: any) {
+      const code = err?.code as string | undefined;
+      if (code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-credential") {
+        setApiError("Wrong email or password");
+      } else if (code === "auth/email-already-in-use") {
+        setApiError("Email already in use");
+      } else if (code === "auth/invalid-email") {
+        setApiError("Invalid email address");
+      } else {
+        setApiError(err?.message || "Authentication failed");
+      }
+    }
   };
 
   return (
@@ -92,20 +163,34 @@ const Auth: React.FC = () => {
           {/* Tab Switcher */}
           <div className="flex bg-gray-100 p-1 rounded-xl mb-8">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => {
+                setIsLogin(true);
+                setLoginForm({ email: "", password: "" });
+                setErrors({});
+                setApiError("");
+              }}
               className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${isLogin ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
             >
               Sign In
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => {
+                setIsLogin(false);
+                setRegisterForm({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
+                setErrors({});
+                setApiError("");
+              }}
               className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${!isLogin ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
             >
               Create Account
             </button>
           </div>
 
-          <form className="space-y-5" onSubmit={handleLogin}>
+          <form className="space-y-5" onSubmit={handleLogin} noValidate>
+            {apiError && (
+              <p className="text-sm text-red-500">{apiError}</p>
+            )}
+
             {!isLogin && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 space-y-1">
@@ -115,8 +200,14 @@ const Auth: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Juan"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all"
+                    value={registerForm.firstName}
+                    onChange={(e) => setRegisterForm({ ...registerForm, firstName: e.target.value })}
+                    aria-invalid={!!errors.firstName}
+                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.firstName ? "border-red-300" : "border-gray-200"}`}
                   />
+                  {errors.firstName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
+                  )}
                 </div>
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-bold text-gray-700 uppercase">
@@ -125,8 +216,14 @@ const Auth: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Dela Cruz"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all"
+                    value={registerForm.lastName}
+                    onChange={(e) => setRegisterForm({ ...registerForm, lastName: e.target.value })}
+                    aria-invalid={!!errors.lastName}
+                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.lastName ? "border-red-300" : "border-gray-200"}`}
                   />
+                  {errors.lastName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -140,8 +237,14 @@ const Auth: React.FC = () => {
                 <input
                   type="email"
                   placeholder="you@university.edu"
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all"
+                  value={isLogin ? loginForm.email : registerForm.email}
+                  onChange={(e) => isLogin ? setLoginForm({ ...loginForm, email: e.target.value }) : setRegisterForm({ ...registerForm, email: e.target.value })}
+                  aria-invalid={!!errors.email}
+                  className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.email ? "border-red-300" : "border border-gray-200"}`}
                 />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                )}
               </div>
             </div>
 
@@ -150,22 +253,20 @@ const Auth: React.FC = () => {
                 <label className="text-xs font-bold text-gray-700 uppercase">
                   Password
                 </label>
-                {isLogin && (
-                  <a
-                    href="#"
-                    className="text-[11px] font-bold text-[#249c74] hover:underline"
-                  >
-                    Forgot Password?
-                  </a>
-                )}
               </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#249c74] transition-colors" />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder={isLogin ? "••••••••" : "Create a password"}
-                  className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all"
+                  value={isLogin ? loginForm.password : registerForm.password}
+                  onChange={(e) => isLogin ? setLoginForm({ ...loginForm, password: e.target.value }) : setRegisterForm({ ...registerForm, password: e.target.value })}
+                  aria-invalid={!!errors.password}
+                  className={`w-full pl-12 pr-12 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.password ? "border-red-300" : "border border-gray-200"}`}
                 />
+                {errors.password && (
+                  <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -178,6 +279,11 @@ const Auth: React.FC = () => {
                   )}
                 </button>
               </div>
+              {isLogin && (
+                <div className="mt-2">
+                  <a href="#" className="text-[11px] font-bold text-[#249c74] hover:underline">Forgot Password?</a>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between py-1">
@@ -197,6 +303,23 @@ const Auth: React.FC = () => {
                 </span>
               </label>
             </div>
+
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700 uppercase">Confirm Password</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Confirm password"
+                  value={registerForm.confirmPassword}
+                  onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                  aria-invalid={!!errors.confirmPassword}
+                  className={`w-full px-4 py-3 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] outline-none transition-all ${errors.confirmPassword ? "border-red-300" : "border border-gray-200"}`}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
 
             <button className="w-full bg-[#249c74] text-white font-bold py-4 rounded-xl hover:bg-[#1e8563] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/10">
               {isLogin ? "Sign In" : "Create Account"}
