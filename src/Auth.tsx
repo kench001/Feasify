@@ -60,15 +60,18 @@ const Auth: React.FC = () => {
       } else {
         // Registration: require min length + one uppercase, one lowercase, and one number
         const strongRe = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-        if (password.length < 8 || !strongRe.test(password)) {
-          next.password = "Password must be at least 8 characters and include uppercase, lowercase, and a number";
+        if (password.length < 8 || password.length > 20 || !strongRe.test(password)) {
+          next.password = "Password must be at least 8 up to 20 characters and include uppercase, lowercase, and a number";
         }
       }
     }
 
     if (!isLogin) {
+      const nameRe = /^[A-Za-z\s]+$/;
       if (!registerForm.firstName) next.firstName = "First name is required";
+      else if (!nameRe.test(registerForm.firstName)) next.firstName = "First name may only contain letters and spaces";
       if (!registerForm.lastName) next.lastName = "Last name is required";
+      else if (!nameRe.test(registerForm.lastName)) next.lastName = "Last name may only contain letters and spaces";
       if (!registerForm.confirmPassword) next.confirmPassword = "Please confirm password";
       if (registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password)
         next.confirmPassword = "Passwords do not match";
@@ -329,23 +332,25 @@ const Auth: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-between py-1">
-              <label
-                className="flex items-center cursor-pointer group select-none"
-                onClick={() => setRememberMe(!rememberMe)}
-              >
-                <div
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${rememberMe ? "bg-[#249c74] border-[#249c74]" : "bg-transparent border-gray-300 group-hover:border-[#249c74]"}`}
+            {isLogin && (
+              <div className="flex items-center justify-between py-1">
+                <label
+                  className="flex items-center cursor-pointer group select-none"
+                  onClick={() => setRememberMe(!rememberMe)}
                 >
-                  {rememberMe && (
-                    <Check className="w-3.5 h-3.5 text-white stroke-[4px]" />
-                  )}
-                </div>
-                <span className="ml-3 text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                  Remember me
-                </span>
-              </label>
-            </div>
+                  <div
+                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${rememberMe ? "bg-[#249c74] border-[#249c74]" : "bg-transparent border-gray-300 group-hover:border-[#249c74]"}`}
+                  >
+                    {rememberMe && (
+                      <Check className="w-3.5 h-3.5 text-white stroke-[4px]" />
+                    )}
+                  </div>
+                  <span className="ml-3 text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
+                    Remember me
+                  </span>
+                </label>
+              </div>
+            )}
 
             {!isLogin && (
               <div className="space-y-2">
