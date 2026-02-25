@@ -1,5 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { signOutUser } from "./firebase";
 import {
   LayoutDashboard,
   Folder,
@@ -18,7 +22,15 @@ import {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const handleLogout = () => {
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+    } catch (e) {
+      // ignore
+    }
     try {
       localStorage.clear();
       sessionStorage.clear();
@@ -27,6 +39,34 @@ const Dashboard: React.FC = () => {
     }
     navigate("/");
   };
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const uid = u.uid;
+          const snap = await getDoc(doc(db, "users", uid));
+          if (snap.exists()) {
+            const data = snap.data() as any;
+            const first = data.firstName || "";
+            const last = data.lastName || "";
+            setUserName([first, last].filter(Boolean).join(" ") || u.displayName || "");
+            setUserEmail(data.email || u.email || "");
+          } else {
+            setUserName(u.displayName || (u.email ? u.email.split("@")[0] : ""));
+            setUserEmail(u.email || "");
+          }
+        } catch (e) {
+          setUserName(u.displayName || (u.email ? u.email.split("@")[0] : ""));
+          setUserEmail(u.email || "");
+        }
+      } else {
+        setUserName("");
+        setUserEmail("");
+      }
+    });
+    return () => unsub();
+  }, []);
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       {/* SIDEBAR: Professional Dark Navigation */}
@@ -73,7 +113,7 @@ const Dashboard: React.FC = () => {
               ].map((item) => (
                 <button
                   key={item.name}
-                  onClick={() => (item.name === "Logout" ? handleLogout() : undefined)}
+                  onClick={() => (item.name === "Logout" ? setShowLogoutConfirm(true) : undefined)}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
                 >
                   <item.icon className="w-4 h-4" /> {item.name}
@@ -86,13 +126,16 @@ const Dashboard: React.FC = () => {
         <div className="p-4 border-t border-gray-800 bg-[#0a1118]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#249c74] flex items-center justify-center font-bold">
-              JD
+              {(() => {
+                const parts = userName.trim().split(/\s+/).filter(Boolean);
+                if (parts.length === 0) return "U";
+                const initials = parts.map((p) => p[0]).slice(0, 2).join("");
+                return initials.toUpperCase();
+              })()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">Juan Dela Cruz</p>
-              <p className="text-xs text-gray-500 truncate">
-                juan@university.edu
-              </p>
+              <p className="text-sm font-semibold truncate">{userName || "User"}</p>
+              <p className="text-xs text-gray-500 truncate">{userEmail || ""}</p>
             </div>
           </div>
         </div>
@@ -226,6 +269,27 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </main>
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="bg-white rounded-lg p-6 z-10 w-11/12 max-w-md shadow-lg">
+            <h3 className="text-lg font-bold mb-2">Confirm logout</h3>
+            <p className="text-sm text-gray-600 mb-4">Are you sure you want to log out?</p>
+            <div className="flex justify-end gap-3">
+              <button className="px-4 py-2 rounded-lg border" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+              <button
+                className="px-4 py-2 rounded-lg bg-[#249c74] text-white"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  handleLogout();
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
