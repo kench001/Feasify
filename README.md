@@ -1,4 +1,4 @@
-# React + TypeScript + Vite
+<img width="691" height="187" alt="image" src="https://github.com/user-attachments/assets/5f741d6f-49e7-4048-80b3-63a04cc33074" /># React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
@@ -71,3 +71,11 @@ export default defineConfig([
   },
 ])
 ```
+
+
+VITE_FIREBASE_API_KEY=AIzaSyC070II3sfbQHsSUTvxjFnArVxypv2r97o
+VITE_FIREBASE_AUTH_DOMAIN=feasifydb.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=feasifydb
+VITE_FIREBASE_STORAGE_BUCKET=feasifydb.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=5265217043
+VITE_FIREBASE_APP_ID=1:5265217043:web:b1c1942ef6513d8e1051e6
