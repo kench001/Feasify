@@ -366,6 +366,16 @@ const Auth: React.FC = () => {
                 {errors.confirmPassword && (
                   <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
                 )}
+                <div className="flex items-center gap-2 mt-2">
+                  {registerForm.confirmPassword && registerForm.password === registerForm.confirmPassword ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-gray-300" />
+                  )}
+                  <span className={registerForm.confirmPassword && registerForm.password === registerForm.confirmPassword ? "text-sm text-green-600" : "text-sm text-gray-600"}>
+                    Passwords match
+                  </span>
+                </div>
               </div>
             )}
 
