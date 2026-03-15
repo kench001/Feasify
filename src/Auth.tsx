@@ -30,13 +30,17 @@ const Auth: React.FC = () => {
 
   const strengthCount = [passwordChecks.upper, passwordChecks.lower, passwordChecks.number].filter(Boolean).length;
   const strengthLabel = !isLogin
-    ? strengthCount === 3 && passwordChecks.length
+    ? activePassword.length >= 21
+      ? "Character Exceed"
+      : activePassword.length >= 17 && activePassword.length <= 20
       ? "High"
-      : strengthCount >= 2 && activePassword.length >= 8
+      : activePassword.length >= 12 && activePassword.length <= 16
       ? "Medium"
-      : "Weak"
+      : activePassword.length >= 8 && activePassword.length <= 11
+      ? "Weak"
+      : ""
     : "";
-  const strengthPercent = strengthLabel === "High" ? 100 : strengthLabel === "Medium" ? 66 : strengthLabel === "Weak" ? 33 : 0;
+  const strengthPercent = strengthLabel === "High" ? 100 : strengthLabel === "Medium" ? 66 : strengthLabel === "Weak" ? 33 : strengthLabel === "Character Exceed" ? 100 : 0;
 
   const validate = () => {
     const next: Record<string, string> = {};
@@ -308,24 +312,24 @@ const Auth: React.FC = () => {
               {!isLogin && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold">Password strength: <span className={`${strengthLabel === 'High' ? 'text-green-600' : strengthLabel === 'Medium' ? 'text-yellow-600' : 'text-red-600'}`}>{strengthLabel}</span></p>
+                    <p className="text-xs font-semibold">Password strength: <span className={`${strengthLabel === 'High' ? 'text-green-600' : strengthLabel === 'Medium' ? 'text-yellow-600' : strengthLabel === 'Character Exceed' ? 'text-red-600' : 'text-red-600'}`}>{strengthLabel}</span></p>
                     <p className="text-xs text-gray-400">{activePassword.length}/20</p>
                   </div>
                   <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mb-2">
-                    <div className="h-full bg-[#249c74]" style={{ width: `${strengthPercent}%`, transition: 'width 200ms' }} />
+                    <div className={`h-full ${strengthLabel === 'Character Exceed' ? 'bg-red-500' : 'bg-[#249c74]'}`} style={{ width: `${strengthPercent}%`, transition: 'width 200ms' }} />
                   </div>
                   <ul className="text-xs space-y-1">
-                    <li className={`flex items-center gap-2 ${passwordChecks.length ? 'text-green-600' : 'text-gray-500'}`}>
-                      {passwordChecks.length ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} 8-20 characters
+                    <li className={`flex items-center gap-2 ${activePassword.length >= 8 && activePassword.length <= 20 ? 'text-green-600' : 'text-gray-500'}`}>
+                      {activePassword.length >= 8 && activePassword.length <= 20 ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} Password should be 8-20 characters
                     </li>
-                    <li className={`flex items-center gap-2 ${passwordChecks.upper ? 'text-green-600' : 'text-gray-500'}`}>
-                      {passwordChecks.upper ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Uppercase
+                    <li className={`flex items-center gap-2 ${/[a-z]/.test(activePassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                      {/[a-z]/.test(activePassword) ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Lowercase
                     </li>
-                    <li className={`flex items-center gap-2 ${passwordChecks.lower ? 'text-green-600' : 'text-gray-500'}`}>
-                      {passwordChecks.lower ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Lowercase
+                    <li className={`flex items-center gap-2 ${/[A-Z]/.test(activePassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                      {/[A-Z]/.test(activePassword) ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Uppercase
                     </li>
-                    <li className={`flex items-center gap-2 ${passwordChecks.number ? 'text-green-600' : 'text-gray-500'}`}>
-                      {passwordChecks.number ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Number
+                    <li className={`flex items-center gap-2 ${/\d/.test(activePassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                      {/\d/.test(activePassword) ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />} At least one Number
                     </li>
                   </ul>
                 </div>
