@@ -85,15 +85,16 @@ const Dashboard: React.FC = () => {
             </p>
             <div className="space-y-1">
               {[
-                { name: "Dashboard", icon: LayoutDashboard, active: true },
-                { name: "Projects", icon: Folder },
+                { name: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+                { name: "Projects", icon: Folder, route: "/projects" },
                 { name: "Financial Input", icon: FileEdit },
                 { name: "AI Analysis", icon: Zap },
                 { name: "Reports", icon: BarChart3 },
               ].map((item) => (
                 <button
                   key={item.name}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.active ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.route === "/dashboard" ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+                  onClick={() => item.route && navigate(item.route)}
                 >
                   <item.icon className="w-4 h-4" /> {item.name}
                 </button>
@@ -151,7 +152,10 @@ const Dashboard: React.FC = () => {
               Overview of your feasibility studies and key metrics
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-[#249c74] hover:bg-[#1e8563] text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-md shadow-green-900/10">
+          <button
+            className="flex items-center gap-2 bg-[#249c74] hover:bg-[#1e8563] text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-md shadow-green-900/10"
+            onClick={() => navigate("/projects")}
+          >
             <Plus className="w-4 h-4" /> New Project
           </button>
         </div>
@@ -209,7 +213,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-gray-50 flex justify-between items-center">
             <h3 className="font-bold text-gray-900">Recent Projects</h3>
-            <button className="text-xs font-bold text-[#249c74] hover:underline flex items-center gap-1">
+            <button className="text-xs font-bold text-[#249c74] hover:underline flex items-center gap-1" onClick={() => navigate("/projects")}>
               View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
