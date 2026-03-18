@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
 import Projects from "./Projects";
+import Financial_input from "./Financial_input";
 
 function App() {
   return (
@@ -16,6 +17,9 @@ function App() {
 
         {/* Projects module */}
         <Route path="/projects" element={<Projects />} />
+
+        {/* Financial Input module */}
+        <Route path="/financial-input" element={<Financial_input />} />
       </Routes>
     </Router>
   );
