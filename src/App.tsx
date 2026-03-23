@@ -4,6 +4,8 @@ import Auth from "./Auth";
 import Dashboard from "./Dashboard";
 import Projects from "./Projects";
 import Financial_input from "./Financial_input";
+import AI_Analysis from "./AI_Analysis";
+import Reports from "./Reports";
 
 function App() {
   return (
@@ -20,6 +22,12 @@ function App() {
 
         {/* Financial Input module */}
         <Route path="/financial-input" element={<Financial_input />} />
+
+        {/* AI Analysis module */}
+        <Route path="/ai-analysis" element={<AI_Analysis />} />
+
+        {/* Reports module */}
+        <Route path="/reports" element={<Reports />} />
       </Routes>
     </Router>
   );

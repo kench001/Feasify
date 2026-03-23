@@ -144,13 +144,13 @@ const Financial_input: React.FC = () => {
               <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
                 <Folder className="w-4 h-4" /> Projects
               </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-[#249c74] text-white transition-all">
+              <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-[#249c74] text-white transition-all">
                 <FileEdit className="w-4 h-4" /> Financial Input
               </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
+              <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
                 <Zap className="w-4 h-4" /> AI Analysis
               </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
+              <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
                 <BarChart3 className="w-4 h-4" /> Reports
               </button>
             </div>
@@ -217,7 +217,16 @@ const Financial_input: React.FC = () => {
               <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-sm text-gray-700 hover:bg-gray-50 transition-all">
                 <DollarSign className="w-4 h-4" /> Save Draft
               </button>
-              <button className="flex items-center gap-2 bg-[#249c74] hover:bg-[#1e8563] text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-md shadow-green-900/10">
+              <button 
+                onClick={() => navigate('/ai-analysis', { 
+                  state: { 
+                    initialCapital, 
+                    expenses, 
+                    incomeSources 
+                  } 
+                })}
+                className="flex items-center gap-2 bg-[#249c74] hover:bg-[#1e8563] text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-md shadow-green-900/10"
+              >
                 <ZapIcon className="w-4 h-4" /> Run Analysis
               </button>
             </div>
