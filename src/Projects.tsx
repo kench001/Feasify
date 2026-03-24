@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { auth, db } from "./firebase";
+import { auth, db, createProject, getUserProjects, updateProject, deleteProject } from "./firebase";
 import { onAuthStateChanged, signOut as fbSignOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
@@ -33,8 +33,11 @@ interface Project {
   description: string;
   status: ProjectStatus;
   date: string;
-  amount: string;
   category: string;
+  userId?: string;
+  financialData?: {
+    initialCapital?: number;
+  };
 }
 
 const Projects: React.FC = () => {
@@ -42,6 +45,7 @@ const Projects: React.FC = () => {
   const location = useLocation();
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // SIDEBAR TOGGLE STATE
@@ -57,6 +61,7 @@ const Projects: React.FC = () => {
   const [newProjectCategory, setNewProjectCategory] = useState("");
 
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState(""); 
   const [selectedStatus, setSelectedStatus] = useState("All Status"); 
@@ -79,6 +84,8 @@ const Projects: React.FC = () => {
     const handleClickOutside = () => {
       setActiveMenuId(null);
       setIsStatusMenuOpen(false); 
+      // Also close category dropdown if clicked outside
+      setIsCategoryMenuOpen(false); 
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
@@ -94,6 +101,8 @@ const Projects: React.FC = () => {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
+        setUserId(u.uid);
+        loadProjects(u.uid);
         try {
           const snap = await getDoc(doc(db, "users", u.uid));
           if (snap.exists()) {
@@ -112,6 +121,18 @@ const Projects: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
+  const loadProjects = async (uid: string) => {
+    setIsLoading(true);
+    try {
+      const fetchedProjects = await getUserProjects(uid);
+      setProjects(fetchedProjects as Project[]);
+    } catch (error) {
+      console.error("Error loading projects:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try { await fbSignOut(auth); localStorage.clear(); sessionStorage.clear(); } catch (e) {}
     navigate("/");
@@ -122,33 +143,58 @@ const Projects: React.FC = () => {
     setNewProjectName("");
     setNewProjectDesc("");
     setNewProjectCategory("");
+    setIsCategoryMenuOpen(false); // Make sure this is closed on open
     setIsModalOpen(true);
   };
 
-  const handleSaveProject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProjectName.trim()) return;
-
-    if (editingProjectId) {
-      setProjects(projects.map(proj => 
-        proj.id === editingProjectId 
-          ? { ...proj, name: newProjectName, description: newProjectDesc, category: newProjectCategory }
-          : proj
-      ));
-    } else {
-      const newProject: Project = {
-        id: Math.random().toString(),
-        name: newProjectName,
-        description: newProjectDesc,
-        category: newProjectCategory,
-        status: "In Progress",
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        amount: "₱0",
-      };
-      setProjects([newProject, ...projects]);
-    }
-    
+  const closeModal = () => {
     setIsModalOpen(false);
+    setIsCategoryMenuOpen(false); // Make sure this is closed on close
+  }
+
+  const handleSaveProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectName.trim() || !userId) return;
+
+    try {
+      if (editingProjectId) {
+        // Update existing project in Firestore
+        await updateProject(editingProjectId, {
+          name: newProjectName,
+          description: newProjectDesc,
+          category: newProjectCategory
+        });
+        
+        // Update local state
+        setProjects(projects.map(proj => 
+          proj.id === editingProjectId 
+            ? { ...proj, name: newProjectName, description: newProjectDesc, category: newProjectCategory }
+            : proj
+        ));
+        closeModal();
+      } else {
+        // Create new project in Firestore
+        const newProjectData = {
+          name: newProjectName,
+          description: newProjectDesc,
+          category: newProjectCategory,
+          status: "In Progress" as ProjectStatus,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        };
+        
+        const newId = await createProject(userId, newProjectData);
+        
+        // Add to local state
+        const newProject: Project = { id: newId, ...newProjectData };
+        setProjects([newProject, ...projects]);
+        closeModal();
+
+        // Redirect immediately to Financial Input for this new project
+        navigate('/financial-input', { state: { projectId: newId } });
+      }
+    } catch (error) {
+      console.error("Error saving project:", error);
+    }
   };
 
   const handleEditClick = (project: Project) => {
@@ -156,13 +202,19 @@ const Projects: React.FC = () => {
     setNewProjectName(project.name);
     setNewProjectDesc(project.description);
     setNewProjectCategory(project.category || "");
+    setIsCategoryMenuOpen(false); // Make sure this is closed on open
     setIsModalOpen(true);
     setActiveMenuId(null);
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjects(projects.filter(project => project.id !== id));
-    setActiveMenuId(null);
+  const handleDeleteProject = async (id: string) => {
+    try {
+      await deleteProject(id);
+      setProjects(projects.filter(project => project.id !== id));
+      setActiveMenuId(null);
+    } catch (error) {
+      console.error("Error deleting project:", error);
+    }
   };
 
   const getStatusClasses = (status: ProjectStatus) => {
@@ -228,7 +280,7 @@ const Projects: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-gray-800 bg-[#0a1118]">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowLogoutConfirm(true)}>
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#249c74] flex items-center justify-center font-bold">
               {userName ? userName.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() : "U"}
             </div>
@@ -321,7 +373,12 @@ const Projects: React.FC = () => {
             </div>
           </div>
 
-          {projects.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100 shadow-sm">
+              <div className="w-8 h-8 border-4 border-[#249c74] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-sm text-gray-500">Loading your projects...</p>
+            </div>
+          ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border-2 border-dashed border-gray-200">
               <img src="/feedback.png" alt="No projects" className="w-16 h-16 mb-4 opacity-60" />
               <h3 className="text-gray-900 font-semibold mb-1">There are currently no study project</h3>
@@ -332,6 +389,7 @@ const Projects: React.FC = () => {
               {filteredProjects.map(project => ( 
                 <div 
                   key={project.id} 
+                  onClick={() => navigate('/financial-input', { state: { projectId: project.id } })}
                   className="group relative bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col hover:border-gray-200 hover:shadow-md transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -350,7 +408,7 @@ const Projects: React.FC = () => {
                     <div className="relative">
                       <button
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e.stopPropagation(); // Prevents clicking the menu from opening the project
                           setActiveMenuId(activeMenuId === project.id ? null : project.id);
                         }}
                         className={`p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all ${activeMenuId === project.id ? 'opacity-100 bg-gray-100 text-gray-900' : 'opacity-0 group-hover:opacity-100'}`}
@@ -386,7 +444,7 @@ const Projects: React.FC = () => {
                       <Calendar className="w-3.5 h-3.5" />
                       {project.date}
                     </div>
-                    <span className="font-bold text-gray-900">{project.amount}</span>
+                    <span className="font-bold text-gray-900">₱{(project.financialData?.initialCapital || 0).toLocaleString()}</span>
                   </div>
                 </div>
               ))}
@@ -398,7 +456,7 @@ const Projects: React.FC = () => {
       {/* CREATE/EDIT PROJECT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeModal} />
           <div className="bg-white rounded-2xl w-full max-w-lg z-10 shadow-2xl animate-in fade-in zoom-in duration-200 relative">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <div>
@@ -409,7 +467,7 @@ const Projects: React.FC = () => {
                   {editingProjectId ? "Update your feasibility study details." : "Set up a new feasibility study project to begin your analysis."}
                 </p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -445,7 +503,10 @@ const Projects: React.FC = () => {
                 
                 <div 
                   className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg cursor-pointer flex items-center justify-between text-sm"
-                  onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCategoryMenuOpen(!isCategoryMenuOpen);
+                  }}
                 >
                   <span className={newProjectCategory ? 'text-gray-900' : 'text-gray-400'}>
                     {newProjectCategory || "Select a category"}
@@ -465,7 +526,8 @@ const Projects: React.FC = () => {
                       <button 
                         key={option}
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setNewProjectCategory(option);
                           setIsCategoryMenuOpen(false);
                         }} 
@@ -479,7 +541,7 @@ const Projects: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <button type="button" onClick={closeModal} className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-semibold text-white bg-[#249c74] hover:bg-[#1e8563] rounded-lg shadow-sm shadow-green-900/10 transition-all">
@@ -494,13 +556,13 @@ const Projects: React.FC = () => {
       {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowLogoutConfirm(false)} />
-          <div className="bg-white rounded-lg p-6 z-10 w-11/12 max-w-md shadow-xl">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="bg-white rounded-lg p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold mb-2">Confirm logout</h3>
             <p className="text-sm text-gray-600 mb-6">Are you sure you want to log out?</p>
             <div className="flex justify-end gap-3">
               <button className="px-4 py-2 rounded-lg border text-sm font-semibold" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
-              <button className="px-4 py-2 rounded-lg bg-[#249c74] hover:bg-[#1e8563] text-white text-sm font-semibold" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>
+              <button className="px-4 py-2 rounded-lg bg-[#249c74] hover:bg-[#1e8563] text-white text-sm font-semibold shadow-md" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>
                 Logout
               </button>
             </div>
