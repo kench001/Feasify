@@ -91,10 +91,24 @@ const Projects: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  // Updated to catch the status filter from the Dashboard!
   useEffect(() => {
-    if (location.state?.openNewProjectModal) {
-      openCreateModal();
-      window.history.replaceState({}, document.title);
+    const state = location.state as any;
+    if (state) {
+      let matched = false;
+      if (state.openNewProjectModal) {
+        openCreateModal();
+        matched = true;
+      }
+      if (state.filterStatus) {
+        setSelectedStatus(state.filterStatus);
+        matched = true;
+      }
+      
+      // Clear location state so refreshes don't re-trigger
+      if (matched) {
+        window.history.replaceState({}, document.title);
+      }
     }
   }, [location]);
 
@@ -347,7 +361,7 @@ const Projects: React.FC = () => {
               </button>
 
               {isStatusMenuOpen && (
-                <div className="absolute right-0 top-[calc(100%+0.5rem)] w-40 bg-white border border-gray-100 shadow-lg rounded-xl py-1 z-10 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] w-full bg-white border border-gray-100 shadow-lg rounded-xl py-1 z-10 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                   {[
                     "All Status",
                     "Feasible",

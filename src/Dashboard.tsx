@@ -237,12 +237,16 @@ const Dashboard: React.FC = () => {
           {/* STATS GRID */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Total Projects", value: isLoadingStats ? "-" : totalProjects.toString(), sub: "Stored in database", icon: Folder },
-              { label: "Feasible", value: isLoadingStats ? "-" : feasibleProjects.toString(), sub: `${feasiblePercentage}% success rate`, icon: CheckCircle2 },
-              { label: "In Progress", value: isLoadingStats ? "-" : inProgressProjects.toString(), sub: "Active analyses", icon: Clock },
-              { label: "Avg. ROI", value: isLoadingStats ? "-" : `${avgROI}%`, sub: "Across configured projects", icon: BarChart3 },
+              { label: "Total Projects", value: isLoadingStats ? "-" : totalProjects.toString(), sub: "Stored in database", icon: Folder, filterVal: "All Status" },
+              { label: "Feasible", value: isLoadingStats ? "-" : feasibleProjects.toString(), sub: `${feasiblePercentage}% success rate`, icon: CheckCircle2, filterVal: "Feasible" },
+              { label: "In Progress", value: isLoadingStats ? "-" : inProgressProjects.toString(), sub: "Active analyses", icon: Clock, filterVal: "In Progress" },
+              { label: "Avg. ROI", value: isLoadingStats ? "-" : `${avgROI}%`, sub: "Across configured projects", icon: BarChart3, filterVal: "All Status" },
             ].map((stat) => (
-              <div key={stat.label} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+              <div 
+                key={stat.label} 
+                onClick={() => navigate('/projects', { state: { filterStatus: stat.filterVal } })}
+                className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-green-50 transition-colors">
                     <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#249c74]" />

@@ -14,7 +14,6 @@ import {
   ShieldAlert,
   Plus,
   Sidebar as SidebarIcon,
-  X,
   Trash2,
   DollarSign,
   TrendingDown,
@@ -51,7 +50,7 @@ const Financial_input: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Financial data states
-  const [initialCapital, setInitialCapital] = useState(0);
+  const [initialCapital, setInitialCapital] = useState("");
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
 
@@ -133,12 +132,12 @@ const Financial_input: React.FC = () => {
     
     // If the project already has saved financial data, load it!
     if (selectedProj && selectedProj.financialData) {
-      setInitialCapital(selectedProj.financialData.initialCapital || 0);
+      setInitialCapital(selectedProj.financialData.initialCapital?.toString() || "");
       setExpenses(selectedProj.financialData.expenses || []);
       setIncomeSources(selectedProj.financialData.incomeSources || []);
     } else {
       // Reset if it's a blank project
-      setInitialCapital(0);
+      setInitialCapital("");
       setExpenses([]);
       setIncomeSources([]);
     }
@@ -154,13 +153,13 @@ const Financial_input: React.FC = () => {
     try {
       await updateProject(selectedProjectId, {
         financialData: {
-          initialCapital,
+          initialCapital: parseFloat(initialCapital) || 0,
           expenses,
           incomeSources
         }
       });
       // Update local projects array so we don't have to reload
-      setProjects(projects.map(p => p.id === selectedProjectId ? { ...p, financialData: { initialCapital, expenses, incomeSources } } : p));
+      setProjects(projects.map(p => p.id === selectedProjectId ? { ...p, financialData: { initialCapital: parseFloat(initialCapital) || 0, expenses, incomeSources } } : p));
       return true;
     } catch (error) {
       console.error("Error saving data:", error);
@@ -185,7 +184,7 @@ const Financial_input: React.FC = () => {
       navigate('/ai-analysis', { 
         state: { 
           projectId: selectedProjectId,
-          initialCapital, 
+          initialCapital: parseFloat(initialCapital) || 0, 
           expenses, 
           incomeSources 
         } 
@@ -201,15 +200,21 @@ const Financial_input: React.FC = () => {
   // Calculate totals
   const totalMonthlyExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const totalDailyIncome = incomeSources.reduce((sum, i) => sum + i.amount, 0);
-  const totalMonthlyIncome = totalDailyIncome * 30;
-  const netMonthlyIncome = totalMonthlyIncome - totalMonthlyExpenses;
+
+  const newExpenseValue = parseFloat(newExpenseAmount) || 0;
+  const newIncomeValue = parseFloat(newIncomeAmount) || 0;
+
+  const effectiveMonthlyExpenses = totalMonthlyExpenses + newExpenseValue;
+  const effectiveDailyIncome = totalDailyIncome + newIncomeValue;
+  const effectiveMonthlyIncome = effectiveDailyIncome * 30;
+  const effectiveNetMonthlyIncome = effectiveMonthlyIncome - effectiveMonthlyExpenses;
 
   // Calculate metrics
-  const estimatedAnnualROI = initialCapital > 0 ? ((netMonthlyIncome * 12) / initialCapital * 100) : 0;
-  const paybackPeriod = netMonthlyIncome > 0 ? initialCapital / netMonthlyIncome : 0;
-  const breakEvenDays = totalDailyIncome > 0 ? Math.ceil(initialCapital / totalDailyIncome) : 0;
-  const dailyRevenueNeeded = totalMonthlyExpenses / 30;
-  const expenseToIncomeRatio = totalDailyIncome > 0 ? (totalMonthlyExpenses / totalMonthlyIncome * 100) : 0;
+  const estimatedAnnualROI = parseFloat(initialCapital) > 0 ? ((effectiveNetMonthlyIncome * 12) / parseFloat(initialCapital) * 100) : 0;
+  const paybackPeriod = effectiveNetMonthlyIncome > 0 ? parseFloat(initialCapital) / effectiveNetMonthlyIncome : 0;
+  const breakEvenDays = effectiveDailyIncome > 0 ? Math.ceil(parseFloat(initialCapital) / effectiveDailyIncome) : 0;
+  const dailyRevenueNeeded = effectiveMonthlyExpenses / 30;
+  const expenseToIncomeRatio = effectiveDailyIncome > 0 ? (effectiveMonthlyExpenses / effectiveMonthlyIncome * 100) : 0;
 
   const addExpense = () => {
     if (newExpenseName.trim() && newExpenseAmount.trim()) {
@@ -421,7 +426,7 @@ const Financial_input: React.FC = () => {
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Initial Capital</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">₱{initialCapital.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₱{(parseFloat(initialCapital) || 0).toLocaleString()}</p>
               </div>
 
               <div className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
@@ -431,7 +436,7 @@ const Financial_input: React.FC = () => {
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Monthly Expenses</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">₱{totalMonthlyExpenses.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₱{effectiveMonthlyExpenses.toLocaleString()}</p>
               </div>
 
               <div className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
@@ -441,7 +446,7 @@ const Financial_input: React.FC = () => {
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Monthly Income (est.)</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">₱{totalMonthlyIncome.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₱{effectiveMonthlyIncome.toLocaleString()}</p>
               </div>
 
               <div className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
@@ -451,7 +456,7 @@ const Financial_input: React.FC = () => {
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase">Net Income/mo</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">₱{netMonthlyIncome.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₱{effectiveNetMonthlyIncome.toLocaleString()}</p>
               </div>
             </div>
 
@@ -470,8 +475,9 @@ const Financial_input: React.FC = () => {
                       <label className="text-sm font-semibold text-gray-900 block mb-2">Amount (PHP)</label>
                       <input 
                         type="number"
+                        placeholder="0"
                         value={initialCapital}
-                        onChange={(e) => setInitialCapital(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setInitialCapital(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#249c74]/20 focus:border-[#249c74]"
                       />
                     </div>
@@ -591,7 +597,7 @@ const Financial_input: React.FC = () => {
               <div className="flex justify-end pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-semibold text-gray-900">Total</span>
-                  <span className="text-xl font-bold text-gray-900">₱{totalMonthlyExpenses.toLocaleString()}</span>
+                  <span className="text-xl font-bold text-gray-900">₱{effectiveMonthlyExpenses.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -672,12 +678,12 @@ const Financial_input: React.FC = () => {
                 <div className="flex justify-end">
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-semibold text-gray-900">Daily Total</span>
-                    <span className="text-xl font-bold text-gray-900">₱{totalDailyIncome.toLocaleString()}</span>
+                    <span className="text-xl font-bold text-gray-900">₱{effectiveDailyIncome.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="flex justify-end text-sm text-gray-500">
                   <span>Projected Monthly (x30)</span>
-                  <span className="ml-4 font-bold text-[#249c74]">₱{totalMonthlyIncome.toLocaleString()}</span>
+                  <span className="ml-4 font-bold text-[#249c74]">₱{effectiveMonthlyIncome.toLocaleString()}</span>
                 </div>
               </div>
             </div>
