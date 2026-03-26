@@ -9,6 +9,7 @@ import {
   FileEdit,
   Zap,
   BarChart3,
+  MessageCircle,
   User,
   Settings,
   ShieldAlert,
