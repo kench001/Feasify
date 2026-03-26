@@ -7,6 +7,7 @@ import Financial_input from "./Financial_input";
 import AI_Analysis from "./AI_Analysis";
 import Reports from "./Reports";
 import Messages from "./Messages";
+import Profile from "./Profile";
 
 function App() {
   return (
@@ -32,6 +33,9 @@ function App() {
 
         {/* Messages module */}
         <Route path="/messages" element={<Messages />} />
+
+        {/* Profile module */}
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </Router>
   );
