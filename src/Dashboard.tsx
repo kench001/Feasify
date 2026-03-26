@@ -168,6 +168,7 @@ const Dashboard: React.FC = () => {
                   { name: "Financial Input", icon: FileEdit, route: "/financial-input" },
                   { name: "AI Analysis", icon: Zap, route: "/ai-analysis" },
                   { name: "Reports", icon: BarChart3, route: "/reports" },
+                  { name: "Message", icon: MessageCircle, route: "/messages" },
                 ].map((item) => (
                   <button
                     key={item.name}

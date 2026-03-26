@@ -6,6 +6,7 @@ import Projects from "./Projects";
 import Financial_input from "./Financial_input";
 import AI_Analysis from "./AI_Analysis";
 import Reports from "./Reports";
+import Messages from "./Messages";
 
 function App() {
   return (
@@ -28,6 +29,9 @@ function App() {
 
         {/* Reports module */}
         <Route path="/reports" element={<Reports />} />
+
+        {/* Messages module */}
+        <Route path="/messages" element={<Messages />} />
       </Routes>
     </Router>
   );

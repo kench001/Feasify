@@ -9,6 +9,7 @@ import {
   FileEdit,
   Zap,
   BarChart3,
+  MessageCircle,
   User,
   Settings,
   ShieldAlert,
@@ -285,6 +286,9 @@ const Financial_input: React.FC = () => {
               </button>
               <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
                 <BarChart3 className="w-4 h-4" /> Reports
+              </button>
+              <button onClick={() => navigate('/messages')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all">
+                <MessageCircle className="w-4 h-4" /> Message
               </button>
             </div>
           </div>
