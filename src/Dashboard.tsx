@@ -195,6 +195,7 @@ const Dashboard: React.FC = () => {
                     onClick={() => {
                       if (item.name === "Logout") setShowLogoutConfirm(true);
                       if (item.name === "Profile") navigate("/profile");
+                      if (item.name === "Settings") navigate("/settings");
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
                   >

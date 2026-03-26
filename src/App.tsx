@@ -8,6 +8,7 @@ import AI_Analysis from "./AI_Analysis";
 import Reports from "./Reports";
 import Messages from "./Messages";
 import Profile from "./Profile";
+import SettingsPage from "./Settings";
 
 function App() {
   return (
@@ -36,6 +37,9 @@ function App() {
 
         {/* Profile module */}
         <Route path="/profile" element={<Profile />} />
+
+        {/* Settings module */}
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </Router>
   );

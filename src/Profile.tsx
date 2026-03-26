@@ -165,7 +165,10 @@ const Profile: React.FC = () => {
                 ].map((item) => (
                   <button
                     key={item.name}
-                    onClick={() => (item.name === "Logout" ? setShowLogoutConfirm(true) : undefined)}
+                    onClick={() => {
+                      if (item.name === "Logout") setShowLogoutConfirm(true);
+                      if (item.name === "Settings") navigate("/settings");
+                    }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.name === "Profile" ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
                   >
                     <item.icon className="w-4 h-4" /> {item.name}
