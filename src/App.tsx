@@ -9,6 +9,10 @@ import Reports from "./Reports";
 import Messages from "./Messages";
 import Profile from "./Profile";
 import SettingsPage from "./Settings";
+import Notifications from "./Notifications";
+import AdminUsers from "./AdminUsers";
+import AdminFeasibility from "./AdminFeasibility";
+import AdviserDashboard from "./AdviserDashboard";
 
 function App() {
   return (
@@ -40,6 +44,15 @@ function App() {
 
         {/* Settings module */}
         <Route path="/settings" element={<SettingsPage />} />
+        
+        <Route path="/notifications" element={<Notifications />} />
+
+        {/* Admin Modules */}
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/projects" element={<AdminFeasibility />} /> {/* <-- Add this route */}
+
+        {/* Adviser Modules */}
+        <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
       </Routes>
     </Router>
   );

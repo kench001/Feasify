@@ -17,7 +17,7 @@ import {
   where, 
   updateDoc, 
   deleteDoc 
-} from "firebase/firestore"; // Added new Firestore imports here
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -28,9 +28,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// --- PRIMARY APP (Used for normal app stuff) ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// --- SECONDARY APP (Used ONLY for Admins to create users silently) ---
+const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+const secondaryAuth = getAuth(secondaryApp);
 
 // --- AUTHENTICATION FUNCTIONS ---
 
@@ -59,38 +64,38 @@ export async function signOutUser() {
   return await fbSignOut(auth);
 }
 
+// 💥 THE MAGIC FUNCTION: Creates Auth user without logging Admin out
+export async function adminCreateUserAuth(email: string, password: string) {
+  const userCred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  await fbSignOut(secondaryAuth); // Log the new user out of the secondary app immediately
+  return userCred.user.uid; // Return the UID so we can save it to Firestore
+}
+
 // --- DATABASE FUNCTIONS FOR PROJECTS ---
 
-// 1. Create a new project
 export async function createProject(userId: string, projectData: any) {
   const docRef = await addDoc(collection(db, "projects"), {
     ...projectData,
-    userId: userId, // Ties the project to the logged-in user
+    userId: userId,
     createdAt: serverTimestamp()
   });
-  return docRef.id; // Returns the new unique project ID
+  return docRef.id;
 }
 
-// 2. Get all projects for a specific user
 export async function getUserProjects(userId: string) {
-  // Queries Firestore for projects where the userId matches the logged-in user
   const q = query(collection(db, "projects"), where("userId", "==", userId));
   const querySnapshot = await getDocs(q);
-  
-  // Maps the confusing Firestore data into a clean array we can use in React
   return querySnapshot.docs.map(doc => ({ 
     id: doc.id, 
     ...doc.data() 
   }));
 }
 
-// 3. Update an existing project
 export async function updateProject(projectId: string, updateData: any) {
   const projectRef = doc(db, "projects", projectId);
   await updateDoc(projectRef, updateData);
 }
 
-// 4. Delete a project
 export async function deleteProject(projectId: string) {
   await deleteDoc(doc(db, "projects", projectId));
 }

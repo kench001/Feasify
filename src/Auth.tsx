@@ -36,26 +36,41 @@ const Auth: React.FC = () => {
     return Object.keys(next).length === 0;
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError("");
     if (!validate()) return;
     
-    setIsAuthenticating(true); // Show loading modal
+    setIsAuthenticating(true); 
     
     try {
       const cred = await loginUser(loginForm.email, loginForm.password);
-      // Fetch user data to get the first name for the welcome message
+      
+      if (cred.user.email?.toLowerCase() === "chairperson@gmail.com") {
+        navigate("/admin/users");
+        return; 
+      }
+
       const userDoc = await getDoc(doc(db, "users", cred.user.uid));
       let firstName = "";
+      let role = "Student"; // Default role
+      
       if (userDoc.exists()) {
-        firstName = userDoc.data().firstName || "";
+        const data = userDoc.data();
+        firstName = data.firstName || "";
+        role = data.role || "Student";
       }
       
-      // Pass the first name and a flag to the dashboard to show the toast
-      navigate("/dashboard", { state: { showWelcome: true, firstName } });
+      // --- NEW ROUTING LOGIC ---
+      if (role === "Adviser") {
+        navigate("/adviser/dashboard", { state: { showWelcome: true, firstName } });
+      } else {
+        navigate("/dashboard", { state: { showWelcome: true, firstName } });
+      }
+      
     } catch (err: any) {
-      setIsAuthenticating(false); // Hide loading if error
+      // ... (keep your existing error handling)
+      setIsAuthenticating(false); 
       const code = err?.code as string | undefined;
       if (code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-credential") {
         setApiError("Wrong email or password");

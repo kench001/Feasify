@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, query, collection, where, getDocs } from "firebase/firestore";
 import {
   LayoutDashboard,
   Folder,
@@ -11,29 +11,25 @@ import {
   BarChart3,
   MessageCircle,
   User,
-  Settings,
+  Settings as SettingsIcon,
   ShieldAlert,
   Sidebar as SidebarIcon,
   Bell,
-  Zap as Lightning
+  Lock,
+  Moon,
+  Globe
 } from "lucide-react";
 
-const SettingsPage: React.FC = () => {
+const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "settings">("settings");
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  // Notification Settings State
-  const [notifications, setNotifications] = useState({
-    emailNotification: true,
-    analysisComplete: true,
-    weeklySummary: true
-  });
-
-  const [recentActivity] = useState<{ id: string }[]>([]);
+  // Dummy toggles for UI
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -42,13 +38,7 @@ const SettingsPage: React.FC = () => {
           const snap = await getDoc(doc(db, "users", u.uid));
           if (snap.exists()) {
             const data = snap.data() as any;
-            const first = data.firstName || "";
-            const last = data.lastName || "";
-            setUserName([first, last].filter(Boolean).join(" ") || u.displayName || "");
-            setUserEmail(data.email || u.email || "");
-          } else {
-            setUserName(u.displayName || (u.email ? u.email.split("@")[0] : ""));
-            setUserEmail(u.email || "");
+            setUserName([data.firstName, data.lastName].filter(Boolean).join(" ") || u.displayName || "");
           }
         } catch (e) {}
       } else {
@@ -57,253 +47,210 @@ const SettingsPage: React.FC = () => {
     });
     return () => unsub();
   }, [navigate]);
-
+  // Fetch unread notifications count
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const q = query(collection(db, "notifications"), where("userId", "==", u.uid), where("isRead", "==", false));
+          const snap = await getDocs(q);
+          setUnreadNotificationCount(snap.size);
+        } catch (error) {
+          console.error("Error fetching unread notifications:", error);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
   const handleLogout = async () => {
-    try {
-      await signOutUser();
-    } catch (e) {}
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (e) {}
+    try { await signOutUser(); localStorage.clear(); sessionStorage.clear(); } catch (e) {}
     navigate("/");
   };
 
-  const toggleNotification = (key: keyof typeof notifications) => {
-    setNotifications(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  const getInitials = (name: string) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
   return (
-    <>
-      <div className="flex min-h-screen bg-white overflow-hidden">
-        {/* SIDEBAR */}
-        <aside className={`hidden lg:flex w-64 bg-[#0f171e] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-6 flex items-center gap-2 border-b border-gray-800">
-            <div className="bg-[#249c74] p-1.5 rounded-md">
-              <Zap className="w-5 h-5 text-white fill-current" />
+    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      {/* NEW SIDEBAR */}
+      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          <div className="bg-white p-1.5 rounded-md">
+            <BarChart3 className="w-6 h-6 text-[#122244]" />
+          </div>
+          <div>
+            <span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span>
+            <span className="text-[8px] text-gray-400">An AI-Assisted Financial Feasibility System</span>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-8 mt-4">
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
+            <div className="space-y-1">
+              <button onClick={() => navigate('/dashboard')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <LayoutDashboard className="w-4 h-4" /> Dashboard
+              </button>
+              <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <Folder className="w-4 h-4" /> Business Proposal
+              </button>
+              <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <FileEdit className="w-4 h-4" /> Financial Input
+              </button>
+              <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <Zap className="w-4 h-4" /> AI Feasibility Analysis
+              </button>
+              <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <BarChart3 className="w-4 h-4" /> Reports
+              </button>
+              <button onClick={() => navigate('/messages')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <MessageCircle className="w-4 h-4" /> Message
+              </button>
             </div>
-            <span className="text-xl font-bold tracking-tight">FeasiFy</span>
           </div>
 
-          <nav className="flex-1 p-4 space-y-8 mt-4">
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-              <div className="space-y-1">
-                {[
-                  { name: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-                  { name: "Projects", icon: Folder, route: "/projects" },
-                  { name: "Financial Input", icon: FileEdit, route: "/financial-input" },
-                  { name: "AI Analysis", icon: Zap, route: "/ai-analysis" },
-                  { name: "Reports", icon: BarChart3, route: "/reports" },
-                  { name: "Message", icon: MessageCircle, route: "/messages" },
-                ].map((item) => (
-                  <button
-                    key={item.name}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.route === "/settings" ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-                    onClick={() => item.route && navigate(item.route)}
-                  >
-                    <item.icon className="w-4 h-4" /> {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 px-2">Account</p>
-              <div className="space-y-1">
-                {[
-                  { name: "Profile", icon: User, onClick: () => navigate("/profile") },
-                  { name: "Settings", icon: Settings, onClick: () => navigate("/settings") },
-                  { name: "Logout", icon: ShieldAlert, onClick: () => setShowLogoutConfirm(true) },
-                ].map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={item.onClick}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.name === "Settings" ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-                  >
-                    <item.icon className="w-4 h-4" /> {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </nav>
-
-          <div className="p-4 border-t border-gray-800 bg-[#0a1118]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#249c74] flex items-center justify-center font-bold">
-                {getInitials(userName || "U")}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{userName || "User"}</p>
-                <p className="text-xs text-gray-500 truncate">{userEmail || ""}</p>
-              </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
+            <div className="space-y-1">
+              <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <User className="w-4 h-4" /> Profile
+              </button>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+                <SettingsIcon className="w-4 h-4" /> Settings
+              </button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <ShieldAlert className="w-4 h-4" /> Logout
+              </button>
             </div>
           </div>
-        </aside>
+        </nav>
 
-        {/* MAIN CONTENT */}
-        <main className={`flex-1 transition-all duration-300 ease-in-out bg-gray-50/30 min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-            <SidebarIcon 
-              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-            />
-            <span className="mx-2">|</span>
-            <span 
-              className="cursor-pointer hover:text-[#249c74] transition-colors"
-              onClick={() => navigate('/dashboard')}
+        <div className="p-4 border-t border-white/10 bg-black/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
+              {getInitials(userName)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-white">{userName || "User"}</p>
+              <p className="text-[10px] text-gray-400 truncate">Student</p>
+            </div>
+            <button
+              onClick={() => navigate('/notifications')}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
             >
-              FeasiFy
-            </span>
-            <span>›</span>
-            <span className="font-semibold text-gray-900">Settings</span>
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
+        </div>
+      </aside>
 
-          <div className="p-6 md:p-8 max-w-6xl mx-auto">
-            
-            {/* Tabs */}
-            <div className="flex gap-4 mb-6 border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab("profile")}
-                className={`px-4 py-2 font-semibold text-sm transition-colors ${
-                  activeTab === "profile"
-                    ? "text-gray-900 border-b-2 border-[#249c74]"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-              
-              </button>
-            </div>
+      {/* MAIN CONTENT */}
+      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+          <span className="mx-2">|</span>
+          <span className="cursor-pointer hover:text-[#c9a654] transition-colors" onClick={() => navigate('/dashboard')}>FeasiFy</span>
+          <span>›</span>
+          <span className="font-semibold text-gray-900">Settings</span>
+        </div>
 
-            {/* Settings Tab Content */}
-            { (
-              <div className="space-y-6">
-                {/* Notification Settings */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <Bell className="w-5 h-5 text-[#c9a654]" />
-                    <h2 className="text-lg font-bold text-gray-900">Notification</h2>
-                  </div>
+        <div className="p-6 md:p-8 max-w-4xl mx-auto w-full">
+          <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-8">Settings</h1>
 
-                  <div className="space-y-4">
-                    {/* Email Notification */}
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div>
-                        <p className="font-semibold text-gray-800">Email notification</p>
-                        <p className="text-sm text-gray-600">Receive updates about your projects via email</p>
-                      </div>
-                      <button
-                        onClick={() => toggleNotification('emailNotification')}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${notifications.emailNotification ? 'bg-[#c9a654]' : 'bg-gray-300'}`}
-                      >
-                        <div
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                            notifications.emailNotification ? 'translate-x-6' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Analysis Complete Alerts */}
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div>
-                        <p className="font-semibold text-gray-800">Analysis complete alerts</p>
-                        <p className="text-sm text-gray-600">Get notified when AI analysis is ready</p>
-                      </div>
-                      <button
-                        onClick={() => toggleNotification('analysisComplete')}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${notifications.analysisComplete ? 'bg-[#c9a654]' : 'bg-gray-300'}`}
-                      >
-                        <div
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                            notifications.analysisComplete ? 'translate-x-6' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Weekly Summary */}
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div>
-                        <p className="font-semibold text-gray-800">Weekly summary</p>
-                        <p className="text-sm text-gray-600">Receive a weekly digest of your activities</p>
-                      </div>
-                      <button
-                        onClick={() => toggleNotification('weeklySummary')}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${notifications.weeklySummary ? 'bg-[#c9a654]' : 'bg-gray-300'}`}
-                      >
-                        <div
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                            notifications.weeklySummary ? 'translate-x-6' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
+          <div className="space-y-6">
+            {/* Preferences */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="font-bold text-[#122244]">Preferences</h3>
+              </div>
+              <div className="divide-y divide-gray-100">
+                <div className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Email Notifications</p>
+                      <p className="text-xs text-gray-500">Receive alerts when your adviser posts a message.</p>
                     </div>
                   </div>
+                  <button 
+                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${notificationsEnabled ? 'bg-[#c9a654]' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${notificationsEnabled ? 'left-7' : 'left-1'}`}></div>
+                  </button>
                 </div>
-
-                {/* Recent Activity */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <Lightning className="w-5 h-5 text-[#c9a654]" />
-                    <h2 className="text-lg font-bold text-gray-900">Recent Activity</h2>
+                <div className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Moon className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Dark Mode</p>
+                      <p className="text-xs text-gray-500">Toggle dark appearance for the application.</p>
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    {recentActivity.length === 0 ? (
-                      <p className="text-gray-500 text-sm">No recent activity</p>
-                    ) : (
-                      recentActivity.map((item) => (
-                        <div key={item.id} className="p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        </div>
-                      ))
-                    )}
+                  <button 
+                    onClick={() => setDarkModeEnabled(!darkModeEnabled)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${darkModeEnabled ? 'bg-[#122244]' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${darkModeEnabled ? 'left-7' : 'left-1'}`}></div>
+                  </button>
+                </div>
+                <div className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Language</p>
+                      <p className="text-xs text-gray-500">English (US)</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            
+            {/* Security */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="font-bold text-[#122244]">Security</h3>
+              </div>
+              <div className="p-5">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-5 mb-5">
+                  <div className="flex items-center gap-3">
+                    <Lock className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Password</p>
+                      <p className="text-xs text-gray-500">Last changed: Never</p>
+                    </div>
+                  </div>
+                  <button className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                    Change Password
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
-      {/* LOGOUT CONFIRMATION MODAL */}
+      {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Confirm Logout</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-[#122244] mb-2">Confirm logout</h3>
+            <p className="text-sm text-gray-600 mb-6">Are you sure you want to log out?</p>
+            <div className="flex justify-end gap-3">
+              <button className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+              <button className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>
                 Logout
               </button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
-export default SettingsPage;
+export default Settings;

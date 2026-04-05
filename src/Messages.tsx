@@ -1,8 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { 
+  doc, 
+  getDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  addDoc, 
+  serverTimestamp, 
+  onSnapshot, 
+  orderBy 
+} from "firebase/firestore";
 import {
   LayoutDashboard,
   Folder,
@@ -13,17 +24,18 @@ import {
   User,
   Settings,
   ShieldAlert,
-  Search,
   Send,
-  Dot,
-  Sidebar as SidebarIcon
+  Sidebar as SidebarIcon,
+  Users,
+  X,
+  Bell
 } from "lucide-react";
 
 interface Message {
   id: string;
-  sender: string;
+  senderId: string;
+  senderName: string;
   senderInitials: string;
-  avatar: string;
   time: string;
   content: string;
   role?: string;
@@ -33,42 +45,37 @@ interface GroupMember {
   id: string;
   name: string;
   initials: string;
-  avatar: string;
   role: string;
-  status?: "online" | "away";
 }
 
 const Messages: React.FC = () => {
   const navigate = useNavigate();
-  const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // MESSAGES STATE
+  const [userName, setUserName] = useState("");
+  const [userUid, setUserUid] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  const [groupId, setGroupId] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
-
-  const [groupMembers] = useState<GroupMember[]>([]);
-
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
 
+  // 1. Initial User & Group Load
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        try {
-          const snap = await getDoc(doc(db, "users", u.uid));
-          if (snap.exists()) {
-            const data = snap.data() as any;
-            const first = data.firstName || "";
-            const last = data.lastName || "";
-            setUserName([first, last].filter(Boolean).join(" ") || u.displayName || "");
-            setUserEmail(data.email || u.email || "");
-          } else {
-            setUserName(u.displayName || (u.email ? u.email.split("@")[0] : ""));
-            setUserEmail(u.email || "");
-          }
-        } catch (e) {}
+        setUserUid(u.uid);
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserName(`${data.firstName} ${data.lastName}`);
+          setUserRole(data.role || "Student");
+          if (data.section) fetchUserGroup(u.uid, data.section);
+        }
       } else {
         navigate("/");
       }
@@ -76,266 +83,300 @@ const Messages: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-    } catch (e) {}
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (e) {}
-    navigate("/");
-  };
+  // Fetch unread notifications count
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const q = query(collection(db, "notifications"), where("userId", "==", u.uid), where("isRead", "==", false));
+          const snap = await getDocs(q);
+          setUnreadNotificationCount(snap.size);
+        } catch (error) {
+          console.error("Error fetching unread notifications:", error);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const newMsg: Message = {
-        id: (messages.length + 1).toString(),
-        sender: userName,
-        senderInitials: userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2),
-        avatar: "bg-cyan-500",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        content: newMessage
-      };
-      setMessages([...messages, newMsg]);
-      setNewMessage("");
+  const fetchUserGroup = async (uid: string, section: string) => {
+    try {
+      const q = query(collection(db, "groups"), where("section", "==", section));
+      const snap = await getDocs(q);
+      let foundGroupId = "";
+      let memberIds: string[] = [];
+      let leaderId = "";
+
+      snap.forEach((d) => {
+        const data = d.data();
+        const groupMemberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
+        if (data.leaderId === uid || groupMemberIds.includes(uid)) {
+          foundGroupId = d.id;
+          setGroupId(d.id);
+          memberIds = groupMemberIds;
+          leaderId = data.leaderId;
+        }
+      });
+
+      if (!foundGroupId) {
+        const leaderQuery = query(collection(db, "groups"), where("leaderId", "==", uid));
+        const memberQuery = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
+        const [leaderSnap, memberSnap] = await Promise.all([getDocs(leaderQuery), getDocs(memberQuery)]);
+        const fallback = leaderSnap.docs.concat(memberSnap.docs)[0];
+        if (fallback) {
+          const data = fallback.data();
+          foundGroupId = fallback.id;
+          setGroupId(fallback.id);
+          memberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
+          leaderId = data.leaderId || uid;
+        }
+      }
+
+      if (foundGroupId) {
+        const allMemberIds = Array.from(new Set([leaderId, ...memberIds].filter(Boolean)));
+        const memberPromises = allMemberIds.map(id => getDoc(doc(db, "users", id)));
+        const memberSnaps = await Promise.all(memberPromises);
+        
+        const roster = memberSnaps.map(s => {
+          const d = s.data();
+          const fullName = `${d?.firstName || ""} ${d?.lastName || ""}`.trim();
+          return {
+            id: s.id,
+            name: fullName || "User",
+            initials: fullName ? fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U",
+            role: s.id === leaderId ? "Leader" : "Member"
+          };
+        });
+        setGroupMembers(roster);
+      }
+    } catch (e) {
+      console.error("Error loading roster:", e);
     }
   };
 
+  // 2. REAL-TIME LISTENER (FIXED)
+  useEffect(() => {
+    if (!groupId) return;
+
+    // Use includeMetadataChanges: true to catch local sends before server confirms
+    const msgQuery = query(
+      collection(db, "messages"),
+      where("groupId", "==", groupId),
+      orderBy("createdAt", "asc")
+    );
+
+    const unsubscribe = onSnapshot(msgQuery, (snapshot) => {
+      const msgs = snapshot.docs.map(d => {
+        const data = d.data();
+        // Fallback for null timestamp when sending
+        const displayTime = data.createdAt?.toDate() 
+          ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : "Sending...";
+
+        return {
+          id: d.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          senderInitials: data.senderInitials,
+          content: data.content,
+          role: data.role,
+          time: displayTime
+        } as Message;
+      });
+      
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [groupId]);
+
+  // 3. AUTO-SCROLL LOGIC
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !groupId) return;
+
+    const msgToSend = newMessage;
+    setNewMessage(""); // Clear input immediately
+
+    try {
+      await addDoc(collection(db, "messages"), {
+        groupId,
+        senderId: userUid,
+        senderName: userName,
+        senderInitials: userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2),
+        content: msgToSend,
+        role: userRole === "Leader" ? "Leader" : "Member",
+        createdAt: serverTimestamp()
+      });
+    } catch (e) { 
+      console.error("Firebase write error:", e);
+      alert("Message failed to send. Check your internet or Firebase permissions.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try { await signOutUser(); } catch (e) {}
+    navigate("/");
+  };
+
+  const getInitials = (name: string) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
+
   return (
-    <>
-      <div className="flex min-h-screen bg-white overflow-hidden">
-        {/* SIDEBAR: Professional Dark Navigation */}
-        <aside className={`hidden lg:flex w-64 bg-[#0f171e] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-6 flex items-center gap-2 border-b border-gray-800">
-            <div className="bg-[#249c74] p-1.5 rounded-md">
-              <Zap className="w-5 h-5 text-white fill-current" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">FeasiFy</span>
-          </div>
-
-          <nav className="flex-1 p-4 space-y-8 mt-4">
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-              <div className="space-y-1">
-                {[
-                  { name: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-                  { name: "Projects", icon: Folder, route: "/projects" },
-                  { name: "Financial Input", icon: FileEdit, route: "/financial-input" },
-                  { name: "AI Analysis", icon: Zap, route: "/ai-analysis" },
-                  { name: "Reports", icon: BarChart3, route: "/reports" },
-                  { name: "Message", icon: MessageCircle, route: "/messages" },
-                ].map((item) => (
-                  <button
-                    key={item.name}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${item.route === "/messages" ? "bg-[#249c74] text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-                    onClick={() => item.route && navigate(item.route)}
-                  >
-                    <item.icon className="w-4 h-4" /> {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 px-2">Account</p>
-              <div className="space-y-1">
-                {[
-                  { name: "Profile", icon: User },
-                  { name: "Settings", icon: Settings },
-                  { name: "Logout", icon: ShieldAlert },
-                ].map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      if (item.name === "Logout") setShowLogoutConfirm(true);
-                      if (item.name === "Profile") navigate("/profile");
-                      if (item.name === "Settings") navigate("/settings");
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
-                  >
-                    <item.icon className="w-4 h-4" /> {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </nav>
-
-          <div className="p-4 border-t border-gray-800 bg-[#0a1118]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#249c74] flex items-center justify-center font-bold">
-                {(() => {
-                  const parts = userName.trim().split(/\s+/).filter(Boolean);
-                  if (parts.length === 0) return "U";
-                  const initials = parts.map((p) => p[0]).slice(0, 2).join("");
-                  return initials.toUpperCase();
-                })()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{userName || "User"}</p>
-                <p className="text-xs text-gray-500 truncate">{userEmail || ""}</p>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* MAIN CONTENT AREA */}
-        <main className={`flex-1 transition-all duration-300 ease-in-out bg-gray-50/30 min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-            <SidebarIcon 
-              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-            />
-            <span className="mx-2">|</span>
-            <span 
-              className="cursor-pointer hover:text-[#249c74] transition-colors"
-              onClick={() => navigate('/dashboard')}
+    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      {/* SIDEBAR */}
+      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          <div className="bg-white p-1.5 rounded-md"><BarChart3 className="w-6 h-6 text-[#122244]" /></div>
+          <div><span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-1 block">FM Management</span></div>
+        </div>
+        <nav className="flex-1 p-4 space-y-1 mt-4">
+          <button onClick={() => navigate('/dashboard')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><LayoutDashboard className="w-4 h-4" /> Dashboard</button>
+          <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Folder className="w-4 h-4" /> Business Proposal</button>
+          <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><FileEdit className="w-4 h-4" /> Financial Input</button>
+          <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Zap className="w-4 h-4" /> AI Analysis</button>
+          <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><BarChart3 className="w-4 h-4" /> Reports</button>
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white shadow-md"><MessageCircle className="w-4 h-4" /> Message</button>
+          <div className="pt-8"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p></div>
+          <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><User className="w-4 h-4" /> Profile</button>
+          <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+          <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
+        </nav>
+        <div className="p-4 border-t border-white/10 bg-black/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
+            <div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate text-white">{userName}</p><p className="text-[10px] text-gray-400 truncate">Student</p></div>
+            <button
+              onClick={() => navigate('/notifications')}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
             >
-              FeasiFy
-            </span>
-            <span>›</span>
-            <span className="font-semibold text-gray-900">Messages</span>
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
+        </div>
+      </aside>
 
-          <div className="p-6 md:p-8 max-w-7xl mx-auto">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-              <p className="text-sm text-gray-500 mt-1">Communicate with your project members</p>
+      {/* MAIN CONTENT */}
+      <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+          <span className="mx-2">|</span> FeasiFy <span>›</span> <span className="font-semibold text-gray-900">Messages</span>
+        </div>
+
+        <div className="flex-1 flex overflow-hidden">
+          {/* Chat Window Area */}
+          <div className="flex-1 flex flex-col bg-white">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/30">
+              <h1 className="text-2xl font-extrabold text-[#122244]">Group Chat</h1>
+              <p className="text-xs text-gray-500 font-medium italic">Communicate with your team in real-time</p>
             </div>
 
-            {/* CONTENT AREA */}
-            <div className="flex gap-6 mt-6 overflow-hidden h-[calc(100vh-250px)]">
-              {/* LEFT SECTION - Messages */}
-              <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              {/* Search Bar */}
-              <div className="p-4 border-b border-gray-200">
-                <div className="relative">
-                  <Search size={18} className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search messages..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+            {/* MESSAGE LIST */}
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60">
+                   <MessageCircle className="w-12 h-12 mb-2" />
+                   <p className="text-sm font-medium italic">No messages yet. Start the conversation!</p>
                 </div>
-              </div>
+              ) : (
+                messages.map((msg) => {
+                  const isMe = msg.senderId === userUid;
+                  return (
+                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex gap-3 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0 ${isMe ? 'bg-[#c9a654]' : 'bg-[#122244]'}`}>
+                          {msg.senderInitials}
+                        </div>
+                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[11px] font-extrabold text-gray-900">{msg.senderName}</span>
+                            {msg.role === 'Leader' && <span className="text-[8px] bg-yellow-100 text-yellow-700 px-1.5 rounded font-bold uppercase tracking-widest">Leader</span>}
+                          </div>
+                          <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isMe ? 'bg-[#122244] text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'}`}>
+                            {msg.content}
+                          </div>
+                          <span className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">{msg.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
 
-              {/* Messages List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                    No messages yet
+            {/* MESSAGE INPUT */}
+            <div className="p-4 bg-white border-t border-gray-100">
+              <form onSubmit={handleSendMessage} className="flex gap-3 max-w-5xl mx-auto">
+                <input
+                  type="text"
+                  placeholder="Type a message to group..."
+                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:bg-white transition-all font-medium"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                />
+                <button 
+                  type="submit"
+                  disabled={!newMessage.trim() || !groupId}
+                  className="bg-[#122244] hover:bg-[#1a3263] text-white p-3.5 rounded-xl shadow-md shadow-blue-900/10 transition-all disabled:opacity-50"
+                >
+                  <Send size={18} />
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* RIGHT ROSTER PANEL */}
+          <div className="w-80 bg-white border-l border-gray-100 hidden xl:flex flex-col">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/30">
+              <h3 className="font-extrabold text-[#122244] tracking-tight text-lg">Group Roster</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Project Members</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {groupMembers.map((member) => (
+                <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${member.role === 'Leader' ? 'bg-purple-600' : 'bg-green-600'}`}>
+                    {member.initials}
                   </div>
-                ) : (
-                  messages.map((msg, idx) => (
-                    <div key={msg.id} className={idx === 0 ? "mb-4 pb-4 border-b border-gray-200" : ""}>
-                      {idx === 0 ? (
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className={`w-10 h-10 ${msg.avatar} rounded-full flex items-center justify-center text-white font-semibold text-xs`}>
-                            {msg.senderInitials}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800">{msg.sender}</p>
-                            <p className="text-xs text-green-600 flex items-center gap-1">
-                              <Dot size={12} className="fill-green-600" /> {msg.content}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-3">
-                          <div className={`w-10 h-10 ${msg.avatar} rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0`}>
-                            {msg.senderInitials}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-baseline gap-2">
-                              <p className="font-semibold text-gray-800 text-sm">{msg.sender}</p>
-                              {msg.role && <span className="text-xs font-bold text-orange-600">{msg.role}</span>}
-                              <p className="text-xs text-gray-500">{msg.time}</p>
-                            </div>
-                            <p className="text-gray-700 text-sm mt-1">{msg.content}</p>
-                          </div>
-                        </div>
-                      )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{member.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className={`text-[9px] font-extrabold uppercase tracking-widest ${member.role === 'Leader' ? 'text-purple-600' : 'text-blue-600'}`}>
+                        {member.role}
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
-
-              {/* Message Input */}
-              <div className="p-4 border-t border-gray-200">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Type a message to group..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition"
-                  >
-                    <Send size={20} />
-                  </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* RIGHT SECTION - Group Members */}
-            <div className="w-72 bg-white rounded-xl border border-gray-100 shadow-sm p-6 overflow-y-auto">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">GROUP MEMBERS</h2>
-              <p className="text-xs text-gray-600 mb-4">Project Roster</p>
-              
-              <div className="space-y-3">
-                {groupMembers.length === 0 ? (
-                  <p className="text-sm text-gray-400">No members yet</p>
-                ) : (
-                  groupMembers.map((member) => (
-                    <div key={member.id} className="flex items-center gap-3">
-                      <div className={`w-10 h-10 ${member.avatar} rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0`}>
-                        {member.initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-sm">{member.name}</p>
-                        <p className="text-xs text-gray-600">{member.role}</p>
-                      </div>
-                      <div className={`w-2 h-2 rounded-full ${member.status === "online" ? "bg-green-500" : "bg-gray-400"}`}></div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              ))}
             </div>
           </div>
-        </main>
+        </div>
+      </main>
 
-        {/* LOGOUT CONFIRMATION MODAL */}
-        {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Confirm Logout</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Logout
-              </button>
+      {/* LOGOUT CONFIRMATION */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl">
+            <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">Sign Out?</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center italic">Are you sure you want to log out of your session?</p>
+            <div className="flex gap-3">
+              <button className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50" onClick={() => setShowLogoutConfirm(false)}>Stay</button>
+              <button className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors" onClick={handleLogout}>Logout</button>
             </div>
           </div>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 };
 
