@@ -9,6 +9,7 @@ import Reports from "./Reports";
 import Messages from "./Messages";
 import Profile from "./Profile";
 import SettingsPage from "./Settings";
+import ChairpersonSettings from "./ChairpersonSettings";
 import Notifications from "./Notifications";
 import AdminUsers from "./AdminUsers";
 import AdminFeasibility from "./AdminFeasibility";
@@ -44,6 +45,9 @@ function App() {
 
         {/* Settings module */}
         <Route path="/settings" element={<SettingsPage />} />
+        
+        {/* Chairperson Settings module */}
+        <Route path="/admin/chairpersonsettings" element={<ChairpersonSettings />} />
         
         <Route path="/notifications" element={<Notifications />} />
 
