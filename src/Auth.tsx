@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Check, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, db } from "./firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 const Auth: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false); // Loading state
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,109 +83,133 @@ const handleLogin = async (e: React.FormEvent) => {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col lg:flex-row bg-white relative">
-        <div className="w-full lg:w-1/2 bg-[#0f171e] p-8 md:p-12 lg:p-16 flex flex-col justify-between text-white transition-all duration-500">
-          <div className="flex items-center gap-2 mb-8 lg:mb-0">
-            <div className="bg-[#249c74] p-1.5 rounded-md text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
+      <div className="min-h-screen flex flex-col lg:flex-row bg-white relative bg-cover bg-center" style={{ backgroundImage: "url('/BG.1.png')" }}>
+        {/* LEFT SIDE */}
+        <div className="relative w-full lg:w-1/2 overflow-hidden">
+          
+          <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-10 md:px-12 md:py-14 lg:px-16 lg:py-20 text-white">
+            <div>
+              <div className="flex items-center gap-3 mb-10">
+                <div className="bg-white/10 p-2.5 rounded-lg border border-white/20">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <span className="text-2xl font-extrabold tracking-tight">FeasiFy</span>
+              </div>
+
+              <div className="max-w-md">
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight mb-6">
+                  Make smarter decisions with data.
+                </h1>
+                <p className="text-sm md:text-base text-gray-300 mb-8 leading-relaxed">
+                  Analyze feasibility, track metrics and generate AI insights.
+                </p>
+
+                <ul className="space-y-4">
+                  {[
+                    "Guided financial input",
+                    "AI feasibility scoring",
+                    "PDF export",
+                  ].map((text, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm text-gray-200">
+                      <div className="flex-shrink-0">
+                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <span className="text-xl font-bold tracking-tight">FeasiFy</span>
-          </div>
 
-          <div className="max-w-md mx-auto lg:mx-0">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 lg:mb-6 leading-tight text-center lg:text-left">
-              Make smarter business decisions with data.
-            </h1>
-            <p className="text-gray-400 text-sm md:text-base lg:text-lg mb-6 lg:mb-10 text-center lg:text-left">
-              Analyze financial feasibility, compute key metrics, and get AI-powered insights.
-            </p>
-
-            <ul className="space-y-3 md:space-y-4 hidden sm:block">
-              {["Input financial data with guided forms", "AI-powered feasibility scoring", "Export professional PDF reports"].map((text, i) => (
-                <li key={i} className="flex items-center gap-3 text-xs md:text-sm text-gray-300">
-                  <span className="w-2 h-2 rounded-full bg-[#249c74] shrink-0" /> {text}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="text-[10px] md:text-sm text-gray-500 font-medium italic mt-8 text-center lg:text-left">
-            FeasiFy © 2026.
+            <div className="text-xs text-gray-400 italic">
+              FeasiFy © 2026.
+            </div>
           </div>
         </div>
 
-        <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 md:p-16 -mt-6 lg:mt-0 bg-white rounded-t-3xl lg:rounded-none z-10">
-          <div className="w-full max-w-185">
-            <div className="mb-8 text-center lg:text-left">
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                Welcome to FeasiFY
-              </h2>
-              <p className="text-gray-500 text-sm mt-2">
-                Sign in to your account to continue
-              </p>
+        {/* RIGHT SIDE */}
+        <div className="relative w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 md:p-12 lg:p-16 overflow-hidden">
+          <div className="absolute inset-0 opacity-15">
+            <svg viewBox="0 0 800 800" className="absolute right-[-15%] top-0 h-full w-[140%]">
+              <defs>
+                <pattern id="hexPattern" width="120" height="104" patternUnits="userSpaceOnUse">
+                  <path d="M60 0 L120 30 L120 74 L60 104 L0 74 L0 30 Z" fill="none" stroke="#d4af37" strokeWidth="1.5" />
+                </pattern>
+              </defs>
+              <rect width="800" height="800" fill="url(#hexPattern)" />
+            </svg>
+          </div>
+
+          <div className="relative w-full max-w-md">
+            <div className="flex justify-center gap-6 mb-10">
+              <img src="/Caba Logo.png" alt="College of Business Administration" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
+              <img src="/fm.jpg" alt="Finance Executives" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
+              <img src="/plv.jpg" alt="Pamintasah ng Lungsod ng Valenzuela" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
             </div>
 
-            <form className="space-y-5" onSubmit={handleLogin} noValidate>
-              {apiError && <p className="text-sm text-red-500">{apiError}</p>}
+            <p className="text-center text-sm font-bold uppercase tracking-widest text-slate-900 mb-12">
+              Pamantasan ng Lungsod ng Valenzuela
+            </p>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700 uppercase">Email</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#249c74] transition-colors" />
-                  <input
-                    type="email"
-                    placeholder="you@university.edu"
-                    value={loginForm.email}
-                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                    className={`w-full pl-12 pr-4 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.email ? "border-red-300" : "border border-gray-200"}`}
-                  />
-                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-                </div>
-              </div>
+            <div className="bg-white">
+              <form className="space-y-6" onSubmit={handleLogin} noValidate>
+                {apiError && <p className="text-sm text-red-500 mb-4">{apiError}</p>}
 
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-gray-700 uppercase">Password</label>
-                </div>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#249c74] transition-colors" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    className={`w-full pl-12 pr-12 py-3.5 bg-gray-50 rounded-xl focus:ring-2 focus:ring-[#249c74] focus:bg-white outline-none transition-all ${errors.password ? "border-red-300" : "border border-gray-200"}`}
-                  />
-                  {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                <div className="mt-2">
-                  <a href="#" className="text-[11px] font-bold text-[#249c74] hover:underline">Forgot Password?</a>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <label className="flex items-center cursor-pointer group select-none" onClick={() => setRememberMe(!rememberMe)}>
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${rememberMe ? "bg-[#249c74] border-[#249c74]" : "bg-transparent border-gray-300 group-hover:border-[#249c74]"}`}>
-                    {rememberMe && <Check className="w-3.5 h-3.5 text-white stroke-[4px]" />}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      placeholder="you@plv.edu.ph"
+                      value={loginForm.email}
+                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                      className={`w-full rounded-lg border px-4 py-3 pl-12 text-sm bg-gray-100 outline-none transition ${errors.email ? "border-red-300" : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"}`}
+                    />
                   </div>
-                  <span className="ml-3 text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Remember me</span>
-                </label>
-              </div>
+                  {errors.email && <p className="mt-2 text-xs text-red-500">{errors.email}</p>}
+                </div>
 
-              <button className="w-full bg-[#249c74] text-white font-bold py-4 rounded-xl hover:bg-[#1e8563] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/10">
-                Sign In
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </form>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                      className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-100 outline-none transition ${errors.password ? "border-red-300" : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="mt-2 text-xs text-red-500">{errors.password}</p>}
+                  <div className="mt-2 text-right">
+                    <a href="#" className="text-xs font-bold uppercase tracking-wider text-slate-800 hover:text-[#0f4d96]">
+                      Forgot Password?
+                    </a>
+                  </div>
+                </div>
+
+                <button className="mt-8 w-full rounded-lg bg-[#0f4d96] px-6 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#0a3a7a] active:scale-[0.98]">
+                  Login
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
@@ -195,9 +218,9 @@ const handleLogin = async (e: React.FormEvent) => {
       {isAuthenticating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm transition-all duration-300">
           <div className="flex flex-col items-center justify-center bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-            <Loader2 className="w-12 h-12 text-[#249c74] animate-spin mb-4" />
-            <h3 className="text-lg font-bold text-gray-900">Logging in...</h3>
-            <p className="text-sm text-gray-500 mt-1">Please wait while we secure your connection.</p>
+            <Loader2 className="w-12 h-12 text-[#0f4d96] animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-slate-900">Logging in...</h3>
+            <p className="text-sm text-slate-500 mt-1">Please wait while we secure your connection.</p>
           </div>
         </div>
       )}
