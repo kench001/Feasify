@@ -90,12 +90,8 @@ const handleLogin = async (e: React.FormEvent) => {
           <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-10 md:px-12 md:py-14 lg:px-16 lg:py-20 text-white">
             <div>
               <div className="flex items-center gap-3 mb-10">
-                <div className="bg-white/10 p-2.5 rounded-lg border border-white/20">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <span className="text-2xl font-extrabold tracking-tight">FeasiFy</span>
+                <img src="Logo w Name.png" alt="FeasiFy" className="h-80 w-auto object-contain"style={{ marginTop: '-160px' }}  />
+                
               </div>
 
               <div className="max-w-md">
@@ -146,9 +142,9 @@ const handleLogin = async (e: React.FormEvent) => {
 
           <div className="relative w-full max-w-md">
             <div className="flex justify-center gap-6 mb-10">
-              <img src="/Caba Logo.png" alt="College of Business Administration" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
-              <img src="/fm.jpg" alt="Finance Executives" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
-              <img src="/plv.jpg" alt="Pamintasah ng Lungsod ng Valenzuela" className="h-16 w-16 object-contain rounded-full border border-gray-300 bg-white p-1" />
+              <img src="/Caba Logo.png" alt="College of Business Administration" className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1" />
+              <img src="/fm.jpg" alt="Finance Executives" className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1" />
+              <img src="/plv.jpg" alt="Pamantasan ng Lungsod ng Valenzuela" className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1" />
             </div>
 
             <p className="text-center text-sm font-bold uppercase tracking-widest text-slate-900 mb-12">
