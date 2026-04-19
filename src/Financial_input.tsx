@@ -266,13 +266,7 @@ const Financial_input: React.FC = () => {
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="bg-white p-1.5 rounded-md">
-            <BarChart3 className="w-6 h-6 text-[#122244]" />
-          </div>
-          <div>
-            <span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span>
-            <span className="text-[8px] text-gray-400">An AI-Assisted Financial Feasibility System</span>
-          </div>
+          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
 
         <nav className="flex-1 p-4 space-y-8 mt-4">

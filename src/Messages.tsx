@@ -232,9 +232,8 @@ const Messages: React.FC = () => {
       {/* SIDEBAR */}
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="bg-white p-1.5 rounded-md"><BarChart3 className="w-6 h-6 text-[#122244]" /></div>
-          <div><span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-1 block">FM Management</span></div>
-        </div>
+          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
+          </div>
         <nav className="flex-1 p-4 space-y-1 mt-4">
           <button onClick={() => navigate('/dashboard')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><LayoutDashboard className="w-4 h-4" /> Dashboard</button>
           <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Folder className="w-4 h-4" /> Business Proposal</button>

@@ -309,11 +309,7 @@ const AdviserDashboard: React.FC = () => {
       {/* ADVISER SIDEBAR */}
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="bg-[#c9a654] p-1.5 rounded-md"><TrendingUp className="w-6 h-6 text-white" /></div>
-          <div>
-            <span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span>
-            <span className="text-[8px] text-gray-300">An AI-Assisted Financial Feasibility System</span>
-          </div>
+         <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
 
         <nav className="flex-1 p-4 space-y-8 mt-4">
