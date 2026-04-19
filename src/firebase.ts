@@ -100,4 +100,46 @@ export async function deleteProject(projectId: string) {
   await deleteDoc(doc(db, "projects", projectId));
 }
 
+// --- DATABASE FUNCTIONS FOR PROPOSALS & GROUPS ---
+
+// Save a new proposal
+export async function createProposal(proposalData: any) {
+  const docRef = await addDoc(collection(db, "proposals"), {
+    ...proposalData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return docRef.id;
+}
+
+// Get all proposals for a specific group
+export async function getGroupProposals(groupId: string) {
+  const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    ...doc.data() 
+  }));
+}
+
+// Update an existing proposal
+export async function updateProposal(proposalId: string, updateData: any) {
+  const proposalRef = doc(db, "proposals", proposalId);
+  await updateDoc(proposalRef, {
+    ...updateData,
+    updatedAt: serverTimestamp()
+  });
+}
+
+// Delete a proposal
+export async function deleteProposal(proposalId: string) {
+  await deleteDoc(doc(db, "proposals", proposalId));
+}
+
+// Update group status (e.g. locking in the Active Business)
+export async function updateGroupStatus(groupId: string, statusData: any) {
+  const groupRef = doc(db, "groups", groupId);
+  await updateDoc(groupRef, statusData);
+}
+
 export { auth, db };
