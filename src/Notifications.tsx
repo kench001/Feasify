@@ -143,20 +143,48 @@ const Notifications: React.FC = () => {
       {/* SIDEBAR */}
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="bg-white p-1.5 rounded-md"><BarChart3 className="w-6 h-6 text-[#122244]" /></div>
-          <div><span className="text-xl font-bold tracking-tight block leading-none">FeasiFy</span><span className="text-[8px] text-gray-400 uppercase tracking-widest mt-1 block font-bold">FM System</span></div>
+          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-        <nav className="flex-1 p-4 space-y-1 mt-4">
-          <button onClick={() => navigate('/dashboard')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><LayoutDashboard className="w-4 h-4" /> Dashboard</button>
-          <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Folder className="w-4 h-4" /> Business Proposal</button>
-          <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><FileEdit className="w-4 h-4" /> Financial Input</button>
-          <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Zap className="w-4 h-4" /> AI Analysis</button>
-          <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><BarChart3 className="w-4 h-4" /> Reports</button>
-          <button onClick={() => navigate('/messages')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><MessageCircle className="w-4 h-4" /> Message</button>
-          <div className="pt-8"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p></div>
-          <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><User className="w-4 h-4" /> Profile</button>
-          <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
-        </nav>
+         <nav className="flex-1 p-4 space-y-8 mt-4">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
+                      <div className="space-y-1">
+                        <button onClick={() => navigate('/Dashboard')}className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <LayoutDashboard className="w-4 h-4" /> Dashboard
+                        </button>
+                        <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <Folder className="w-4 h-4" /> Business Proposal
+                        </button>
+                        <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <FileEdit className="w-4 h-4" /> Financial Input
+                        </button>
+                        <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <Zap className="w-4 h-4" /> AI Feasibility Analysis
+                        </button>
+                        <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <BarChart3 className="w-4 h-4" /> Reports
+                        </button>
+                        <button onClick={() => navigate('/messages')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <MessageCircle className="w-4 h-4" /> Message
+                        </button>
+                      </div>
+                    </div>
+        
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
+                      <div className="space-y-1">
+                        <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <User className="w-4 h-4" /> Profile
+                        </button>
+                        <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <Settings className="w-4 h-4" /> Settings
+                        </button>
+                        <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                          <ShieldAlert className="w-4 h-4" /> Logout
+                        </button>
+                      </div>
+                    </div>
+                  </nav>
         <div className="p-4 border-t border-white/10 bg-black/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
