@@ -55,91 +55,75 @@ const Dashboard: React.FC = () => {
     navigate("/");
   };
 
-  // --- THE FIX: Respects existing names, intelligently updates new/pending ones ---
+  // --- THE FIX: Fetches every Approved Proposal as an individual Project ---
   const loadUserGroup = async (uid: string, section: string) => {
     setIsLoadingStats(true);
     try {
+      // 1. Get the Groups the user belongs to
       const q = query(
         collection(db, "groups"),
         where("section", "==", section),
       );
       const snap = await getDocs(q);
 
-      const fetchedProjects: any[] = [];
+      const allProjectsList: any[] = [];
 
-      for (const document of snap.docs) {
-        const data = document.data();
+      for (const groupDoc of snap.docs) {
+        const groupData = groupDoc.data();
 
         if (
-          data.leaderId === uid ||
-          (data.memberIds && data.memberIds.includes(uid))
+          groupData.leaderId === uid ||
+          (groupData.memberIds && groupData.memberIds.includes(uid))
         ) {
-          // 1. Start with the actual group title saved in the database
-          let displayName = data.title;
+          // 2. For this group, fetch all Proposals
+          const propQ = query(
+            collection(db, "proposals"),
+            where("groupId", "==", groupDoc.id),
+          );
+          const propSnap = await getDocs(propQ);
 
-          // 2. ONLY run the smart lookup if the name is missing or a generic placeholder
-          if (
-            !displayName ||
-            displayName === "Pending Business Name" ||
-            displayName === "Untitled Business"
-          ) {
-            try {
-              const propQ = query(
-                collection(db, "proposals"),
-                where("groupId", "==", document.id),
-              );
-              const propSnap = await getDocs(propQ);
+          const approvedProps = propSnap.docs.filter(
+            (d) =>
+              d.data().status === "Approved" || d.data().status === "APPROVED",
+          );
 
-              let latestApproved: any = null;
-
-              // Find the MOST RECENT approved proposal
-              propSnap.forEach((pDoc) => {
-                const pData = pDoc.data();
-                if (
-                  pData.status === "Approved" ||
-                  pData.status === "APPROVED"
-                ) {
-                  if (
-                    !latestApproved ||
-                    pData.createdAt?.toMillis() >
-                      latestApproved.createdAt?.toMillis()
-                  ) {
-                    latestApproved = pData;
-                  }
-                }
+          if (approvedProps.length > 0) {
+            // 3. Add each Approved Proposal as a unique project
+            approvedProps.forEach((pDoc) => {
+              const pData = pDoc.data();
+              allProjectsList.push({
+                id: pDoc.id, // Proposal ID for direct navigation
+                name: pData.businessName || pData.title || "Untitled Project",
+                status:
+                  pData.aiAnalysis?.status === "FEASIBLE"
+                    ? "Feasible"
+                    : "In Progress",
+                date: pData.createdAt
+                  ? new Date(pData.createdAt.toDate()).toLocaleDateString()
+                  : "Recent",
+                financialData: pData.financialData || null,
+                aiAnalysis: pData.aiAnalysis || null,
               });
-
-              if (latestApproved) {
-                displayName =
-                  latestApproved.title ||
-                  latestApproved.businessName ||
-                  latestApproved.name ||
-                  "Pending Business Name";
-              }
-            } catch (propErr) {
-              console.warn("Could not fetch proposals:", propErr);
-            }
+            });
+          } else {
+            // 4. Fallback: If no approved proposals, show the Group placeholder
+            allProjectsList.push({
+              id: groupDoc.id,
+              name: groupData.title || "Pending Business Name",
+              status: "Pending",
+              date: groupData.createdAt
+                ? new Date(groupData.createdAt.toDate()).toLocaleDateString()
+                : "New",
+              financialData: null,
+              aiAnalysis: null,
+            });
           }
-
-          // Fallback just in case everything is empty
-          displayName = displayName || "Pending Business Name";
-
-          fetchedProjects.push({
-            id: document.id,
-            name: displayName,
-            status: data.status || "In Progress",
-            date: data.createdAt
-              ? new Date(data.createdAt.toDate()).toLocaleDateString()
-              : new Date().toLocaleDateString(),
-            financialData: data.financialData || null,
-            aiAnalysis: data.aiAnalysis || null,
-          });
         }
       }
 
-      setProjects(fetchedProjects);
+      setProjects(allProjectsList);
     } catch (error) {
-      console.error("Failed to load group:", error);
+      console.error("Failed to load dashboard data:", error);
     } finally {
       setIsLoadingStats(false);
     }
@@ -277,6 +261,7 @@ const Dashboard: React.FC = () => {
     if (project.aiAnalysis) return "100%";
     if (project.financialData && Object.keys(project.financialData).length > 0)
       return "75%";
+    if (project.status === "Pending") return "10%";
     return "25%";
   };
 
@@ -433,9 +418,9 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {[
                 {
-                  label: "Total Projects",
+                  label: "Total Approved",
                   value: isLoadingStats ? "-" : totalProjects.toString(),
-                  sub: "Stored in database",
+                  sub: "Businesses in focus",
                   icon: Folder,
                   filterVal: "All Status",
                 },
@@ -449,25 +434,21 @@ const Dashboard: React.FC = () => {
                 {
                   label: "In Progress",
                   value: isLoadingStats ? "-" : inProgressProjects.toString(),
-                  sub: "Active analyses",
+                  sub: "Awaiting final analysis",
                   icon: Clock,
                   filterVal: "In Progress",
                 },
                 {
                   label: "Avg. ROI",
                   value: isLoadingStats ? "-" : `${avgROI}%`,
-                  sub: "Across configured projects",
+                  sub: "Across all projects",
                   icon: BarChart3,
                   filterVal: "All Status",
                 },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  onClick={() =>
-                    navigate("/projects", {
-                      state: { filterStatus: stat.filterVal },
-                    })
-                  }
+                  onClick={() => navigate("/projects")}
                   className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
                 >
                   <div className="flex justify-between items-start mb-4">
@@ -492,35 +473,35 @@ const Dashboard: React.FC = () => {
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h3 className="font-bold text-[#122244] text-lg">
-                  Recent Projects
+                  Approved Projects List
                 </h3>
                 <button
                   className="text-xs font-bold text-[#c9a654] hover:underline flex items-center gap-1"
                   onClick={() => navigate("/projects")}
                 >
-                  View all <ArrowRight className="w-3 h-3" />
+                  Go to workspace <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
 
               <div className="divide-y divide-gray-50">
                 {isLoadingStats ? (
                   <div className="p-8 flex justify-center text-gray-400 text-sm">
-                    Loading recent projects...
+                    Loading your projects...
                   </div>
-                ) : recentProjects.length === 0 ? (
+                ) : projects.length === 0 ? (
                   <div className="p-8 flex flex-col items-center justify-center text-center">
                     <p className="text-gray-500 text-sm mb-2">
-                      No projects found in database.
+                      No approved proposals found.
                     </p>
                     <button
                       onClick={() => navigate("/projects")}
                       className="text-[#c9a654] text-sm font-semibold hover:underline"
                     >
-                      Go to Business Proposal workspace
+                      Draft a proposal now
                     </button>
                   </div>
                 ) : (
-                  recentProjects.map((project) => (
+                  projects.map((project) => (
                     <div
                       key={project.id}
                       className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
@@ -536,7 +517,9 @@ const Dashboard: React.FC = () => {
                             {project.name}
                           </p>
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                            Created: {project.date}
+                            {project.status === "Pending"
+                              ? "Group Container"
+                              : `Business Project • Created: ${project.date}`}
                           </p>
                         </div>
                         <span

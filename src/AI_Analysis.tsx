@@ -27,7 +27,6 @@ import {
   TrendingUp,
   AlertCircle,
   Lightbulb,
-  ChevronDown,
   Bell,
 } from "lucide-react";
 
@@ -48,7 +47,6 @@ const AI_Analysis: React.FC = () => {
 
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
 
   const [financials, setFinancials] = useState({
     sellingPrice: 0,
@@ -72,12 +70,6 @@ const AI_Analysis: React.FC = () => {
     market: 0,
   });
   const [insights, setInsights] = useState<InsightItem[]>([]);
-
-  useEffect(() => {
-    const handleClickOutside = () => setIsProjectMenuOpen(false);
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -138,91 +130,118 @@ const AI_Analysis: React.FC = () => {
         const propQ = query(
           collection(db, "proposals"),
           where("groupId", "==", userGroupId),
-          where("status", "in", ["Approved", "APPROVED"]),
         );
         const propSnap = await getDocs(propQ);
 
-        const approvedProjects = propSnap.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().businessName || "Untitled Proposal",
-          financialData: doc.data().financialData || null,
-          aiAnalysis: doc.data().aiAnalysis || null,
-          parentGroupId: userGroupId,
-        }));
+        // Filter approved projects
+        const approvedProjects = propSnap.docs
+          .filter(
+            (doc) =>
+              doc.data().status === "Approved" ||
+              doc.data().status === "APPROVED",
+          )
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.data().businessName || "Untitled Proposal",
+            financialData: doc.data().financialData || null,
+            aiAnalysis: doc.data().aiAnalysis || null,
+            parentGroupId: userGroupId,
+          }));
 
         setProjects(approvedProjects);
-
-        if (approvedProjects.length > 0) {
-          const state = location.state as any;
-          const targetId =
-            state?.projectId ||
-            sessionStorage.getItem("lastSelectedProjectId") ||
-            approvedProjects[0].id;
-
-          // --- TRIGGER LOGIC ---
-          // We call selection, and if runAnalysis is true in state, we trigger it
-          handleProjectSelect(targetId, approvedProjects, state?.runAnalysis);
-        }
       }
     } catch (error) {
       console.error("Load failed:", error);
     }
   };
 
-  const handleProjectSelect = async (
-    projectId: string,
-    projectList = projects,
-    triggerImmediate = false,
-  ) => {
-    setSelectedProjectId(projectId);
-    sessionStorage.setItem("lastSelectedProjectId", projectId);
-    setIsProjectMenuOpen(false);
+  // --- FIX 1: Listener that synchronizes the selected project accurately ---
+  useEffect(() => {
+    if (projects.length === 0) return;
 
-    const selectedProj = projectList.find((p) => p.id === projectId);
-    if (!selectedProj) return;
+    const routeProjectId = location.state?.projectId;
+    const sessionProjectId = sessionStorage.getItem("lastSelectedProjectId");
+    const targetId = routeProjectId || sessionProjectId || projects[0].id;
 
-    const data = selectedProj.financialData || {
-      sellingPrice: 0,
-      monthlySales: 0,
-      variableCost: 0,
-      fixedCosts: 0,
-      startupCapital: 0,
-      competitorCount: 0,
-      marketDemand: "Medium",
-    };
+    const proj = projects.find((p) => p.id === targetId) || projects[0];
 
-    const sanitizedFinancials = {
-      sellingPrice: Number(data.sellingPrice) || 0,
-      monthlySales: Number(data.monthlySales) || 0,
-      variableCost: Number(data.variableCost) || 0,
-      fixedCosts: Number(data.fixedCosts) || 0,
-      startupCapital: Number(data.startupCapital) || 0,
-      competitorCount: Number(data.competitorCount) || 0,
-      marketDemand: data.marketDemand || "Medium",
-    };
+    if (proj && proj.id !== selectedProjectId) {
+      setSelectedProjectId(proj.id);
+      sessionStorage.setItem("lastSelectedProjectId", proj.id);
 
-    setFinancials(sanitizedFinancials);
+      const data = proj.financialData || {
+        sellingPrice: 0,
+        monthlySales: 0,
+        variableCost: 0,
+        fixedCosts: 0,
+        startupCapital: 0,
+        competitorCount: 0,
+        marketDemand: "Medium",
+      };
 
-    // --- LOGIC FIX: TRIGGER ANALYSIS IF SIGNALED ---
-    if (triggerImmediate) {
-      runAnalysis(sanitizedFinancials, projectId);
-    } else if (selectedProj.aiAnalysis) {
-      setFeasibilityScore(selectedProj.aiAnalysis.score);
-      setFeasibilityStatus(selectedProj.aiAnalysis.status);
-      setMetrics(selectedProj.aiAnalysis.metrics);
-      setInsights(selectedProj.aiAnalysis.insights);
-    } else {
-      setFeasibilityScore(0);
-      setFeasibilityStatus("PENDING");
-      setInsights([]);
-      setMetrics({ feasibility: 0, financial: 0, risk: 0, market: 0 });
+      setFinancials({
+        sellingPrice: Number(data.sellingPrice) || 0,
+        monthlySales: Number(data.monthlySales) || 0,
+        variableCost: Number(data.variableCost) || 0,
+        fixedCosts: Number(data.fixedCosts) || 0,
+        startupCapital: Number(data.startupCapital) || 0,
+        competitorCount: Number(data.competitorCount) || 0,
+        marketDemand: data.marketDemand || "Medium",
+      });
+
+      // Load existing analysis if we are NOT about to run a new one
+      if (!location.state?.runAnalysis) {
+        if (proj.aiAnalysis) {
+          setFeasibilityScore(proj.aiAnalysis.score);
+          setFeasibilityStatus(proj.aiAnalysis.status);
+          setMetrics(proj.aiAnalysis.metrics);
+          setInsights(proj.aiAnalysis.insights);
+        } else {
+          setFeasibilityScore(0);
+          setFeasibilityStatus("PENDING");
+          setInsights([]);
+          setMetrics({ feasibility: 0, financial: 0, risk: 0, market: 0 });
+        }
+      }
     }
-  };
+  }, [location.state?.projectId, projects, selectedProjectId]);
 
-  const runAnalysis = async (
-    data = financials,
-    pId: string = selectedProjectId,
-  ) => {
+  // --- FIX 2: Listener that catches the "Run Analysis" button click specifically ---
+  useEffect(() => {
+    if (projects.length === 0 || !selectedProjectId) return;
+
+    if (location.state?.runAnalysis) {
+      const proj = projects.find((p) => p.id === selectedProjectId);
+      if (proj) {
+        const data = proj.financialData || {
+          sellingPrice: 0,
+          monthlySales: 0,
+          variableCost: 0,
+          fixedCosts: 0,
+          startupCapital: 0,
+          competitorCount: 0,
+          marketDemand: "Medium",
+        };
+
+        const sanitized = {
+          sellingPrice: Number(data.sellingPrice) || 0,
+          monthlySales: Number(data.monthlySales) || 0,
+          variableCost: Number(data.variableCost) || 0,
+          fixedCosts: Number(data.fixedCosts) || 0,
+          startupCapital: Number(data.startupCapital) || 0,
+          competitorCount: Number(data.competitorCount) || 0,
+          marketDemand: data.marketDemand || "Medium",
+        };
+
+        executeAnalysis(sanitized, selectedProjectId);
+
+        // Clear the state so it doesn't infinitely loop
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state?.runAnalysis, projects, selectedProjectId, navigate]);
+
+  const executeAnalysis = async (data: any, pId: string) => {
     if (!pId) return;
     setIsAnalyzing(true);
 
@@ -338,8 +357,10 @@ const AI_Analysis: React.FC = () => {
       setFeasibilityStatus(status);
       setMetrics(calculatedMetrics);
       setInsights(generatedInsights);
-      setProjects(
-        projects.map((p) =>
+
+      // Update projects array locally
+      setProjects((prev) =>
+        prev.map((p) =>
           p.id === pId
             ? {
                 ...p,
@@ -390,10 +411,7 @@ const AI_Analysis: React.FC = () => {
     }
   };
 
-  const getSelectedProjectName = () => {
-    const proj = projects.find((p) => p.id === selectedProjectId);
-    return proj ? proj.name : "Select a Project";
-  };
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   const handleLogout = async () => {
     try {
@@ -546,7 +564,8 @@ const AI_Analysis: React.FC = () => {
               Analyzing Financial Data...
             </h2>
             <p className="text-gray-500">
-              Our AI is crunching the numbers for {getSelectedProjectName()}.
+              Our AI is crunching the numbers for{" "}
+              {selectedProject?.name || "the project"}.
             </p>
           </div>
         ) : (
@@ -559,13 +578,13 @@ const AI_Analysis: React.FC = () => {
                 <p className="text-sm text-gray-500 mt-1 italic">
                   AI-powered feasibility insights for{" "}
                   <span className="font-bold text-[#122244]">
-                    {getSelectedProjectName()}
+                    {selectedProject?.name || "No Project Selected"}
                   </span>
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => runAnalysis(financials)}
+                  onClick={() => executeAnalysis(financials, selectedProjectId)}
                   disabled={!selectedProjectId}
                   className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
                 >
@@ -574,59 +593,28 @@ const AI_Analysis: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-              <label className="text-sm font-bold text-[#122244] uppercase tracking-widest block mb-2">
-                Select Approved Project to View Analysis
+            {/* --- STATIC PROJECT TITLE (REPLACED DROPDOWN) --- */}
+            <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                Project Under Evaluation
               </label>
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="relative w-full md:w-1/2 z-30">
-                  <div
-                    className={`w-full px-4 py-3 bg-gray-50 border rounded-lg cursor-pointer flex items-center justify-between text-sm font-bold transition-all ${isProjectMenuOpen ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white" : "border-gray-200 hover:bg-gray-100"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (projects.length > 0)
-                        setIsProjectMenuOpen(!isProjectMenuOpen);
-                    }}
-                  >
-                    <span
-                      className={
-                        selectedProjectId ? "text-[#122244]" : "text-gray-400"
-                      }
-                    >
-                      {selectedProjectId && projects.length > 0
-                        ? projects.find((p) => p.id === selectedProjectId)?.name
-                        : "Select a project..."}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
+                  P#
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">
+                    {selectedProject?.name || "No active project"}
+                  </h2>
+                  {selectedProjectId && (
+                    <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      Verified Approved Business
                     </span>
-                    {projects.length > 0 && (
-                      <ChevronDown
-                        className={`w-4 h-4 text-gray-400 transition-transform ${isProjectMenuOpen ? "rotate-180 text-[#c9a654]" : ""}`}
-                      />
-                    )}
-                  </div>
-
-                  {isProjectMenuOpen && projects.length > 0 && (
-                    <div className="absolute left-0 top-[calc(100%+0.5rem)] w-full bg-white border border-gray-100 shadow-xl rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100 origin-top overflow-hidden">
-                      {projects.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleProjectSelect(p.id);
-                          }}
-                          className={`w-full text-left px-5 py-3 text-sm flex items-center justify-between gap-3 transition-colors ${selectedProjectId === p.id ? "bg-blue-50 text-[#122244] font-extrabold" : "text-gray-700 font-medium hover:bg-gray-50"}`}
-                        >
-                          {p.name}{" "}
-                          <span className="text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                            Approved
-                          </span>
-                        </button>
-                      ))}
-                    </div>
                   )}
                 </div>
               </div>
             </div>
+            {/* --- END OF CHANGE --- */}
 
             <div
               className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
@@ -825,7 +813,7 @@ const AI_Analysis: React.FC = () => {
             <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
               Sign Out?
             </h3>
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(false)}
@@ -840,7 +828,7 @@ const AI_Analysis: React.FC = () => {
                   setShowLogoutConfirm(false);
                   handleLogout();
                 }}
-                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md"
+                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
               >
                 Logout
               </button>
