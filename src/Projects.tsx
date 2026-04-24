@@ -200,6 +200,10 @@ const Projects: React.FC = () => {
           (!g.joinedMembers || !g.joinedMembers.includes(uid))
         ) {
           setActiveView("member-join");
+        } else if (g.activeProposalId) {
+          // --- AUTO-LOCK LOGIC: If DB has an active proposal, go straight to it and set session ---
+          sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
+          setActiveView("active-business");
         } else {
           setActiveView("dashboard");
         }
@@ -366,6 +370,9 @@ const Projects: React.FC = () => {
         activeProposalId: currentProposal.id,
         title: currentProposal.businessName,
       });
+
+      // --- SESSION SYNC LOGIC: Updates DB and saves to session so other tabs match ---
+      sessionStorage.setItem("lastSelectedProjectId", currentProposal.id);
 
       setUserGroup((prev) =>
         prev
@@ -1208,7 +1215,6 @@ const Projects: React.FC = () => {
         </div>
       )}
 
-      {/* --- APPROACH FIX 5: SHOW ALL MEMBERS IN THE ROSTER MODAL --- */}
       {showRosterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200">
@@ -1230,7 +1236,6 @@ const Projects: React.FC = () => {
             </div>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-              {/* Adviser */}
               {adviserData && (
                 <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
                   <div className="w-12 h-12 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-lg shadow-sm">
@@ -1249,7 +1254,6 @@ const Projects: React.FC = () => {
                 </div>
               )}
 
-              {/* Leader */}
               <div className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                 <div className="w-12 h-12 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
                   {getInitials(userGroup?.leaderName || "")}
@@ -1265,7 +1269,6 @@ const Projects: React.FC = () => {
                 <Star className="w-4 h-4 text-purple-600 fill-current opacity-20" />
               </div>
 
-              {/* Members */}
               {groupMembersData.length > 0 ? (
                 groupMembersData.map((member) => (
                   <div
