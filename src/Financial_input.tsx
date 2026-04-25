@@ -225,7 +225,7 @@ const Financial_input: React.FC = () => {
         const approvedProposals = propSnap.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().businessName || "Untitled Proposal",
-          proposalCapital: doc.data().totalCapital || "0",
+          proposalCapital: doc.data().totalCapital || "0", // This must match the field name in Firestore
           financialData: doc.data().financialData || null,
         }));
         setProjects(approvedProposals);
@@ -244,14 +244,18 @@ const Financial_input: React.FC = () => {
   const handleProjectSelect = (projectId: string, projectList = projects) => {
     const selectedProj = projectList.find((p) => p.id === projectId);
     if (!selectedProj) return;
+
     setSelectedProjectId(projectId);
     sessionStorage.setItem("lastSelectedProjectId", projectId);
+
+    // This section syncs the Total Capital from the Proposal to the Startup Capital field
     if (selectedProj.financialData) {
       setFinancials({
         sellingPrice: String(selectedProj.financialData.sellingPrice || "0"),
         monthlySales: String(selectedProj.financialData.monthlySales || "0"),
         variableCost: String(selectedProj.financialData.variableCost || "0"),
         fixedCosts: String(selectedProj.financialData.fixedCosts || "0"),
+        // Prioritize saved financial data, fallback to the Proposal's Total Capital
         startupCapital: String(
           selectedProj.financialData.startupCapital ||
             selectedProj.proposalCapital ||
@@ -262,6 +266,18 @@ const Financial_input: React.FC = () => {
         operatingDays: String(
           selectedProj.financialData.operatingDays || "300",
         ),
+      });
+    } else {
+      // First-time selection: Auto-fills Startup Capital with the Proposal's Total Capital
+      setFinancials({
+        sellingPrice: "0",
+        monthlySales: "0",
+        variableCost: "0",
+        fixedCosts: "0",
+        startupCapital: String(selectedProj.proposalCapital || "0"),
+        competitorCount: 0,
+        marketDemand: "Medium",
+        operatingDays: "300",
       });
     }
   };
@@ -489,7 +505,7 @@ const Financial_input: React.FC = () => {
                 ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}
               </p>
               <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                (Var. Cost × Sales) + Fixed
+                (COGS per Unit × Sales) + Fixed
                 <p className="text-[9px] text-[#c9a654] mt-0.5">
                   (₱{safeVariableCost.toLocaleString()} ×{" "}
                   {safeMonthlySales.toLocaleString()}) + ₱
@@ -507,7 +523,7 @@ const Financial_input: React.FC = () => {
                 <span className="text-xs text-gray-400 font-bold">units</span>
               </p>
               <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                Fixed Cost / (Price - Var. Cost)
+                Fixed Cost / (Price - COGS per Unit)
                 <p className="text-[9px] text-[#c9a654] mt-0.5">
                   ₱{safeFixedCosts.toLocaleString()} / (₱
                   {safeSellingPrice.toLocaleString()} - ₱
@@ -565,7 +581,7 @@ const Financial_input: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Monthly Sales
+                    Monthly Sales / UNIT
                   </label>
                   <input
                     type="number"
@@ -583,7 +599,7 @@ const Financial_input: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase">
-                  Variable Cost / Unit
+                  Cost of Goods (COGS) / Unit
                 </label>
                 <input
                   type="number"

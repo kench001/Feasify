@@ -43,6 +43,10 @@ import {
   CheckCircle2,
   FileText,
   FileImage,
+  Package,
+  MapPin,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 
 interface GroupData {
@@ -201,7 +205,6 @@ const Projects: React.FC = () => {
         ) {
           setActiveView("member-join");
         } else if (g.activeProposalId) {
-          // --- AUTO-LOCK LOGIC: If DB has an active proposal, go straight to it and set session ---
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
@@ -371,7 +374,6 @@ const Projects: React.FC = () => {
         title: currentProposal.businessName,
       });
 
-      // --- SESSION SYNC LOGIC: Updates DB and saves to session so other tabs match ---
       sessionStorage.setItem("lastSelectedProjectId", currentProposal.id);
 
       setUserGroup((prev) =>
@@ -831,25 +833,25 @@ const Projects: React.FC = () => {
                     )}
                 </div>
               </div>
+
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-100 text-center bg-gray-50/50">
                   <h2 className="text-3xl font-extrabold text-[#122244] mb-2">
-                    {currentProposal.businessName || "Business Proposal #X"}
+                    {currentProposal.businessName || "New Business Proposal"}
                   </h2>
                   <div className="w-full max-w-lg mx-auto h-px bg-blue-600 mb-2"></div>
-                  <p className="text-xs text-gray-400">
-                    Click title to rename (below in form)
-                  </p>
                 </div>
-                <div className="p-8 space-y-10 max-w-4xl mx-auto">
+
+                <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244]">
+                  {/* SECTION 1: BUSINESS OVERVIEW */}
                   <section>
-                    <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4">
-                      <FileText className="w-4 h-4 text-blue-500" /> BUSINESS
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <FileText className="w-5 h-5 text-blue-500" /> BUSINESS
                       OVERVIEW
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Type
                         </label>
                         <select
@@ -864,7 +866,7 @@ const Projects: React.FC = () => {
                               businessType: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         >
                           <option value="">Select category...</option>
                           <option>Food & Beverage</option>
@@ -873,7 +875,7 @@ const Projects: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Name
                         </label>
                         <input
@@ -889,12 +891,12 @@ const Projects: React.FC = () => {
                               businessName: e.target.value,
                             })
                           }
-                          placeholder="e.g. eggdesal"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          placeholder="e.g. Eggdesal"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Total Capital (₱)
                         </label>
                         <input
@@ -911,11 +913,11 @@ const Projects: React.FC = () => {
                             })
                           }
                           placeholder="₱ 0.00"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Tagline
                         </label>
                         <input
@@ -931,12 +933,12 @@ const Projects: React.FC = () => {
                               tagline: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                         Target Market
                       </label>
                       <textarea
@@ -945,6 +947,7 @@ const Projects: React.FC = () => {
                           currentProposal.status === "Approved"
                         }
                         rows={3}
+                        placeholder="Who are your customers?"
                         value={currentProposal.targetMarket}
                         onChange={(e) =>
                           setCurrentProposal({
@@ -952,18 +955,20 @@ const Projects: React.FC = () => {
                             targetMarket: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                       />
                     </div>
                   </section>
+
+                  {/* SECTION 2: MISSION & VISION */}
                   <section>
-                    <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4">
-                      <Star className="w-4 h-4 text-purple-500 fill-current" />{" "}
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <Star className="w-5 h-5 text-purple-500 fill-current" />{" "}
                       MISSION & VISION
                     </h3>
                     <div className="space-y-6">
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Mission Statement
                         </label>
                         <textarea
@@ -979,11 +984,11 @@ const Projects: React.FC = () => {
                               missionStatement: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Vision Statement
                         </label>
                         <textarea
@@ -999,9 +1004,147 @@ const Projects: React.FC = () => {
                               visionStatement: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
+                    </div>
+                  </section>
+
+                  {/* SECTION 3: PRODUCT & PRICING */}
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-green-50 rounded-lg">
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                      </div>{" "}
+                      PRODUCT & PRICING
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Product Description
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={3}
+                          placeholder="Describe exactly what you are selling."
+                          value={currentProposal.productDescription}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              productDescription: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Price Ranges
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={2}
+                          placeholder="List price ranges: e.g., Budget (₱40-60), Mid-range (₱60-100), Premium (₱100+)"
+                          value={currentProposal.priceRanges}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              priceRanges: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* SECTION 4: PLACE & PROMOTION */}
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-orange-50 rounded-lg">
+                        <MapPin className="w-4 h-4 text-orange-600" />
+                      </div>{" "}
+                      PLACE AND PROMOTION
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Proposed Location
+                        </label>
+                        <input
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          type="text"
+                          placeholder="Where will you operate?"
+                          value={currentProposal.proposedLocation}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              proposedLocation: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Promotional Strategy
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={2}
+                          placeholder="How will you attract customers?"
+                          value={currentProposal.promotionalStrategy}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              promotionalStrategy: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* SECTION 5: ADDITIONAL DETAILS */}
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-gray-100 rounded-lg">
+                        <MoreVertical className="w-4 h-4 text-gray-600" />
+                      </div>{" "}
+                      ADDITIONAL DETAILS
+                    </h3>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        Other Relevant Information (Optional)
+                      </label>
+                      <textarea
+                        disabled={
+                          currentProposal.status === "Pending" ||
+                          currentProposal.status === "Approved"
+                        }
+                        rows={4}
+                        value={currentProposal.otherDetails}
+                        onChange={(e) =>
+                          setCurrentProposal({
+                            ...currentProposal,
+                            otherDetails: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                      />
                     </div>
                   </section>
                 </div>
@@ -1051,7 +1194,7 @@ const Projects: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 text-[#122244]">
                   <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
                     <div className="flex justify-between items-start mb-8">
                       <div className="flex items-center gap-3">
@@ -1156,7 +1299,7 @@ const Projects: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-fit">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-fit text-[#122244]">
                   <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest mb-4">
                     Project Roster
                   </h3>
@@ -1187,6 +1330,7 @@ const Projects: React.FC = () => {
         </div>
       </main>
 
+      {/* SETUP MODAL */}
       {showSetupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
@@ -1215,10 +1359,11 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* ROSTER MODAL */}
       {showRosterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start mb-6 border-b pb-4">
+            <div className="flex justify-between items-start mb-6 border-b pb-4 text-[#122244]">
               <div>
                 <h2 className="text-2xl font-extrabold text-[#122244]">
                   Project Roster
@@ -1235,9 +1380,9 @@ const Projects: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-[#122244]">
               {adviserData && (
-                <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#122244]">
                   <div className="w-12 h-12 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-lg shadow-sm">
                     {getInitials(
                       `${adviserData.firstName} ${adviserData.lastName}`,
@@ -1273,7 +1418,7 @@ const Projects: React.FC = () => {
                 groupMembersData.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors text-[#122244]"
                   >
                     <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
                       {getInitials(`${member.firstName} ${member.lastName}`)}
@@ -1289,7 +1434,7 @@ const Projects: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-center py-4 text-gray-400 text-xs italic">
+                <p className="text-center py-4 text-gray-400 text-xs italic text-[#122244]">
                   No other members added yet.
                 </p>
               )}
@@ -1305,9 +1450,10 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* LOCK-IN MODAL */}
       {showLockInModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center text-[#122244]">
             <Zap className="w-16 h-16 text-blue-500 mx-auto mb-6" />
             <h2 className="text-2xl font-extrabold text-[#122244] mb-2">
               Set as Active Business?
@@ -1337,9 +1483,10 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* LOGOUT CONFIRM */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center text-[#122244]">
             <h3 className="text-lg font-bold text-[#122244] mb-2">
               Confirm Logout
             </h3>
