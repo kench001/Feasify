@@ -137,6 +137,10 @@ const Projects: React.FC = () => {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // New state for Edit Basic Info (Extended to handle full ProposalData)
+  const [editBasicData, setEditBasicData] =
+    useState<ProposalData>(initialProposalState);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -391,6 +395,53 @@ const Projects: React.FC = () => {
       setActiveView("active-business");
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleUpdateBasicInfo = async () => {
+    if (!userGroup || !userGroup.activeProposalId) return;
+    setIsSaving(true);
+    try {
+      // 1. Update the Groups collection (syncing the main title)
+      await updateDoc(doc(db, "groups", userGroup.id), {
+        title: editBasicData.businessName,
+      });
+
+      // 2. Update all proposal fields in the Proposals collection
+      const proposalRef = doc(db, "proposals", userGroup.activeProposalId);
+      await updateDoc(proposalRef, {
+        businessName: editBasicData.businessName,
+        businessType: editBasicData.businessType,
+        totalCapital: editBasicData.totalCapital,
+        tagline: editBasicData.tagline,
+        missionStatement: editBasicData.missionStatement,
+        visionStatement: editBasicData.visionStatement,
+        targetMarket: editBasicData.targetMarket,
+        productDescription: editBasicData.productDescription,
+        priceRanges: editBasicData.priceRanges,
+        proposedLocation: editBasicData.proposedLocation,
+        promotionalStrategy: editBasicData.promotionalStrategy,
+        otherDetails: editBasicData.otherDetails,
+      });
+
+      // 3. Update local state
+      setUserGroup((prev) =>
+        prev ? { ...prev, title: editBasicData.businessName } : null,
+      );
+      setProposals((prev) =>
+        prev.map((p) =>
+          p.id === userGroup.activeProposalId
+            ? { ...editBasicData, id: p.id }
+            : p,
+        ),
+      );
+
+      setShowEditBasicModal(false);
+    } catch (error) {
+      console.error("Error updating info:", error);
+      alert("Failed to update information.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -960,7 +1011,6 @@ const Projects: React.FC = () => {
                     </div>
                   </section>
 
-                  {/* SECTION 2: MISSION & VISION */}
                   <section>
                     <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
                       <Star className="w-5 h-5 text-purple-500 fill-current" />{" "}
@@ -1010,7 +1060,6 @@ const Projects: React.FC = () => {
                     </div>
                   </section>
 
-                  {/* SECTION 3: PRODUCT & PRICING */}
                   <section>
                     <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
                       <div className="p-1.5 bg-green-50 rounded-lg">
@@ -1064,7 +1113,6 @@ const Projects: React.FC = () => {
                     </div>
                   </section>
 
-                  {/* SECTION 4: PLACE & PROMOTION */}
                   <section>
                     <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
                       <div className="p-1.5 bg-orange-50 rounded-lg">
@@ -1118,7 +1166,6 @@ const Projects: React.FC = () => {
                     </div>
                   </section>
 
-                  {/* SECTION 5: ADDITIONAL DETAILS */}
                   <section>
                     <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
                       <div className="p-1.5 bg-gray-100 rounded-lg">
@@ -1175,7 +1222,7 @@ const Projects: React.FC = () => {
                         <Check className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
                       </span>
                     </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
+                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight text-white">
                       {activeBusiness.businessName}
                     </h1>
                     <p className="text-sm text-gray-300 font-medium">
@@ -1185,7 +1232,10 @@ const Projects: React.FC = () => {
                 </div>
                 {isLeader && (
                   <button
-                    onClick={() => setShowEditBasicModal(true)}
+                    onClick={() => {
+                      setEditBasicData({ ...activeBusiness });
+                      setShowEditBasicModal(true);
+                    }}
                     className="mt-6 md:mt-0 flex items-center gap-2 px-5 py-2.5 border border-white/20 hover:bg-white/10 rounded-lg text-sm font-bold transition-all z-10"
                   >
                     <Pencil className="w-4 h-4" /> Edit Basic Info
@@ -1314,7 +1364,7 @@ const Projects: React.FC = () => {
                     </div>
                     {groupMembersData.map((member) => (
                       <div key={member.id} className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 bg-green-50 rounded-full text-white flex items-center justify-center font-bold text-sm">
                           {getInitials(member.firstName)}
                         </div>
                         <p className="text-sm font-bold text-gray-900">
@@ -1334,11 +1384,9 @@ const Projects: React.FC = () => {
       {showSetupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
               <div className="w-full">
-                <h2 className="text-2xl font-extrabold text-[#122244]">
-                  Team Setup
-                </h2>
+                <h2 className="text-2xl font-extrabold">Team Setup</h2>
               </div>
               <button
                 onClick={() => setShowSetupModal(false)}
@@ -1362,12 +1410,10 @@ const Projects: React.FC = () => {
       {/* ROSTER MODAL */}
       {showRosterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start mb-6 border-b pb-4 text-[#122244]">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 text-[#122244]">
+            <div className="flex justify-between items-start mb-6 border-b pb-4">
               <div>
-                <h2 className="text-2xl font-extrabold text-[#122244]">
-                  Project Roster
-                </h2>
+                <h2 className="text-2xl font-extrabold">Project Roster</h2>
                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
                   Group {userGroup?.id.slice(-1) || "1"} Team Members
                 </p>
@@ -1380,9 +1426,9 @@ const Projects: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-[#122244]">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               {adviserData && (
-                <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#122244]">
+                <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
                   <div className="w-12 h-12 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-lg shadow-sm">
                     {getInitials(
                       `${adviserData.firstName} ${adviserData.lastName}`,
@@ -1418,7 +1464,7 @@ const Projects: React.FC = () => {
                 groupMembersData.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors text-[#122244]"
+                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
                   >
                     <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
                       {getInitials(`${member.firstName} ${member.lastName}`)}
@@ -1434,7 +1480,7 @@ const Projects: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-center py-4 text-gray-400 text-xs italic text-[#122244]">
+                <p className="text-center py-4 text-gray-400 text-xs italic">
                   No other members added yet.
                 </p>
               )}
@@ -1452,10 +1498,10 @@ const Projects: React.FC = () => {
 
       {/* LOCK-IN MODAL */}
       {showLockInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center text-[#122244]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center">
             <Zap className="w-16 h-16 text-blue-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-extrabold text-[#122244] mb-2">
+            <h2 className="text-2xl font-extrabold mb-2">
               Set as Active Business?
             </h2>
             <p className="text-sm text-gray-500 mb-8">
@@ -1483,13 +1529,248 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* EDIT BASIC INFO MODAL (EXTENDED) */}
+      {showEditBasicModal && activeBusiness && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl text-[#122244]">
+              <div>
+                <h2 className="text-xl font-bold">Update Business Details</h2>
+                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                  Active Workspace: {activeBusiness.businessName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEditBasicModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 text-[#122244]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-2">
+                    Basic Overview
+                  </h4>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Business Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.businessName}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        businessName: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Business Type
+                  </label>
+                  <select
+                    value={editBasicData.businessType}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        businessType: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  >
+                    <option>Food & Beverage</option>
+                    <option>Retail</option>
+                    <option>Services</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Total Capital
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.totalCapital}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        totalCapital: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Tagline
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.tagline}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        tagline: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">
+                  Mission & Vision
+                </h4>
+                <textarea
+                  rows={2}
+                  placeholder="Mission Statement"
+                  value={editBasicData.missionStatement}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      missionStatement: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Vision Statement"
+                  value={editBasicData.visionStatement}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      visionStatement: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
+                  Strategy & Description
+                </h4>
+                <textarea
+                  rows={2}
+                  placeholder="Target Market"
+                  value={editBasicData.targetMarket}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      targetMarket: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Product Description"
+                  value={editBasicData.productDescription}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      productDescription: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Price Ranges"
+                  value={editBasicData.priceRanges}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      priceRanges: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
+                    Place & Promotion
+                  </h4>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Proposed Location"
+                  value={editBasicData.proposedLocation}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      proposedLocation: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Promotional Strategy"
+                  value={editBasicData.promotionalStrategy}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      promotionalStrategy: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">
+                  Additional Details
+                </h4>
+                <textarea
+                  rows={3}
+                  placeholder="Other Relevant Information"
+                  value={editBasicData.otherDetails}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      otherDetails: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex gap-3 bg-gray-50/50 rounded-b-2xl">
+              <button
+                onClick={() => setShowEditBasicModal(false)}
+                className="flex-1 px-4 py-2.5 text-gray-600 font-bold text-sm hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateBasicInfo}
+                disabled={isSaving}
+                className="flex-1 px-4 py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#1a2f55] shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {isSaving ? "Syncing..." : "Update Proposal"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LOGOUT CONFIRM */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center text-[#122244]">
-            <h3 className="text-lg font-bold text-[#122244] mb-2">
-              Confirm Logout
-            </h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-[#122244]">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <h3 className="text-lg font-bold mb-2">Confirm Logout</h3>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
