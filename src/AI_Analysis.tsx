@@ -58,6 +58,8 @@ const AI_Analysis: React.FC = () => {
     marketDemand: "Medium",
   });
 
+  const [explanations, setExplanations] = useState<any>({});
+  const [improvementTips, setImprovementTips] = useState<any>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feasibilityScore, setFeasibilityScore] = useState(0);
   const [feasibilityStatus, setFeasibilityStatus] = useState<
@@ -89,25 +91,6 @@ const AI_Analysis: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        try {
-          const q = query(
-            collection(db, "notifications"),
-            where("userId", "==", u.uid),
-            where("isRead", "==", false),
-          );
-          const snap = await getDocs(q);
-          setUnreadNotificationCount(snap.size);
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    });
-    return () => unsub();
-  }, []);
-
   const loadUserGroup = async (uid: string, section: string) => {
     try {
       const groupQ = query(
@@ -117,10 +100,10 @@ const AI_Analysis: React.FC = () => {
       const groupSnap = await getDocs(groupQ);
       let userGroupId = "";
       groupSnap.forEach((doc) => {
-        const data = doc.data();
+        const gData = doc.data();
         if (
-          data.leaderId === uid ||
-          (data.memberIds && data.memberIds.includes(uid))
+          gData.leaderId === uid ||
+          (gData.memberIds && gData.memberIds.includes(uid))
         ) {
           userGroupId = doc.id;
         }
@@ -132,8 +115,6 @@ const AI_Analysis: React.FC = () => {
           where("groupId", "==", userGroupId),
         );
         const propSnap = await getDocs(propQ);
-
-        // Filter approved projects
         const approvedProjects = propSnap.docs
           .filter(
             (doc) =>
@@ -145,9 +126,7 @@ const AI_Analysis: React.FC = () => {
             name: doc.data().businessName || "Untitled Proposal",
             financialData: doc.data().financialData || null,
             aiAnalysis: doc.data().aiAnalysis || null,
-            parentGroupId: userGroupId,
           }));
-
         setProjects(approvedProjects);
       }
     } catch (error) {
@@ -155,227 +134,236 @@ const AI_Analysis: React.FC = () => {
     }
   };
 
-  // --- FIX 1: Listener that synchronizes the selected project accurately ---
   useEffect(() => {
     if (projects.length === 0) return;
-
-    const routeProjectId = location.state?.projectId;
-    const sessionProjectId = sessionStorage.getItem("lastSelectedProjectId");
-    const targetId = routeProjectId || sessionProjectId || projects[0].id;
-
+    const targetId =
+      location.state?.projectId ||
+      sessionStorage.getItem("lastSelectedProjectId") ||
+      projects[0].id;
     const proj = projects.find((p) => p.id === targetId) || projects[0];
 
-    if (proj && proj.id !== selectedProjectId) {
+    if (proj) {
       setSelectedProjectId(proj.id);
       sessionStorage.setItem("lastSelectedProjectId", proj.id);
-
-      const data = proj.financialData || {
-        sellingPrice: 0,
-        monthlySales: 0,
-        variableCost: 0,
-        fixedCosts: 0,
-        startupCapital: 0,
-        competitorCount: 0,
-        marketDemand: "Medium",
-      };
-
+      const data = proj.financialData;
       setFinancials({
-        sellingPrice: Number(data.sellingPrice) || 0,
-        monthlySales: Number(data.monthlySales) || 0,
-        variableCost: Number(data.variableCost) || 0,
-        fixedCosts: Number(data.fixedCosts) || 0,
-        startupCapital: Number(data.startupCapital) || 0,
-        competitorCount: Number(data.competitorCount) || 0,
-        marketDemand: data.marketDemand || "Medium",
+        sellingPrice: Number(data?.sellingPrice) || 0,
+        monthlySales: Number(data?.monthlySales) || 0,
+        variableCost: Number(data?.variableCost) || 0,
+        fixedCosts: Number(data?.fixedCosts) || 0,
+        startupCapital: Number(data?.startupCapital) || 0,
+        competitorCount: Number(data?.competitorCount) || 0,
+        marketDemand: data?.marketDemand || "Medium",
       });
 
-      // Load existing analysis if we are NOT about to run a new one
-      if (!location.state?.runAnalysis) {
-        if (proj.aiAnalysis) {
-          setFeasibilityScore(proj.aiAnalysis.score);
-          setFeasibilityStatus(proj.aiAnalysis.status);
-          setMetrics(proj.aiAnalysis.metrics);
-          setInsights(proj.aiAnalysis.insights);
-        } else {
-          setFeasibilityScore(0);
-          setFeasibilityStatus("PENDING");
-          setInsights([]);
-          setMetrics({ feasibility: 0, financial: 0, risk: 0, market: 0 });
-        }
+      // --- CRITICAL FIX: Properly loading INSIGHTS from database ---
+      if (proj.aiAnalysis && !location.state?.runAnalysis) {
+        setFeasibilityScore(proj.aiAnalysis.score || 0);
+        setFeasibilityStatus(proj.aiAnalysis.status || "PENDING");
+        setMetrics(
+          proj.aiAnalysis.metrics || {
+            feasibility: 0,
+            financial: 0,
+            risk: 0,
+            market: 0,
+          },
+        );
+        setExplanations(proj.aiAnalysis.explanations || {});
+        setImprovementTips(proj.aiAnalysis.improvementTips || {});
+        // Restore the insights array here
+        setInsights(proj.aiAnalysis.insights || []);
+      } else if (!location.state?.runAnalysis) {
+        setFeasibilityScore(0);
+        setFeasibilityStatus("PENDING");
+        setInsights([]);
+        setExplanations({});
+        setImprovementTips({});
       }
     }
-  }, [location.state?.projectId, projects, selectedProjectId]);
+  }, [location.state, projects]);
 
-  // --- FIX 2: Listener that catches the "Run Analysis" button click specifically ---
   useEffect(() => {
-    if (projects.length === 0 || !selectedProjectId) return;
-
-    if (location.state?.runAnalysis) {
+    if (
+      projects.length > 0 &&
+      selectedProjectId &&
+      location.state?.runAnalysis
+    ) {
       const proj = projects.find((p) => p.id === selectedProjectId);
       if (proj) {
-        const data = proj.financialData || {
-          sellingPrice: 0,
-          monthlySales: 0,
-          variableCost: 0,
-          fixedCosts: 0,
-          startupCapital: 0,
-          competitorCount: 0,
-          marketDemand: "Medium",
-        };
-
-        const sanitized = {
-          sellingPrice: Number(data.sellingPrice) || 0,
-          monthlySales: Number(data.monthlySales) || 0,
-          variableCost: Number(data.variableCost) || 0,
-          fixedCosts: Number(data.fixedCosts) || 0,
-          startupCapital: Number(data.startupCapital) || 0,
-          competitorCount: Number(data.competitorCount) || 0,
-          marketDemand: data.marketDemand || "Medium",
-        };
-
-        executeAnalysis(sanitized, selectedProjectId);
-
-        // Clear the state so it doesn't infinitely loop
+        executeAnalysis(proj.financialData, selectedProjectId);
         navigate(location.pathname, { replace: true, state: {} });
       }
     }
-  }, [location.state?.runAnalysis, projects, selectedProjectId, navigate]);
+  }, [location.state, projects, selectedProjectId, navigate]);
 
   const executeAnalysis = async (data: any, pId: string) => {
     if (!pId) return;
     setIsAnalyzing(true);
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const monthlyRevenue = data.sellingPrice * data.monthlySales;
-    const monthlyVariableCosts = data.variableCost * data.monthlySales;
-    const netMonthlyProfit =
-      monthlyRevenue - monthlyVariableCosts - data.fixedCosts;
-    const margin =
-      monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
-    const paybackMonths =
-      netMonthlyProfit > 0 ? data.startupCapital / netMonthlyProfit : 999;
+    const revenue =
+      (Number(data.sellingPrice) || 0) * (Number(data.monthlySales) || 0);
+    const vCosts =
+      (Number(data.variableCost) || 0) * (Number(data.monthlySales) || 0);
+    const fCosts = Number(data.fixedCosts) || 0;
+    const netProfit = revenue - vCosts - fCosts;
+    const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
-    let score = 0;
-    let status: "FEASIBLE" | "MODERATE" | "NOT_FEASIBLE" = "NOT_FEASIBLE";
-    let generatedInsights: InsightItem[] = [];
-    let calculatedMetrics = {
-      feasibility: 0,
-      financial: 0,
-      risk: 0,
-      market: 0,
+    const financialHealth = Math.min(
+      100,
+      Math.max(0, Math.floor(margin * 2 + 30)),
+    );
+    const marketScore =
+      data.marketDemand === "High"
+        ? 90
+        : data.marketDemand === "Medium"
+          ? 60
+          : 30;
+    const riskScore = Math.max(
+      0,
+      100 -
+        ((Number(data.competitorCount) || 0) * 10 + (netProfit < 0 ? 30 : 0)),
+    );
+    const finalScore = Math.floor(
+      (financialHealth + marketScore + (100 - riskScore)) / 3,
+    );
+    const status =
+      finalScore >= 70
+        ? "FEASIBLE"
+        : finalScore >= 45
+          ? "MODERATE"
+          : "NOT_FEASIBLE";
+
+    const calculatedMetrics = {
+      feasibility: finalScore,
+      financial: financialHealth,
+      risk: riskScore,
+      market: marketScore,
     };
-    let useFallbackEngine = false;
 
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
-      if (apiKey && apiKey.length > 10 && !apiKey.includes("your_api_key")) {
-        try {
-          const prompt = `Analyze this business model: Selling Price: ₱${data.sellingPrice}, Monthly Sales: ${data.monthlySales}, Variable Cost: ₱${data.variableCost}, Fixed Costs: ₱${data.fixedCosts}, Startup Capital: ₱${data.startupCapital}, Competitors: ${data.competitorCount}, Demand: ${data.marketDemand}. Provide JSON: {"score": 0-100, "status": "FEASIBLE"|"MODERATE"|"NOT_FEASIBLE", "financialHealth": 0-100, "riskLevel": 0-100, "marketViability": 0-100, "insights": [{"title": "str", "description": "str", "type": "positive"|"warning"|"info"|"suggestion"}]}`;
-
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-              }),
-            },
-          );
-
-          const resData = await response.json();
-          if (!response.ok) throw new Error("API Error");
-
-          let textResponse = resData.candidates[0].content.parts[0].text
-            .replace(/```json/g, "")
-            .replace(/```/g, "")
-            .trim();
-          const aiResult = JSON.parse(textResponse);
-
-          score = aiResult.score;
-          status = aiResult.status;
-          generatedInsights = aiResult.insights.map((i: any, idx: number) => ({
-            ...i,
-            id: `ai-${idx}`,
-          }));
-          calculatedMetrics = {
-            feasibility: score,
-            financial: aiResult.financialHealth,
-            risk: aiResult.riskLevel,
-            market: aiResult.marketViability,
-          };
-        } catch (e) {
-          useFallbackEngine = true;
-        }
-      } else {
-        useFallbackEngine = true;
-      }
-
-      if (useFallbackEngine) {
-        await new Promise((r) => setTimeout(r, 2000));
-        score = Math.floor(40 + margin * 0.5);
-        if (paybackMonths <= 12) score += 20;
-        score = Math.max(10, Math.min(100, score));
-        status =
-          score >= 70 ? "FEASIBLE" : score >= 45 ? "MODERATE" : "NOT_FEASIBLE";
-        generatedInsights.push({
-          id: "1",
-          type: "info",
-          title: "Quick Analysis",
-          description: `Business shows a ${margin.toFixed(1)}% margin.`,
-        });
-        calculatedMetrics = {
-          feasibility: score,
-          financial: score,
-          risk: 50,
-          market: 50,
-        };
-      }
-
-      await updateDoc(doc(db, "proposals", pId), {
-        aiAnalysis: {
-          score,
-          status,
-          metrics: calculatedMetrics,
-          insights: generatedInsights,
-          lastRun: new Date().toISOString(),
+      const prompt = `Act as a Senior Business Consultant. Project: Score ${finalScore}%, Margin ${margin.toFixed(1)}%, Risk ${riskScore}%.
+      Provide analysis in JSON. Return exactly 3 professional "insights". 
+      Use professional terms like 'Operating Leverage', 'Competitive Moat', and 'Capital Allocation'.
+      
+      Return JSON ONLY: 
+      {
+        "explanations": {
+          "feasibility": "Summary of viability.",
+          "financial": "Analysis of liquidity/margins.",
+          "risk": "Assessment of vulnerability.",
+          "market": "Evaluation of demand dynamics."
         },
-      });
+        "tips": {
+          "feasibility": "Strategic advice.",
+          "financial": "EBITDA improvement advice.",
+          "risk": "Mitigation strategy.",
+          "market": "Positioning advice."
+        },
+        "insights": [
+          {"title": "Operational Strategy", "description": "str", "type": "positive"},
+          {"title": "Market Positioning", "description": "str", "type": "warning"},
+          {"title": "Financial Sustainability", "description": "str", "type": "info"}
+        ]
+      }`;
 
-      const selected = projects.find((p) => p.id === pId);
-      if (selected && selected.parentGroupId) {
-        await updateDoc(doc(db, "groups", selected.parentGroupId), {
-          status:
-            status === "FEASIBLE"
-              ? "Feasible"
-              : status === "MODERATE"
-                ? "Needs Review"
-                : "Not Feasible",
-        });
-      }
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        },
+      );
 
-      setFeasibilityScore(score);
+      const resData = await response.json();
+      const rawText = resData.candidates[0].content.parts[0].text;
+      const cleanJson = rawText.substring(
+        rawText.indexOf("{"),
+        rawText.lastIndexOf("}") + 1,
+      );
+      const aiResult = JSON.parse(cleanJson);
+
+      const generatedInsights = aiResult.insights.map(
+        (i: any, idx: number) => ({ ...i, id: `ai-${idx}` }),
+      );
+
+      const finalData = {
+        score: finalScore,
+        status,
+        metrics: calculatedMetrics,
+        explanations: aiResult.explanations,
+        improvementTips: aiResult.tips,
+        insights: generatedInsights,
+        lastRun: new Date().toISOString(),
+      };
+
+      await updateDoc(doc(db, "proposals", pId), { aiAnalysis: finalData });
+
+      setFeasibilityScore(finalScore);
       setFeasibilityStatus(status);
       setMetrics(calculatedMetrics);
+      setExplanations(aiResult.explanations);
+      setImprovementTips(aiResult.tips);
       setInsights(generatedInsights);
+    } catch (e) {
+      // Professional Fallback with Insights included for persistence
+      const fallbackExplanations = {
+        feasibility: `Viability evaluated at ${finalScore}% based on fiscal projections.`,
+        financial: `Potential is linked to a ${margin.toFixed(1)}% net margin.`,
+        risk: `Risk exposure is moderate, influenced by current market participant density.`,
+        market: `Demand-side dynamics are rated at a '${data.marketDemand}' level.`,
+      };
+      const fallbackTips = {
+        feasibility:
+          "Optimize operating leverage to stabilize long-term cash flows.",
+        financial:
+          "Review variable cost structures to widen net profit margins.",
+        risk: "Establish a defensive position against market incumbents.",
+        market:
+          "Analyze customer acquisition costs to ensure sustainable penetration.",
+      };
+      const fallbackInsights: InsightItem[] = [
+        {
+          id: "f-1",
+          title: "Margin Management",
+          description: `Business maintains an estimated ${margin.toFixed(1)}% operational margin.`,
+          type: "positive",
+        },
+        {
+          id: "f-2",
+          title: "Market Rivalry",
+          description: `Competition level of ${data.competitorCount} requires high differentiation.`,
+          type: "warning",
+        },
+        {
+          id: "f-3",
+          title: "Strategic Demand",
+          description: `Model utilizes a ${data.marketDemand} demand forecast for scaling.`,
+          type: "info",
+        },
+      ];
 
-      // Update projects array locally
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === pId
-            ? {
-                ...p,
-                aiAnalysis: {
-                  score,
-                  status,
-                  metrics: calculatedMetrics,
-                  insights: generatedInsights,
-                },
-              }
-            : p,
-        ),
-      );
-    } catch (err) {
-      alert("Analysis failed to save.");
+      const fallbackAnalysis = {
+        score: finalScore,
+        status,
+        metrics: calculatedMetrics,
+        explanations: fallbackExplanations,
+        improvementTips: fallbackTips,
+        insights: fallbackInsights,
+        lastRun: new Date().toISOString(),
+      };
+
+      await updateDoc(doc(db, "proposals", pId), {
+        aiAnalysis: fallbackAnalysis,
+      });
+
+      setFeasibilityScore(finalScore);
+      setFeasibilityStatus(status);
+      setMetrics(calculatedMetrics);
+      setExplanations(fallbackExplanations);
+      setImprovementTips(fallbackTips);
+      setInsights(fallbackInsights);
     } finally {
       setIsAnalyzing(false);
     }
@@ -411,17 +399,18 @@ const AI_Analysis: React.FC = () => {
     }
   };
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-
   const handleLogout = async () => {
     try {
       await signOutUser();
       localStorage.clear();
       sessionStorage.clear();
-    } catch (e) {}
-    navigate("/");
+      navigate("/");
+    } catch (e) {
+      navigate("/");
+    }
   };
 
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const getInitials = (name: string) =>
     name
       ? name
@@ -521,16 +510,6 @@ const AI_Analysis: React.FC = () => {
             </p>
             <p className="text-[10px] text-gray-400 truncate">Student</p>
           </div>
-          <button
-            onClick={() => navigate("/notifications")}
-            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-            title="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            )}
-          </button>
         </div>
       </aside>
 
@@ -544,7 +523,7 @@ const AI_Analysis: React.FC = () => {
           />
           <span className="mx-2">|</span>
           <span
-            className="cursor-pointer hover:text-[#c9a654] transition-colors"
+            className="cursor-pointer hover:text-[#c9a654]"
             onClick={() => navigate("/dashboard")}
           >
             FeasiFy
@@ -561,11 +540,10 @@ const AI_Analysis: React.FC = () => {
               <Zap className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
             </div>
             <h2 className="text-2xl font-bold text-[#122244] mb-2">
-              Analyzing Financial Data...
+              Analyzing Model...
             </h2>
-            <p className="text-gray-500">
-              Our AI is crunching the numbers for{" "}
-              {selectedProject?.name || "the project"}.
+            <p className="text-gray-500 italic">
+              Processing professional insights for {selectedProject?.name}...
             </p>
           </div>
         ) : (
@@ -575,28 +553,25 @@ const AI_Analysis: React.FC = () => {
                 <h1 className="text-3xl font-extrabold text-[#3d2c23]">
                   AI Analysis
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic">
-                  AI-powered feasibility insights for{" "}
-                  <span className="font-bold text-[#122244]">
-                    {selectedProject?.name || "No Project Selected"}
+                <p className="text-sm text-gray-500 mt-1 italic font-medium">
+                  Evaluation for{" "}
+                  <span className="text-[#122244] font-bold">
+                    {selectedProject?.name || "Selected Project"}
                   </span>
                 </p>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => executeAnalysis(financials, selectedProjectId)}
-                  disabled={!selectedProjectId}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
-                >
-                  <RotateCcw className="w-4 h-4" /> Re-analyze
-                </button>
-              </div>
+              <button
+                onClick={() => executeAnalysis(financials, selectedProjectId)}
+                disabled={!selectedProjectId}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+              >
+                <RotateCcw className="w-4 h-4" /> Re-analyze
+              </button>
             </div>
 
-            {/* --- STATIC PROJECT TITLE (REPLACED DROPDOWN) --- */}
             <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
-                Project Under Evaluation
+                Active Project
               </label>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
@@ -604,21 +579,19 @@ const AI_Analysis: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">
-                    {selectedProject?.name || "No active project"}
+                    {selectedProject?.name || "No Project Selected"}
                   </h2>
-                  {selectedProjectId && (
-                    <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                      Verified Approved Business
-                    </span>
-                  )}
+                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                    Verified Approved Business
+                  </span>
                 </div>
               </div>
             </div>
-            {/* --- END OF CHANGE --- */}
 
             <div
               className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
             >
+              {/* Verdict Section */}
               <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
                 <div className="flex items-start gap-6">
                   <div className="flex-shrink-0">
@@ -633,115 +606,130 @@ const AI_Analysis: React.FC = () => {
                       <h2 className="text-2xl font-extrabold text-[#122244]">
                         Feasibility Verdict
                       </h2>
-                      {feasibilityStatus !== "PENDING" && (
-                        <span
-                          className={`inline-block px-3 py-1 text-white text-xs font-bold rounded-full shadow-sm ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
-                        >
-                          {feasibilityStatus.replace("_", " ")}
-                        </span>
-                      )}
+                      <span
+                        className={`inline-block px-3 py-1 text-white text-xs font-bold rounded-full ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
+                      >
+                        {feasibilityStatus?.replace("_", " ")}
+                      </span>
                     </div>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      {feasibilityStatus === "PENDING"
-                        ? "Run analysis to see your project's feasibility verdict."
-                        : feasibilityStatus === "FEASIBLE"
-                          ? "This project shows strong viability based on provided numbers."
-                          : feasibilityStatus === "MODERATE"
-                            ? "Project is moderately feasible but carries risk."
-                            : "This project is currently NOT feasible based on the provided data."}
+                      {explanations.feasibility ||
+                        "Calculated based on current inputs."}
                     </p>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    {feasibilityStatus !== "PENDING" ? (
-                      <>
-                        <div
-                          className={`text-5xl font-extrabold mb-1 ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
-                        >
-                          {feasibilityScore}
-                        </div>
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                          out of 100
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm font-bold text-gray-400 uppercase tracking-widest">
-                        Awaiting analysis
+                    {improvementTips.feasibility && (
+                      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-[#c9a654]/10 rounded-full text-[11px] font-bold text-[#c9a654] border border-[#c9a654]/20">
+                        <Lightbulb size={12} /> Strategic Tip:{" "}
+                        {improvementTips.feasibility}
                       </div>
                     )}
                   </div>
+                  <div className="flex-shrink-0 text-right">
+                    <div
+                      className={`text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
+                    >
+                      {feasibilityScore}
+                    </div>
+                    <div className="text-xs font-bold text-gray-400 uppercase">
+                      out of 100
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* 4 Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
                     Feasibility Score
                   </p>
-                  <div className="space-y-3">
-                    <div className="text-3xl font-extrabold text-[#122244]">
-                      {metrics.feasibility}%
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-[#122244] h-2 rounded-full transition-all duration-1000"
-                        style={{ width: `${metrics.feasibility}%` }}
-                      ></div>
-                    </div>
+                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                    {metrics.feasibility}%
                   </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                    <div
+                      className="bg-[#122244] h-1.5 rounded-full"
+                      style={{ width: `${metrics.feasibility}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-tight flex-1">
+                    {explanations.feasibility}
+                  </p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+
+                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
                     Financial Health
                   </p>
-                  <div className="space-y-3">
-                    <div className="text-3xl font-extrabold text-[#122244]">
-                      {metrics.financial}%
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className={`${metrics.financial > 70 ? "bg-green-500" : metrics.financial > 40 ? "bg-orange-500" : "bg-red-500"} h-2 rounded-full transition-all duration-1000`}
-                        style={{ width: `${metrics.financial}%` }}
-                      ></div>
-                    </div>
+                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                    {metrics.financial}%
                   </div>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
-                    Risk Level
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                    <div
+                      className={`${metrics.financial > 70 ? "bg-green-500" : "bg-red-500"} h-1.5 rounded-full`}
+                      style={{ width: `${metrics.financial}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                    {explanations.financial}
                   </p>
-                  <div className="space-y-3">
-                    <div className="text-3xl font-extrabold text-[#122244]">
-                      {metrics.risk}%
+                  {improvementTips.financial && (
+                    <div className="mt-auto p-2 bg-blue-50 rounded text-[9px] text-blue-700 font-bold border border-blue-100 italic">
+                      Tip: {improvementTips.financial}
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className={`${metrics.risk < 30 ? "bg-green-500" : metrics.risk < 70 ? "bg-orange-500" : "bg-red-500"} h-2 rounded-full transition-all duration-1000`}
-                        style={{ width: `${metrics.risk}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+
+                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
-                    Market Viability
+                    Risk assessment
                   </p>
-                  <div className="space-y-3">
-                    <div className="text-3xl font-extrabold text-[#122244]">
-                      {metrics.market}%
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-[#c9a654] h-2 rounded-full transition-all duration-1000"
-                        style={{ width: `${metrics.market}%` }}
-                      ></div>
-                    </div>
+                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                    {metrics.risk}%
                   </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                    <div
+                      className={`${metrics.risk < 40 ? "bg-green-500" : "bg-orange-500"} h-1.5 rounded-full`}
+                      style={{ width: `${metrics.risk}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                    {explanations.risk}
+                  </p>
+                  {improvementTips.risk && (
+                    <div className="mt-auto p-2 bg-orange-50 rounded text-[9px] text-orange-700 font-bold border border-orange-100 italic">
+                      Tip: {improvementTips.risk}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                    Market viability
+                  </p>
+                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                    {metrics.market}%
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                    <div
+                      className="bg-[#c9a654] h-1.5 rounded-full"
+                      style={{ width: `${metrics.market}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                    {explanations.market}
+                  </p>
+                  {improvementTips.market && (
+                    <div className="mt-auto p-2 bg-purple-50 rounded text-[9px] text-purple-700 font-bold border border-purple-100 italic">
+                      Tip: {improvementTips.market}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Strategic Insights */}
               <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
                 <h3 className="text-lg font-extrabold text-[#122244] mb-6 flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-[#c9a654]" /> AI-Generated
+                  <Lightbulb className="w-5 h-5 text-[#c9a654]" /> Strategic
                   Insights
                 </h3>
                 {insights.length > 0 ? (
@@ -749,10 +737,14 @@ const AI_Analysis: React.FC = () => {
                     {insights.map((insight) => (
                       <div
                         key={insight.id}
-                        className={`rounded-xl border p-5 flex gap-4 shadow-sm ${getInsightBgColor(insight.type)}`}
+                        className="rounded-xl border p-5 flex gap-4 bg-gray-50/50 shadow-sm transition-all hover:bg-white"
                       >
                         <div className="flex-shrink-0 mt-0.5">
-                          {getInsightIcon(insight.type)}
+                          {insight.type === "positive" ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-orange-500" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-bold text-[#122244] mb-1">
@@ -769,8 +761,7 @@ const AI_Analysis: React.FC = () => {
                   <div className="flex flex-col items-center justify-center py-12 bg-gray-50 border border-dashed border-gray-200 rounded-xl">
                     <Lightbulb className="w-8 h-8 text-gray-300 mb-3" />
                     <p className="text-gray-500 text-sm font-medium">
-                      No insights available yet. Run analysis to view
-                      recommendations.
+                      Re-analyze to refresh insights.
                     </p>
                   </div>
                 )}
@@ -783,7 +774,7 @@ const AI_Analysis: React.FC = () => {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
                 >
                   <FileEdit className="w-4 h-4" /> Revise Financial Data
                 </button>
@@ -809,26 +800,20 @@ const AI_Analysis: React.FC = () => {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowLogoutConfirm(false)}
           />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200 relative">
-            <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
-              Sign Out?
+          <div className="bg-white rounded-2xl p-6 z-10 w-full max-w-sm shadow-xl text-center relative">
+            <h3 className="text-lg font-bold text-[#122244] mb-6">
+              Sign out of FeasiFy?
             </h3>
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3">
               <button
-                type="button"
                 onClick={() => setShowLogoutConfirm(false)}
                 className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
               >
-                Stay
+                Cancel
               </button>
               <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowLogoutConfirm(false);
-                  handleLogout();
-                }}
-                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
+                onClick={handleLogout}
+                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold shadow-md"
               >
                 Logout
               </button>
