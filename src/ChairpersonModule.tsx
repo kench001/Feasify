@@ -34,6 +34,9 @@ interface UserData {
   role?: string;
   section?: string;
   password?: string;
+  isFirstLogin?: boolean;
+  createdAt?: any;
+  lastLogin?: any;
 }
 
 const ChairpersonModule: React.FC = () => {
@@ -173,11 +176,10 @@ const ChairpersonModule: React.FC = () => {
         studentId: userForm.plvId,
         section: userForm.section,
         password: userForm.password,
-        isFirstLogin: true // <--- ADD THIS LINE
+        isFirstLogin: true 
       };
 
       if (editingUserId) {
-        // UPDATE EXISTING USER IN DATABASE ONLY
         await updateDoc(doc(db, "users", editingUserId), userData);
         setUsersList(prev => prev.map(u => u.id === editingUserId ? { ...u, ...userData } : u));
         setNotificationData({
@@ -187,32 +189,26 @@ const ChairpersonModule: React.FC = () => {
         });
         setShowNotification(true);
       } else {
-        // CREATE NEW USER IN AUTHENTICATION AND DATABASE
-        
-        // 1. Create the actual login credentials secretly
         const newAuthUid = await adminCreateUserAuth(userForm.email, userForm.password);
-
-        // 2. Save their profile to the database
+        
         await setDoc(doc(db, "users", newAuthUid), {
           ...userData,
           createdAt: serverTimestamp()
         });
 
-        // 3. --- NEW: SEND THE WELCOME EMAIL ---
         let emailSent = true;
         try {
           await emailjs.send(
-            "service_u09o2ne",   // <-- Replace with your actual Service ID
-            "template_fx69don",  // <-- Replace with your actual Template ID
+            "service_u09o2ne",
+            "template_fx69don",
             {
               to_email: userForm.email,
               to_name: userForm.firstName,
               password: userForm.password,
               role: userForm.role
             },
-            "Iw4MKLYpB4TPgpXLn"    // <-- Replace with your actual Public Key
+            "Iw4MKLYpB4TPgpXLn"
           );
-          console.log("Welcome email sent successfully!");
         } catch (emailErr) {
           console.error("Failed to send welcome email:", emailErr);
           emailSent = false;
@@ -259,16 +255,12 @@ const ChairpersonModule: React.FC = () => {
     }
   };
 
-  // --- NEW: IMPORT LOGIC ---
   const downloadTemplate = () => {
-    // 1. Define exact headers (Updated ID Number -> Student Number)
     const ws = XLSX.utils.aoa_to_sheet([
       ["Student Number", "First Name", "Last Name", "Email", "Section"]
     ]);
-    // 2. Create workbook & append
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    // 3. Trigger download
     XLSX.writeFile(wb, "Student_Accounts_Template.xlsx");
   };
 
@@ -294,8 +286,13 @@ const ChairpersonModule: React.FC = () => {
           const rawJsonData = XLSX.utils.sheet_to_json<any>(worksheet);
           
           if (rawJsonData.length === 0) {
-            // Replaced alert with console or a specific small toast if needed
             setIsImporting(false);
+            setNotificationData({
+              type: 'error',
+              title: 'Empty File',
+              message: 'The uploaded file contains no data.'
+            });
+            setShowNotification(true);
             return;
           }
 
@@ -352,23 +349,34 @@ const ChairpersonModule: React.FC = () => {
             }
           }
 
-          // FINISH: Set summary and show the custom UI modal
           setImportSummary({ success: successCount, failed: errorCount });
           setImportProgress("");
           setIsImporting(false);
           setSelectedFile(null);
           setIsImportModalOpen(false);
-          setShowImportResult(true); // Open the custom result modal
+          setShowImportResult(true);
 
         } catch (err) {
           console.error("Error processing Excel/CSV data:", err);
           setIsImporting(false);
+          setNotificationData({
+            type: 'error',
+            title: 'Formatting Error',
+            message: 'Error processing the file. Please ensure it matches the template format.'
+          });
+          setShowNotification(true);
         }
       };
       reader.readAsArrayBuffer(selectedFile);
     } catch (error) {
       console.error("File reading error:", error);
       setIsImporting(false);
+      setNotificationData({
+        type: 'error',
+        title: 'Upload Error',
+        message: 'Could not read the uploaded file.'
+      });
+      setShowNotification(true);
     }
   };
 
@@ -378,12 +386,18 @@ const ChairpersonModule: React.FC = () => {
       await deleteDoc(doc(db, "users", userToDelete));
       setUsersList(prev => prev.filter(u => u.id !== userToDelete));
       setUserToDelete(null);
+      setNotificationData({
+        type: 'success',
+        title: 'Account Deleted',
+        message: 'The user account has been successfully removed.'
+      });
+      setShowNotification(true);
     } catch (error) {
       console.error("Error deleting user:", error);
       setNotificationData({
         type: 'error',
         title: 'Deletion Failed',
-        message: 'Failed to delete user.'
+        message: 'Failed to delete the user account.'
       });
       setShowNotification(true);
     }
@@ -396,8 +410,32 @@ const ChairpersonModule: React.FC = () => {
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
+  // --- DYNAMIC METRICS CALCULATION ---
   const totalStudents = usersList.filter(u => u.role === "Student" || !u.role).length;
   const totalAdvisers = usersList.filter(u => u.role === "Adviser").length;
+
+  const uniqueSections = new Set(
+    usersList
+      .map(u => u.section?.trim())
+      .filter(section => section && section !== "")
+  );
+  const totalSections = uniqueSections.size;
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  // Helper Function for Active Status
+  const isUserActive = (user: UserData) => {
+    const dateToUse = user.lastLogin || user.createdAt;
+    if (!dateToUse) return false; 
+    const loginDate = dateToUse.toDate ? dateToUse.toDate() : new Date(dateToUse);
+    return loginDate >= sevenDaysAgo;
+  };
+
+  const activeStudentsCount = usersList.filter(u => {
+    if (u.role === "Adviser") return false;
+    return isUserActive(u);
+  }).length;
 
   const filteredUsers = usersList
     .filter(u => {
@@ -413,21 +451,14 @@ const ChairpersonModule: React.FC = () => {
              u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
-      // 1. Primary Sort: By Section (Ascending: FM 3-1, FM 3-2, etc.)
       const sectionA = (a.section || "").toLowerCase();
       const sectionB = (b.section || "").toLowerCase();
-      
       if (sectionA < sectionB) return -1;
       if (sectionA > sectionB) return 1;
-
-      // 2. Secondary Sort: By ID Number (Ascending: 23-1111, 23-1242)
-      // This only runs if the sections are exactly the same
       const idA = (a.studentId || "").toLowerCase();
       const idB = (b.studentId || "").toLowerCase();
-      
       if (idA < idB) return -1;
       if (idA > idB) return 1;
-
       return 0;
     });
 
@@ -496,14 +527,22 @@ const ChairpersonModule: React.FC = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="flex gap-4 mb-8">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 w-64 border-l-4 border-l-blue-500">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-blue-500">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Students</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{totalStudents}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 w-64 border-l-4 border-l-green-500">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-green-500">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Advisers</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{totalAdvisers}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-purple-500">
+              <p className="text-sm font-semibold text-gray-500 mb-2">Total Sections</p>
+              <p className="text-3xl font-bold text-[#3d2c23]">{totalSections}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-orange-500">
+              <p className="text-sm font-semibold text-gray-500 mb-2">Active Students (7d)</p>
+              <p className="text-3xl font-bold text-[#3d2c23]">{activeStudentsCount}</p>
             </div>
           </div>
 
@@ -521,8 +560,6 @@ const ChairpersonModule: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-3 w-full md:w-auto">
-              {/* Export button removed */}
-              {/* TRIGGER IMPORT MODAL */}
               <button 
                 onClick={() => setIsImportModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#4285F4] text-[#4285F4] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm"
@@ -575,15 +612,16 @@ const ChairpersonModule: React.FC = () => {
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Section</th>
                     <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {isLoading ? (
-                    <tr><td colSpan={6} className="text-center py-12 text-gray-400">Loading {activeTab.toLowerCase()}...</td></tr>
+                    <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading {activeTab.toLowerCase()}...</td></tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                     <td colSpan={6} className="text-center py-12">
+                     <td colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center justify-center text-gray-400">
                           <Users className="w-8 h-8 mb-2 opacity-20" />
                           <p>No {activeTab.toLowerCase()} found.</p>
@@ -602,6 +640,11 @@ const ChairpersonModule: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-gray-600">{user.section || "—"}</td>
                         <td className="px-6 py-4 text-gray-600">{user.email || "—"}</td>
+                        <td className="px-6 py-4 font-bold">
+                          <span className={isUserActive(user) ? "text-green-600" : "text-red-500"}>
+                            {isUserActive(user) ? "Active" : "Inactive"}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => handleEditClick(user)} className="text-[#4285F4] font-semibold hover:underline mr-4">Edit</button>
                           <button onClick={() => setUserToDelete(user.id)} className="text-red-500 font-semibold hover:underline">Delete</button>
@@ -632,7 +675,6 @@ const ChairpersonModule: React.FC = () => {
             </div>
 
             <div className="p-8">
-              {/* Info Banner */}
               <div className="flex items-center justify-between bg-[#f0f4ff] border border-[#d6e4ff] rounded-xl p-4 mb-8">
                 <div className="flex items-center gap-3 text-[#2f54eb]">
                   <Info className="w-5 h-5" />
@@ -646,7 +688,6 @@ const ChairpersonModule: React.FC = () => {
                 </button>
               </div>
 
-              {/* Drag and Drop Zone */}
               <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors p-12 text-center relative">
                 <input 
                   type="file" 
@@ -684,7 +725,6 @@ const ChairpersonModule: React.FC = () => {
                 </div>
               </div>
 
-              {/* Progress Indicator */}
               {isImporting && (
                 <div className="mt-6 flex items-center justify-center gap-3 text-sm font-bold text-[#c9a654]">
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -821,7 +861,7 @@ const ChairpersonModule: React.FC = () => {
         </div>
       )}
       
-      {/* NEW: CUSTOM IMPORT RESULT MODAL */}
+      {/* CUSTOM IMPORT RESULT MODAL */}
       {showImportResult && (
         <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-300">

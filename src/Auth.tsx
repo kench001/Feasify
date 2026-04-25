@@ -6,7 +6,8 @@ import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, db } from "./firebase";
-import { doc, getDoc } from "firebase/firestore";
+// --- UPDATED IMPORTS: Added updateDoc and serverTimestamp ---
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 const Auth: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -57,16 +58,22 @@ const Auth: React.FC = () => {
       const userDoc = await getDoc(doc(db, "users", cred.user.uid));
       let firstName = "";
       let role = "Student"; 
-      let isFirstLogin = false; // <-- NEW: Default to false
+      let isFirstLogin = false; 
 
       if (userDoc.exists()) {
         const data = userDoc.data();
         firstName = data.firstName || "";
         role = data.role || "Student";
-        isFirstLogin = data.isFirstLogin === true; // <-- NEW: Check the flag
+        isFirstLogin = data.isFirstLogin === true; 
+
+        // --- NEW: UPDATE LAST LOGIN TIMESTAMP ---
+        // This makes your "Active Students (7d)" metric work perfectly!
+        await updateDoc(doc(db, "users", cred.user.uid), {
+          lastLogin: serverTimestamp()
+        });
       }
 
-      // --- UPDATED ROUTING LOGIC ---
+      // --- ROUTING LOGIC ---
       if (isFirstLogin) {
         // Intercept and force to profile!
         navigate("/profile", {
