@@ -10,7 +10,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 const Auth: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false); // Loading state
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState("");
@@ -56,16 +56,23 @@ const Auth: React.FC = () => {
 
       const userDoc = await getDoc(doc(db, "users", cred.user.uid));
       let firstName = "";
-      let role = "Student"; // Default role
+      let role = "Student"; 
+      let isFirstLogin = false; // <-- NEW: Default to false
 
       if (userDoc.exists()) {
         const data = userDoc.data();
         firstName = data.firstName || "";
         role = data.role || "Student";
+        isFirstLogin = data.isFirstLogin === true; // <-- NEW: Check the flag
       }
 
-      // --- NEW ROUTING LOGIC ---
-      if (role === "Adviser") {
+      // --- UPDATED ROUTING LOGIC ---
+      if (isFirstLogin) {
+        // Intercept and force to profile!
+        navigate("/profile", {
+          state: { showWelcome: true, firstName, forcePasswordChange: true },
+        });
+      } else if (role === "Adviser") {
         navigate("/adviser/dashboard", {
           state: { showWelcome: true, firstName },
         });
@@ -73,7 +80,6 @@ const Auth: React.FC = () => {
         navigate("/dashboard", { state: { showWelcome: true, firstName } });
       }
     } catch (err: any) {
-      // ... (keep your existing error handling)
       setIsAuthenticating(false);
       const code = err?.code as string | undefined;
       if (

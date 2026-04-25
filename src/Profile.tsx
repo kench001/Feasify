@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, verifyBeforeUpdateEmail } from "firebase/auth";
 import { doc, getDoc, updateDoc, query, collection, where, getDocs } from "firebase/firestore";
@@ -19,11 +19,16 @@ import {
   Mail,
   UserCircle,
   Loader2,
-  Bell
+  Bell,
+  AlertCircle,
+  Eye,       // <-- ADDED
+  EyeOff,    // <-- ADDED
+  CheckCircle2 // <-- ADDED
 } from "lucide-react";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -38,7 +43,7 @@ const Profile: React.FC = () => {
     groupName: "",
   });
 
-  // Edit Group Name State (Kept simple inline edit)
+  // Edit Group Name State
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
 
@@ -46,9 +51,16 @@ const Profile: React.FC = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showForcePasswordModal, setShowForcePasswordModal] = useState(false); 
+  const [showForcePasswordSuccess, setShowForcePasswordSuccess] = useState(false); // <-- NEW: Success Modal State
+
+  // Toggle Eye Icon States
+  const [showForceNewPwd, setShowForceNewPwd] = useState(false); // <-- NEW
+  const [showForceConfirmPwd, setShowForceConfirmPwd] = useState(false); // <-- NEW
 
   // Modal Form Data
   const [pwdData, setPwdData] = useState({ current: "", new: "", confirm: "" });
+  const [forcePwdData, setForcePwdData] = useState({ new: "", confirm: "" }); 
   const [newUsername, setNewUsername] = useState("");
   const [emailData, setEmailData] = useState({ newEmail: "", password: "" });
 
@@ -58,6 +70,13 @@ const Profile: React.FC = () => {
   const [modalSuccess, setModalSuccess] = useState("");
 
   const [teamCollaborators] = useState<{ id: string }[]>([]);
+
+  useEffect(() => {
+    const state = location.state as any;
+    if (state && state.forcePasswordChange) {
+      setShowForcePasswordModal(true);
+    }
+  }, [location]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -88,7 +107,6 @@ const Profile: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
-  // Fetch unread notifications count
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -107,6 +125,46 @@ const Profile: React.FC = () => {
   const handleLogout = async () => {
     try { await signOutUser(); localStorage.clear(); sessionStorage.clear(); } catch (e) {}
     navigate("/");
+  };
+
+  // --- HANDLE FORCED PASSWORD CHANGE ---
+  const handleForcePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError("");
+
+    if (forcePwdData.new !== forcePwdData.confirm) {
+      setModalError("Passwords do not match.");
+      return;
+    }
+    if (forcePwdData.new.length < 8) {
+      setModalError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("No user logged in");
+
+      // 1. Change password in Firebase Auth
+      await updatePassword(user, forcePwdData.new);
+
+      // 2. Remove the first-time flag and sync the password in Firestore for the Admin
+      await updateDoc(doc(db, "users", user.uid), {
+        isFirstLogin: false,
+        password: forcePwdData.new
+      });
+
+      // 3. Hide the form and show the custom success modal!
+      setShowForcePasswordModal(false);
+      setShowForcePasswordSuccess(true);
+
+    } catch (error: any) {
+      console.error("Error setting initial password:", error);
+      setModalError(error.message || "Failed to update password. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // --- CHANGE USERNAME ---
@@ -156,14 +214,10 @@ const Profile: React.FC = () => {
       const user = auth.currentUser;
       if (!user || !user.email) throw new Error("No user logged in");
 
-      // Re-authenticate first (Required by Firebase for sensitive actions)
       const credential = EmailAuthProvider.credential(user.email, emailData.password);
       await reauthenticateWithCredential(user, credential);
-
-      // Send Verification Email to new address
       await verifyBeforeUpdateEmail(user, emailData.newEmail);
       
-      // Update Firestore DB email so the app reflects the change
       await updateDoc(doc(db, "users", user.uid), {
         email: emailData.newEmail.trim()
       });
@@ -215,6 +269,10 @@ const Profile: React.FC = () => {
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, pwdData.new);
       
+      await updateDoc(doc(db, "users", user.uid), {
+        password: pwdData.new
+      });
+
       setModalSuccess("Password updated successfully!");
       
       setTimeout(() => {
@@ -231,7 +289,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // --- SAVE GROUP NAME ---
   const handleSaveGroup = async () => {
     setIsSavingGroup(true);
     try {
@@ -486,6 +543,102 @@ const Profile: React.FC = () => {
       </div>
 
       {/* --- MODALS --- */}
+
+      {/* 0. FORCED INITIAL PASSWORD MODAL */}
+      {showForcePasswordModal && (
+        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-[#c9a654]/20 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-[#c9a654]" />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-center text-[#122244] mb-2">Welcome to FeasiFy!</h3>
+            <p className="text-sm text-center text-gray-500 mb-8">
+              For security purposes, please change your temporary password to something secure before accessing your dashboard.
+            </p>
+            
+            <form onSubmit={handleForcePasswordChange} className="space-y-5">
+              {modalError && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 text-center">{modalError}</div>}
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Create New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type={showForceNewPwd ? "text" : "password"}
+                    required
+                    value={forcePwdData.new}
+                    onChange={(e) => setForcePwdData({...forcePwdData, new: e.target.value})}
+                    placeholder="Minimum 8 characters"
+                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a654]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowForceNewPwd(!showForceNewPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showForceNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type={showForceConfirmPwd ? "text" : "password"}
+                    required
+                    value={forcePwdData.confirm}
+                    onChange={(e) => setForcePwdData({...forcePwdData, confirm: e.target.value})}
+                    placeholder="Type it again"
+                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a654]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowForceConfirmPwd(!showForceConfirmPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showForceConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button type="submit" disabled={isLoading} className="w-full py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-colors">
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save & Continue to Dashboard"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL AFTER FORCED PASSWORD CHANGE */}
+      {showForcePasswordSuccess && (
+        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[110] p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Success!</h3>
+            <p className="text-sm text-gray-500 mb-8">
+              Your password has been updated securely. Welcome to FeasiFy!
+            </p>
+            <button
+              onClick={() => {
+                setShowForcePasswordSuccess(false);
+                navigate("/dashboard");
+              }}
+              className="w-full py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 1. USERNAME MODAL */}
       {showUsernameModal && (

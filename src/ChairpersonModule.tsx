@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import * as XLSX from "xlsx"; // <-- NEW IMPORT
+import * as XLSX from "xlsx";
+import emailjs from "@emailjs/browser";
 import {
   Users,
   FileText,
@@ -18,7 +19,10 @@ import {
   Loader2,
   Info,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CheckCircle2, 
+  AlertTriangle, 
+  AlertCircle
 } from "lucide-react";
 
 interface UserData {
@@ -50,6 +54,21 @@ const ChairpersonModule: React.FC = () => {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   
+  const [showImportResult, setShowImportResult] = useState(false);
+  const [importSummary, setImportSummary] = useState({ success: 0, failed: 0 });
+  
+  // Notification Modal State
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationData, setNotificationData] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }>({
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
   // --- NEW: IMPORT STATE ---
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -153,21 +172,68 @@ const ChairpersonModule: React.FC = () => {
         role: userForm.role,
         studentId: userForm.plvId,
         section: userForm.section,
-        password: userForm.password 
+        password: userForm.password,
+        isFirstLogin: true // <--- ADD THIS LINE
       };
 
       if (editingUserId) {
+        // UPDATE EXISTING USER IN DATABASE ONLY
         await updateDoc(doc(db, "users", editingUserId), userData);
         setUsersList(prev => prev.map(u => u.id === editingUserId ? { ...u, ...userData } : u));
-        alert("User database profile updated successfully!");
+        setNotificationData({
+          type: 'success',
+          title: 'Profile Updated',
+          message: 'User database profile updated successfully!'
+        });
+        setShowNotification(true);
       } else {
+        // CREATE NEW USER IN AUTHENTICATION AND DATABASE
+        
+        // 1. Create the actual login credentials secretly
         const newAuthUid = await adminCreateUserAuth(userForm.email, userForm.password);
+
+        // 2. Save their profile to the database
         await setDoc(doc(db, "users", newAuthUid), {
           ...userData,
           createdAt: serverTimestamp()
         });
+
+        // 3. --- NEW: SEND THE WELCOME EMAIL ---
+        let emailSent = true;
+        try {
+          await emailjs.send(
+            "service_u09o2ne",   // <-- Replace with your actual Service ID
+            "template_fx69don",  // <-- Replace with your actual Template ID
+            {
+              to_email: userForm.email,
+              to_name: userForm.firstName,
+              password: userForm.password,
+              role: userForm.role
+            },
+            "Iw4MKLYpB4TPgpXLn"    // <-- Replace with your actual Public Key
+          );
+          console.log("Welcome email sent successfully!");
+        } catch (emailErr) {
+          console.error("Failed to send welcome email:", emailErr);
+          emailSent = false;
+        }
+
         setUsersList(prev => [...prev, { id: newAuthUid, ...userData }]);
-        alert("Account created! The user can now log in.");
+        
+        if (emailSent) {
+          setNotificationData({
+            type: 'success',
+            title: 'Account Created',
+            message: 'Account created! A welcome email has been sent to the user.'
+          });
+        } else {
+          setNotificationData({
+            type: 'warning',
+            title: 'Account Created',
+            message: 'Account created, but the welcome email failed to send.'
+          });
+        }
+        setShowNotification(true);
       }
 
       setIsAddUserModalOpen(false);
@@ -175,10 +241,19 @@ const ChairpersonModule: React.FC = () => {
     } catch (error: any) {
       console.error("Error saving user:", error);
       if (error.code === 'auth/email-already-in-use') {
-        alert("Error: That email is already registered in the system.");
+        setNotificationData({
+          type: 'error',
+          title: 'Email Already Registered',
+          message: 'That email is already registered in the system.'
+        });
       } else {
-        alert(error.message || "Failed to save user data.");
+        setNotificationData({
+          type: 'error',
+          title: 'Error',
+          message: error.message || 'Failed to save user data.'
+        });
       }
+      setShowNotification(true);
     } finally {
       setIsSaving(false);
     }
@@ -186,9 +261,9 @@ const ChairpersonModule: React.FC = () => {
 
   // --- NEW: IMPORT LOGIC ---
   const downloadTemplate = () => {
-    // 1. Define exact headers
+    // 1. Define exact headers (Updated ID Number -> Student Number)
     const ws = XLSX.utils.aoa_to_sheet([
-      ["ID Number", "First Name", "Last Name", "Email", "Section"]
+      ["Student Number", "First Name", "Last Name", "Email", "Section"]
     ]);
     // 2. Create workbook & append
     const wb = XLSX.utils.book_new();
@@ -216,35 +291,38 @@ const ChairpersonModule: React.FC = () => {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
+          const rawJsonData = XLSX.utils.sheet_to_json<any>(worksheet);
           
-          // Convert sheet to JSON array
-          const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
-          
-          if (jsonData.length === 0) {
-            alert("The uploaded file is empty.");
+          if (rawJsonData.length === 0) {
+            // Replaced alert with console or a specific small toast if needed
             setIsImporting(false);
             return;
           }
 
+          const jsonData = rawJsonData.map(row => {
+            const normalizedRow: any = {};
+            for (const key in row) {
+              const cleanKey = key.toLowerCase().replace(/[\s_.-]+/g, '');
+              normalizedRow[cleanKey] = row[key];
+            }
+            return normalizedRow;
+          });
+
           let successCount = 0;
           let errorCount = 0;
 
-          // Process rows sequentially to prevent overwhelming Firebase Auth
           for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i];
             setImportProgress(`Creating account ${i + 1} of ${jsonData.length}...`);
 
-            // Extract based on our exact template headers
-            const idNumber = row["ID Number"]?.toString().trim() || "";
-            const firstName = row["First Name"]?.toString().trim() || "";
-            const lastName = row["Last Name"]?.toString().trim() || "";
-            const email = row["Email"]?.toString().trim() || "";
-            const section = row["Section"]?.toString().trim() || "";
+            const idNumber = (row["idnumber"] || row["studentnumber"] || row["studentnum"])?.toString().trim() || "";
+            const firstName = (row["firstname"])?.toString().trim() || "";
+            const lastName = (row["lastname"])?.toString().trim() || "";
+            const email = (row["email"] || row["emailaddress"])?.toString().trim() || "";
+            const section = (row["section"] || row["block"])?.toString().trim() || "";
 
-            // Skip entirely blank rows
             if (!idNumber && !email) continue;
 
-            // Auto-generate password: LASTNAME-LAST4ID
             const cleanName = lastName.replace(/\s+/g, '').toUpperCase();
             const suffix = idNumber.length >= 4 ? idNumber.slice(-4) : "0000";
             const generatedPassword = `${cleanName}-${suffix}`;
@@ -253,21 +331,19 @@ const ChairpersonModule: React.FC = () => {
               firstName,
               lastName,
               email,
-              role: "Student", // Force role to Student from this bulk import
+              role: "Student", 
               studentId: idNumber,
               section,
-              password: generatedPassword
+              password: generatedPassword,
+              isFirstLogin: true
             };
 
             try {
-              // Create Auth & Database records
               const newAuthUid = await adminCreateUserAuth(email, generatedPassword);
               await setDoc(doc(db, "users", newAuthUid), {
                 ...userData,
                 createdAt: serverTimestamp()
               });
-              
-              // Update local state so table refreshes instantly
               setUsersList(prev => [...prev, { id: newAuthUid, ...userData }]);
               successCount++;
             } catch (err: any) {
@@ -276,24 +352,22 @@ const ChairpersonModule: React.FC = () => {
             }
           }
 
+          // FINISH: Set summary and show the custom UI modal
+          setImportSummary({ success: successCount, failed: errorCount });
           setImportProgress("");
           setIsImporting(false);
           setSelectedFile(null);
           setIsImportModalOpen(false);
-          
-          alert(`Import Complete!\nSuccessfully created: ${successCount}\nFailed/Skipped: ${errorCount}`);
+          setShowImportResult(true); // Open the custom result modal
 
         } catch (err) {
           console.error("Error processing Excel/CSV data:", err);
-          alert("Error processing the file. Please ensure it matches the template format.");
           setIsImporting(false);
         }
       };
-      
       reader.readAsArrayBuffer(selectedFile);
     } catch (error) {
       console.error("File reading error:", error);
-      alert("Could not read the file.");
       setIsImporting(false);
     }
   };
@@ -306,7 +380,12 @@ const ChairpersonModule: React.FC = () => {
       setUserToDelete(null);
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Failed to delete user.");
+      setNotificationData({
+        type: 'error',
+        title: 'Deletion Failed',
+        message: 'Failed to delete user.'
+      });
+      setShowNotification(true);
     }
   };
 
@@ -320,18 +399,37 @@ const ChairpersonModule: React.FC = () => {
   const totalStudents = usersList.filter(u => u.role === "Student" || !u.role).length;
   const totalAdvisers = usersList.filter(u => u.role === "Adviser").length;
 
-  const filteredUsers = usersList.filter(u => {
-    const matchesTab = activeTab === "Students" 
-      ? (u.role === "Student" || !u.role) 
-      : u.role === "Adviser";
+  const filteredUsers = usersList
+    .filter(u => {
+      const matchesTab = activeTab === "Students" 
+        ? (u.role === "Student" || !u.role) 
+        : u.role === "Adviser";
 
-    if (!matchesTab) return false;
+      if (!matchesTab) return false;
 
-    const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase()) || 
-           u.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+      return fullName.includes(searchTerm.toLowerCase()) || 
+             u.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      // 1. Primary Sort: By Section (Ascending: FM 3-1, FM 3-2, etc.)
+      const sectionA = (a.section || "").toLowerCase();
+      const sectionB = (b.section || "").toLowerCase();
+      
+      if (sectionA < sectionB) return -1;
+      if (sectionA > sectionB) return 1;
+
+      // 2. Secondary Sort: By ID Number (Ascending: 23-1111, 23-1242)
+      // This only runs if the sections are exactly the same
+      const idA = (a.studentId || "").toLowerCase();
+      const idB = (b.studentId || "").toLowerCase();
+      
+      if (idA < idB) return -1;
+      if (idA > idB) return 1;
+
+      return 0;
+    });
 
   return (
     <div className="flex min-h-screen bg-gray-50/30 overflow-hidden">
@@ -724,6 +822,46 @@ const ChairpersonModule: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* NEW: CUSTOM IMPORT RESULT MODAL */}
+      {showImportResult && (
+        <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${importSummary.failed === 0 ? 'bg-green-100' : 'bg-orange-100'}`}>
+                {importSummary.failed === 0 ? (
+                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+                ) : (
+                  <AlertTriangle className="w-10 h-10 text-orange-500" />
+                )}
+              </div>
+
+              <h3 className="text-xl font-bold text-[#122244] mb-2">Import Complete</h3>
+              <p className="text-sm text-gray-500 mb-6 px-4">
+                The student list has been processed. Here is the summary:
+              </p>
+
+              <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                <div className="bg-green-50/50 border border-green-100 rounded-xl p-4">
+                  <p className="text-2xl font-bold text-green-600">{importSummary.success}</p>
+                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest">Successful</p>
+                </div>
+                <div className="bg-red-50/50 border border-red-100 rounded-xl p-4">
+                  <p className="text-2xl font-bold text-red-600">{importSummary.failed}</p>
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">Failed/Skipped</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowImportResult(false)}
+                className="w-full py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all active:scale-[0.98]"
+              >
+                Close Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* LOGOUT CONFIRMATION MODAL */}
       {showLogoutConfirm && (
@@ -734,6 +872,39 @@ const ChairpersonModule: React.FC = () => {
             <div className="flex gap-3 justify-end">
               <button onClick={() => setShowLogoutConfirm(false)} className="px-4 py-2.5 text-sm font-bold text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">Cancel</button>
               <button onClick={handleLogout} className="px-4 py-2.5 text-sm font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md transition-colors">Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOTIFICATION MODAL */}
+      {showNotification && (
+        <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${
+                notificationData.type === 'success' ? 'bg-green-100' :
+                notificationData.type === 'error' ? 'bg-red-100' :
+                notificationData.type === 'warning' ? 'bg-orange-100' :
+                'bg-blue-100'
+              }`}>
+                {notificationData.type === 'success' && <CheckCircle2 className="w-10 h-10 text-green-600" />}
+                {notificationData.type === 'error' && <AlertCircle className="w-10 h-10 text-red-600" />}
+                {notificationData.type === 'warning' && <AlertTriangle className="w-10 h-10 text-orange-500" />}
+                {notificationData.type === 'info' && <Info className="w-10 h-10 text-blue-600" />}
+              </div>
+
+              <h3 className="text-xl font-bold text-[#122244] mb-2">{notificationData.title}</h3>
+              <p className="text-sm text-gray-600 mb-6 px-4">
+                {notificationData.message}
+              </p>
+
+              <button 
+                onClick={() => setShowNotification(false)}
+                className="w-full py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all active:scale-[0.98]"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
