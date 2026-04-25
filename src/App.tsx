@@ -11,8 +11,8 @@ import Profile from "./Profile";
 import SettingsPage from "./Settings";
 import ChairpersonSettings from "./ChairpersonSettings";
 import Notifications from "./Notifications";
-import AdminUsers from "./AdminUsers";
-import AdminFeasibility from "./AdminFeasibility";
+import ChairpersonModule from "./ChairpersonModule";
+import ChairpersonFeasib from "./ChairpersonFeasib";
 import AdviserDashboard from "./AdviserDashboard";
 
 function App() {
@@ -52,8 +52,8 @@ function App() {
         <Route path="/notifications" element={<Notifications />} />
 
         {/* Admin Modules */}
-        <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/projects" element={<AdminFeasibility />} /> {/* <-- Add this route */}
+        <Route path="/admin/users" element={<ChairpersonModule />} />
+        <Route path="/admin/projects" element={<ChairpersonFeasib />} /> {/* <-- Add this route */}
 
         {/* Adviser Modules */}
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
