@@ -28,7 +28,19 @@ import {
   AlertCircle,
   Lightbulb,
   Bell,
+  TrendingDown,
+  DollarSign,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface InsightItem {
   id: string;
@@ -72,6 +84,11 @@ const AI_Analysis: React.FC = () => {
     market: 0,
   });
   const [insights, setInsights] = useState<InsightItem[]>([]);
+
+  // Pro Forma Financial Statement States
+  const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
+  const [costGrowthRate, setCostGrowthRate] = useState<number>(8);
+  const [showProFormaInputs, setShowProFormaInputs] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -242,9 +259,12 @@ const AI_Analysis: React.FC = () => {
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
-      const prompt = `Act as a Senior Business Consultant. Project: Score ${finalScore}%, Margin ${margin.toFixed(1)}%, Risk ${riskScore}%.
-      Provide analysis in JSON. Return exactly 3 professional "insights". 
-      Use professional terms like 'Operating Leverage', 'Competitive Moat', and 'Capital Allocation'.
+      const isFeasible = status === "FEASIBLE";
+      const prompt = `Act as a Senior Business Consultant. Project: Score ${finalScore}%, Margin ${margin.toFixed(1)}%, Risk ${riskScore}%, Status: ${status}.
+      
+      ${isFeasible ? `The project is FEASIBLE. Generate a congratulatory message and insights celebrating their achievement. Include positive reinforcement.` : `The project is NOT fully feasible. Generate specific, actionable tips to improve their feasibility study.`}
+      
+      Provide analysis in JSON with professional terms like 'Operating Leverage', 'Competitive Moat', and 'Capital Allocation'.
       
       Return JSON ONLY: 
       {
@@ -255,15 +275,15 @@ const AI_Analysis: React.FC = () => {
           "market": "Evaluation of demand dynamics."
         },
         "tips": {
-          "feasibility": "Strategic advice.",
-          "financial": "EBITDA improvement advice.",
-          "risk": "Mitigation strategy.",
-          "market": "Positioning advice."
+          "feasibility": "${isFeasible ? "Congratulations message acknowledging their success." : "Strategic advice to improve feasibility."}",
+          "financial": "${isFeasible ? "Positive insight on financial strength." : "EBITDA improvement advice."}",
+          "risk": "${isFeasible ? "Risk management best practice to maintain success." : "Mitigation strategy."}",
+          "market": "${isFeasible ? "Market opportunity insight." : "Positioning advice."}"
         },
         "insights": [
-          {"title": "Operational Strategy", "description": "str", "type": "positive"},
-          {"title": "Market Positioning", "description": "str", "type": "warning"},
-          {"title": "Financial Sustainability", "description": "str", "type": "info"}
+          ${isFeasible ? `{"title": "Congratulations!", "description": "Your feasibility study shows strong promise with a ${finalScore}% feasibility score. You've demonstrated solid business fundamentals, financial projections, and market understanding. This business model is ready for further development.", "type": "positive"}` : `{"title": "Improvement Priority 1", "description": "Focus on this key area to strengthen your feasibility study.", "type": "warning"}`},
+          {"title": "${isFeasible ? "Strength:" : "Challenge:"} ${isFeasible ? "Market Position" : "Cost Structure"}", "description": "${isFeasible ? "Your market demand forecast and competitive positioning are well-defined." : "Review your variable and fixed cost structures to improve margins."}", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "${isFeasible ? "Next Steps" : "Action Item"}", "description": "${isFeasible ? "Proceed with confidence. Consider how to scale operations while maintaining your financial health." : "Implement the suggested improvements to strengthen your financial projections and increase feasibility."}", "type": "${isFeasible ? "positive" : "suggestion"}"}
         ]
       }`;
 
@@ -308,41 +328,68 @@ const AI_Analysis: React.FC = () => {
       setInsights(generatedInsights);
     } catch (e) {
       // Professional Fallback with Insights included for persistence
+      const isFeasible = status === "FEASIBLE";
       const fallbackExplanations = {
-        feasibility: `Viability evaluated at ${finalScore}% based on fiscal projections.`,
-        financial: `Potential is linked to a ${margin.toFixed(1)}% net margin.`,
-        risk: `Risk exposure is moderate, influenced by current market participant density.`,
-        market: `Demand-side dynamics are rated at a '${data.marketDemand}' level.`,
+        feasibility: `${isFeasible ? `Congratulations! Viability evaluated at ${finalScore}% - your business model shows strong potential.` : `Viability evaluated at ${finalScore}% based on fiscal projections - there are opportunities for improvement.`}`,
+        financial: `${isFeasible ? `Strong performance linked to a ${margin.toFixed(1)}% net margin demonstrating good profitability.` : `Potential is linked to a ${margin.toFixed(1)}% net margin - focus on cost optimization to improve.`}`,
+        risk: `${isFeasible ? `Risk exposure is well-managed with a balanced competitive landscape.` : `Risk exposure is moderate, influenced by ${data.competitorCount} market participants - differentiation is key.`}`,
+        market: `${isFeasible ? `Demand-side dynamics are favorable at a '${data.marketDemand}' level with solid growth potential.` : `Demand-side dynamics are rated at a '${data.marketDemand}' level - consider market validation strategies.`}`,
       };
       const fallbackTips = {
-        feasibility:
-          "Optimize operating leverage to stabilize long-term cash flows.",
-        financial:
-          "Review variable cost structures to widen net profit margins.",
-        risk: "Establish a defensive position against market incumbents.",
-        market:
-          "Analyze customer acquisition costs to ensure sustainable penetration.",
+        feasibility: isFeasible
+          ? "Excellent work! Your business model is feasible. Focus on execution excellence and maintaining your competitive advantage."
+          : "Optimize operating leverage to stabilize long-term cash flows and improve feasibility metrics.",
+        financial: isFeasible
+          ? "Your financial health is strong. Monitor cash flow management and reinvestment strategies."
+          : "Review variable cost structures to widen net profit margins and enhance financial sustainability.",
+        risk: isFeasible
+          ? "Your risk management is solid. Continue monitoring market dynamics and maintain your competitive position."
+          : "Establish a defensive position against market incumbents through differentiation or cost leadership.",
+        market: isFeasible
+          ? "Leverage your market demand advantage. Develop customer acquisition strategies to maximize penetration."
+          : "Analyze customer acquisition costs to ensure sustainable penetration and market traction.",
       };
-      const fallbackInsights: InsightItem[] = [
-        {
-          id: "f-1",
-          title: "Margin Management",
-          description: `Business maintains an estimated ${margin.toFixed(1)}% operational margin.`,
-          type: "positive",
-        },
-        {
-          id: "f-2",
-          title: "Market Rivalry",
-          description: `Competition level of ${data.competitorCount} requires high differentiation.`,
-          type: "warning",
-        },
-        {
-          id: "f-3",
-          title: "Strategic Demand",
-          description: `Model utilizes a ${data.marketDemand} demand forecast for scaling.`,
-          type: "info",
-        },
-      ];
+      const fallbackInsights: InsightItem[] = isFeasible
+        ? [
+            {
+              id: "f-1",
+              title: "🎉 Congratulations!",
+              description: `Your feasibility study scores ${finalScore}% - demonstrating strong business fundamentals and market readiness. You're positioned well for implementation.`,
+              type: "positive",
+            },
+            {
+              id: "f-2",
+              title: "Strong Financial Foundation",
+              description: `With a ${margin.toFixed(1)}% operational margin and solid demand forecast, your financial projections are credible and sustainable.`,
+              type: "positive",
+            },
+            {
+              id: "f-3",
+              title: "Next Steps to Success",
+              description: `Proceed with confidence. Develop your implementation plan, secure necessary funding, and focus on execution. Consider scaling strategies for long-term growth.`,
+              type: "positive",
+            },
+          ]
+        : [
+            {
+              id: "f-1",
+              title: "Primary Improvement: Margin Enhancement",
+              description: `Your ${margin.toFixed(1)}% margin has room for improvement. Focus on reducing variable costs through supplier negotiations or improving operational efficiency.`,
+              type: "warning",
+            },
+            {
+              id: "f-2",
+              title: "Market Competition Challenge",
+              description: `With ${data.competitorCount} competitors, differentiation is critical. Develop a unique value proposition or identify underserved market segments.`,
+              type: "warning",
+            },
+            {
+              id: "f-3",
+              title: "Action Plan to Improve Feasibility",
+              description: `1) Revise cost structures, 2) Strengthen market positioning, 3) Validate demand assumptions, 4) Re-run analysis to track progress.`,
+              type: "suggestion",
+            },
+          ];
 
       const fallbackAnalysis = {
         score: finalScore,
@@ -367,6 +414,62 @@ const AI_Analysis: React.FC = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Calculate 5-Year Pro Forma Financial Statement
+  const generateProFormaData = () => {
+    const yearlyRevenue: number[] = [];
+    const yearlyCOGS: number[] = [];
+    const yearlyFixedCosts: number[] = [];
+    const yearlyNetProfit: number[] = [];
+    const yearLabels: string[] = [];
+
+    const currentAnnualRevenue =
+      (Number(financials.sellingPrice) || 0) *
+      (Number(financials.monthlySales) || 0) *
+      12;
+    const currentAnnualCOGS =
+      (Number(financials.variableCost) || 0) *
+      (Number(financials.monthlySales) || 0) *
+      12;
+    const currentAnnualFixedCosts = Number(financials.fixedCosts) || 0;
+
+    for (let year = 1; year <= 5; year++) {
+      const revenueMultiplier = Math.pow(1 + revenueGrowthRate / 100, year - 1);
+      const costMultiplier = Math.pow(1 + costGrowthRate / 100, year - 1);
+
+      const projectedRevenue = currentAnnualRevenue * revenueMultiplier;
+      const projectedCOGS = currentAnnualCOGS * costMultiplier;
+      const projectedFixedCosts = currentAnnualFixedCosts * costMultiplier;
+      const projectedNetProfit =
+        projectedRevenue - projectedCOGS - projectedFixedCosts;
+
+      yearlyRevenue.push(Math.round(projectedRevenue));
+      yearlyCOGS.push(Math.round(projectedCOGS));
+      yearlyFixedCosts.push(Math.round(projectedFixedCosts));
+      yearlyNetProfit.push(Math.round(projectedNetProfit));
+      yearLabels.push(`Year ${year}`);
+    }
+
+    return {
+      yearLabels,
+      yearlyRevenue,
+      yearlyCOGS,
+      yearlyFixedCosts,
+      yearlyNetProfit,
+    };
+  };
+
+  // Format data for Recharts
+  const getChartData = () => {
+    const proForma = generateProFormaData();
+    return proForma.yearLabels.map((label, index) => ({
+      year: label,
+      Revenue: proForma.yearlyRevenue[index],
+      COGS: proForma.yearlyCOGS[index],
+      "Fixed Costs": proForma.yearlyFixedCosts[index],
+      "Net Profit": proForma.yearlyNetProfit[index],
+    }));
   };
 
   const getInsightIcon = (type: string) => {
@@ -617,8 +720,13 @@ const AI_Analysis: React.FC = () => {
                         "Calculated based on current inputs."}
                     </p>
                     {improvementTips.feasibility && (
-                      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-[#c9a654]/10 rounded-full text-[11px] font-bold text-[#c9a654] border border-[#c9a654]/20">
-                        <Lightbulb size={12} /> Strategic Tip:{" "}
+                      <div
+                        className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+                      >
+                        <Lightbulb size={12} />{" "}
+                        {feasibilityStatus === "FEASIBLE"
+                          ? "💡 Achievement:"
+                          : "Tip:"}{" "}
                         {improvementTips.feasibility}
                       </div>
                     )}
@@ -635,6 +743,133 @@ const AI_Analysis: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Congratulations or Improvement Guide Section */}
+              {feasibilityStatus === "FEASIBLE" ? (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-8 shadow-sm mb-8">
+                  <div className="flex items-start gap-4">
+                    <div className="text-4xl">🎉</div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-extrabold text-green-900 mb-2">
+                        Excellent News!
+                      </h3>
+                      <p className="text-green-800 font-medium mb-4">
+                        Your feasibility study demonstrates strong business
+                        fundamentals. With a score of {feasibilityScore}%, your
+                        project shows:
+                      </p>
+                      <ul className="space-y-2 text-green-700 text-sm">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <span>
+                            Solid financial projections and profit margins
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <span>
+                            Adequate market demand and growth potential
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <span>
+                            Manageable risk profile with viable market
+                            positioning
+                          </span>
+                        </li>
+                      </ul>
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                          Recommended Next Steps:
+                        </p>
+                        <ul className="text-sm text-green-800 space-y-1">
+                          <li>
+                            ✓ Develop detailed implementation and execution plan
+                          </li>
+                          <li>
+                            ✓ Finalize funding strategy and capital requirements
+                          </li>
+                          <li>
+                            ✓ Create marketing and customer acquisition roadmap
+                          </li>
+                          <li>
+                            ✓ Establish key performance indicators (KPIs) for
+                            monitoring
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-8 shadow-sm mb-8">
+                  <div className="flex items-start gap-4">
+                    <div className="text-4xl">⚡</div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-extrabold text-amber-900 mb-2">
+                        Path to Improved Feasibility
+                      </h3>
+                      <p className="text-amber-800 font-medium mb-4">
+                        Your feasibility score of {feasibilityScore}% indicates
+                        areas for improvement. Focus on these key areas:
+                      </p>
+                      <ul className="space-y-2 text-amber-700 text-sm">
+                        <li className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <span>
+                            <strong>Cost Structure:</strong> Review variable and
+                            fixed costs for optimization opportunities
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <span>
+                            <strong>Market Differentiation:</strong> Develop a
+                            unique value proposition to stand out from
+                            competitors
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <span>
+                            <strong>Revenue Optimization:</strong> Explore
+                            pricing strategies and upsell opportunities
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <span>
+                            <strong>Market Validation:</strong> Conduct deeper
+                            market research to validate demand assumptions
+                          </span>
+                        </li>
+                      </ul>
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-amber-200">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                          Action Items:
+                        </p>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li>
+                            1. Revise financial projections with improved cost
+                            estimates
+                          </li>
+                          <li>
+                            2. Develop competitive differentiation strategy
+                          </li>
+                          <li>
+                            3. Validate market demand through surveys or pilot
+                            programs
+                          </li>
+                          <li>
+                            4. Re-run analysis to track feasibility improvement
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 4 Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -723,6 +958,261 @@ const AI_Analysis: React.FC = () => {
                       Tip: {improvementTips.market}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* 5-Year Pro Forma Financial Statement */}
+              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-[#c9a654]" /> 5-Year Pro
+                    Forma Financial Projection
+                  </h3>
+                  <button
+                    onClick={() => setShowProFormaInputs(!showProFormaInputs)}
+                    className="text-[11px] font-bold uppercase text-[#c9a654] hover:text-[#a87d3a] transition-colors px-3 py-1.5 border border-[#c9a654]/30 rounded-lg hover:bg-[#c9a654]/5"
+                  >
+                    {showProFormaInputs ? "Hide" : "Show"} Assumptions
+                  </button>
+                </div>
+
+                {/* Growth Rate Inputs */}
+                {showProFormaInputs && (
+                  <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
+                        Revenue Growth Rate (%)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="50"
+                          value={revenueGrowthRate}
+                          onChange={(e) =>
+                            setRevenueGrowthRate(Number(e.target.value))
+                          }
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                        />
+                        <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm">
+                          {revenueGrowthRate}%
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-gray-500 mt-1 italic">
+                        Projected annual revenue increase
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
+                        Cost Growth Rate (%)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="30"
+                          value={costGrowthRate}
+                          onChange={(e) =>
+                            setCostGrowthRate(Number(e.target.value))
+                          }
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                        />
+                        <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm">
+                          {costGrowthRate}%
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-gray-500 mt-1 italic">
+                        Projected annual cost increase
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pro Forma Chart */}
+                <div
+                  className="mb-6"
+                  style={{
+                    width: "100%",
+                    height: "450px",
+                    position: "relative",
+                  }}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={getChartData()}
+                      margin={{ top: 10, right: 50, left: 60, bottom: 40 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis
+                        dataKey="year"
+                        tick={{ fill: "#6b7280", fontSize: 12 }}
+                        stroke="#d1d5db"
+                      />
+                      <YAxis
+                        tick={{ fill: "#6b7280", fontSize: 12 }}
+                        stroke="#d1d5db"
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#ffffff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "0.5rem",
+                          padding: "8px",
+                        }}
+                        formatter={(value: any) =>
+                          typeof value === "number"
+                             ? `₱${value.toLocaleString("en-PH")}`
+                            : value
+                        }
+                        labelStyle={{ color: "#122244" }}
+                      />
+                      <Legend
+                        wrapperStyle={{ paddingTop: "20px" }}
+                        iconType="line"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Revenue"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        dot={{ fill: "#10b981", r: 6 }}
+                        activeDot={{ r: 8 }}
+                        isAnimationActive={true}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="COGS"
+                        stroke="#ef4444"
+                        strokeWidth={3}
+                        dot={{ fill: "#ef4444", r: 6 }}
+                        activeDot={{ r: 8 }}
+                        isAnimationActive={true}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Fixed Costs"
+                        stroke="#f59e0b"
+                        strokeWidth={3}
+                        dot={{ fill: "#f59e0b", r: 6 }}
+                        activeDot={{ r: 8 }}
+                        isAnimationActive={true}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Net Profit"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        strokeDasharray="5 5"
+                        dot={{ fill: "#3b82f6", r: 6 }}
+                        activeDot={{ r: 8 }}
+                        isAnimationActive={true}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Pro Forma Summary Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 bg-gray-50">
+                        <th className="text-left px-4 py-3 font-bold text-gray-700">
+                          Metric
+                        </th>
+                        {getChartData().map((row, idx) => (
+                          <th
+                            key={idx}
+                            className="text-right px-4 py-3 font-bold text-gray-700"
+                          >
+                            {row.year}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          Revenue
+                        </td>
+                        {getChartData().map((row, idx) => (
+                          <td
+                            key={idx}
+                            className="text-right px-4 py-3 text-green-600 font-bold"
+                          >
+                             ₱{row.Revenue.toLocaleString("en-PH")}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          COGS
+                        </td>
+                        {getChartData().map((row, idx) => (
+                          <td
+                            key={idx}
+                            className="text-right px-4 py-3 text-red-600 font-bold"
+                          >
+                            ₱{row.COGS.toLocaleString("en-PH")}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-semibold text-gray-800">
+                          Fixed Costs
+                        </td>
+                        {getChartData().map((row, idx) => (
+                          <td
+                            key={idx}
+                            className="text-right px-4 py-3 text-amber-600 font-bold"
+                          >
+                             ₱{row["Fixed Costs"].toLocaleString("en-PH")}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="bg-blue-50 border-t-2 border-blue-200">
+                        <td className="px-4 py-3 font-extrabold text-blue-900">
+                          Net Profit
+                        </td>
+                        {getChartData().map((row, idx) => (
+                          <td
+                            key={idx}
+                            className={`text-right px-4 py-3 font-extrabold ${
+                              row["Net Profit"] >= 0
+                                ? "text-blue-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                             ₱{row["Net Profit"].toLocaleString("en-PH")}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pro Forma Insights */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-[11px] font-bold text-blue-900 uppercase mb-2">
+                    💡 Projection Insights
+                  </p>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>
+                      • Revenue is projected to grow at{" "}
+                      <strong>{revenueGrowthRate}% annually</strong>, reaching{" "}
+                       <strong>
+                         ₱
+                         {(
+                           getChartData()[4].Revenue -
+                           getChartData()[0].Revenue
+                         ).toLocaleString("en-PH")}
+                       </strong>
+                      ,{" "}
+                      {getChartData()[4]["Net Profit"] >
+                      getChartData()[0]["Net Profit"]
+                        ? "showing strong growth"
+                        : "indicating need for cost optimization"}
+                    </li>
+                  </ul>
                 </div>
               </div>
 

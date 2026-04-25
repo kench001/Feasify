@@ -478,7 +478,7 @@ const Financial_input: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">
-                    Est. Monthly Sales
+                    Est. Monthly Units Sold
                   </label>
                   <input
                     type="number"
