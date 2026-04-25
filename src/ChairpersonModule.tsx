@@ -521,9 +521,7 @@ const ChairpersonModule: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-3 w-full md:w-auto">
-              <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                Export
-              </button>
+              {/* Export button removed */}
               {/* TRIGGER IMPORT MODAL */}
               <button 
                 onClick={() => setIsImportModalOpen(true)}
