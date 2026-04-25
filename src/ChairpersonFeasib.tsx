@@ -27,7 +27,7 @@ interface ProjectData {
   memberCount: number;
 }
 
-const AdminFeasibility: React.FC = () => {
+const ChairpersonFeasib: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("Chairperson");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -269,4 +269,4 @@ const AdminFeasibility: React.FC = () => {
   );
 };
 
-export default AdminFeasibility;
+export default ChairpersonFeasib;
