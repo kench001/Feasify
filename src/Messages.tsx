@@ -30,7 +30,8 @@ import {
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 
-const SOCKET_SERVER_URL = "http://localhost:5000";
+const SOCKET_SERVER_URL =
+  import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const MAX_MESSAGES = 20;
 
 interface Message {
