@@ -5,18 +5,18 @@ import {
   signInWithEmailAndPassword,
   signOut as fbSignOut,
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  serverTimestamp, 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  updateDoc, 
-  deleteDoc 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -66,7 +66,11 @@ export async function signOutUser() {
 
 // 💥 THE MAGIC FUNCTION: Creates Auth user without logging Admin out
 export async function adminCreateUserAuth(email: string, password: string) {
-  const userCred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const userCred = await createUserWithEmailAndPassword(
+    secondaryAuth,
+    email,
+    password,
+  );
   await fbSignOut(secondaryAuth); // Log the new user out of the secondary app immediately
   return userCred.user.uid; // Return the UID so we can save it to Firestore
 }
@@ -77,7 +81,7 @@ export async function createProject(userId: string, projectData: any) {
   const docRef = await addDoc(collection(db, "projects"), {
     ...projectData,
     userId: userId,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
   });
   return docRef.id;
 }
@@ -85,9 +89,9 @@ export async function createProject(userId: string, projectData: any) {
 export async function getUserProjects(userId: string) {
   const q = query(collection(db, "projects"), where("userId", "==", userId));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ 
-    id: doc.id, 
-    ...doc.data() 
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
   }));
 }
 
@@ -107,7 +111,7 @@ export async function createProposal(proposalData: any) {
   const docRef = await addDoc(collection(db, "proposals"), {
     ...proposalData,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
   return docRef.id;
 }
@@ -116,9 +120,9 @@ export async function createProposal(proposalData: any) {
 export async function getGroupProposals(groupId: string) {
   const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ 
-    id: doc.id, 
-    ...doc.data() 
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
   }));
 }
 
@@ -127,7 +131,7 @@ export async function updateProposal(proposalId: string, updateData: any) {
   const proposalRef = doc(db, "proposals", proposalId);
   await updateDoc(proposalRef, {
     ...updateData,
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 }
 
