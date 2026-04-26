@@ -43,6 +43,10 @@ import {
   CheckCircle2,
   FileText,
   FileImage,
+  Package,
+  MapPin,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 
 interface GroupData {
@@ -79,7 +83,6 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   status: "Draft" | "Pending" | "Approved" | "Rejected";
-  adviserFeedback?: string; // Added field to receive adviser's feedback
   createdAt?: any;
 }
 
@@ -133,6 +136,10 @@ const Projects: React.FC = () => {
   const [showEditBasicModal, setShowEditBasicModal] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // New state for Edit Basic Info (Extended to handle full ProposalData)
+  const [editBasicData, setEditBasicData] =
+    useState<ProposalData>(initialProposalState);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -202,7 +209,6 @@ const Projects: React.FC = () => {
         ) {
           setActiveView("member-join");
         } else if (g.activeProposalId) {
-          // --- AUTO-LOCK LOGIC: If DB has an active proposal, go straight to it and set session ---
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
@@ -372,7 +378,6 @@ const Projects: React.FC = () => {
         title: currentProposal.businessName,
       });
 
-      // --- SESSION SYNC LOGIC: Updates DB and saves to session so other tabs match ---
       sessionStorage.setItem("lastSelectedProjectId", currentProposal.id);
 
       setUserGroup((prev) =>
@@ -390,6 +395,53 @@ const Projects: React.FC = () => {
       setActiveView("active-business");
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleUpdateBasicInfo = async () => {
+    if (!userGroup || !userGroup.activeProposalId) return;
+    setIsSaving(true);
+    try {
+      // 1. Update the Groups collection (syncing the main title)
+      await updateDoc(doc(db, "groups", userGroup.id), {
+        title: editBasicData.businessName,
+      });
+
+      // 2. Update all proposal fields in the Proposals collection
+      const proposalRef = doc(db, "proposals", userGroup.activeProposalId);
+      await updateDoc(proposalRef, {
+        businessName: editBasicData.businessName,
+        businessType: editBasicData.businessType,
+        totalCapital: editBasicData.totalCapital,
+        tagline: editBasicData.tagline,
+        missionStatement: editBasicData.missionStatement,
+        visionStatement: editBasicData.visionStatement,
+        targetMarket: editBasicData.targetMarket,
+        productDescription: editBasicData.productDescription,
+        priceRanges: editBasicData.priceRanges,
+        proposedLocation: editBasicData.proposedLocation,
+        promotionalStrategy: editBasicData.promotionalStrategy,
+        otherDetails: editBasicData.otherDetails,
+      });
+
+      // 3. Update local state
+      setUserGroup((prev) =>
+        prev ? { ...prev, title: editBasicData.businessName } : null,
+      );
+      setProposals((prev) =>
+        prev.map((p) =>
+          p.id === userGroup.activeProposalId
+            ? { ...editBasicData, id: p.id }
+            : p,
+        ),
+      );
+
+      setShowEditBasicModal(false);
+    } catch (error) {
+      console.error("Error updating info:", error);
+      alert("Failed to update information.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -706,22 +758,14 @@ const Projects: React.FC = () => {
                 <div className="space-y-4">
                   {filteredProposals.map((proposal, idx) => {
                     let isApproved = proposal.status === "Approved";
-                    let isRejected = proposal.status === "Rejected";
-
                     return (
                       <div
                         key={proposal.id}
-                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
-                          isApproved ? "border-green-400" : 
-                          isRejected ? "border-red-300" : "border-gray-200"
-                        }`}
+                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isApproved ? "border-green-400" : "border-gray-200"}`}
                       >
                         <div className="flex gap-4 items-center w-full sm:w-auto">
                           <div
-                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
-                              isApproved ? "bg-green-50 text-green-600" : 
-                              isRejected ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-500"
-                            }`}
+                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${isApproved ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-500"}`}
                           >
                             B#
                           </div>
@@ -730,12 +774,7 @@ const Projects: React.FC = () => {
                               <h3 className="font-bold text-[#122244] text-lg truncate max-w-[250px]">
                                 {proposal.businessName}
                               </h3>
-                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                                proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
+                              <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full uppercase tracking-wider">
                                 {proposal.status}
                               </span>
                             </div>
@@ -824,7 +863,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
                   {(currentProposal.status === "Draft" ||
-                    !currentProposal.id || currentProposal.status === "Rejected") && (
+                    !currentProposal.id) && (
                     <button
                       onClick={() => handleSaveProposal("Draft")}
                       disabled={isSaving}
@@ -845,58 +884,25 @@ const Projects: React.FC = () => {
                     )}
                 </div>
               </div>
+
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-100 text-center bg-gray-50/50">
                   <h2 className="text-3xl font-extrabold text-[#122244] mb-2">
-                    {currentProposal.businessName || "Business Proposal #X"}
+                    {currentProposal.businessName || "New Business Proposal"}
                   </h2>
                   <div className="w-full max-w-lg mx-auto h-px bg-blue-600 mb-2"></div>
-                  <p className="text-xs text-gray-400">
-                    Click title to rename (below in form)
-                  </p>
                 </div>
-                <div className="p-8 space-y-10 max-w-4xl mx-auto">
-                  
-                  {/* --- NEW: ADVISER FEEDBACK BANNER --- */}
-                  {currentProposal.adviserFeedback && (
-                    <div className={`p-5 rounded-xl border-2 flex items-start gap-3 ${
-                      currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
-                      currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
-                      'bg-blue-50 border-blue-200'
-                    }`}>
-                      <MessageCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                        currentProposal.status === 'Rejected' ? 'text-red-500' :
-                        currentProposal.status === 'Approved' ? 'text-green-500' :
-                        'text-blue-500'
-                      }`} />
-                      <div>
-                        <h4 className={`text-xs font-bold uppercase tracking-widest mb-1 ${
-                          currentProposal.status === 'Rejected' ? 'text-red-700' :
-                          currentProposal.status === 'Approved' ? 'text-green-700' :
-                          'text-blue-700'
-                        }`}>
-                          Adviser Feedback
-                        </h4>
-                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                          currentProposal.status === 'Rejected' ? 'text-red-900' :
-                          currentProposal.status === 'Approved' ? 'text-green-900' :
-                          'text-blue-900'
-                        }`}>
-                          {currentProposal.adviserFeedback}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {/* ------------------------------------ */}
 
+                <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244]">
+                  {/* SECTION 1: BUSINESS OVERVIEW */}
                   <section>
-                    <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4">
-                      <FileText className="w-4 h-4 text-blue-500" /> BUSINESS
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <FileText className="w-5 h-5 text-blue-500" /> BUSINESS
                       OVERVIEW
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Type
                         </label>
                         <select
@@ -911,7 +917,7 @@ const Projects: React.FC = () => {
                               businessType: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         >
                           <option value="">Select category...</option>
                           <option>Food & Beverage</option>
@@ -920,7 +926,7 @@ const Projects: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Name
                         </label>
                         <input
@@ -936,12 +942,12 @@ const Projects: React.FC = () => {
                               businessName: e.target.value,
                             })
                           }
-                          placeholder="e.g. eggdesal"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          placeholder="e.g. Eggdesal"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Total Capital (₱)
                         </label>
                         <input
@@ -958,11 +964,11 @@ const Projects: React.FC = () => {
                             })
                           }
                           placeholder="₱ 0.00"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Tagline
                         </label>
                         <input
@@ -978,12 +984,12 @@ const Projects: React.FC = () => {
                               tagline: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                         Target Market
                       </label>
                       <textarea
@@ -992,6 +998,7 @@ const Projects: React.FC = () => {
                           currentProposal.status === "Approved"
                         }
                         rows={3}
+                        placeholder="Who are your customers?"
                         value={currentProposal.targetMarket}
                         onChange={(e) =>
                           setCurrentProposal({
@@ -999,18 +1006,19 @@ const Projects: React.FC = () => {
                             targetMarket: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                       />
                     </div>
                   </section>
+
                   <section>
-                    <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4">
-                      <Star className="w-4 h-4 text-purple-500 fill-current" />{" "}
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <Star className="w-5 h-5 text-purple-500 fill-current" />{" "}
                       MISSION & VISION
                     </h3>
                     <div className="space-y-6">
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Mission Statement
                         </label>
                         <textarea
@@ -1026,11 +1034,11 @@ const Projects: React.FC = () => {
                               missionStatement: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Vision Statement
                         </label>
                         <textarea
@@ -1046,9 +1054,144 @@ const Projects: React.FC = () => {
                               visionStatement: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-green-50 rounded-lg">
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                      </div>{" "}
+                      PRODUCT & PRICING
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Product Description
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={3}
+                          placeholder="Describe exactly what you are selling."
+                          value={currentProposal.productDescription}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              productDescription: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Price Ranges
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={2}
+                          placeholder="List price ranges: e.g., Budget (₱40-60), Mid-range (₱60-100), Premium (₱100+)"
+                          value={currentProposal.priceRanges}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              priceRanges: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-orange-50 rounded-lg">
+                        <MapPin className="w-4 h-4 text-orange-600" />
+                      </div>{" "}
+                      PLACE AND PROMOTION
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Proposed Location
+                        </label>
+                        <input
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          type="text"
+                          placeholder="Where will you operate?"
+                          value={currentProposal.proposedLocation}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              proposedLocation: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                          Promotional Strategy
+                        </label>
+                        <textarea
+                          disabled={
+                            currentProposal.status === "Pending" ||
+                            currentProposal.status === "Approved"
+                          }
+                          rows={2}
+                          placeholder="How will you attract customers?"
+                          value={currentProposal.promotionalStrategy}
+                          onChange={(e) =>
+                            setCurrentProposal({
+                              ...currentProposal,
+                              promotionalStrategy: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
+                      <div className="p-1.5 bg-gray-100 rounded-lg">
+                        <MoreVertical className="w-4 h-4 text-gray-600" />
+                      </div>{" "}
+                      ADDITIONAL DETAILS
+                    </h3>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        Other Relevant Information (Optional)
+                      </label>
+                      <textarea
+                        disabled={
+                          currentProposal.status === "Pending" ||
+                          currentProposal.status === "Approved"
+                        }
+                        rows={4}
+                        value={currentProposal.otherDetails}
+                        onChange={(e) =>
+                          setCurrentProposal({
+                            ...currentProposal,
+                            otherDetails: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                      />
                     </div>
                   </section>
                 </div>
@@ -1079,7 +1222,7 @@ const Projects: React.FC = () => {
                         <Check className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
                       </span>
                     </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
+                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight text-white">
                       {activeBusiness.businessName}
                     </h1>
                     <p className="text-sm text-gray-300 font-medium">
@@ -1089,7 +1232,10 @@ const Projects: React.FC = () => {
                 </div>
                 {isLeader && (
                   <button
-                    onClick={() => setShowEditBasicModal(true)}
+                    onClick={() => {
+                      setEditBasicData({ ...activeBusiness });
+                      setShowEditBasicModal(true);
+                    }}
                     className="mt-6 md:mt-0 flex items-center gap-2 px-5 py-2.5 border border-white/20 hover:bg-white/10 rounded-lg text-sm font-bold transition-all z-10"
                   >
                     <Pencil className="w-4 h-4" /> Edit Basic Info
@@ -1098,7 +1244,7 @@ const Projects: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 text-[#122244]">
                   <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
                     <div className="flex justify-between items-start mb-8">
                       <div className="flex items-center gap-3">
@@ -1203,7 +1349,7 @@ const Projects: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-fit">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-fit text-[#122244]">
                   <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest mb-4">
                     Project Roster
                   </h3>
@@ -1218,7 +1364,7 @@ const Projects: React.FC = () => {
                     </div>
                     {groupMembersData.map((member) => (
                       <div key={member.id} className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 bg-green-50 rounded-full text-white flex items-center justify-center font-bold text-sm">
                           {getInitials(member.firstName)}
                         </div>
                         <p className="text-sm font-bold text-gray-900">
@@ -1234,14 +1380,16 @@ const Projects: React.FC = () => {
         </div>
       </main>
 
+      {/* SETUP MODAL */}
       {showSetupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
               <div className="w-full">
-                <h2 className="text-2xl font-extrabold text-[#122244]">
-                  Team Setup
-                </h2>
+                <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+                  Review your assigned members
+                </p>
               </div>
               <button
                 onClick={() => setShowSetupModal(false)}
@@ -1250,10 +1398,42 @@ const Projects: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Render Member List */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              {groupMembersData.length > 0 ? (
+                groupMembersData.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
+                  >
+                    <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      {getInitials(`${member.firstName} ${member.lastName}`)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#122244] text-sm">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">
+                        Team Member
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10">
+                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">
+                    No members found in this group.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-2xl">
               <button
                 onClick={handleFinishTeamSetup}
-                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md"
+                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md hover:bg-[#b59545] transition-all"
               >
                 Finish Setup
               </button>
@@ -1262,14 +1442,13 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* ROSTER MODAL */}
       {showRosterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 text-[#122244]">
             <div className="flex justify-between items-start mb-6 border-b pb-4">
               <div>
-                <h2 className="text-2xl font-extrabold text-[#122244]">
-                  Project Roster
-                </h2>
+                <h2 className="text-2xl font-extrabold">Project Roster</h2>
                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
                   Group {userGroup?.id.slice(-1) || "1"} Team Members
                 </p>
@@ -1352,11 +1531,12 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* LOCK-IN MODAL */}
       {showLockInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center">
             <Zap className="w-16 h-16 text-blue-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-extrabold text-[#122244] mb-2">
+            <h2 className="text-2xl font-extrabold mb-2">
               Set as Active Business?
             </h2>
             <p className="text-sm text-gray-500 mb-8">
@@ -1384,12 +1564,248 @@ const Projects: React.FC = () => {
         </div>
       )}
 
+      {/* EDIT BASIC INFO MODAL (EXTENDED) */}
+      {showEditBasicModal && activeBusiness && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl text-[#122244]">
+              <div>
+                <h2 className="text-xl font-bold">Update Business Details</h2>
+                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                  Active Workspace: {activeBusiness.businessName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEditBasicModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 text-[#122244]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-2">
+                    Basic Overview
+                  </h4>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Business Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.businessName}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        businessName: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Business Type
+                  </label>
+                  <select
+                    value={editBasicData.businessType}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        businessType: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  >
+                    <option>Food & Beverage</option>
+                    <option>Retail</option>
+                    <option>Services</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Total Capital
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.totalCapital}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        totalCapital: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Tagline
+                  </label>
+                  <input
+                    type="text"
+                    value={editBasicData.tagline}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        tagline: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">
+                  Mission & Vision
+                </h4>
+                <textarea
+                  rows={2}
+                  placeholder="Mission Statement"
+                  value={editBasicData.missionStatement}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      missionStatement: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Vision Statement"
+                  value={editBasicData.visionStatement}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      visionStatement: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
+                  Strategy & Description
+                </h4>
+                <textarea
+                  rows={2}
+                  placeholder="Target Market"
+                  value={editBasicData.targetMarket}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      targetMarket: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Product Description"
+                  value={editBasicData.productDescription}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      productDescription: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Price Ranges"
+                  value={editBasicData.priceRanges}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      priceRanges: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
+                    Place & Promotion
+                  </h4>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Proposed Location"
+                  value={editBasicData.proposedLocation}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      proposedLocation: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                />
+                <textarea
+                  rows={2}
+                  placeholder="Promotional Strategy"
+                  value={editBasicData.promotionalStrategy}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      promotionalStrategy: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">
+                  Additional Details
+                </h4>
+                <textarea
+                  rows={3}
+                  placeholder="Other Relevant Information"
+                  value={editBasicData.otherDetails}
+                  onChange={(e) =>
+                    setEditBasicData({
+                      ...editBasicData,
+                      otherDetails: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex gap-3 bg-gray-50/50 rounded-b-2xl">
+              <button
+                onClick={() => setShowEditBasicModal(false)}
+                className="flex-1 px-4 py-2.5 text-gray-600 font-bold text-sm hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateBasicInfo}
+                disabled={isSaving}
+                className="flex-1 px-4 py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#1a2f55] shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {isSaving ? "Syncing..." : "Update Proposal"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRM */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-[#122244]">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center">
-            <h3 className="text-lg font-bold text-[#122244] mb-2">
-              Confirm Logout
-            </h3>
+            <h3 className="text-lg font-bold mb-2">Confirm Logout</h3>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
