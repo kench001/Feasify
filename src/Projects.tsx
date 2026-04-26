@@ -1387,6 +1387,9 @@ const Projects: React.FC = () => {
             <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
               <div className="w-full">
                 <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+                  Review your assigned members
+                </p>
               </div>
               <button
                 onClick={() => setShowSetupModal(false)}
@@ -1395,10 +1398,42 @@ const Projects: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Render Member List */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              {groupMembersData.length > 0 ? (
+                groupMembersData.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
+                  >
+                    <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      {getInitials(`${member.firstName} ${member.lastName}`)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#122244] text-sm">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">
+                        Team Member
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10">
+                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">
+                    No members found in this group.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-2xl">
               <button
                 onClick={handleFinishTeamSetup}
-                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md"
+                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md hover:bg-[#b59545] transition-all"
               >
                 Finish Setup
               </button>
