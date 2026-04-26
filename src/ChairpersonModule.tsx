@@ -343,6 +343,25 @@ const ChairpersonModule: React.FC = () => {
               });
               setUsersList(prev => [...prev, { id: newAuthUid, ...userData }]);
               successCount++;
+
+              try {
+                await emailjs.send(
+                  "service_u09o2ne",
+                  "template_fx69don",
+                  {
+                    to_email: email,
+                    to_name: firstName,
+                    password: generatedPassword,
+                    role: "Student"
+                  },
+                  "Iw4MKLYpB4TPgpXLn"
+                );
+              } catch (emailErr) {
+                console.error(`Failed to send welcome email to ${email}:`, emailErr);
+                // We don't increment errorCount here because the account WAS created, 
+                // just the email failed to send.
+              }
+              
             } catch (err: any) {
               console.error(`Failed to import user ${email}:`, err);
               errorCount++;
