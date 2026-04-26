@@ -79,6 +79,7 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   status: "Draft" | "Pending" | "Approved" | "Rejected";
+  adviserFeedback?: string; // Added field to receive adviser's feedback
   createdAt?: any;
 }
 
@@ -705,14 +706,22 @@ const Projects: React.FC = () => {
                 <div className="space-y-4">
                   {filteredProposals.map((proposal, idx) => {
                     let isApproved = proposal.status === "Approved";
+                    let isRejected = proposal.status === "Rejected";
+
                     return (
                       <div
                         key={proposal.id}
-                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isApproved ? "border-green-400" : "border-gray-200"}`}
+                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
+                          isApproved ? "border-green-400" : 
+                          isRejected ? "border-red-300" : "border-gray-200"
+                        }`}
                       >
                         <div className="flex gap-4 items-center w-full sm:w-auto">
                           <div
-                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${isApproved ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-500"}`}
+                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
+                              isApproved ? "bg-green-50 text-green-600" : 
+                              isRejected ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-500"
+                            }`}
                           >
                             B#
                           </div>
@@ -721,7 +730,12 @@ const Projects: React.FC = () => {
                               <h3 className="font-bold text-[#122244] text-lg truncate max-w-[250px]">
                                 {proposal.businessName}
                               </h3>
-                              <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                                proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
                                 {proposal.status}
                               </span>
                             </div>
@@ -810,7 +824,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
                   {(currentProposal.status === "Draft" ||
-                    !currentProposal.id) && (
+                    !currentProposal.id || currentProposal.status === "Rejected") && (
                     <button
                       onClick={() => handleSaveProposal("Draft")}
                       disabled={isSaving}
@@ -842,6 +856,39 @@ const Projects: React.FC = () => {
                   </p>
                 </div>
                 <div className="p-8 space-y-10 max-w-4xl mx-auto">
+                  
+                  {/* --- NEW: ADVISER FEEDBACK BANNER --- */}
+                  {currentProposal.adviserFeedback && (
+                    <div className={`p-5 rounded-xl border-2 flex items-start gap-3 ${
+                      currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
+                      currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                      'bg-blue-50 border-blue-200'
+                    }`}>
+                      <MessageCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                        currentProposal.status === 'Rejected' ? 'text-red-500' :
+                        currentProposal.status === 'Approved' ? 'text-green-500' :
+                        'text-blue-500'
+                      }`} />
+                      <div>
+                        <h4 className={`text-xs font-bold uppercase tracking-widest mb-1 ${
+                          currentProposal.status === 'Rejected' ? 'text-red-700' :
+                          currentProposal.status === 'Approved' ? 'text-green-700' :
+                          'text-blue-700'
+                        }`}>
+                          Adviser Feedback
+                        </h4>
+                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                          currentProposal.status === 'Rejected' ? 'text-red-900' :
+                          currentProposal.status === 'Approved' ? 'text-green-900' :
+                          'text-blue-900'
+                        }`}>
+                          {currentProposal.adviserFeedback}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {/* ------------------------------------ */}
+
                   <section>
                     <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4">
                       <FileText className="w-4 h-4 text-blue-500" /> BUSINESS
