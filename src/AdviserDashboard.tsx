@@ -6,7 +6,7 @@ import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
-  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send
+  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check
 } from "lucide-react";
 
 interface StudentData {
@@ -88,13 +88,18 @@ const AdviserDashboard: React.FC = () => {
   const [maxMembers, setMaxMembers] = useState(10);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAllStudentsModal, setShowAllStudentsModal] = useState(false);
-  const [showAssignLeaderModal, setShowAssignLeaderModal] = useState(false);
   const [showAutoGroupConfirm, setShowAutoGroupConfirm] = useState(false);
   const [showReshuffleConfirm, setShowReshuffleConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null); 
   
+  // Create Group Multi-Step State
+  const [showCreateLeaderModal, setShowCreateLeaderModal] = useState(false);
+  const [showCreateMembersModal, setShowCreateMembersModal] = useState(false);
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string>("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
   // Change Leader State
   const [showChangeLeaderModal, setShowChangeLeaderModal] = useState(false);
   const [groupToChangeLeader, setGroupToChangeLeader] = useState<GroupData | null>(null);
@@ -107,7 +112,6 @@ const AdviserDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLeaderIds, setSelectedLeaderIds] = useState<string[]>([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -197,26 +201,47 @@ const AdviserDashboard: React.FC = () => {
 
   const handleOpenProposalModal = (proposal: ProposalData) => {
     setViewingProposal(proposal);
-    setFeedbackInput(""); // Clear feedback box when opening
+    setFeedbackInput(""); 
   };
 
-  // --- LOGIC: ASSIGN LEADER & AUTO GROUP ---
-  const assignLeader = async () => {
-    if (!selectedLeaderIds.length || !activeSection) return;
+  // --- LOGIC: MULTI-STEP CREATE GROUP ---
+  const handleCreateGroup = async () => {
+    if (!selectedLeaderId || !activeSection) return;
+    setIsLoading(true);
     try {
-      const createdGroups: GroupData[] = [];
-      for (const leaderId of selectedLeaderIds) {
-        const leader = students.find(s => s.id === leaderId);
-        if (!leader) continue;
-        const docRef = await addDoc(collection(db, "groups"), {
-          section: activeSection, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`,
-          title: "Pending Business Name", memberIds: [], status: 'Drafting', createdAt: serverTimestamp()
-        });
-        createdGroups.push({ id: docRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: [], status: 'Drafting', section: activeSection });
-      }
-      if (createdGroups.length) setGroups(prev => [...prev, ...createdGroups]);
-      setShowAssignLeaderModal(false); setSelectedLeaderIds([]);
-    } catch (error) { console.error(error); alert("Failed to create group."); }
+      const leader = students.find(s => s.id === selectedLeaderId);
+      if (!leader) return;
+
+      const docRef = await addDoc(collection(db, "groups"), {
+        section: activeSection, 
+        leaderId: leader.id, 
+        leaderName: `${leader.firstName} ${leader.lastName}`,
+        title: "Pending Business Name", 
+        memberIds: selectedMemberIds, 
+        status: 'Drafting', 
+        createdAt: serverTimestamp()
+      });
+
+      const newGroup: GroupData = { 
+        id: docRef.id, 
+        leaderId: leader.id, 
+        leaderName: `${leader.firstName} ${leader.lastName}`, 
+        title: "Pending Business Name", 
+        memberIds: selectedMemberIds, 
+        status: 'Drafting', 
+        section: activeSection 
+      };
+
+      setGroups(prev => [...prev, newGroup]);
+      setShowCreateMembersModal(false);
+      setSelectedLeaderId("");
+      setSelectedMemberIds([]);
+    } catch (error) { 
+      console.error(error); 
+      alert("Failed to create group."); 
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const executeAutoGroup = async (currentGroupsList: GroupData[]) => {
@@ -306,7 +331,6 @@ const AdviserDashboard: React.FC = () => {
         updatedAt: serverTimestamp() 
       };
 
-      // Safely attach feedback into the proposal if typed before approving/rejecting
       if (feedbackInput.trim()) {
           const newFeedback: FeedbackItem = {
               id: Date.now().toString(),
@@ -316,7 +340,7 @@ const AdviserDashboard: React.FC = () => {
               date: new Date().toISOString()
           };
           updatePayload.feedbackHistory = arrayUnion(newFeedback);
-          updatePayload.adviserFeedback = feedbackInput; // Keeps quick-view reference
+          updatePayload.adviserFeedback = feedbackInput; 
       }
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
@@ -443,12 +467,18 @@ const AdviserDashboard: React.FC = () => {
     );
   }
 
-  // Metrics Calculations
+  // FIXED Metrics Calculations: Guaranteed to never be negative by filtering actual students.
   const assignedIds = new Set<string>();
-  groups.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
-  const unassignedCount = students.length - assignedIds.size;
+  groups.forEach(g => { 
+    if (g.leaderId) assignedIds.add(g.leaderId); 
+    if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => assignedIds.add(id)); 
+  });
+  
   const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm));
   const filteredGroups = activeDashboardTab === 'All Groups' ? groups : groups.filter(g => g.status === activeDashboardTab);
+  
+  // This physically counts how many fetched students do not exist inside the assigned Set
+  const unassignedCount = students.filter(s => !assignedIds.has(s.id)).length;
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
@@ -518,11 +548,13 @@ const AdviserDashboard: React.FC = () => {
                 <h1 className="text-3xl font-extrabold text-[#122244]">{activeSection}</h1>
                 <p className="text-sm text-gray-500 mt-1 italic">Manage feasibility groups and team leaders for this section.</p>
               </div>
+              
+              {/* === REORDERED TOP BUTTONS === */}
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowAllStudentsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"><Users className="w-4 h-4" /> View All Students</button>
-                <button onClick={() => { setShowAssignLeaderModal(true); setSelectedLeaderIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><Star className="w-4 h-4" /> Assign Leader</button>
                 <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg bg-white hover:bg-gray-50 transition-colors shadow-sm"><Settings className="w-4 h-4" /> Group Settings</button>
                 <button onClick={() => setShowAutoGroupConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md"><Archive className="w-4 h-4" /> Auto-Group</button>
+                <button onClick={() => { setShowCreateLeaderModal(true); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><UserPlus className="w-4 h-4" /> Create Group</button>
               </div>
             </div>
 
@@ -955,7 +987,7 @@ const AdviserDashboard: React.FC = () => {
       {/* MODALS                                                    */}
       {/* ========================================================= */}
 
-      {/* MODAL: View Proposal (Adviser Review) - RESTORED ORIGINAL DESIGN */}
+      {/* MODAL: View Proposal (Adviser Review) */}
       {viewingProposal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
@@ -968,6 +1000,38 @@ const AdviserDashboard: React.FC = () => {
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar bg-white">
+              
+              {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
+              {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
+                <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-4 ${
+                  viewingProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
+                  viewingProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                  'bg-blue-50 border-blue-200'
+                }`}>
+                  <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
+                    viewingProposal.status === 'Rejected' ? 'text-red-700' :
+                    viewingProposal.status === 'Approved' ? 'text-green-700' :
+                    'text-blue-700'
+                  }`}>
+                    <MessageCircle className="w-4 h-4" /> Adviser Feedback History
+                  </h4>
+                  <div className="space-y-3">
+                    {viewingProposal.feedbackHistory.map(item => (
+                      <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </div>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* BUSINESS OVERVIEW */}
               <section>
                 <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><FileText className="w-4 h-4 text-blue-500"/> BUSINESS OVERVIEW</h3>
@@ -1039,31 +1103,156 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 </div>
               </section>
-
-              {/* FEEDBACK IF PENDING */}
-              {viewingProposal.status === 'Pending' && (
-                <section className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 mt-4">
-                    <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4"><MessageCircle className="w-4 h-4 text-blue-500"/> ADVISER FEEDBACK</h3>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Leave Comments for the Students</label>
-                    <textarea
-                      value={feedbackInput}
-                      onChange={(e) => setFeedbackInput(e.target.value)}
-                      placeholder="Write your feedback here before approving or rejecting..."
-                      className="w-full p-4 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244] resize-none h-24 text-sm bg-white"
-                    />
-                </section>
-              )}
             </div>
 
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              {viewingProposal.status === 'Pending' ? (
-                <>
-                  <button onClick={() => handleProposalAction(viewingProposal, 'Reject')} className="px-6 py-2.5 bg-[#dc2626] text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reject</button>
-                  <button onClick={() => handleProposalAction(viewingProposal, 'Approve')} className="px-6 py-2.5 bg-[#16a34a] text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-colors">Approve Proposal</button>
-                </>
+                <button onClick={() => setViewingProposal(null)} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW MODAL: Create Group Step 1 - Assign Leader */}
+      {showCreateLeaderModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                <p className="text-sm text-gray-500 mt-1">Step 1: Select a team leader for this new group.</p>
+              </div>
+              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search unassigned students..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
+                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
               ) : (
-                 <button onClick={() => setViewingProposal(null)} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors">Close</button>
+                students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
+                  const isSelected = selectedLeaderId === student.id;
+                  return (
+                    <label key={student.id} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          {getInitials(`${student.firstName} ${student.lastName}`)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                          <p className="text-xs text-gray-500">{student.studentId}</p>
+                        </div>
+                      </div>
+                      <input 
+                        type="radio" 
+                        name="leaderSelection" 
+                        value={student.id} 
+                        checked={isSelected} 
+                        onChange={() => setSelectedLeaderId(student.id)} 
+                        className="w-4 h-4 text-[#c9a654] focus:ring-[#c9a654]"
+                      />
+                    </label>
+                  );
+                })
               )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
+              <button 
+                onClick={() => {
+                  setShowCreateLeaderModal(false);
+                  setShowCreateMembersModal(true);
+                  setSearchTerm("");
+                }} 
+                disabled={!selectedLeaderId} 
+                className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50"
+              >
+                Next: Select Members
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW MODAL: Create Group Step 2 - Assign Members */}
+      {showCreateMembersModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                <p className="text-sm text-gray-500 mt-1">Step 2: Select members to join this group.</p>
+              </div>
+              <button onClick={() => {setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+            </div>
+            
+            <div className="bg-purple-50 border-b border-purple-100 p-4 flex items-center gap-3">
+               <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                  {getInitials(students.find(s => s.id === selectedLeaderId)?.firstName + " " + students.find(s => s.id === selectedLeaderId)?.lastName)}
+               </div>
+               <div>
+                  <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
+                  <p className="text-sm font-bold text-[#122244]">{students.find(s => s.id === selectedLeaderId)?.firstName} {students.find(s => s.id === selectedLeaderId)?.lastName}</p>
+               </div>
+            </div>
+
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search unassigned students..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
+                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
+              ) : (
+                students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
+                  const isSelected = selectedMemberIds.includes(student.id);
+                  return (
+                    <label key={student.id} onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedMemberIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
+                    }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-green-400 bg-green-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          {getInitials(`${student.firstName} ${student.lastName}`)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                          <p className="text-xs text-gray-500">{student.studentId}</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
+              <p className="text-xs text-gray-500"><span className="font-bold text-[#122244]">{selectedMemberIds.length}</span> selected</p>
+              <div className="flex gap-2">
+                  <button onClick={() => {setShowCreateMembersModal(false); setShowCreateLeaderModal(true);}} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
+                  <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
+                  </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1253,60 +1442,6 @@ const AdviserDashboard: React.FC = () => {
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
               <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
               <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-[#122244] text-white font-semibold rounded-lg shadow-md hover:bg-[#1a3263]">Save Settings</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Assign Leader */}
-      {showAssignLeaderModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">Assign Team Leader</h2>
-                <p className="text-sm text-gray-500 mt-1">Select a student from the list below to assign as a team leader.</p>
-              </div>
-              <button onClick={() => {setShowAssignLeaderModal(false); setSelectedLeaderIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
-            </div>
-            <div className="p-4 border-b border-gray-100">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search students by name or ID..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {filteredStudents.filter(s => !groups.some(g => g.leaderId === s.id || g.memberIds.includes(s.id))).map(student => {
-                const isSelected = selectedLeaderIds.includes(student.id);
-                return (
-                  <label key={student.id} onClick={() => {
-                    setSelectedLeaderIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
-                  }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30' : 'border-gray-100 hover:bg-gray-50'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
-                        {getInitials(`${student.firstName} ${student.lastName}`)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</p>
-                        <p className="text-xs text-gray-500">{student.studentId}</p>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-[#c9a654]' : 'border-gray-300'}`}>
-                      {isSelected && <div className="w-2.5 h-2.5 bg-[#c9a654] rounded-full"></div>}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => {setShowAssignLeaderModal(false); setSelectedLeaderIds([]);}} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={assignLeader} disabled={!selectedLeaderIds.length} className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50">Assign as Leader</button>
             </div>
           </div>
         </div>
