@@ -125,10 +125,12 @@ const AdviserDashboard: React.FC = () => {
           }
           setUserName(`${data.firstName} ${data.lastName}`);
           const rawSection = data.section || "Unassigned";
-          const parsedSections = rawSection.split(",").map((s: string) => s.trim()).filter(Boolean);
+          const parsedSections = rawSection.split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+          
           setAdviserSections(parsedSections);
-          setActiveSection(parsedSections[0]); 
-          fetchSectionData(parsedSections[0]);
         }
       } catch (error) { console.error(error); }
     });
@@ -1103,15 +1105,41 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 </div>
               </section>
+
+              {/* ADVISER FEEDBACK INPUT (Only for Pending Proposals) */}
+              {viewingProposal.status === 'Pending' && (
+                  <section className="mt-8 pt-6 bg-[#122244] rounded-xl p-6 border border-[#1a2f55]">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 mb-4"><MessageCircle className="w-4 h-4 text-[#c9a654]" /> Adviser Feedback</h3>
+                      <p className="text-xs text-gray-300 mb-4">Provide feedback before approving or rejecting the proposal.</p>
+                      <textarea
+                        value={feedbackInput}
+                        onChange={(e) => setFeedbackInput(e.target.value)}
+                        placeholder="Type your feedback here..."
+                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm bg-[#1a2f55] text-white placeholder-gray-400"
+                      />
+                  </section>
+              )}
             </div>
 
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <button onClick={() => setViewingProposal(null)} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors">Close</button>
+                {viewingProposal.status === 'Pending' && (
+                    <>
+                        <button 
+                            onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
+                            className="px-6 py-2.5 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition-colors">
+                            Reject Proposal
+                        </button>
+                        <button 
+                            onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
+                            className="px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                            Approve Proposal
+                        </button>
+                    </>
+                )}
             </div>
           </div>
         </div>
       )}
-
       {/* NEW MODAL: Create Group Step 1 - Assign Leader */}
       {showCreateLeaderModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1290,13 +1318,13 @@ const AdviserDashboard: React.FC = () => {
                     )}
                 </div>
 
-                <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Provide feedback or advice below. This will be shared with the group.</label>
+                <div className="p-6 border-t border-gray-100 bg-[#122244] rounded-b-2xl">
+                    <label className="text-[10px] font-bold text-gray-300 uppercase tracking-widest block mb-3">Provide feedback or advice below. This will be shared with the group.</label>
                     <textarea
                         value={feedbackInput}
                         onChange={(e) => setFeedbackInput(e.target.value)}
                         placeholder="Type your feedback here..."
-                        className="w-full p-4 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm mb-4 bg-white"
+                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm mb-4 bg-[#1a2f55] text-white placeholder-gray-400"
                     />
                     <div className="flex justify-end gap-3">
                         <button onClick={() => setShowFeedbackModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
