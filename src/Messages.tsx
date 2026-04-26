@@ -8,11 +8,11 @@ import {
   collection,
   query,
   where,
-  addDoc,
   serverTimestamp,
   limit,
   onSnapshot,
   getDocs,
+  setDoc, // NEW IMPORT ADDED HERE
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -33,7 +33,7 @@ import { io, Socket } from "socket.io-client";
 // Environment-aware URL
 const SOCKET_SERVER_URL =
   import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
-const MAX_MESSAGES = 20;
+const MAX_MESSAGES = 25;
 
 interface Message {
   id: string;
@@ -156,7 +156,15 @@ const Messages: React.FC = () => {
 
   // SOCKET & FIRESTORE REAL-TIME SYNC
   useEffect(() => {
-    if (!groupId) return;
+    if (!groupId || !userUid) return;
+
+    // Helper to extract a reliable timestamp for sorting
+    const getSortTime = (m: Message) => {
+      if (m.createdAt?.seconds) return m.createdAt.seconds * 1000;
+      const parts = m.id.split("-");
+      if (parts.length > 1) return parseInt(parts[1]);
+      return Date.now();
+    };
 
     // 1. Firestore Listener
     const q = query(
@@ -165,53 +173,52 @@ const Messages: React.FC = () => {
       limit(50),
     );
     const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-      const rawMessages = snapshot.docs.map(
-        (d) => ({ id: d.id, ...d.data() }) as Message,
-      );
-      const sorted = rawMessages.sort(
-        (a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0),
-      );
-      const formatted = sorted.map((msg) => {
+      const dbMessages = snapshot.docs.map((d) => {
+        const data = d.data();
         let t = "Recent";
-        if (msg.createdAt?.toDate) {
-          t = msg.createdAt
+        if (data.createdAt?.toDate) {
+          t = data.createdAt
             .toDate()
             .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         }
-        return { ...msg, time: t };
+        return { id: d.id, ...data, time: t } as Message;
       });
-      setMessages(formatted.slice(-MAX_MESSAGES));
+
+      const sorted = dbMessages.sort((a, b) => getSortTime(a) - getSortTime(b));
+
+      setMessages((prev) => {
+        // Find optimistic messages that haven't been confirmed by Firestore yet
+        const dbIds = new Set(sorted.map((m) => m.id));
+        const optimisticOnes = prev.filter(
+          (m) => m.id.startsWith("msg-") && !dbIds.has(m.id),
+        );
+
+        return [...sorted, ...optimisticOnes].slice(-MAX_MESSAGES);
+      });
       setIsLoading(false);
     });
 
     // 2. Socket Initialization
-    console.log("🔌 Attempting to connect to Socket:", SOCKET_SERVER_URL);
     socketRef.current = io(SOCKET_SERVER_URL, {
-      auth: { token: userUid || "refresh" },
-      transports: ["websocket"], // Forces WebSocket to avoid CORS polling issues seen in your console
+      auth: { token: userUid },
+      transports: ["websocket"],
+      reconnection: true,
     });
 
     socketRef.current.on("connect", () => {
-      console.log("✅ Socket Connected! ID:", socketRef.current?.id);
       socketRef.current?.emit("join_group", groupId);
     });
 
-    socketRef.current.on("connect_error", (err) => {
-      console.error("❌ Socket Connection Error:", err.message);
+    socketRef.current.on("receive_message", (data: Message) => {
+      setMessages((prev) => {
+        // ONLY deduplicate based on the exact ID to prevent deleting same-word messages
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data].slice(-MAX_MESSAGES);
+      });
     });
 
-    socketRef.current.on("disconnect", (reason) => {
-      console.warn("⚠️ Socket Disconnected:", reason);
-    });
-
-    socketRef.current.on("receive_message", (data) => {
-      console.log("📨 New message received!", data);
-      // Optional: You can let Firestore handle the update,
-      // or manually push to the messages state if you aren't using onSnapshot.
-    });
     return () => {
       unsubscribeFirestore();
-      console.log("🔌 Disconnecting socket connection...");
       socketRef.current?.disconnect();
     };
   }, [groupId, userUid]);
@@ -226,8 +233,6 @@ const Messages: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("1. Send button triggered");
-
     if (!newMessage.trim() || !groupId) return;
 
     const content = newMessage;
@@ -238,9 +243,11 @@ const Messages: React.FC = () => {
       .toUpperCase()
       .slice(0, 2);
 
-    // Optimistic UI: Add to local state immediately
+    // Create the Universal ID so Firebase and Socket match exactly
+    const customId = `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
     const optimistic: Message = {
-      id: `temp-${Date.now()}`,
+      id: customId,
       senderId: userUid,
       senderName: userName,
       senderInitials: initials,
@@ -257,20 +264,14 @@ const Messages: React.FC = () => {
     setNewMessage(""); // Clear input immediately
 
     try {
-      // Step A: Send via Socket IMMEDIATELY (Don't wait for Firestore)
       if (socketRef.current?.connected) {
-        console.log("2. Emitting message to socket...");
         socketRef.current.emit("send_message", optimistic);
       } else {
-        console.error(
-          "❌ Socket not connected. Message might not be delivered real-time.",
-        );
-        socketRef.current?.connect(); // Try to reconnect
+        socketRef.current?.connect();
       }
 
-      // Step B: Save to Firestore for permanent history
-      console.log("3. Saving to Firestore...");
-      await addDoc(collection(db, "messages"), {
+      // Use setDoc instead of addDoc to enforce the custom ID
+      await setDoc(doc(db, "messages", customId), {
         groupId,
         senderId: userUid,
         senderName: userName,
@@ -279,7 +280,6 @@ const Messages: React.FC = () => {
         role: userRole,
         createdAt: serverTimestamp(),
       });
-      console.log("4. Firebase save complete.");
     } catch (e) {
       console.error("❌ Send Message Error:", e);
     }
