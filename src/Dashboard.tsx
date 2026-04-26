@@ -55,11 +55,9 @@ const Dashboard: React.FC = () => {
     navigate("/");
   };
 
-  // --- THE FIX: Fetches every Approved Proposal as an individual Project ---
   const loadUserGroup = async (uid: string, section: string) => {
     setIsLoadingStats(true);
     try {
-      // 1. Get the Groups the user belongs to
       const q = query(
         collection(db, "groups"),
         where("section", "==", section),
@@ -75,7 +73,6 @@ const Dashboard: React.FC = () => {
           groupData.leaderId === uid ||
           (groupData.memberIds && groupData.memberIds.includes(uid))
         ) {
-          // 2. For this group, fetch all Proposals
           const propQ = query(
             collection(db, "proposals"),
             where("groupId", "==", groupDoc.id),
@@ -88,11 +85,10 @@ const Dashboard: React.FC = () => {
           );
 
           if (approvedProps.length > 0) {
-            // 3. Add each Approved Proposal as a unique project
             approvedProps.forEach((pDoc) => {
               const pData = pDoc.data();
               allProjectsList.push({
-                id: pDoc.id, // Proposal ID for direct navigation
+                id: pDoc.id, 
                 name: pData.businessName || pData.title || "Untitled Project",
                 status:
                   pData.aiAnalysis?.status === "FEASIBLE"
@@ -106,7 +102,6 @@ const Dashboard: React.FC = () => {
               });
             });
           } else {
-            // 4. Fallback: If no approved proposals, show the Group placeholder
             allProjectsList.push({
               id: groupDoc.id,
               name: groupData.title || "Pending Business Name",
@@ -151,6 +146,13 @@ const Dashboard: React.FC = () => {
             const data = snap.data() as any;
             const first = data.firstName || "";
             const last = data.lastName || "";
+
+            // --- NEW: SECURITY GUARD ---
+            // If they bypassed the login screen routing, catch them here!
+            if (data.isFirstLogin === true) {
+              navigate("/profile", { state: { forcePasswordChange: true, firstName: first } });
+              return;
+            }
 
             if (data.role === "Adviser") {
               navigate("/adviser/dashboard");
@@ -237,8 +239,6 @@ const Dashboard: React.FC = () => {
     }
   });
   const avgROI = roiCount > 0 ? (totalROI / roiCount).toFixed(1) : "0";
-
-  const recentProjects = [...projects].reverse().slice(0, 4);
 
   const getStatusColor = (status: string) => {
     switch (status) {
