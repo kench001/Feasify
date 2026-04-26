@@ -27,26 +27,19 @@ import {
   Settings,
   ShieldAlert,
   Sidebar as SidebarIcon,
-  Search,
   Star,
   Bell,
   Check,
-  ChevronRight,
   ChevronLeft,
-  Info,
   Pencil,
   X,
   Clock,
   MoreVertical,
-  Trash2,
   Edit,
   CheckCircle2,
   FileText,
-  FileImage,
-  Package,
   MapPin,
   DollarSign,
-  TrendingUp,
 } from "lucide-react";
 
 interface GroupData {
@@ -67,6 +60,15 @@ interface GroupData {
   activeProposalId?: string;
 }
 
+// Added FeedbackItem interface
+interface FeedbackItem {
+  id: string;
+  text: string;
+  authorName: string;
+  role: string;
+  date: string;
+}
+
 interface ProposalData {
   id?: string;
   groupId: string;
@@ -83,6 +85,8 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   status: "Draft" | "Pending" | "Approved" | "Rejected";
+  adviserFeedback?: string;
+  feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
   createdAt?: any;
 }
 
@@ -109,15 +113,15 @@ const Projects: React.FC = () => {
   const [userUid, setUserUid] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadNotificationCount, _setUnreadNotificationCount] = useState(0);
 
   const [userGroup, setUserGroup] = useState<GroupData | null>(null);
   const [isLeader, setIsLeader] = useState(false);
-  const [isMember, setIsMember] = useState(false);
-  const [hasJoined, setHasJoined] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isMember, setIsMember] = useState(false);
+  const [_hasJoined, setHasJoined] = useState(false);
+  const [_isLoading, setIsLoading] = useState(true);
 
-  const [leaderData, setLeaderData] = useState<any>(null);
+  const [_leaderData, setLeaderData] = useState<any>(null);
   const [groupMembersData, setGroupMembersData] = useState<any[]>([]);
   const [adviserData, setAdviserData] = useState<any>(null);
 
@@ -137,7 +141,6 @@ const Projects: React.FC = () => {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // New state for Edit Basic Info (Extended to handle full ProposalData)
   const [editBasicData, setEditBasicData] =
     useState<ProposalData>(initialProposalState);
 
@@ -402,12 +405,10 @@ const Projects: React.FC = () => {
     if (!userGroup || !userGroup.activeProposalId) return;
     setIsSaving(true);
     try {
-      // 1. Update the Groups collection (syncing the main title)
       await updateDoc(doc(db, "groups", userGroup.id), {
         title: editBasicData.businessName,
       });
 
-      // 2. Update all proposal fields in the Proposals collection
       const proposalRef = doc(db, "proposals", userGroup.activeProposalId);
       await updateDoc(proposalRef, {
         businessName: editBasicData.businessName,
@@ -424,7 +425,6 @@ const Projects: React.FC = () => {
         otherDetails: editBasicData.otherDetails,
       });
 
-      // 3. Update local state
       setUserGroup((prev) =>
         prev ? { ...prev, title: editBasicData.businessName } : null,
       );
@@ -756,16 +756,24 @@ const Projects: React.FC = () => {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {filteredProposals.map((proposal, idx) => {
+                  {filteredProposals.map((proposal) => {
                     let isApproved = proposal.status === "Approved";
+                    let isRejected = proposal.status === "Rejected";
+
                     return (
                       <div
                         key={proposal.id}
-                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isApproved ? "border-green-400" : "border-gray-200"}`}
+                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
+                          isApproved ? "border-green-400" : 
+                          isRejected ? "border-red-300" : "border-gray-200"
+                        }`}
                       >
                         <div className="flex gap-4 items-center w-full sm:w-auto">
                           <div
-                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${isApproved ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-500"}`}
+                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
+                              isApproved ? "bg-green-50 text-green-600" : 
+                              isRejected ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-500"
+                            }`}
                           >
                             B#
                           </div>
@@ -774,7 +782,12 @@ const Projects: React.FC = () => {
                               <h3 className="font-bold text-[#122244] text-lg truncate max-w-[250px]">
                                 {proposal.businessName}
                               </h3>
-                              <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                                proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
                                 {proposal.status}
                               </span>
                             </div>
@@ -863,7 +876,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
                   {(currentProposal.status === "Draft" ||
-                    !currentProposal.id) && (
+                    !currentProposal.id || currentProposal.status === "Rejected") && (
                     <button
                       onClick={() => handleSaveProposal("Draft")}
                       disabled={isSaving}
@@ -884,7 +897,6 @@ const Projects: React.FC = () => {
                     )}
                 </div>
               </div>
-
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-100 text-center bg-gray-50/50">
                   <h2 className="text-3xl font-extrabold text-[#122244] mb-2">
@@ -894,7 +906,38 @@ const Projects: React.FC = () => {
                 </div>
 
                 <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244]">
-                  {/* SECTION 1: BUSINESS OVERVIEW */}
+                  
+                  {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
+                  {currentProposal.feedbackHistory && currentProposal.feedbackHistory.length > 0 && (
+                    <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 ${
+                      currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
+                      currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                      'bg-blue-50 border-blue-200'
+                    }`}>
+                      <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
+                        currentProposal.status === 'Rejected' ? 'text-red-700' :
+                        currentProposal.status === 'Approved' ? 'text-green-700' :
+                        'text-blue-700'
+                      }`}>
+                        <MessageCircle className="w-4 h-4" /> Adviser Feedback History
+                      </h4>
+                      <div className="space-y-3">
+                        {currentProposal.feedbackHistory.map(item => (
+                          <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                              </div>
+                              <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            </div>
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <section>
                     <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
                       <FileText className="w-5 h-5 text-blue-500" /> BUSINESS
@@ -1201,32 +1244,40 @@ const Projects: React.FC = () => {
 
           {activeView === "active-business" && activeBusiness && (
             <div>
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={() => setActiveView("dashboard")}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" /> Back to Proposals List
                 </button>
+                <button
+                  onClick={() => setActiveView("dashboard")}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
+                >
+                  <Clock className="w-4 h-4" /> View Proposals History
+                </button>
               </div>
-              <div className="bg-[#122244] rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
+
+              <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
                 <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center border border-white/10 shadow-inner flex-shrink-0">
-                    <span className="text-3xl font-extrabold text-white tracking-widest">
-                      {getInitials(activeBusiness.businessName)}
-                    </span>
+                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654]">
+                    {getInitials(activeBusiness.businessName)}
                   </div>
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
+                        <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
+                      </span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                        <User className="w-3 h-3" /> SECTION: {userGroup?.section}
                       </span>
                     </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight text-white">
+                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
                       {activeBusiness.businessName}
                     </h1>
                     <p className="text-sm text-gray-300 font-medium">
-                      {activeBusiness.businessType}
+                      {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
                     </p>
                   </div>
                 </div>
@@ -1236,28 +1287,33 @@ const Projects: React.FC = () => {
                       setEditBasicData({ ...activeBusiness });
                       setShowEditBasicModal(true);
                     }}
-                    className="mt-6 md:mt-0 flex items-center gap-2 px-5 py-2.5 border border-white/20 hover:bg-white/10 rounded-lg text-sm font-bold transition-all z-10"
+                    className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
                   >
                     <Pencil className="w-4 h-4" /> Edit Basic Info
                   </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6 text-[#122244]">
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-                    <div className="flex justify-between items-start mb-8">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+                    <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
                       <div className="flex items-center gap-3">
                         <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
                           <FileText className="w-6 h-6 text-blue-500" />
                         </div>
-                        <h3 className="text-xl font-extrabold text-[#122244]">
-                          Project Overview
-                        </h3>
+                        <div>
+                          <h3 className="text-xl font-extrabold text-[#122244]">
+                            Complete Project Overview
+                          </h3>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Approved Business Charter
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center">
+                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
                       <div className="flex-1 pr-6">
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
                           Total Capital
@@ -1349,29 +1405,86 @@ const Projects: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-fit text-[#122244]">
-                  <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest mb-4">
-                    Project Roster
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm">
-                        {getInitials(userGroup?.leaderName || "")}
-                      </div>
-                      <p className="text-sm font-bold text-gray-900">
-                        {userGroup?.leaderName} (Leader)
+                <div className="lg:col-span-1">
+                  <div className="space-y-6 sticky top-24">
+                    {/* PROJECT ROSTER */}
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
+                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
+                        Project Roster
+                      </h3>
+                      <p className="text-xs text-gray-500 mb-6">
+                        {(userGroup?.memberIds.length || 0) + 1} Members Total
                       </p>
-                    </div>
-                    {groupMembersData.map((member) => (
-                      <div key={member.id} className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-50 rounded-full text-white flex items-center justify-center font-bold text-sm">
-                          {getInitials(member.firstName)}
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                              {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
+                              <p className="text-[10px] text-blue-600">Faculty</p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-900">
-                          {member.firstName} {member.lastName}
-                        </p>
+
+                        <div className="flex items-center gap-3 p-2">
+                          <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                            {getInitials(userGroup?.leaderName || "")}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
+                              <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {groupMembersData.map((member) => (
+                          <div key={member.id} className="flex items-center gap-3 p-2">
+                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                              {getInitials(member.firstName)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">
+                                {member.firstName} {member.lastName}
+                              </p>
+                              <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+
+                    {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                      </h3>
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                        {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
+                          <div className="text-center py-6 text-gray-400">
+                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-xs italic">No feedback provided yet.</p>
+                          </div>
+                        ) : (
+                          activeBusiness.feedbackHistory.map(item => (
+                            <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
+                              <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

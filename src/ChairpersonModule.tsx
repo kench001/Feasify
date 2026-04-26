@@ -541,7 +541,7 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-3xl font-bold text-[#3d2c23]">{totalSections}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-orange-500">
-              <p className="text-sm font-semibold text-gray-500 mb-2">Active Students (7d)</p>
+              <p className="text-sm font-semibold text-gray-500 mb-2">Active Users (7d)</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{activeStudentsCount}</p>
             </div>
           </div>

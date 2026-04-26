@@ -11,8 +11,10 @@ import {
   ShieldAlert,
   Sidebar as SidebarIcon,
   Search,
-  Download,
-  TrendingUp
+  TrendingUp,
+  CheckCircle2,
+  AlertCircle,
+  Briefcase
 } from "lucide-react";
 
 interface ProjectData {
@@ -22,6 +24,7 @@ interface ProjectData {
   leaderName: string;
   adviserName: string;
   status: string;
+  aiStatus: string;
   date: string;
   category: string;
   memberCount: number;
@@ -35,6 +38,8 @@ const ChairpersonFeasib: React.FC = () => {
   
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSection, setSelectedSection] = useState("All Sections");
+  const [selectedAdviser, setSelectedAdviser] = useState("All Advisers");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,8 +56,12 @@ const ChairpersonFeasib: React.FC = () => {
   const fetchAllProjects = async () => {
     setIsLoading(true);
     try {
-      const groupsSnapshot = await getDocs(collection(db, "groups"));
-      const adviserSnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "Adviser")));
+      // Fetch groups, advisers, AND proposals (to get the AI Analysis status)
+      const [groupsSnapshot, adviserSnapshot, proposalsSnapshot] = await Promise.all([
+        getDocs(collection(db, "groups")),
+        getDocs(query(collection(db, "users"), where("role", "==", "Adviser"))),
+        getDocs(collection(db, "proposals"))
+      ]);
 
       const adviserBySection: Record<string, string> = {};
       adviserSnapshot.docs.forEach(doc => {
@@ -70,10 +79,21 @@ const ChairpersonFeasib: React.FC = () => {
         }
       });
 
+      // Map proposals to groups to extract the AI Status
+      const proposalsByGroup: Record<string, any> = {};
+      proposalsSnapshot.docs.forEach(doc => {
+        const data = doc.data() as any;
+        if (data.groupId) {
+          proposalsByGroup[data.groupId] = data;
+        }
+      });
+
       const projList = groupsSnapshot.docs.map(doc => {
         const data = doc.data() as any;
         const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now());
         const sectionKey = data.section || "";
+        const associatedProposal = proposalsByGroup[doc.id];
+        
         return {
           id: doc.id,
           name: data.title || "Pending Title...",
@@ -81,6 +101,7 @@ const ChairpersonFeasib: React.FC = () => {
           leaderName: data.leaderName || "Unknown Leader",
           adviserName: adviserBySection[sectionKey] || "Unassigned",
           status: data.status || (data.isSetup ? "Feasible" : "Pending"),
+          aiStatus: associatedProposal?.aiAnalysis?.status || "PENDING",
           category: data.category || data.section || "General",
           memberCount: Array.isArray(data.memberIds) ? data.memberIds.length + 1 : 1,
           date: createdAt.toLocaleDateString()
@@ -101,12 +122,27 @@ const ChairpersonFeasib: React.FC = () => {
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
-  const filteredProjects = projects.filter(p => 
-    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.section?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.adviserName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Dynamic Dropdown Options
+  const uniqueSections = ["All Sections", ...Array.from(new Set(projects.map(p => p.section).filter(Boolean)))];
+  const uniqueAdvisers = ["All Advisers", ...Array.from(new Set(projects.map(p => p.adviserName).filter(Boolean)))];
+
+  // Filtering Logic
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          p.section?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          p.adviserName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesSection = selectedSection === "All Sections" || p.section === selectedSection;
+    const matchesAdviser = selectedAdviser === "All Advisers" || p.adviserName === selectedAdviser;
+
+    return matchesSearch && matchesSection && matchesAdviser;
+  });
+
+  // KPI Calculations
+  const activeBusinessCount = projects.filter(p => p.status === "Active Business").length;
+  const positiveFeasibilityCount = projects.filter(p => p.aiStatus === "FEASIBLE" || p.status === "Feasible").length;
+  const negativeFeasibilityCount = projects.filter(p => p.aiStatus === "NOT_FEASIBLE" || p.status === "Not Feasible").length;
 
   return (
     <div className="flex min-h-screen bg-gray-50/30 overflow-hidden">
@@ -167,20 +203,52 @@ const ChairpersonFeasib: React.FC = () => {
         </div>
 
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          <div className="mb-8 flex justify-between items-end">
-            <div>
-              <h1 className="text-3xl font-bold text-[#3d2c23]">Business Feasibility Management</h1>
-              <p className="text-sm text-gray-500 mt-2 italic">Oversee and track all business feasibility study projects.</p>
-            </div>
-            <button className="flex items-center gap-2 px-6 py-2.5 bg-[#249c74] text-white text-sm font-semibold rounded-lg hover:bg-[#1e8563] transition-colors shadow-sm">
-              <Download className="w-4 h-4" /> Export
-            </button>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-[#3d2c23]">Business Feasibility Management</h1>
+            <p className="text-sm text-gray-500 mt-2 italic">Oversee and track all business feasibility study projects.</p>
           </div>
 
-          {/* Stats Card */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 w-72 border-l-4 border-l-[#c9a654] mb-8">
-            <p className="text-sm font-semibold text-gray-500 mb-2">Total Business Feasibility Studies</p>
-            <p className="text-4xl font-bold text-[#3d2c23]">{projects.length}</p>
+          {/* Stats Cards Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-[#c9a654]">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Studies</p>
+                  <p className="text-3xl font-extrabold text-[#122244]">{projects.length}</p>
+                </div>
+                <FileText className="w-8 h-8 text-gray-200" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-blue-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Active Business</p>
+                  <p className="text-3xl font-extrabold text-[#122244]">{activeBusinessCount}</p>
+                </div>
+                <Briefcase className="w-8 h-8 text-blue-100" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-green-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Positive Feasibility</p>
+                  <p className="text-3xl font-extrabold text-green-600">{positiveFeasibilityCount}</p>
+                </div>
+                <CheckCircle2 className="w-8 h-8 text-green-100" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-red-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Negative Feasibility</p>
+                  <p className="text-3xl font-extrabold text-red-600">{negativeFeasibilityCount}</p>
+                </div>
+                <AlertCircle className="w-8 h-8 text-red-100" />
+              </div>
+            </div>
           </div>
 
           {/* Controls */}
@@ -196,17 +264,29 @@ const ChairpersonFeasib: React.FC = () => {
               />
             </div>
             
-            <div className="flex items-center gap-4 w-full md:w-auto text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-semibold">Section:</span>
-                <select className="border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none">
-                  <option>All Sections</option>
+            <div className="flex flex-wrap items-center gap-4 w-full md:w-auto text-sm">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-gray-500 font-semibold whitespace-nowrap">Section:</span>
+                <select 
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                >
+                  {uniqueSections.map((section, idx) => (
+                    <option key={idx} value={section}>{section}</option>
+                  ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-semibold">Adviser:</span>
-                <select className="border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none">
-                  <option>All Advisers</option>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-gray-500 font-semibold whitespace-nowrap">Adviser:</span>
+                <select 
+                  value={selectedAdviser}
+                  onChange={(e) => setSelectedAdviser(e.target.value)}
+                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                >
+                  {uniqueAdvisers.map((adviser, idx) => (
+                    <option key={idx} value={adviser}>{adviser}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -229,7 +309,7 @@ const ChairpersonFeasib: React.FC = () => {
                   {isLoading ? (
                     <tr><td colSpan={5} className="p-8 text-center text-gray-400">Loading projects...</td></tr>
                   ) : filteredProjects.length === 0 ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">No projects found.</td></tr>
+                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">No projects found matching your filters.</td></tr>
                   ) : (
                     filteredProjects.map((project, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
@@ -237,7 +317,12 @@ const ChairpersonFeasib: React.FC = () => {
                         <td className="px-6 py-5 font-semibold text-gray-700">{project.section || "N/A"}</td>
                         <td className="px-6 py-5 text-gray-800">{project.leaderName || "Unknown"}</td>
                         <td className="px-6 py-5">
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${project.status === 'Feasible' ? 'bg-green-50 text-green-600' : project.status === 'Not Feasible' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                            project.status === 'Feasible' || project.aiStatus === 'FEASIBLE' ? 'bg-green-50 text-green-600' : 
+                            project.status === 'Not Feasible' || project.aiStatus === 'NOT_FEASIBLE' ? 'bg-red-50 text-red-600' : 
+                            project.status === 'Active Business' ? 'bg-blue-50 text-blue-600' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
                             {project.status || "Pending"}
                           </span>
                         </td>
