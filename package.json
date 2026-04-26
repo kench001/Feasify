@@ -21,7 +21,8 @@
     "react-dom": "^19.2.0",
     "react-is": "^19.2.5",
     "react-router-dom": "^7.13.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/dom-to-image": "^2.6.7",

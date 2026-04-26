@@ -2,17 +2,17 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  serverTimestamp, 
-  onSnapshot, 
-  orderBy 
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  addDoc,
+  serverTimestamp,
+  limit,
+  onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -26,10 +26,12 @@ import {
   ShieldAlert,
   Send,
   Sidebar as SidebarIcon,
-  Users,
-  X,
-  Bell
+  Loader2,
 } from "lucide-react";
+import { io, Socket } from "socket.io-client";
+
+const SOCKET_SERVER_URL = "http://localhost:5000";
+const MAX_MESSAGES = 20;
 
 interface Message {
   id: string;
@@ -39,6 +41,8 @@ interface Message {
   time: string;
   content: string;
   role?: string;
+  groupId: string;
+  createdAt?: any;
 }
 
 interface GroupMember {
@@ -51,149 +55,155 @@ interface GroupMember {
 const Messages: React.FC = () => {
   const navigate = useNavigate();
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
-  const [userName, setUserName] = useState("");
-  const [userUid, setUserUid] = useState("");
-  const [userRole, setUserRole] = useState("");
+  const socketRef = useRef<Socket | null>(null);
+
+  const [userName, setUserName] = useState(
+    localStorage.getItem("chat_user_name") || "",
+  );
+  const [userUid, setUserUid] = useState(
+    localStorage.getItem("chat_user_uid") || "",
+  );
+  const [userRole, setUserRole] = useState(
+    localStorage.getItem("chat_user_role") || "Student",
+  );
+  const [groupId, setGroupId] = useState<string>(
+    localStorage.getItem("chat_group_id") || "",
+  );
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-
-  const [groupId, setGroupId] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Initial User & Group Load
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUserUid(u.uid);
+        localStorage.setItem("chat_user_uid", u.uid);
         const userDoc = await getDoc(doc(db, "users", u.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          setUserName(`${data.firstName} ${data.lastName}`);
+          const name = `${data.firstName} ${data.lastName}`;
+          setUserName(name);
           setUserRole(data.role || "Student");
-          if (data.section) fetchUserGroup(u.uid, data.section);
+          localStorage.setItem("chat_user_name", name);
+          localStorage.setItem("chat_user_role", data.role || "Student");
+          if (data.section) initializeChat(u.uid, data.section);
         }
       } else {
+        localStorage.clear();
         navigate("/");
-      }
-    });
-    return () => unsub();
-  }, [navigate]);
-
-  // Fetch unread notifications count
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        try {
-          const q = query(collection(db, "notifications"), where("userId", "==", u.uid), where("isRead", "==", false));
-          const snap = await getDocs(q);
-          setUnreadNotificationCount(snap.size);
-        } catch (error) {
-          console.error("Error fetching unread notifications:", error);
-        }
       }
     });
     return () => unsub();
   }, []);
 
-  const fetchUserGroup = async (uid: string, section: string) => {
+  const initializeChat = async (uid: string, section: string) => {
     try {
-      const q = query(collection(db, "groups"), where("section", "==", section));
+      const q = query(
+        collection(db, "groups"),
+        where("section", "==", section),
+      );
       const snap = await getDocs(q);
-      let foundGroupId = "";
-      let memberIds: string[] = [];
-      let leaderId = "";
+      let gid = "";
+      let members: string[] = [];
+      let leader = "";
 
       snap.forEach((d) => {
         const data = d.data();
-        const groupMemberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
-        if (data.leaderId === uid || groupMemberIds.includes(uid)) {
-          foundGroupId = d.id;
-          setGroupId(d.id);
-          memberIds = groupMemberIds;
-          leaderId = data.leaderId;
+        if (
+          data.leaderId === uid ||
+          (data.memberIds && data.memberIds.includes(uid))
+        ) {
+          gid = d.id;
+          members = data.memberIds || [];
+          leader = data.leaderId;
         }
       });
 
-      if (!foundGroupId) {
-        const leaderQuery = query(collection(db, "groups"), where("leaderId", "==", uid));
-        const memberQuery = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
-        const [leaderSnap, memberSnap] = await Promise.all([getDocs(leaderQuery), getDocs(memberQuery)]);
-        const fallback = leaderSnap.docs.concat(memberSnap.docs)[0];
-        if (fallback) {
-          const data = fallback.data();
-          foundGroupId = fallback.id;
-          setGroupId(fallback.id);
-          memberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
-          leaderId = data.leaderId || uid;
-        }
-      }
-
-      if (foundGroupId) {
-        const allMemberIds = Array.from(new Set([leaderId, ...memberIds].filter(Boolean)));
-        const memberPromises = allMemberIds.map(id => getDoc(doc(db, "users", id)));
-        const memberSnaps = await Promise.all(memberPromises);
-        
-        const roster = memberSnaps.map(s => {
-          const d = s.data();
-          const fullName = `${d?.firstName || ""} ${d?.lastName || ""}`.trim();
-          return {
-            id: s.id,
-            name: fullName || "User",
-            initials: fullName ? fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U",
-            role: s.id === leaderId ? "Leader" : "Member"
-          };
-        });
-        setGroupMembers(roster);
+      if (gid) {
+        setGroupId(gid);
+        localStorage.setItem("chat_group_id", gid);
+        const allIds = Array.from(
+          new Set([leader, ...members].filter(Boolean)),
+        );
+        const snaps = await Promise.all(
+          allIds.map((id) => getDoc(doc(db, "users", id))),
+        );
+        setGroupMembers(
+          snaps.map((s) => {
+            const d = s.data();
+            return {
+              id: s.id,
+              name: `${d?.firstName} ${d?.lastName}`,
+              initials: `${d?.firstName?.[0]}${d?.lastName?.[0]}`.toUpperCase(),
+              role: s.id === leader ? "Leader" : "Member",
+            };
+          }),
+        );
       }
     } catch (e) {
-      console.error("Error loading roster:", e);
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // 2. REAL-TIME LISTENER (FIXED)
   useEffect(() => {
     if (!groupId) return;
 
-    // Use includeMetadataChanges: true to catch local sends before server confirms
-    const msgQuery = query(
+    const q = query(
       collection(db, "messages"),
       where("groupId", "==", groupId),
-      orderBy("createdAt", "asc")
+      limit(50),
     );
 
-    const unsubscribe = onSnapshot(msgQuery, (snapshot) => {
-      const msgs = snapshot.docs.map(d => {
-        const data = d.data();
-        // Fallback for null timestamp when sending
-        const displayTime = data.createdAt?.toDate() 
-          ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : "Sending...";
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const rawMessages = snapshot.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as Message,
+        );
+        const sorted = rawMessages.sort(
+          (a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0),
+        );
+        const formatted = sorted.map((msg) => {
+          let t = "Recent";
+          if (msg.createdAt?.toDate) {
+            t = msg.createdAt
+              .toDate()
+              .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          }
+          return { ...msg, time: t };
+        });
 
-        return {
-          id: d.id,
-          senderId: data.senderId,
-          senderName: data.senderName,
-          senderInitials: data.senderInitials,
-          content: data.content,
-          role: data.role,
-          time: displayTime
-        } as Message;
-      });
-      
-      setMessages(msgs);
+        setMessages(formatted.slice(-MAX_MESSAGES));
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error(error);
+        setIsLoading(false);
+      },
+    );
+
+    socketRef.current = io(SOCKET_SERVER_URL, {
+      auth: { token: userUid || "refresh" },
     });
+    socketRef.current.emit("join_group", groupId);
 
-    return () => unsubscribe();
-  }, [groupId]);
+    return () => {
+      unsubscribe();
+      socketRef.current?.disconnect();
+    };
+  }, [groupId, userUid]);
 
-  // 3. AUTO-SCROLL LOGIC
+  // Handle auto-scroll to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -201,137 +211,229 @@ const Messages: React.FC = () => {
     e.preventDefault();
     if (!newMessage.trim() || !groupId) return;
 
-    const msgToSend = newMessage;
-    setNewMessage(""); // Clear input immediately
+    const content = newMessage;
+    const initials = userName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+    setNewMessage("");
+
+    const optimistic: Message = {
+      id: `temp-${Date.now()}`,
+      senderId: userUid,
+      senderName: userName,
+      senderInitials: initials,
+      content,
+      role: userRole,
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      groupId,
+    };
+
+    setMessages((prev) => [...prev, optimistic].slice(-MAX_MESSAGES));
 
     try {
-      await addDoc(collection(db, "messages"), {
+      const docRef = await addDoc(collection(db, "messages"), {
         groupId,
         senderId: userUid,
         senderName: userName,
-        senderInitials: userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2),
-        content: msgToSend,
-        role: userRole === "Leader" ? "Leader" : "Member",
-        createdAt: serverTimestamp()
+        senderInitials: initials,
+        content,
+        role: userRole,
+        createdAt: serverTimestamp(),
       });
-    } catch (e) { 
-      console.error("Firebase write error:", e);
-      alert("Message failed to send. Check your internet or Firebase permissions.");
+      socketRef.current?.emit("send_message", { ...optimistic, id: docRef.id });
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleLogout = async () => {
-    try { await signOutUser(); } catch (e) {}
+    await signOutUser();
+    localStorage.clear();
     navigate("/");
   };
 
-  const getInitials = (name: string) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
-
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
-      {/* SIDEBAR */}
-      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
+    <div className="flex h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+      {/* SIDEBAR - PERSISTENT */}
+      <aside
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        <div className="p-6 border-b border-white/10">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="w-70 h-20 object-contain"
+          />
+        </div>
+        <nav className="flex-1 p-4 space-y-8 mt-4 text-gray-300 overflow-y-auto">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-4 px-2 text-gray-400">
+              Main Menu
+            </p>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <LayoutDashboard className="w-4 h-4" /> Dashboard
+              </button>
+              <button
+                onClick={() => navigate("/projects")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Folder className="w-4 h-4" /> Business Proposal
+              </button>
+              <button
+                onClick={() => navigate("/financial-input")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <FileEdit className="w-4 h-4" /> Financial Input
+              </button>
+              <button
+                onClick={() => navigate("/ai-analysis")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Zap className="w-4 h-4" /> AI Feasibility Analysis
+              </button>
+              <button
+                onClick={() => navigate("/reports")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <BarChart3 className="w-4 h-4" /> Reports
+              </button>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+                <MessageCircle className="w-4 h-4" /> Message
+              </button>
+            </div>
           </div>
-       <nav className="flex-1 p-4 space-y-8 mt-4">
-               <div>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-                 <div className="space-y-1">
-                   <button onClick={() => navigate('/dashboard')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <LayoutDashboard className="w-4 h-4" /> Dashboard
-                   </button>
-                   <button onClick={() => navigate('/Projects')}className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <Folder className="w-4 h-4" /> Business Proposal
-                   </button>
-                   <button onClick={() => navigate('/financial-input')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <FileEdit className="w-4 h-4" /> Financial Input
-                   </button>
-                   <button onClick={() => navigate('/ai-analysis')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <Zap className="w-4 h-4" /> AI Feasibility Analysis
-                   </button>
-                   <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <BarChart3 className="w-4 h-4" /> Reports
-                   </button>
-                   <button onClick={() => navigate('/messages')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                     <MessageCircle className="w-4 h-4" /> Message
-                   </button>
-                 </div>
-               </div>
-       
-               <div>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
-                 <div className="space-y-1">
-                   <button onClick={() => navigate('/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <User className="w-4 h-4" /> Profile
-                   </button>
-                   <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <Settings className="w-4 h-4" /> Settings
-                   </button>
-                   <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                     <ShieldAlert className="w-4 h-4" /> Logout
-                   </button>
-                 </div>
-               </div>
-             </nav>
-        <div className="p-4 border-t border-white/10 bg-black/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
-            <div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate text-white">{userName}</p><p className="text-[10px] text-gray-400 truncate">Student</p></div>
-            <button
-              onClick={() => navigate('/notifications')}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-              title="Notifications"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-              )}
-            </button>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-4 px-2 text-gray-400">
+              Account
+            </p>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate("/profile")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <User className="w-4 h-4" /> Profile
+              </button>
+              <button
+                onClick={() => navigate("/settings")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Settings className="w-4 h-4" /> Settings
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-white/5 transition-all"
+              >
+                <ShieldAlert className="w-4 h-4" /> Logout
+              </button>
+            </div>
+          </div>
+        </nav>
+        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3 text-white">
+          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
+            {(userName || "U").charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">
+              {userName || "User"}
+            </p>
+            <p className="text-[10px] text-gray-400 truncate">Student</p>
           </div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-          <span className="mx-2">|</span> FeasiFy <span>›</span> <span className="font-semibold text-gray-900">Messages</span>
+      {/* MAIN CONTENT AREA */}
+      <main
+        className={`flex-1 flex flex-col transition-all duration-300 ease-in-out h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+      >
+        {/* TOP NAV BAR */}
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 flex-shrink-0">
+          <SidebarIcon
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+          <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
+          <span className="font-semibold text-gray-900">Messages</span>
         </div>
 
+        {/* CHAT BOX CONTAINER */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Chat Window Area */}
-          <div className="flex-1 flex flex-col bg-white">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/30">
-              <h1 className="text-2xl font-extrabold text-[#122244]">Group Chat</h1>
-              <p className="text-xs text-gray-500 font-medium italic">Communicate with your team in real-time</p>
+          <div className="flex-1 flex flex-col bg-white min-w-0 h-full">
+            {/* CHAT HEADER */}
+            <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex-shrink-0">
+              <h1 className="text-2xl font-extrabold text-[#122244]">
+                Team Group Chat
+              </h1>
+              <p className="text-xs text-gray-500 font-medium italic underline decoration-[#c9a654]">
+                Permanent History Secured
+              </p>
             </div>
 
-            {/* MESSAGE LIST */}
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60">
-                   <MessageCircle className="w-12 h-12 mb-2" />
-                   <p className="text-sm font-medium italic">No messages yet. Start the conversation!</p>
+            {/* MESSAGES AREA - THIS SCROLLS */}
+            <div
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 scroll-smooth"
+            >
+              {isLoading && messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-[#c9a654] animate-spin mb-2" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-[#122244]">
+                    Syncing...
+                  </p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center opacity-40 text-[#122244]">
+                  <MessageCircle size={48} />
+                  <p className="text-sm italic font-medium mt-2">
+                    No messages yet.
+                  </p>
                 </div>
               ) : (
                 messages.map((msg) => {
                   const isMe = msg.senderId === userUid;
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex gap-3 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0 ${isMe ? 'bg-[#c9a654]' : 'bg-[#122244]'}`}>
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`flex gap-3 max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0 ${isMe ? "bg-[#c9a654]" : "bg-[#122244]"}`}
+                        >
                           {msg.senderInitials}
                         </div>
-                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                        <div
+                          className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                        >
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[11px] font-extrabold text-gray-900">{msg.senderName}</span>
-                            {msg.role === 'Leader' && <span className="text-[8px] bg-yellow-100 text-yellow-700 px-1.5 rounded font-bold uppercase tracking-widest">Leader</span>}
+                            <span className="text-[11px] font-extrabold text-[#122244]">
+                              {msg.senderName}
+                            </span>
+                            {msg.role === "Leader" && (
+                              <span className="text-[8px] bg-yellow-100 text-yellow-700 px-1.5 rounded font-bold uppercase tracking-widest">
+                                Leader
+                              </span>
+                            )}
                           </div>
-                          <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isMe ? 'bg-[#122244] text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'}`}>
+                          <div
+                            className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isMe ? "bg-[#122244] text-white rounded-tr-none" : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"}`}
+                          >
                             {msg.content}
                           </div>
-                          <span className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">{msg.time}</span>
+                          <span className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">
+                            {msg.time}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -340,20 +442,23 @@ const Messages: React.FC = () => {
               )}
             </div>
 
-            {/* MESSAGE INPUT */}
-            <div className="p-4 bg-white border-t border-gray-100">
-              <form onSubmit={handleSendMessage} className="flex gap-3 max-w-5xl mx-auto">
+            {/* INPUT BOX - ANCHORED TO BOTTOM */}
+            <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
+              <form
+                onSubmit={handleSendMessage}
+                className="flex gap-3 max-w-5xl mx-auto"
+              >
                 <input
                   type="text"
-                  placeholder="Type a message to group..."
-                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:bg-white transition-all font-medium"
+                  placeholder="Type your message..."
+                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:bg-white transition-all font-medium text-[#122244]"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={!newMessage.trim() || !groupId}
-                  className="bg-[#122244] hover:bg-[#1a3263] text-white p-3.5 rounded-xl shadow-md shadow-blue-900/10 transition-all disabled:opacity-50"
+                  className="bg-[#122244] hover:bg-[#1a3263] text-white p-3.5 rounded-xl shadow-md transition-all disabled:opacity-50"
                 >
                   <Send size={18} />
                 </button>
@@ -361,44 +466,62 @@ const Messages: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT ROSTER PANEL */}
-          <div className="w-80 bg-white border-l border-gray-100 hidden xl:flex flex-col">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/30">
-              <h3 className="font-extrabold text-[#122244] tracking-tight text-lg">Group Roster</h3>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Project Members</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {groupMembers.map((member) => (
-                <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${member.role === 'Leader' ? 'bg-purple-600' : 'bg-green-600'}`}>
-                    {member.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">{member.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className={`text-[9px] font-extrabold uppercase tracking-widest ${member.role === 'Leader' ? 'text-purple-600' : 'text-blue-600'}`}>
-                        {member.role}
-                      </span>
-                    </div>
-                  </div>
+          {/* ROSTER PANEL - RIGHT SIDE */}
+          <div className="w-80 bg-white border-l border-gray-100 hidden xl:flex flex-col p-4 space-y-4 overflow-y-auto flex-shrink-0">
+            <h3 className="font-extrabold text-[#122244] tracking-tight text-lg px-2">
+              Group Roster
+            </h3>
+            {groupMembers.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${member.role === "Leader" ? "bg-purple-600" : "bg-green-600"}`}
+                >
+                  {member.initials}
                 </div>
-              ))}
-            </div>
+                <div className="flex-1 min-w-0 text-[#122244]">
+                  <p className="text-sm font-bold truncate">{member.name}</p>
+                  <span
+                    className={`text-[9px] font-extrabold uppercase tracking-widest ${member.role === "Leader" ? "text-purple-600" : "text-blue-600"}`}
+                  >
+                    {member.role}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>
 
-      {/* LOGOUT CONFIRMATION */}
+      {/* LOGOUT CONFIRMATION MODAL */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl">
-            <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">Sign Out?</h3>
-            <p className="text-sm text-gray-600 mb-6 text-center italic">Are you sure you want to log out of your session?</p>
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowLogoutConfirm(false)}
+          />
+          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl text-center relative text-[#122244]">
+            <h3 className="text-lg font-bold mb-2 font-bold">Sign Out?</h3>
+            <p className="text-sm text-gray-600 mb-6 italic">
+              Are you sure you want to log out?
+            </p>
             <div className="flex gap-3">
-              <button className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50" onClick={() => setShowLogoutConfirm(false)}>Stay</button>
-              <button className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors" onClick={handleLogout}>Logout</button>
+              <button
+                type="button"
+                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md transition-colors text-white"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
