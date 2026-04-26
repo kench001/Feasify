@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc } from "firebase/firestore";
@@ -47,6 +47,7 @@ interface ProposalData {
 
 const AdviserDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userName, setUserName] = useState("Adviser");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -104,13 +105,17 @@ const AdviserDashboard: React.FC = () => {
           const rawSection = data.section || "Unassigned";
           const parsedSections = rawSection.split(",").map((s: string) => s.trim()).filter(Boolean);
           setAdviserSections(parsedSections);
-          setActiveSection(parsedSections[0]); 
-          fetchSectionData(parsedSections[0]);
+          
+          // Check if section is passed via query parameter
+          const sectionParam = searchParams.get('section');
+          const sectionToUse = sectionParam || parsedSections[0];
+          setActiveSection(sectionToUse); 
+          fetchSectionData(sectionToUse);
         }
       } catch (error) { console.error(error); }
     });
     return () => unsub();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const fetchSectionData = async (section: string) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
@@ -320,7 +325,7 @@ const AdviserDashboard: React.FC = () => {
               <div className="pl-4 pr-2 py-2 space-y-2">
                 {adviserSections.map((sectionName) => (
                   <button key={sectionName} onClick={() => { setActiveSection(sectionName); fetchSectionData(sectionName); }}
-                    className={`w-full text-left text-sm transition-colors ${activeSection === sectionName ? 'text-white font-medium' : 'text-gray-400 hover:text-white'}`}>
+                    className="w-full text-left text-sm transition-colors text-gray-400 hover:text-white">
                     {sectionName}
                   </button>
                 ))}
@@ -330,8 +335,8 @@ const AdviserDashboard: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => navigate('/adviser/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
+              <button onClick={() => navigate('/adviser/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
               <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
             </div>
           </div>

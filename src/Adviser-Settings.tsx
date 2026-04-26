@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, updateDoc, query, collection, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
 import {
   Users,
   FileText,
@@ -17,12 +17,14 @@ import {
   TrendingUp
 } from "lucide-react";
 
-const ChairpersonSettings: React.FC = () => {
+const AdviserSettings: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [adviserSections, setAdviserSections] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState("");
 
   // Dummy toggles for UI
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -36,6 +38,10 @@ const ChairpersonSettings: React.FC = () => {
           if (snap.exists()) {
             const data = snap.data() as any;
             setUserName([data.firstName, data.lastName].filter(Boolean).join(" ") || u.displayName || "");
+            const rawSection = data.section || "Unassigned";
+            const parsedSections = rawSection.split(",").map((s: string) => s.trim()).filter(Boolean);
+            setAdviserSections(parsedSections);
+            setActiveSection(parsedSections[0]);
           }
         } catch (e) {}
       } else {
@@ -44,6 +50,7 @@ const ChairpersonSettings: React.FC = () => {
     });
     return () => unsub();
   }, [navigate]);
+
   // Fetch unread notifications count
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -59,6 +66,7 @@ const ChairpersonSettings: React.FC = () => {
     });
     return () => unsub();
   }, []);
+
   const handleLogout = async () => {
     try { await signOutUser(); localStorage.clear(); sessionStorage.clear(); } catch (e) {}
     navigate("/");
@@ -68,60 +76,54 @@ const ChairpersonSettings: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
-      {/* ADMIN SIDEBAR */}
-      <aside className={`hidden lg:flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* ADVISER SIDEBAR */}
+      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
+         <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
 
         <nav className="flex-1 p-4 space-y-8 mt-4">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-2">
-              <button onClick={() => navigate('/admin/users')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-300 text-white transition-all shadow-md">
-                <Users className="w-5 h-5" /> User Accounts Management
-              </button>
-              <button onClick={() => navigate('/admin/projects')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <FileText className="w-5 h-5" /> Business Feasibility Management
-              </button>
+            <div className="space-y-1">
+              <button onClick={() => navigate('/adviser/dashboard')} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold  text-white transition-all ">My Sections</button>
+              <div className="pl-4 pr-2 py-2 space-y-2">
+                {adviserSections.map((sectionName) => (
+                  <button key={sectionName} onClick={() => navigate(`/adviser/dashboard?section=${encodeURIComponent(sectionName)}`)}
+                    className="w-full text-left text-sm transition-colors text-gray-400 hover:text-white">
+                    {sectionName}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button onClick={() => navigate('/admin/profile')}className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <User className="w-5 h-5" /> Profile
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                <Settings className="w-5 h-5" /> Settings
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <ShieldAlert className="w-5 h-5" /> Logout
-              </button>
+              <button onClick={() => navigate('/adviser/profile')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
+              <button onClick={() => navigate('/adviser/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
             </div>
           </div>
         </nav>
 
         <div className="p-4 border-t border-white/10 bg-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-              {getInitials(userName)}
-            </div>
+            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate text-white">{userName}</p>
-              <p className="text-[10px] text-gray-400 truncate">FM Chairperson</p>
+              <p className="text-[10px] text-gray-400 truncate">Feasibility Adviser</p>
             </div>
           </div>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${isSidebarOpen ? 'lg:ml-72' : 'ml-0'}`}>
+      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
         <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
           <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
-          <span className="cursor-pointer hover:text-[#c9a654] transition-colors" onClick={() => navigate('/admin/users')}>FeasiFy</span>
+          <span className="cursor-pointer hover:text-[#c9a654] transition-colors" onClick={() => navigate('/adviser/dashboard')}>FeasiFy</span>
           <span>›</span>
           <span className="font-semibold text-gray-900">Settings</span>
         </div>
@@ -141,7 +143,7 @@ const ChairpersonSettings: React.FC = () => {
                     <Bell className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-sm font-bold text-gray-900">Email Notifications</p>
-                      <p className="text-xs text-gray-500">Receive alerts when your adviser posts a message.</p>
+                      <p className="text-xs text-gray-500">Receive alerts when students post updates or submit proposals.</p>
                     </div>
                   </div>
                   <button 
@@ -222,4 +224,4 @@ const ChairpersonSettings: React.FC = () => {
   );
 };
 
-export default ChairpersonSettings;
+export default AdviserSettings;

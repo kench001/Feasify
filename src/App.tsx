@@ -13,7 +13,10 @@ import ChairpersonSettings from "./ChairpersonSettings";
 import Notifications from "./Notifications";
 import AdminUsers from "./AdminUsers";
 import AdminFeasibility from "./AdminFeasibility";
+import AdminProfile from "./Admin-Profile";
 import AdviserDashboard from "./AdviserDashboard";
+import AdviserSettings from "./Adviser-Settings";
+import AdviserProfile from "./Adviser-Profile";
 
 function App() {
   return (
@@ -53,10 +56,13 @@ function App() {
 
         {/* Admin Modules */}
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/admin/projects" element={<AdminFeasibility />} /> {/* <-- Add this route */}
 
         {/* Adviser Modules */}
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
+        <Route path="/adviser/settings" element={<AdviserSettings />} />
+        <Route path="/adviser/profile" element={<AdviserProfile />} />
       </Routes>
     </Router>
   );
