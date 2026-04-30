@@ -88,7 +88,7 @@ const Dashboard: React.FC = () => {
             approvedProps.forEach((pDoc) => {
               const pData = pDoc.data();
               allProjectsList.push({
-                id: pDoc.id, 
+                id: pDoc.id,
                 name: pData.businessName || pData.title || "Untitled Project",
                 status:
                   pData.aiAnalysis?.status === "FEASIBLE"
@@ -150,7 +150,9 @@ const Dashboard: React.FC = () => {
             // --- NEW: SECURITY GUARD ---
             // If they bypassed the login screen routing, catch them here!
             if (data.isFirstLogin === true) {
-              navigate("/profile", { state: { forcePasswordChange: true, firstName: first } });
+              navigate("/profile", {
+                state: { forcePasswordChange: true, firstName: first },
+              });
               return;
             }
 

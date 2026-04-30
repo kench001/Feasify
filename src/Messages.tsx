@@ -13,6 +13,7 @@ import {
   onSnapshot,
   getDocs,
   setDoc, // NEW IMPORT ADDED HERE
+  orderBy,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -170,38 +171,47 @@ const Messages: React.FC = () => {
     const q = query(
       collection(db, "messages"),
       where("groupId", "==", groupId),
+      orderBy("createdAt", "desc"),
       limit(50),
     );
-    const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-      const dbMessages = snapshot.docs.map((d) => {
-        const data = d.data();
-        let t = "Recent";
-        if (data.createdAt?.toDate) {
-          t = data.createdAt
-            .toDate()
-            .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        }
-        return { id: d.id, ...data, time: t } as Message;
-      });
+    const unsubscribeFirestore = onSnapshot(
+      q,
+      (snapshot) => {
+        const dbMessages = snapshot.docs.map((d) => {
+          const data = d.data();
+          let t = "Recent";
+          if (data.createdAt?.toDate) {
+            t = data.createdAt
+              .toDate()
+              .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          }
+          return { id: d.id, ...data, time: t } as Message;
+        });
 
-      const sorted = dbMessages.sort((a, b) => getSortTime(a) - getSortTime(b));
-
-      setMessages((prev) => {
-        // Find optimistic messages that haven't been confirmed by Firestore yet
-        const dbIds = new Set(sorted.map((m) => m.id));
-        const optimisticOnes = prev.filter(
-          (m) => m.id.startsWith("msg-") && !dbIds.has(m.id),
+        const sorted = dbMessages.sort(
+          (a, b) => getSortTime(a) - getSortTime(b),
         );
 
-        return [...sorted, ...optimisticOnes].slice(-MAX_MESSAGES);
-      });
-      setIsLoading(false);
-    });
+        setMessages((prev) => {
+          // Find optimistic messages that haven't been confirmed by Firestore yet
+          const dbIds = new Set(sorted.map((m) => m.id));
+          const optimisticOnes = prev.filter(
+            (m) => m.id.startsWith("msg-") && !dbIds.has(m.id),
+          );
+
+          return [...sorted, ...optimisticOnes].slice(-MAX_MESSAGES);
+        });
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching messages (might need an index):", error);
+        setIsLoading(false);
+      },
+    );
 
     // 2. Socket Initialization
     socketRef.current = io(SOCKET_SERVER_URL, {
       auth: { token: userUid },
-      transports: ["websocket"],
       reconnection: true,
     });
 
