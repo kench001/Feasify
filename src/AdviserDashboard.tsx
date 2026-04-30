@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -83,10 +84,14 @@ const AdviserDashboard: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
   const [activeProposal, setActiveProposal] = useState<ProposalData | null>(null);
 
-  // Modals & Popovers
+  // Per-section group settings
+  const [sectionSettingsMap, setSectionSettingsMap] = useState<Record<string, {minMembers: number, maxMembers: number}>>({});
+  const [sectionGroupCountMap, setSectionGroupCountMap] = useState<Record<string, number>>({});
   const [minMembers, setMinMembers] = useState(8);
   const [maxMembers, setMaxMembers] = useState(10);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [adviserUid, setAdviserUid] = useState("");
+
+  // Modals & Popovers
   const [showAllStudentsModal, setShowAllStudentsModal] = useState(false);
   const [showAutoGroupConfirm, setShowAutoGroupConfirm] = useState(false);
   const [showReshuffleConfirm, setShowReshuffleConfirm] = useState(false);
@@ -117,6 +122,7 @@ const AdviserDashboard: React.FC = () => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) { navigate("/"); return; }
       try {
+        setAdviserUid(u.uid);
         const userDoc = await getDoc(doc(db, "users", u.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
@@ -130,6 +136,11 @@ const AdviserDashboard: React.FC = () => {
             .filter(Boolean)
             .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
           
+          // Load per-section settings from Firestore
+          if (data.sectionSettings) {
+            setSectionSettingsMap(data.sectionSettings);
+          }
+
           setAdviserSections(parsedSections);
         }
       } catch (error) { console.error(error); }
@@ -140,10 +151,14 @@ const AdviserDashboard: React.FC = () => {
   // Auto-select the first section when adviser sections load
   useEffect(() => {
     if (adviserSections.length > 0 && !activeSection) {
-      setActiveSection(adviserSections[0]);
-      fetchSectionData(adviserSections[0]);
+      const firstSection = adviserSections[0];
+      setActiveSection(firstSection);
+      const settings = sectionSettingsMap[firstSection];
+      setMinMembers(settings?.minMembers ?? 8);
+      setMaxMembers(settings?.maxMembers ?? 10);
+      fetchSectionData(firstSection);
     }
-  }, [adviserSections]);
+  }, [adviserSections, sectionSettingsMap]);
 
   const fetchSectionData = async (section: string) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
@@ -157,7 +172,9 @@ const AdviserDashboard: React.FC = () => {
 
       const groupQ = query(collection(db, "groups"), where("section", "==", section));
       const groupSnap = await getDocs(groupQ);
-      setGroups(groupSnap.docs.map(d => ({ id: d.id, ...d.data(), status: d.data().status || 'Drafting' } as GroupData)));
+      const fetchedGroups = groupSnap.docs.map(d => ({ id: d.id, ...d.data(), status: d.data().status || 'Drafting' } as GroupData));
+      setGroups(fetchedGroups);
+      setSectionGroupCountMap(prev => ({ ...prev, [section]: fetchedGroups.length }));
     } catch (error) { console.error("Error fetching data:", error); } 
     finally { setIsLoading(false); }
   };
@@ -254,9 +271,22 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
+  // Save current min/max settings to Firestore for the active section
+  const saveSectionSettings = async () => {
+    if (!adviserUid || !activeSection) return;
+    const updatedMap = { ...sectionSettingsMap, [activeSection]: { minMembers, maxMembers } };
+    setSectionSettingsMap(updatedMap);
+    try {
+      await updateDoc(doc(db, "users", adviserUid), { sectionSettings: updatedMap });
+    } catch (error) { console.error("Failed to save section settings:", error); }
+  };
+
   const executeAutoGroup = async (currentGroupsList: GroupData[]) => {
     setIsLoading(true);
     try {
+      // Persist per-section settings before executing
+      await saveSectionSettings();
+
       const assignedIds = new Set<string>();
       currentGroupsList.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
       const unassignedStudents = students.filter(s => !assignedIds.has(s.id));
@@ -293,6 +323,9 @@ const AdviserDashboard: React.FC = () => {
   const handleReshuffle = async () => {
     setIsLoading(true);
     try {
+      // Persist per-section settings before reshuffling
+      await saveSectionSettings();
+
       const batch = writeBatch(db);
       groups.forEach(g => batch.delete(doc(db, "groups", g.id)));
       await batch.commit();
@@ -504,7 +537,7 @@ const AdviserDashboard: React.FC = () => {
               <button className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
               <div className="pl-4 pr-2 py-2 space-y-2">
                 {adviserSections.map((sectionName) => (
-                  <button key={sectionName} onClick={() => { setActiveSection(sectionName); fetchSectionData(sectionName); }}
+                  <button key={sectionName} onClick={() => { setActiveSection(sectionName); const s = sectionSettingsMap[sectionName]; setMinMembers(s?.minMembers ?? 8); setMaxMembers(s?.maxMembers ?? 10); fetchSectionData(sectionName); }}
                     className={`w-full text-left text-sm transition-colors ${activeSection === sectionName ? 'text-white font-medium' : 'text-gray-400 hover:text-white'}`}>
                     {sectionName}
                   </button>
@@ -562,7 +595,6 @@ const AdviserDashboard: React.FC = () => {
               {/* === REORDERED TOP BUTTONS === */}
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowAllStudentsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"><Users className="w-4 h-4" /> View All Students</button>
-                <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg bg-white hover:bg-gray-50 transition-colors shadow-sm"><Settings className="w-4 h-4" /> Group Settings</button>
                 <button onClick={() => setShowAutoGroupConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md"><Archive className="w-4 h-4" /> Auto-Group</button>
                 <button onClick={() => { setShowCreateLeaderModal(true); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><UserPlus className="w-4 h-4" /> Create Group</button>
               </div>
@@ -570,6 +602,18 @@ const AdviserDashboard: React.FC = () => {
 
             {/* Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              {isLoading ? (
+                Array.from({length: 4}).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex justify-between items-center">
+                    <div className="w-2/3">
+                      <Skeleton width="60%" height={12} className="mb-2" />
+                      <Skeleton width="40%" height={32} />
+                    </div>
+                    <Skeleton circle width={40} height={40} />
+                  </div>
+                ))
+              ) : (
+                <>
               <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#4285F4] flex justify-between items-center">
                 <div><p className="text-xs font-semibold text-gray-500 mb-1">Total Students</p><p className="text-3xl font-bold text-[#122244]">{students.length}</p></div>
                 <div className="bg-blue-50 p-2 rounded-lg"><Users className="w-5 h-5 text-[#4285F4]" /></div>
@@ -586,6 +630,8 @@ const AdviserDashboard: React.FC = () => {
                 <div><p className="text-xs font-semibold text-gray-500 mb-1">Students Unassigned</p><p className="text-3xl font-bold text-[#EA4335]">{unassignedCount}</p></div>
                 <div className="bg-red-50 p-2 rounded-lg"><AlertCircle className="w-5 h-5 text-[#EA4335]" /></div>
               </div>
+                </>
+              )}
             </div>
 
             {/* Tabs & Reshuffle Row */}
@@ -607,7 +653,40 @@ const AdviserDashboard: React.FC = () => {
 
             {/* Groups Grid */}
             {isLoading ? (
-              <div className="text-center py-12 text-gray-400 flex flex-col items-center"><Loader2 className="w-8 h-8 animate-spin mb-4"/>Loading section data...</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({length: sectionGroupCountMap[activeSection] ?? 3}).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[450px] overflow-hidden">
+                    {/* Card header */}
+                    <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                      <Skeleton width={70} height={16} />
+                      <div className="flex gap-2">
+                        <Skeleton width={50} height={24} borderRadius={999} />
+                        <Skeleton width={24} height={24} borderRadius={999} />
+                      </div>
+                    </div>
+                    {/* Avatar + name */}
+                    <div className="p-4 flex flex-col items-center border-b border-gray-100">
+                      <Skeleton circle width={64} height={64} className="mb-3" />
+                      <Skeleton width={120} height={16} className="mb-1" />
+                      <Skeleton width={80} height={12} />
+                    </div>
+                    {/* Members list */}
+                    <div className="p-4 flex-1 space-y-2">
+                      {Array.from({length: 4}).map((_, j) => (
+                        <div key={j} className="flex items-center gap-2">
+                          <Skeleton circle width={28} height={28} />
+                          <Skeleton width={100} height={12} />
+                        </div>
+                      ))}
+                    </div>
+                    {/* Footer buttons */}
+                    <div className="p-4 border-t border-gray-100 flex gap-2">
+                      <Skeleton height={36} borderRadius={8} className="flex-1" />
+                      <Skeleton height={36} borderRadius={8} className="flex-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filteredGroups.length === 0 ? (
               <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-16 flex flex-col items-center justify-center text-center">
                 <Users className="w-12 h-12 text-gray-300 mb-3" />
@@ -1358,9 +1437,19 @@ const AdviserDashboard: React.FC = () => {
               </div>
               <button onClick={() => setShowAutoGroupConfirm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-6">
+            <div className="p-6 space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-gray-700 block mb-2">Min. Members</label>
+                  <input type="number" value={minMembers} onChange={e=>setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-gray-700 block mb-2">Max. Members</label>
+                  <input type="number" value={maxMembers} onChange={e=>setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                </div>
+              </div>
               <p className="text-gray-600 text-sm leading-relaxed">
-                This will automatically shuffle and distribute all <strong>unassigned students</strong> into balanced groups based on your current settings (<strong>{minMembers} to {maxMembers}</strong> members per group). Are you sure you want to proceed?
+                This will automatically shuffle and distribute all <strong>unassigned students</strong> into balanced groups of <strong>{minMembers} to {maxMembers}</strong> members per group.
               </p>
             </div>
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
@@ -1384,9 +1473,19 @@ const AdviserDashboard: React.FC = () => {
               </div>
               <button onClick={() => setShowReshuffleConfirm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-6">
+            <div className="p-6 space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-gray-700 block mb-2">Min. Members</label>
+                  <input type="number" value={minMembers} onChange={e=>setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-gray-700 block mb-2">Max. Members</label>
+                  <input type="number" value={maxMembers} onChange={e=>setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                </div>
+              </div>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Are you sure you want to reshuffle? This will <strong>clear all current group assignments</strong> and randomly recreate them from scratch.
+                This will <strong>clear all current group assignments</strong> and randomly recreate them using <strong>{minMembers} to {maxMembers}</strong> members per group.
               </p>
             </div>
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
@@ -1454,34 +1553,7 @@ const AdviserDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: Group Settings */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">Group Settings</h2>
-                <p className="text-sm text-gray-500 mt-1 leading-snug">Set the required member limits for feasibility groups in this section.</p>
-              </div>
-              <button onClick={() => setShowSettingsModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
-            </div>
-            <div className="p-6 flex gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-bold text-gray-700 block mb-2">Min. Members</label>
-                <input type="number" value={minMembers} onChange={e=>setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
-              </div>
-              <div className="flex-1">
-                <label className="text-sm font-bold text-gray-700 block mb-2">Max. Members</label>
-                <input type="number" value={maxMembers} onChange={e=>setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-[#122244] text-white font-semibold rounded-lg shadow-md hover:bg-[#1a3263]">Save Settings</button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* MODAL: Change Leader */}
       {showChangeLeaderModal && groupToChangeLeader && (

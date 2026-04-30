@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -107,6 +108,7 @@ const ChairpersonFeasib: React.FC = () => {
           date: createdAt.toLocaleDateString()
         } as ProjectData;
       });
+      sessionStorage.setItem('adminProjectCount', projList.length.toString());
       setProjects(projList);
     } catch (error) {
       console.error("Error fetching all projects:", error);
@@ -210,6 +212,20 @@ const ChairpersonFeasib: React.FC = () => {
 
           {/* Stats Cards Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {isLoading ? (
+              Array.from({length: 4}).map((_, i) => (
+                 <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-gray-200">
+                   <div className="flex justify-between items-start">
+                     <div className="w-full">
+                       <Skeleton width={120} height={12} className="mb-2" />
+                       <Skeleton width={40} height={32} />
+                     </div>
+                     <Skeleton width={32} height={32} circle />
+                   </div>
+                 </div>
+              ))
+            ) : (
+              <>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-[#c9a654]">
               <div className="flex justify-between items-start">
                 <div>
@@ -249,6 +265,8 @@ const ChairpersonFeasib: React.FC = () => {
                 <AlertCircle className="w-8 h-8 text-red-100" />
               </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* Controls */}
@@ -307,7 +325,15 @@ const ChairpersonFeasib: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {isLoading ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">Loading projects...</td></tr>
+                    Array.from({length: Math.min(parseInt(sessionStorage.getItem('adminProjectCount') || '5', 10) || 5, 10)}).map((_, i) => (
+                      <tr key={i}>
+                        <td className="px-6 py-5"><Skeleton width={150} /></td>
+                        <td className="px-6 py-5"><Skeleton width={80} /></td>
+                        <td className="px-6 py-5"><Skeleton width={120} /></td>
+                        <td className="px-6 py-5"><Skeleton width={100} borderRadius={999} /></td>
+                        <td className="px-6 py-5"><Skeleton width={120} /></td>
+                      </tr>
+                    ))
                   ) : filteredProjects.length === 0 ? (
                     <tr><td colSpan={5} className="p-8 text-center text-gray-400">No projects found matching your filters.</td></tr>
                   ) : (

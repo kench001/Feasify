@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -266,9 +267,9 @@ const Projects: React.FC = () => {
         where("groupId", "==", groupId),
       );
       const snap = await getDocs(q);
-      setProposals(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ProposalData),
-      );
+      const fetchedProposals = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ProposalData);
+      setProposals(fetchedProposals);
+      sessionStorage.setItem('projectsProposalCount', fetchedProposals.length.toString());
     } catch (err) {
       console.error(err);
     }
@@ -556,13 +557,48 @@ const Projects: React.FC = () => {
         );
 
   if (activeView === "loading") {
+    const cachedCount = parseInt(sessionStorage.getItem('projectsProposalCount') || '3', 10) || 3;
     return (
-      <div className="flex min-h-screen bg-gray-50/30">
+      <div className="flex min-h-screen bg-gray-50/50">
         {renderSidebar()}
-        <main
-          className={`flex-1 flex items-center justify-center ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
-        >
-          <div className="w-8 h-8 border-4 border-[#122244] border-t-transparent rounded-full animate-spin"></div>
+        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}>
+          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+            <SidebarIcon className="w-4 h-4 cursor-pointer text-gray-300" />
+            <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
+            <span className="font-semibold text-gray-900">Projects</span>
+          </div>
+          <div className="p-6 md:p-8 max-w-6xl mx-auto">
+             <Skeleton width={250} height={36} className="mb-2" />
+             <div className="bg-[#122244] rounded-xl mb-6 flex items-center p-6 gap-6">
+                <Skeleton width={80} height={80} borderRadius={16} highlightColor="#2a3c5a" baseColor="#1a2942" />
+                <div>
+                   <Skeleton width={120} height={16} className="mb-2" highlightColor="#2a3c5a" baseColor="#1a2942" />
+                   <Skeleton width={200} height={24} className="mb-1" highlightColor="#2a3c5a" baseColor="#1a2942" />
+                   <Skeleton width={150} height={12} highlightColor="#2a3c5a" baseColor="#1a2942" />
+                </div>
+             </div>
+             <div className="flex justify-between items-center mb-6">
+               <Skeleton width={200} height={28} />
+               <Skeleton width={120} height={36} borderRadius={8} />
+             </div>
+             <div className="flex space-x-6 border-b border-gray-200 mb-6">
+               <Skeleton width={400} height={24} />
+             </div>
+             <div className="space-y-4">
+               {Array.from({length: cachedCount}).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-5 flex items-center justify-between">
+                     <div className="flex gap-4 items-center">
+                        <Skeleton width={48} height={48} borderRadius={8} />
+                        <div>
+                           <Skeleton width={180} height={20} className="mb-1" />
+                           <Skeleton width={100} height={12} />
+                        </div>
+                     </div>
+                     <Skeleton width={150} height={36} borderRadius={8} />
+                  </div>
+               ))}
+             </div>
+          </div>
         </main>
       </div>
     );

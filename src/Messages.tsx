@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -201,6 +202,7 @@ const Messages: React.FC = () => {
 
           return [...sorted, ...optimisticOnes].slice(-MAX_MESSAGES);
         });
+        sessionStorage.setItem('chatMessageCount', dbMessages.length.toString());
         setIsLoading(false);
       },
       (error) => {
@@ -423,12 +425,21 @@ const Messages: React.FC = () => {
               className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 scroll-smooth"
             >
               {isLoading && messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-[#c9a654] animate-spin mb-2" />
-                  <p className="text-xs font-bold uppercase tracking-widest text-[#122244]">
-                    Syncing...
-                  </p>
-                </div>
+                Array.from({length: Math.min(parseInt(sessionStorage.getItem('chatMessageCount') || '4', 10) || 4, 8)}).map((_, i) => {
+                  const isMe = i % 2 !== 0;
+                  return (
+                    <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                      <div className={`flex gap-3 max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                        <Skeleton width={36} height={36} borderRadius={12} />
+                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                          <Skeleton width={80} height={12} className="mb-1" />
+                          <Skeleton width={isMe ? 150 : 220} height={45} borderRadius={16} />
+                          <Skeleton width={40} height={10} className="mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               ) : messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center opacity-40 text-[#122244]">
                   <MessageCircle size={48} />
