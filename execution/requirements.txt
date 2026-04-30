@@ -1,0 +1,2 @@
+# Python dependencies for execution scripts
+python-dotenv>=1.0.0

@@ -25,3 +25,8 @@ dist-ssr
 
 # Env
 .env
+
+# Agent framework
+.tmp/
+credentials.json
+token.json

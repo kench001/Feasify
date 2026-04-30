@@ -137,6 +137,14 @@ const AdviserDashboard: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
+  // Auto-select the first section when adviser sections load
+  useEffect(() => {
+    if (adviserSections.length > 0 && !activeSection) {
+      setActiveSection(adviserSections[0]);
+      fetchSectionData(adviserSections[0]);
+    }
+  }, [adviserSections]);
+
   const fetchSectionData = async (section: string) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
     setIsLoading(true);
