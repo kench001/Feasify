@@ -343,6 +343,25 @@ const ChairpersonModule: React.FC = () => {
               });
               setUsersList(prev => [...prev, { id: newAuthUid, ...userData }]);
               successCount++;
+
+              try {
+                await emailjs.send(
+                  "service_u09o2ne",
+                  "template_fx69don",
+                  {
+                    to_email: email,
+                    to_name: firstName,
+                    password: generatedPassword,
+                    role: "Student"
+                  },
+                  "Iw4MKLYpB4TPgpXLn"
+                );
+              } catch (emailErr) {
+                console.error(`Failed to send welcome email to ${email}:`, emailErr);
+                // We don't increment errorCount here because the account WAS created, 
+                // just the email failed to send.
+              }
+              
             } catch (err: any) {
               console.error(`Failed to import user ${email}:`, err);
               errorCount++;
@@ -541,7 +560,7 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-3xl font-bold text-[#3d2c23]">{totalSections}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-orange-500">
-              <p className="text-sm font-semibold text-gray-500 mb-2">Active Students (7d)</p>
+              <p className="text-sm font-semibold text-gray-500 mb-2">Active Users (7d)</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{activeStudentsCount}</p>
             </div>
           </div>
@@ -621,7 +640,7 @@ const ChairpersonModule: React.FC = () => {
                     <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading {activeTab.toLowerCase()}...</td></tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                     <td colSpan={7} className="text-center py-12">
+                      <td colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center justify-center text-gray-400">
                           <Users className="w-8 h-8 mb-2 opacity-20" />
                           <p>No {activeTab.toLowerCase()} found.</p>
@@ -822,17 +841,20 @@ const ChairpersonModule: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-sm font-bold text-gray-700 block mb-1">System Password</label>
-                <input 
-                  type="text" 
-                  required
-                  value={userForm.password}
-                  onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                  placeholder="Auto-generated or enter manually" 
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none font-mono text-gray-600 transition-shadow" 
-                />
-              </div>
+              {/* ONLY show the password field when creating a NEW user */}
+              {!editingUserId && (
+                <div>
+                  <label className="text-sm font-bold text-gray-700 block mb-1">System Password</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                    placeholder="Auto-generated or enter manually" 
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none font-mono text-gray-600 transition-shadow" 
+                  />
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                 <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">

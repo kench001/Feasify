@@ -490,15 +490,146 @@ const Profile: React.FC = () => {
       </main>
 
       {/* ALL MODALS GO HERE (PROCEED AS BEFORE) */}
-      {showForcePasswordModal /* Logic fixed for forced modal */ && (
+      {/* FORCE PASSWORD CHANGE MODAL */}
+      {showForcePasswordModal && (
         <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          {/* ... rest of your original force password modal code ... */}
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-center text-[#122244] mb-2">Security Update Required</h3>
+            <p className="text-sm text-center text-gray-500 mb-8 font-medium">
+              Please change your default password to continue.
+            </p>
+
+            <form onSubmit={handleForcePasswordChange} className="space-y-5">
+              {modalError && (
+                <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-2 font-bold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {modalError}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showForceNewPwd ? "text" : "password"}
+                    value={forcePwdData.new}
+                    onChange={(e) => setForcePwdData({ ...forcePwdData, new: e.target.value })}
+                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    placeholder="Enter new password"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowForceNewPwd(!showForceNewPwd)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showForceNewPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Confirm Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showForceConfirmPwd ? "text" : "password"}
+                    value={forcePwdData.confirm}
+                    onChange={(e) => setForcePwdData({ ...forcePwdData, confirm: e.target.value })}
+                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    placeholder="Confirm new password"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowForceConfirmPwd(!showForceConfirmPwd)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showForceConfirmPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#c9a654] hover:bg-[#b59545] text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Update Password"}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
+      {/* SUCCESS MODAL FOR PASSWORD CHANGE */}
+      {showForcePasswordSuccess && (
+        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center animate-in zoom-in-95 duration-200">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-[#122244] mb-2">Password Updated!</h3>
+            <p className="text-sm text-gray-500 mb-8 font-medium">
+              Your password has been successfully secured.
+            </p>
+            <button
+              onClick={() => {
+                setShowForcePasswordSuccess(false);
+                // Navigate to dashboard and trigger the welcome toast
+                navigate("/dashboard", { 
+                  state: { showWelcome: true, firstName: profileData.firstName } 
+                });
+              }}
+              className="w-full bg-[#122244] hover:bg-black text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
+            >
+              Continue to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION (Make sure to keep this if it was also commented out) */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center">
-          {/* ... rest of your logout modal ... */}
+            <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
+              <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
+                Sign Out?
+              </h3>
+              <p className="text-sm text-gray-600 mb-6 text-center italic">
+                Are you sure you want to log out of your session?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                >
+                  Stay
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowLogoutConfirm(false);
+                    handleLogout();
+                  }}
+                  className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
         </div>
       )}
     </div>
@@ -506,3 +637,4 @@ const Profile: React.FC = () => {
 };
 
 export default Profile;
+

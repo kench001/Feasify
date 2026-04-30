@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
-  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2
+  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check
 } from "lucide-react";
 
 interface StudentData {
@@ -23,7 +23,17 @@ interface GroupData {
   leaderName: string;
   title: string;
   memberIds: string[];
+  section: string;
   status?: 'Drafting' | 'Pending Review' | 'Approved Proposal' | 'Active Business';
+  activeProposalId?: string;
+}
+
+interface FeedbackItem {
+  id: string;
+  text: string;
+  authorName: string;
+  role: string;
+  date: string;
 }
 
 interface ProposalData {
@@ -42,6 +52,10 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
+  adviserFeedback?: string; 
+  feedbackHistory?: FeedbackItem[];
+  financialData?: any;
+  aiAnalysis?: any;
   createdAt?: any;
 }
 
@@ -62,33 +76,42 @@ const AdviserDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // View & Tab States
-  const [activeView, setActiveView] = useState<'dashboard' | 'group-details'>('dashboard');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'All Groups' | 'Pending Review' | 'Approved Proposal' | 'Drafting'>('All Groups');
+  const [activeView, setActiveView] = useState<'dashboard' | 'group-details' | 'active-business'>('dashboard');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'All Groups' | 'Pending Review' | 'Approved Proposal' | 'Drafting' | 'Active Business'>('All Groups');
   const [activeDetailTab, setActiveDetailTab] = useState<'Proposals' | 'Members'>('Proposals');
+  const [activeBusinessTab, setActiveBusinessTab] = useState<'Profile' | 'Financial' | 'AI'>('Profile');
   const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
+  const [activeProposal, setActiveProposal] = useState<ProposalData | null>(null);
 
   // Modals & Popovers
   const [minMembers, setMinMembers] = useState(8);
   const [maxMembers, setMaxMembers] = useState(10);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAllStudentsModal, setShowAllStudentsModal] = useState(false);
-  const [showAssignLeaderModal, setShowAssignLeaderModal] = useState(false);
   const [showAutoGroupConfirm, setShowAutoGroupConfirm] = useState(false);
   const [showReshuffleConfirm, setShowReshuffleConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null); 
   
+  // Create Group Multi-Step State
+  const [showCreateLeaderModal, setShowCreateLeaderModal] = useState(false);
+  const [showCreateMembersModal, setShowCreateMembersModal] = useState(false);
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string>("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
   // Change Leader State
   const [showChangeLeaderModal, setShowChangeLeaderModal] = useState(false);
   const [groupToChangeLeader, setGroupToChangeLeader] = useState<GroupData | null>(null);
   const [newLeaderId, setNewLeaderId] = useState<string>("");
 
-  // Review Proposal State
+  // Review & Feedback State
   const [viewingProposal, setViewingProposal] = useState<ProposalData | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackInput, setFeedbackInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLeaderIds, setSelectedLeaderIds] = useState<string[]>([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -102,10 +125,12 @@ const AdviserDashboard: React.FC = () => {
           }
           setUserName(`${data.firstName} ${data.lastName}`);
           const rawSection = data.section || "Unassigned";
-          const parsedSections = rawSection.split(",").map((s: string) => s.trim()).filter(Boolean);
+          const parsedSections = rawSection.split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+          
           setAdviserSections(parsedSections);
-          setActiveSection(parsedSections[0]); 
-          fetchSectionData(parsedSections[0]);
         }
       } catch (error) { console.error(error); }
     });
@@ -134,13 +159,9 @@ const AdviserDashboard: React.FC = () => {
       const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
       const snap = await getDocs(q);
       const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProposalData));
-      
-      // Sort newest first
       fetched.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       setGroupProposals(fetched);
-    } catch (error) {
-      console.error("Error fetching proposals:", error);
-    }
+    } catch (error) { console.error("Error fetching proposals:", error); }
   };
 
   const handleLogout = async () => {
@@ -148,25 +169,81 @@ const AdviserDashboard: React.FC = () => {
     navigate("/");
   };
 
-  const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  const getInitials = (name: string) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
-  // --- LOGIC: ASSIGN LEADER & AUTO GROUP ---
-  const assignLeader = async () => {
-    if (!selectedLeaderIds.length || !activeSection) return;
+  const handleOpenGroupDetails = (group: GroupData) => {
+    setSelectedGroup(group);
+    setActiveView('group-details');
+    setActiveDetailTab('Proposals');
+    fetchGroupProposals(group.id); 
+  };
+
+  const handleOpenActiveBusiness = async (group: GroupData) => {
+    setSelectedGroup(group);
+    if (!group.activeProposalId) {
+        alert("No active proposal linked to this group.");
+        return;
+    }
+    setIsLoading(true);
     try {
-      const createdGroups: GroupData[] = [];
-      for (const leaderId of selectedLeaderIds) {
-        const leader = students.find(s => s.id === leaderId);
-        if (!leader) continue;
-        const docRef = await addDoc(collection(db, "groups"), {
-          section: activeSection, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`,
-          title: "Pending Business Name", memberIds: [], status: 'Drafting', createdAt: serverTimestamp()
-        });
-        createdGroups.push({ id: docRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: [], status: 'Drafting' });
-      }
-      if (createdGroups.length) setGroups(prev => [...prev, ...createdGroups]);
-      setShowAssignLeaderModal(false); setSelectedLeaderIds([]);
-    } catch (error) { console.error(error); alert("Failed to create group."); }
+        const docRef = doc(db, "proposals", group.activeProposalId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            setActiveProposal({ id: docSnap.id, ...docSnap.data() } as ProposalData);
+            setActiveView('active-business');
+            setActiveBusinessTab('Profile');
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Failed to fetch business details.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleOpenProposalModal = (proposal: ProposalData) => {
+    setViewingProposal(proposal);
+    setFeedbackInput(""); 
+  };
+
+  // --- LOGIC: MULTI-STEP CREATE GROUP ---
+  const handleCreateGroup = async () => {
+    if (!selectedLeaderId || !activeSection) return;
+    setIsLoading(true);
+    try {
+      const leader = students.find(s => s.id === selectedLeaderId);
+      if (!leader) return;
+
+      const docRef = await addDoc(collection(db, "groups"), {
+        section: activeSection, 
+        leaderId: leader.id, 
+        leaderName: `${leader.firstName} ${leader.lastName}`,
+        title: "Pending Business Name", 
+        memberIds: selectedMemberIds, 
+        status: 'Drafting', 
+        createdAt: serverTimestamp()
+      });
+
+      const newGroup: GroupData = { 
+        id: docRef.id, 
+        leaderId: leader.id, 
+        leaderName: `${leader.firstName} ${leader.lastName}`, 
+        title: "Pending Business Name", 
+        memberIds: selectedMemberIds, 
+        status: 'Drafting', 
+        section: activeSection 
+      };
+
+      setGroups(prev => [...prev, newGroup]);
+      setShowCreateMembersModal(false);
+      setSelectedLeaderId("");
+      setSelectedMemberIds([]);
+    } catch (error) { 
+      console.error(error); 
+      alert("Failed to create group."); 
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const executeAutoGroup = async (currentGroupsList: GroupData[]) => {
@@ -198,7 +275,7 @@ const AdviserDashboard: React.FC = () => {
           section: activeSection, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`,
           title: "Pending Business Name", memberIds: members, status: 'Drafting', createdAt: serverTimestamp()
         });
-        updatedGroups.push({ id: newGroupRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: members, status: 'Drafting' });
+        updatedGroups.push({ id: newGroupRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: members, status: 'Drafting', section: activeSection });
       }
       await batch.commit(); setGroups(updatedGroups); setShowAutoGroupConfirm(false);
     } catch (error) { console.error(error); alert("Failed to auto-group."); } 
@@ -245,64 +322,165 @@ const AdviserDashboard: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
-  const handleOpenGroupDetails = (group: GroupData) => {
-    setSelectedGroup(group);
-    setActiveView('group-details');
-    setActiveDetailTab('Proposals');
-    fetchGroupProposals(group.id); 
-  };
-
-  // --- LOGIC: APPROVE OR REJECT PROPOSAL ---
+  // --- LOGIC: APPROVE/REJECT PROPOSAL ---
   const handleProposalAction = async (proposal: ProposalData, action: 'Approve' | 'Reject') => {
     if (!selectedGroup || !proposal.id) return;
     try {
       const newStatus = action === 'Approve' ? 'Approved' : 'Rejected';
       
-      // 1. Update the specific proposal in DB
-      await updateDoc(doc(db, "proposals", proposal.id), { 
+      let updatePayload: any = { 
         status: newStatus, 
         updatedAt: serverTimestamp() 
-      });
+      };
 
-      // 2. Determine what happens to the Group's status
+      if (feedbackInput.trim()) {
+          const newFeedback: FeedbackItem = {
+              id: Date.now().toString(),
+              text: feedbackInput,
+              authorName: userName,
+              role: "Adviser",
+              date: new Date().toISOString()
+          };
+          updatePayload.feedbackHistory = arrayUnion(newFeedback);
+          updatePayload.adviserFeedback = feedbackInput; 
+      }
+
+      await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
+
       let newGroupStatus = selectedGroup.status;
-      
       if (action === 'Approve') {
         newGroupStatus = 'Approved Proposal';
       } else if (action === 'Reject') {
         const otherPending = groupProposals.filter(p => p.id !== proposal.id && p.status === 'Pending');
-        if (otherPending.length === 0) {
-          if (selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
+        if (otherPending.length === 0 && selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
             newGroupStatus = 'Drafting';
-          }
         }
       }
 
-      // 3. Update Group in DB if status changed
       if (newGroupStatus !== selectedGroup.status) {
         await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
-        
         setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
         setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
       }
 
-      // 4. Refresh local proposals list and close modal
       await fetchGroupProposals(selectedGroup.id);
       setViewingProposal(null);
+    } catch (error) { console.error("Action failed:", error); alert("Failed to update proposal status."); }
+  };
 
+  // --- LOGIC: SUBMIT FEEDBACK HISTORY ---
+  const handleSubmitFeedback = async () => {
+    if (!feedbackInput.trim() || !activeProposal?.id) return;
+    setIsSaving(true);
+    
+    const newFeedback: FeedbackItem = {
+        id: Date.now().toString(),
+        text: feedbackInput,
+        authorName: userName,
+        role: "Adviser",
+        date: new Date().toISOString()
+    };
+
+    try {
+        await updateDoc(doc(db, "proposals", activeProposal.id), {
+            feedbackHistory: arrayUnion(newFeedback)
+        });
+        
+        setActiveProposal(prev => prev ? {
+            ...prev,
+            feedbackHistory: [...(prev.feedbackHistory || []), newFeedback]
+        } : null);
+        setFeedbackInput("");
     } catch (error) {
-      console.error("Action failed:", error);
-      alert("Failed to update proposal status.");
+        console.error(error);
+        alert("Failed to submit feedback.");
+    } finally {
+        setIsSaving(false);
     }
   };
 
-  // Metrics Calculations
+  // Financial Calculations for Read-Only Display
+  const renderFinancialData = () => {
+    if (!activeProposal?.financialData) return <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">No financial data has been input yet.</div>;
+    
+    const fin = activeProposal.financialData;
+    const safeSellingPrice = Number(fin.sellingPrice) || 0;
+    const safeMonthlySales = Number(fin.monthlySales) || 0;
+    const safeVariableCost = Number(fin.variableCost) || 0;
+    const safeFixedCosts = Number(fin.fixedCosts) || 0;
+    const safeStartupCapital = Number(fin.startupCapital) || Number(activeProposal.totalCapital) || 0;
+
+    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+    const annualRevenue = monthlyRevenue * 12;
+    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts;
+    const annualNetProfit = netMonthlyProfit * 12;
+
+    const paybackVal = netMonthlyProfit > 0 ? (safeStartupCapital / netMonthlyProfit).toFixed(1) : "∞";
+    const rawROI = safeStartupCapital > 0 ? (annualNetProfit / safeStartupCapital) * 100 : 0;
+    const estimatedAnnualROI = isNaN(rawROI) ? "0.0" : rawROI.toFixed(1);
+    const contributionMargin = safeSellingPrice - safeVariableCost;
+    const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Revenue</span>
+                <p className="text-2xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-5 shadow-sm border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Expenses</span>
+                <p className="text-2xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Break-Even</span>
+                <p className="text-2xl font-black text-[#122244]">{breakEvenUnits} <span className="text-xs text-gray-400">units</span></p>
+              </div>
+              <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Net Profit/mo</span>
+                <p className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+                    <h4 className="text-sm font-bold text-[#122244] mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-[#c9a654]" /> Student Inputs</h4>
+                    <div className="space-y-4">
+                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Selling Price</span><span className="font-bold">₱{safeSellingPrice.toLocaleString()}</span></div>
+                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Est. Monthly Sales</span><span className="font-bold">{safeMonthlySales.toLocaleString()} units</span></div>
+                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Variable Cost/Unit</span><span className="font-bold">₱{safeVariableCost.toLocaleString()}</span></div>
+                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Fixed Costs/Mo</span><span className="font-bold">₱{safeFixedCosts.toLocaleString()}</span></div>
+                        <div className="flex justify-between pb-2"><span className="text-sm text-gray-500">Startup Capital</span><span className="font-bold text-blue-600">₱{safeStartupCapital.toLocaleString()}</span></div>
+                    </div>
+                </div>
+
+                <div className="bg-[#122244] text-white rounded-xl p-6 shadow-md">
+                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#c9a654]" /> Quick Metrics</h4>
+                    <div className="space-y-4">
+                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Revenue</span><span className="font-bold text-green-400">₱{annualRevenue.toLocaleString()}</span></div>
+                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Net Profit</span><span className="font-bold">₱{annualNetProfit.toLocaleString()}</span></div>
+                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Payback Period</span><span className="font-bold text-[#c9a654]">{paybackVal} {paybackVal !== "∞" ? "months" : ""}</span></div>
+                        <div className="flex justify-between pb-2"><span className="text-sm text-gray-400">Est. Annual ROI</span><span className="font-bold text-xl">{estimatedAnnualROI}%</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+  }
+
+  // FIXED Metrics Calculations: Guaranteed to never be negative by filtering actual students.
   const assignedIds = new Set<string>();
-  groups.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
-  const unassignedCount = students.length - assignedIds.size;
-  const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm));
+  groups.forEach(g => { 
+    if (g.leaderId) assignedIds.add(g.leaderId); 
+    if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => assignedIds.add(id)); 
+  });
   
+  const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm));
   const filteredGroups = activeDashboardTab === 'All Groups' ? groups : groups.filter(g => g.status === activeDashboardTab);
+  
+  // This physically counts how many fetched students do not exist inside the assigned Set
+  const unassignedCount = students.filter(s => !assignedIds.has(s.id)).length;
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
@@ -311,7 +489,6 @@ const AdviserDashboard: React.FC = () => {
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-
         <nav className="flex-1 p-4 space-y-8 mt-4">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
@@ -336,7 +513,6 @@ const AdviserDashboard: React.FC = () => {
             </div>
           </div>
         </nav>
-
         <div className="p-4 border-t border-white/10 bg-black/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
@@ -349,12 +525,13 @@ const AdviserDashboard: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+      <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 sticky top-0 z-10">
           <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
-          <span className="font-semibold text-gray-900 hover:text-gray-600 cursor-pointer" onClick={() => setActiveView('dashboard')}>FeasiFy</span>
-          {activeView === 'group-details' && selectedGroup && (
+          <span className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors" onClick={() => setActiveView('dashboard')}>FeasiFy</span>
+          
+          {(activeView === 'group-details' || activeView === 'active-business') && selectedGroup && (
             <>
               <span className="mx-2">›</span>
               <span className="font-semibold text-[#c9a654]">Group {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
@@ -366,18 +543,20 @@ const AdviserDashboard: React.FC = () => {
         {/* VIEW 1: DASHBOARD                                                                                 */}
         {/* ------------------------------------------------------------------------------------------------- */}
         {activeView === 'dashboard' && (
-          <div className="p-6 md:p-8 max-w-7xl mx-auto">
+          <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
             
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 pb-6">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#122244]">{activeSection}</h1>
                 <p className="text-sm text-gray-500 mt-1 italic">Manage feasibility groups and team leaders for this section.</p>
               </div>
+              
+              {/* === REORDERED TOP BUTTONS === */}
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowAllStudentsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"><Users className="w-4 h-4" /> View All Students</button>
-                <button onClick={() => { setShowAssignLeaderModal(true); setSelectedLeaderIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><Star className="w-4 h-4" /> Assign Leader</button>
                 <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg bg-white hover:bg-gray-50 transition-colors shadow-sm"><Settings className="w-4 h-4" /> Group Settings</button>
                 <button onClick={() => setShowAutoGroupConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md"><Archive className="w-4 h-4" /> Auto-Group</button>
+                <button onClick={() => { setShowCreateLeaderModal(true); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><UserPlus className="w-4 h-4" /> Create Group</button>
               </div>
             </div>
 
@@ -403,8 +582,8 @@ const AdviserDashboard: React.FC = () => {
 
             {/* Tabs & Reshuffle Row */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-200 pb-2">
-              <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-                {['All Groups', 'Pending Review', 'Approved Proposal', 'Drafting'].map(tab => (
+              <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 custom-scrollbar">
+                {['All Groups', 'Pending Review', 'Approved Proposal', 'Drafting', 'Active Business'].map(tab => (
                   <button key={tab} onClick={() => setActiveDashboardTab(tab as any)}
                     className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${activeDashboardTab === tab ? 'bg-white text-[#122244] shadow-sm border border-gray-200' : 'bg-transparent text-gray-500 hover:text-gray-800'}`}>
                     {tab}
@@ -434,14 +613,15 @@ const AdviserDashboard: React.FC = () => {
                   
                   let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
                   if (group.status === 'Pending Review') { statusBadgeColor = "bg-yellow-100 text-yellow-700"; statusDotColor = "bg-yellow-500"; }
-                  if (group.status === 'Approved Proposal' || group.status === 'Active Business') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
+                  if (group.status === 'Approved Proposal') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
+                  if (group.status === 'Active Business') { statusBadgeColor = "bg-blue-100 text-blue-700"; statusDotColor = "bg-blue-500"; }
 
                   return (
-                    <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[450px]">
+                    <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[450px] hover:shadow-md transition-shadow">
                       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
                         <h3 className="font-bold text-[#122244] text-base">Group {originalIndex}</h3>
                         <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-blue-100 text-[#4285F4] text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
+                          <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
                           
                           <div className="relative">
                             <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
@@ -464,7 +644,7 @@ const AdviserDashboard: React.FC = () => {
                         <div className="mb-6">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
-                            {group.status === 'Pending Review' ? '1 Proposal for Review' : group.status === 'Active Business' ? 'Approved Proposal' : group.status}
+                            {group.status === 'Pending Review' ? 'Proposal for Review' : group.status}
                           </span>
                         </div>
 
@@ -498,8 +678,11 @@ const AdviserDashboard: React.FC = () => {
                         {group.status === 'Pending Review' && (
                           <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> Review Proposals</button>
                         )}
-                        {(group.status === 'Approved Proposal' || group.status === 'Active Business') && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-[#d4af37] text-[#d4af37] font-bold text-sm rounded-lg hover:bg-yellow-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4"/> View Financial Study</button>
+                        {group.status === 'Approved Proposal' && (
+                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> View Approved Status</button>
+                        )}
+                        {group.status === 'Active Business' && (
+                           <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4"/> View Active Business</button>
                         )}
                       </div>
                     </div>
@@ -514,7 +697,7 @@ const AdviserDashboard: React.FC = () => {
         {/* VIEW 2: GROUP DETAILS (PROPOSALS & MEMBERS)                                                       */}
         {/* ------------------------------------------------------------------------------------------------- */}
         {activeView === 'group-details' && selectedGroup && (
-          <div className="p-6 md:p-8 max-w-5xl mx-auto">
+          <div className="p-6 md:p-8 max-w-5xl mx-auto animate-in fade-in duration-300">
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-4">
                 <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm"><ChevronLeft className="w-4 h-4" /> Back</button>
@@ -532,7 +715,6 @@ const AdviserDashboard: React.FC = () => {
             {/* Content: PROPOSALS TAB */}
             {activeDetailTab === 'Proposals' && (
               <div className="space-y-4">
-                {/* Filter out strictly local "Drafts" so adviser only sees submitted things */}
                 {groupProposals.filter(p => p.status !== 'Draft').length === 0 ? (
                   <div className="py-20 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100"><FileText className="w-8 h-8 text-gray-300" /></div>
@@ -541,7 +723,6 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Show Green Banner if a proposal is approved */}
                     {(selectedGroup.status === 'Approved Proposal' || selectedGroup.status === 'Active Business') && (
                       <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3 mb-6">
                         <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
@@ -570,8 +751,7 @@ const AdviserDashboard: React.FC = () => {
                             <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3"/> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => setViewingProposal(proposal)} className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 transition-colors">Open</button>
-                            <button className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg"><MoreVertical className="w-4 h-4"/></button>
+                            <button onClick={() => handleOpenProposalModal(proposal)} className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 transition-colors">Open</button>
                           </div>
                         </div>
                       )
@@ -581,7 +761,7 @@ const AdviserDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Content: MEMBERS TAB (Kept exact same) */}
+            {/* Content: MEMBERS TAB */}
             {activeDetailTab === 'Members' && (
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="divide-y divide-gray-100">
@@ -619,6 +799,190 @@ const AdviserDashboard: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* ------------------------------------------------------------------------------------------------- */}
+        {/* VIEW 3: ACTIVE BUSINESS (Read-Only Dashboard for Adviser)                                         */}
+        {/* ------------------------------------------------------------------------------------------------- */}
+        {activeView === 'active-business' && selectedGroup && activeProposal && (
+            <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm transition-all"><ChevronLeft className="w-4 h-4" /> Back</button>
+                        <span className="px-3 py-1 bg-blue-50 text-[#4285F4] text-xs font-bold rounded-md uppercase tracking-wider">GROUP {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
+                    </div>
+                    <button onClick={() => setShowFeedbackModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all">
+                        <MessageCircle className="w-4 h-4"/> Give Feedback
+                    </button>
+                </div>
+
+                {/* Banner Header */}
+                <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-8 text-white relative border border-gray-800">
+                    <div className="flex items-center gap-6 w-full">
+                        <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
+                            {getInitials(activeProposal.businessName)}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> APPROVED BUSINESS PROPOSAL</span>
+                                <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3"/> SECTION: {selectedGroup.section}</span>
+                            </div>
+                            <h1 className="text-4xl font-extrabold mb-1 tracking-tight">{activeProposal.businessName}</h1>
+                            <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
+                    {['Profile', 'Financial', 'AI'].map(tab => (
+                        <button key={tab} onClick={() => setActiveBusinessTab(tab as any)}
+                            className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeBusinessTab === tab ? "border-[#122244] text-[#122244]" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
+                            {tab === 'Profile' ? 'Business Profile' : tab === 'Financial' ? 'Financial Data' : 'AI Feasibility Analysis'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab Content & Roster Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-6">
+                        
+                        {/* TAB: BUSINESS PROFILE */}
+                        {activeBusinessTab === 'Profile' && (
+                            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                                    <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100"><FileText className="w-5 h-5 text-blue-500" /></div>
+                                    <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
+                                </div>
+                                <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
+                                    <div className="flex-1 pr-6">
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Capital</p>
+                                        <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
+                                    </div>
+                                    <div className="flex-1 pl-6">
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Business Type</p>
+                                        <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-6">
+                                    <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p></div>
+                                    <div className="h-px bg-gray-100 my-4"></div>
+                                    <div><p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p><p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p></div>
+                                    <div><p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB: FINANCIAL DATA */}
+                        {activeBusinessTab === 'Financial' && renderFinancialData()}
+
+                        {/* TAB: AI ANALYSIS */}
+                        {activeBusinessTab === 'AI' && (
+                            <div className="space-y-6">
+                                {!activeProposal.aiAnalysis ? (
+                                    <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
+                                        <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                        <p>No AI analysis has been run for this business yet.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-xl font-extrabold text-[#122244] mb-1 flex items-center gap-2"><Zap className="w-5 h-5 text-[#c9a654]" /> AI Feasibility Verdict</h3>
+                                                <p className="text-sm text-gray-500">{activeProposal.aiAnalysis.explanations?.feasibility || "Evaluation completed."}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`text-5xl font-extrabold ${activeProposal.aiAnalysis.status === 'FEASIBLE' ? 'text-green-500' : 'text-orange-500'}`}>{activeProposal.aiAnalysis.score || 0}</div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase">Score / 100</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
+                                                const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
+                                                const val = activeProposal.aiAnalysis.metrics?.[key] || 0;
+                                                const desc = activeProposal.aiAnalysis.explanations?.[key];
+                                                return (
+                                                    <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
+                                                        <p className="text-2xl font-bold text-[#122244] mb-2">{val}%</p>
+                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3"><div className="bg-[#122244] h-1.5 rounded-full" style={{width: `${val}%`}}></div></div>
+                                                        <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+
+                                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                                            <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
+                                            <div className="space-y-3">
+                                                {activeProposal.aiAnalysis.insights?.map((insight: any, i: number) => (
+                                                    <div key={i} className={`p-4 rounded-lg border ${insight.type === 'positive' ? 'bg-green-50 border-green-200 text-green-800' : insight.type === 'warning' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                                        <p className="font-bold text-sm mb-1">{insight.title}</p>
+                                                        <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* PROJECT ROSTER CARD (Right Side) */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sticky top-24">
+                            <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">Project Roster</h3>
+                            <p className="text-xs text-gray-500 mb-6">{selectedGroup.memberIds.length + 1} Members Total</p>
+                            
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(userName)}</div>
+                                        <div>
+                                            <p className="font-bold text-[#122244] text-sm">Prof. {userName.split(" ").pop()}</p>
+                                            <p className="text-[10px] text-blue-600">Faculty</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
+                                </div>
+
+                                <div className="flex items-center gap-3 p-2">
+                                    <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(selectedGroup.leaderName)}</div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-bold text-gray-900">{selectedGroup.leaderName}</p>
+                                            <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500">{students.find(s => s.id === selectedGroup.leaderId)?.studentId || 'ID Unknown'}</p>
+                                    </div>
+                                </div>
+
+                                {selectedGroup.memberIds.map(memberId => {
+                                    const member = students.find(s => s.id === memberId);
+                                    if (!member) return null;
+                                    return (
+                                        <div key={memberId} className="flex items-center gap-3 p-2">
+                                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(`${member.firstName} ${member.lastName}`)}</div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-900">{member.firstName} {member.lastName}</p>
+                                                <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
       </main>
 
       {/* ========================================================= */}
@@ -628,68 +992,350 @@ const AdviserDashboard: React.FC = () => {
       {/* MODAL: View Proposal (Adviser Review) */}
       {viewingProposal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start relative">
+              <div className="w-full text-center">
                 <h2 className="text-2xl font-extrabold text-[#122244]">{viewingProposal.businessName || 'Business Proposal'}</h2>
                 <p className="text-sm text-gray-500 mt-1">Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
               </div>
-              <button onClick={() => setViewingProposal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+              <button onClick={() => setViewingProposal(null)} className="absolute right-6 top-6 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-gray-50/50 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar bg-white">
               
-              <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4"><FileText className="w-4 h-4 text-blue-500"/> BUSINESS OVERVIEW</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Business Type</p><p className="font-medium text-gray-900">{viewingProposal.businessType}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Business Name</p><p className="font-medium text-gray-900">{viewingProposal.businessName}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Capital</p><p className="font-bold text-green-600">{viewingProposal.totalCapital}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="font-medium text-gray-900">{viewingProposal.tagline}</p></div>
-                  <div className="col-span-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Target Market</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.targetMarket}</p></div>
+              {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
+              {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
+                <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-4 ${
+                  viewingProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
+                  viewingProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                  'bg-blue-50 border-blue-200'
+                }`}>
+                  <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
+                    viewingProposal.status === 'Rejected' ? 'text-red-700' :
+                    viewingProposal.status === 'Approved' ? 'text-green-700' :
+                    'text-blue-700'
+                  }`}>
+                    <MessageCircle className="w-4 h-4" /> Adviser Feedback History
+                  </h4>
+                  <div className="space-y-3">
+                    {viewingProposal.feedbackHistory.map(item => (
+                      <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </div>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* BUSINESS OVERVIEW */}
+              <section>
+                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><FileText className="w-4 h-4 text-blue-500"/> BUSINESS OVERVIEW</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Business Type</label>
+                    <input readOnly value={viewingProposal.businessType} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Business Name</label>
+                    <input readOnly value={viewingProposal.businessName} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Total Capital (₱)</label>
+                    <input readOnly value={viewingProposal.totalCapital} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Tagline</label>
+                    <input readOnly value={viewingProposal.tagline} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Target Market</label>
+                    <textarea readOnly rows={4} value={viewingProposal.targetMarket} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
                 </div>
               </section>
 
-              <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4"><Star className="w-4 h-4 text-purple-500 fill-current"/> MISSION & VISION</h3>
+              {/* MISSION & VISION */}
+              <section>
+                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><Star className="w-4 h-4 text-purple-500 fill-current"/> MISSION & VISION</h3>
                 <div className="space-y-4">
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.missionStatement}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vision Statement</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.visionStatement}</p></div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Mission Statement</label>
+                    <textarea readOnly rows={3} value={viewingProposal.missionStatement} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Vision Statement</label>
+                    <textarea readOnly rows={3} value={viewingProposal.visionStatement} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
                 </div>
               </section>
 
-              <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4"><div className="w-4 h-4 bg-green-500 rounded text-white flex items-center justify-center font-bold text-[10px]">$</div> PRODUCT & PRICING</h3>
+              {/* PRODUCT & PRICING */}
+              <section>
+                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><div className="w-4 h-4 bg-green-500 rounded text-white flex items-center justify-center font-bold text-[10px]">$</div> PRODUCT & PRICING</h3>
                 <div className="space-y-4">
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Product Description</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.productDescription}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Price Ranges</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.priceRanges}</p></div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Product Description</label>
+                    <textarea readOnly rows={3} value={viewingProposal.productDescription} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Price Ranges</label>
+                    <textarea readOnly rows={2} value={viewingProposal.priceRanges} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
                 </div>
               </section>
 
-              <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4"><div className="w-4 h-4 bg-orange-400 rounded-full text-white flex items-center justify-center font-bold text-[10px]">📍</div> PLACE & PROMOTION</h3>
+              {/* PLACE & PROMOTION */}
+              <section>
+                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><div className="w-4 h-4 bg-orange-400 rounded-full text-white flex items-center justify-center font-bold text-[10px]">📍</div> PLACE & PROMOTION</h3>
                 <div className="space-y-4">
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Proposed Location</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.proposedLocation}</p></div>
-                  <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.promotionalStrategy}</p></div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Proposed Location</label>
+                    <input readOnly value={viewingProposal.proposedLocation} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Promotional Strategy</label>
+                    <textarea readOnly rows={3} value={viewingProposal.promotionalStrategy} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
+                  </div>
                 </div>
               </section>
+
+              {/* ADVISER FEEDBACK INPUT (Only for Pending Proposals) */}
+              {viewingProposal.status === 'Pending' && (
+                  <section className="mt-8 pt-6 bg-[#122244] rounded-xl p-6 border border-[#1a2f55]">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 mb-4"><MessageCircle className="w-4 h-4 text-[#c9a654]" /> Adviser Feedback</h3>
+                      <p className="text-xs text-gray-300 mb-4">Provide feedback before approving or rejecting the proposal.</p>
+                      <textarea
+                        value={feedbackInput}
+                        onChange={(e) => setFeedbackInput(e.target.value)}
+                        placeholder="Type your feedback here..."
+                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm bg-[#1a2f55] text-white placeholder-gray-400"
+                      />
+                  </section>
+              )}
             </div>
 
-            {viewingProposal.status === 'Pending' && (
-              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white rounded-b-2xl">
-                <button onClick={() => handleProposalAction(viewingProposal, 'Reject')} className="px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reject</button>
-                <button onClick={() => handleProposalAction(viewingProposal, 'Approve')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-colors">Approve Proposal</button>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                {viewingProposal.status === 'Pending' && (
+                    <>
+                        <button 
+                            onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
+                            className="px-6 py-2.5 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition-colors">
+                            Reject Proposal
+                        </button>
+                        <button 
+                            onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
+                            className="px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                            Approve Proposal
+                        </button>
+                    </>
+                )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* NEW MODAL: Create Group Step 1 - Assign Leader */}
+      {showCreateLeaderModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                <p className="text-sm text-gray-500 mt-1">Step 1: Select a team leader for this new group.</p>
               </div>
-            )}
-            {viewingProposal.status !== 'Pending' && (
-              <div className="p-4 border-t border-gray-100 flex justify-end bg-white rounded-b-2xl">
-                 <button onClick={() => setViewingProposal(null)} className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors">Close</button>
+              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search unassigned students..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                />
               </div>
-            )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
+                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
+              ) : (
+                students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
+                  const isSelected = selectedLeaderId === student.id;
+                  return (
+                    <label key={student.id} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          {getInitials(`${student.firstName} ${student.lastName}`)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                          <p className="text-xs text-gray-500">{student.studentId}</p>
+                        </div>
+                      </div>
+                      <input 
+                        type="radio" 
+                        name="leaderSelection" 
+                        value={student.id} 
+                        checked={isSelected} 
+                        onChange={() => setSelectedLeaderId(student.id)} 
+                        className="w-4 h-4 text-[#c9a654] focus:ring-[#c9a654]"
+                      />
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
+              <button 
+                onClick={() => {
+                  setShowCreateLeaderModal(false);
+                  setShowCreateMembersModal(true);
+                  setSearchTerm("");
+                }} 
+                disabled={!selectedLeaderId} 
+                className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50"
+              >
+                Next: Select Members
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* NEW MODAL: Create Group Step 2 - Assign Members */}
+      {showCreateMembersModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                <p className="text-sm text-gray-500 mt-1">Step 2: Select members to join this group.</p>
+              </div>
+              <button onClick={() => {setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+            </div>
+            
+            <div className="bg-purple-50 border-b border-purple-100 p-4 flex items-center gap-3">
+               <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                  {getInitials(students.find(s => s.id === selectedLeaderId)?.firstName + " " + students.find(s => s.id === selectedLeaderId)?.lastName)}
+               </div>
+               <div>
+                  <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
+                  <p className="text-sm font-bold text-[#122244]">{students.find(s => s.id === selectedLeaderId)?.firstName} {students.find(s => s.id === selectedLeaderId)?.lastName}</p>
+               </div>
+            </div>
+
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search unassigned students..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
+                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
+              ) : (
+                students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
+                  const isSelected = selectedMemberIds.includes(student.id);
+                  return (
+                    <label key={student.id} onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedMemberIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
+                    }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-green-400 bg-green-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          {getInitials(`${student.firstName} ${student.lastName}`)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                          <p className="text-xs text-gray-500">{student.studentId}</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
+              <p className="text-xs text-gray-500"><span className="font-bold text-[#122244]">{selectedMemberIds.length}</span> selected</p>
+              <div className="flex gap-2">
+                  <button onClick={() => {setShowCreateMembersModal(false); setShowCreateLeaderModal(true);}} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
+                  <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
+                  </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW MODAL: Feedback History & Submission */}
+      {showFeedbackModal && activeProposal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                    <h2 className="text-lg font-extrabold text-[#122244] flex items-center gap-2"><MessageCircle className="w-5 h-5 text-[#c9a654]" /> Feedback History</h2>
+                    <button onClick={() => setShowFeedbackModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-white">
+                    {!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-center">
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3"><MessageCircle className="w-5 h-5 text-gray-400" /></div>
+                            <h3 className="font-bold text-[#122244]">No Feedback Yet</h3>
+                            <p className="text-sm text-gray-500 mt-1">Start by giving your first piece of feedback below.</p>
+                        </div>
+                    ) : (
+                        activeProposal.feedbackHistory.map(item => (
+                            <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                                    </div>
+                                    <span className="text-xs text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="p-6 border-t border-gray-100 bg-[#122244] rounded-b-2xl">
+                    <label className="text-[10px] font-bold text-gray-300 uppercase tracking-widest block mb-3">Provide feedback or advice below. This will be shared with the group.</label>
+                    <textarea
+                        value={feedbackInput}
+                        onChange={(e) => setFeedbackInput(e.target.value)}
+                        placeholder="Type your feedback here..."
+                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm mb-4 bg-[#1a2f55] text-white placeholder-gray-400"
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setShowFeedbackModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
+                        <button onClick={handleSubmitFeedback} disabled={!feedbackInput.trim() || isSaving} className="flex items-center gap-2 px-6 py-2.5 bg-[#c9a654] text-white text-sm font-bold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50 transition-colors">
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Submit Feedback
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* MODAL: Auto-Group Confirmation */}
       {showAutoGroupConfirm && (
@@ -824,60 +1470,6 @@ const AdviserDashboard: React.FC = () => {
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
               <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
               <button onClick={() => setShowSettingsModal(false)} className="px-5 py-2.5 bg-[#122244] text-white font-semibold rounded-lg shadow-md hover:bg-[#1a3263]">Save Settings</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Assign Leader */}
-      {showAssignLeaderModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">Assign Team Leader</h2>
-                <p className="text-sm text-gray-500 mt-1">Select a student from the list below to assign as a team leader.</p>
-              </div>
-              <button onClick={() => {setShowAssignLeaderModal(false); setSelectedLeaderIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
-            </div>
-            <div className="p-4 border-b border-gray-100">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search students by name or ID..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {filteredStudents.filter(s => !groups.some(g => g.leaderId === s.id || g.memberIds.includes(s.id))).map(student => {
-                const isSelected = selectedLeaderIds.includes(student.id);
-                return (
-                  <label key={student.id} onClick={() => {
-                    setSelectedLeaderIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
-                  }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30' : 'border-gray-100 hover:bg-gray-50'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
-                        {getInitials(`${student.firstName} ${student.lastName}`)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</p>
-                        <p className="text-xs text-gray-500">{student.studentId}</p>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-[#c9a654]' : 'border-gray-300'}`}>
-                      {isSelected && <div className="w-2.5 h-2.5 bg-[#c9a654] rounded-full"></div>}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => {setShowAssignLeaderModal(false); setSelectedLeaderIds([]);}} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={assignLeader} disabled={!selectedLeaderIds.length} className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50">Assign as Leader</button>
             </div>
           </div>
         </div>
