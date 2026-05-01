@@ -85,7 +85,7 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
-  status: "Draft" | "Pending" | "Approved" | "Rejected";
+  status: "Draft" | "Pending" | "Approved" | "Rejected" | "Revision";
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
   createdAt?: any;
@@ -132,7 +132,7 @@ const Projects: React.FC = () => {
 
   const [activeView, setActiveView] = useState<string>("loading");
   const [dashboardTab, setDashboardTab] = useState<
-    "All Proposals" | "Drafts" | "Pending" | "Approved" | "Rejected"
+    "All Proposals" | "Drafts" | "Pending" | "Approved" | "Rejected" | "Revision"
   >("All Proposals");
 
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -141,6 +141,8 @@ const Projects: React.FC = () => {
   const [showEditBasicModal, setShowEditBasicModal] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingMode, setIsEditingMode] = useState(false);
+  const [showAllFeedback, setShowAllFeedback] = useState(false);
 
   const [editBasicData, setEditBasicData] =
     useState<ProposalData>(initialProposalState);
@@ -751,6 +753,7 @@ const Projects: React.FC = () => {
                 <button
                   onClick={() => {
                     setCurrentProposal(initialProposalState);
+                    setIsEditingMode(true);
                     setActiveView("form");
                   }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all text-sm"
@@ -766,6 +769,7 @@ const Projects: React.FC = () => {
                   "Pending",
                   "Approved",
                   "Rejected",
+                  "Revision"
                 ].map((tab) => (
                   <button
                     key={tab}
@@ -795,20 +799,23 @@ const Projects: React.FC = () => {
                   {filteredProposals.map((proposal) => {
                     let isApproved = proposal.status === "Approved";
                     let isRejected = proposal.status === "Rejected";
+                    let isRevision = proposal.status === "Revision";
 
                     return (
                       <div
                         key={proposal.id}
                         className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
                           isApproved ? "border-green-400" : 
-                          isRejected ? "border-red-300" : "border-gray-200"
+                          isRejected ? "border-red-300" : 
+                          isRevision ? "border-orange-300" : "border-gray-200"
                         }`}
                       >
                         <div className="flex gap-4 items-center w-full sm:w-auto">
                           <div
                             className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
                               isApproved ? "bg-green-50 text-green-600" : 
-                              isRejected ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-500"
+                              isRejected ? "bg-red-50 text-red-600" : 
+                              isRevision ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-500"
                             }`}
                           >
                             B#
@@ -821,10 +828,11 @@ const Projects: React.FC = () => {
                               <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
                                 proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
                                 proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
                                 proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
                                 'bg-gray-100 text-gray-600'
                               }`}>
-                                {proposal.status}
+                                {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
                               </span>
                             </div>
                             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest truncate">
@@ -844,15 +852,30 @@ const Projects: React.FC = () => {
                               Setup Approved Business
                             </button>
                           ) : (
-                            <button
-                              onClick={() => {
-                                setCurrentProposal(proposal);
-                                setActiveView("form");
-                              }}
-                              className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
-                            >
-                              <Edit className="w-4 h-4" /> Open
-                            </button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  setCurrentProposal(proposal);
+                                  setIsEditingMode(false);
+                                  setActiveView("form");
+                                }}
+                                className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                              >
+                                <FileText className="w-4 h-4" /> Open
+                              </button>
+                              {!isRejected && (
+                                <button
+                                  onClick={() => {
+                                    setCurrentProposal(proposal);
+                                    setIsEditingMode(true);
+                                    setActiveView("form");
+                                  }}
+                                  className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                                >
+                                  <Edit className="w-4 h-4" /> Edit
+                                </button>
+                              )}
+                            </>
                           )}
                           <div className="relative">
                             <button
@@ -869,16 +892,6 @@ const Projects: React.FC = () => {
                             </button>
                             {openDropdownId === proposal.id && (
                               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
-                                <button
-                                  onClick={() => {
-                                    setCurrentProposal(proposal);
-                                    setActiveView("form");
-                                    setOpenDropdownId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  Edit
-                                </button>
                                 <button
                                   onClick={() =>
                                     handleDeleteProposal(proposal.id!)
@@ -911,8 +924,7 @@ const Projects: React.FC = () => {
                   </button>
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
-                  {(currentProposal.status === "Draft" ||
-                    !currentProposal.id || currentProposal.status === "Rejected") && (
+                  {isEditingMode && (
                     <button
                       onClick={() => handleSaveProposal("Draft")}
                       disabled={isSaving}
@@ -921,16 +933,15 @@ const Projects: React.FC = () => {
                       Save as Draft
                     </button>
                   )}
-                  {currentProposal.status !== "Approved" &&
-                    currentProposal.status !== "Pending" && (
-                      <button
-                        onClick={() => handleSaveProposal("Pending")}
-                        disabled={isSaving}
-                        className="flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md"
-                      >
-                        Submit to Adviser
-                      </button>
-                    )}
+                  {isEditingMode && (
+                    <button
+                      onClick={() => handleSaveProposal("Pending")}
+                      disabled={isSaving}
+                      className="flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md"
+                    >
+                      Submit to Adviser
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -950,15 +961,25 @@ const Projects: React.FC = () => {
                       currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
                       'bg-blue-50 border-blue-200'
                     }`}>
-                      <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
-                        currentProposal.status === 'Rejected' ? 'text-red-700' :
-                        currentProposal.status === 'Approved' ? 'text-green-700' :
-                        'text-blue-700'
-                      }`}>
-                        <MessageCircle className="w-4 h-4" /> Adviser Feedback History
-                      </h4>
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
+                          currentProposal.status === 'Rejected' ? 'text-red-700' :
+                          currentProposal.status === 'Approved' ? 'text-green-700' :
+                          'text-blue-700'
+                        }`}>
+                          <MessageCircle className="w-4 h-4" /> Adviser Feedback {currentProposal.feedbackHistory.length > 1 && !showAllFeedback ? "(Latest)" : "History"}
+                        </h4>
+                        {currentProposal.feedbackHistory.length > 1 && (
+                          <button
+                            onClick={() => setShowAllFeedback(!showAllFeedback)}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                          >
+                            {showAllFeedback ? "Show Less" : "View All History"}
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-3">
-                        {currentProposal.feedbackHistory.map(item => (
+                        {(showAllFeedback ? currentProposal.feedbackHistory : currentProposal.feedbackHistory.slice(-1)).map(item => (
                           <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex items-center gap-2">
@@ -985,10 +1006,7 @@ const Projects: React.FC = () => {
                           Business Type
                         </label>
                         <select
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           value={currentProposal.businessType}
                           onChange={(e) =>
                             setCurrentProposal({
@@ -1009,10 +1027,7 @@ const Projects: React.FC = () => {
                           Business Name
                         </label>
                         <input
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           type="text"
                           value={currentProposal.businessName}
                           onChange={(e) =>
@@ -1030,10 +1045,7 @@ const Projects: React.FC = () => {
                           Total Capital (₱)
                         </label>
                         <input
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           type="text"
                           value={currentProposal.totalCapital}
                           onChange={(e) =>
@@ -1051,10 +1063,7 @@ const Projects: React.FC = () => {
                           Tagline
                         </label>
                         <input
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           type="text"
                           value={currentProposal.tagline}
                           onChange={(e) =>
@@ -1072,10 +1081,7 @@ const Projects: React.FC = () => {
                         Target Market
                       </label>
                       <textarea
-                        disabled={
-                          currentProposal.status === "Pending" ||
-                          currentProposal.status === "Approved"
-                        }
+                        disabled={!isEditingMode}
                         rows={3}
                         placeholder="Who are your customers?"
                         value={currentProposal.targetMarket}
@@ -1101,10 +1107,7 @@ const Projects: React.FC = () => {
                           Mission Statement
                         </label>
                         <textarea
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           rows={2}
                           value={currentProposal.missionStatement}
                           onChange={(e) =>
@@ -1121,10 +1124,7 @@ const Projects: React.FC = () => {
                           Vision Statement
                         </label>
                         <textarea
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           rows={2}
                           value={currentProposal.visionStatement}
                           onChange={(e) =>
@@ -1152,10 +1152,7 @@ const Projects: React.FC = () => {
                           Product Description
                         </label>
                         <textarea
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           rows={3}
                           placeholder="Describe exactly what you are selling."
                           value={currentProposal.productDescription}
@@ -1173,10 +1170,7 @@ const Projects: React.FC = () => {
                           Price Ranges
                         </label>
                         <textarea
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           rows={2}
                           placeholder="List price ranges: e.g., Budget (₱40-60), Mid-range (₱60-100), Premium (₱100+)"
                           value={currentProposal.priceRanges}
@@ -1205,10 +1199,7 @@ const Projects: React.FC = () => {
                           Proposed Location
                         </label>
                         <input
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           type="text"
                           placeholder="Where will you operate?"
                           value={currentProposal.proposedLocation}
@@ -1226,10 +1217,7 @@ const Projects: React.FC = () => {
                           Promotional Strategy
                         </label>
                         <textarea
-                          disabled={
-                            currentProposal.status === "Pending" ||
-                            currentProposal.status === "Approved"
-                          }
+                          disabled={!isEditingMode}
                           rows={2}
                           placeholder="How will you attract customers?"
                           value={currentProposal.promotionalStrategy}
@@ -1257,10 +1245,7 @@ const Projects: React.FC = () => {
                         Other Relevant Information (Optional)
                       </label>
                       <textarea
-                        disabled={
-                          currentProposal.status === "Pending" ||
-                          currentProposal.status === "Approved"
-                        }
+                        disabled={!isEditingMode}
                         rows={4}
                         value={currentProposal.otherDetails}
                         onChange={(e) =>
@@ -1496,9 +1481,19 @@ const Projects: React.FC = () => {
 
                     {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
                     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
-                      </h3>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                          <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                        </h3>
+                        {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
+                          <button
+                            onClick={() => setShowAllFeedback(!showAllFeedback)}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                          >
+                            {showAllFeedback ? "Show Less" : "View All History"}
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                         {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
                           <div className="text-center py-6 text-gray-400">
@@ -1506,7 +1501,7 @@ const Projects: React.FC = () => {
                             <p className="text-xs italic">No feedback provided yet.</p>
                           </div>
                         ) : (
-                          activeBusiness.feedbackHistory.map(item => (
+                          (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
                             <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
                               <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-2">
