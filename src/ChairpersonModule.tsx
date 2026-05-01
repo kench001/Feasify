@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -125,6 +126,7 @@ const ChairpersonModule: React.FC = () => {
         ...doc.data()
       })) as UserData[];
       setUsersList(users);
+      sessionStorage.setItem('adminUserCount', users.length.toString());
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -547,6 +549,15 @@ const ChairpersonModule: React.FC = () => {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {isLoading ? (
+              Array.from({length: 4}).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-gray-200">
+                  <Skeleton width={100} height={16} className="mb-2" />
+                  <Skeleton width={50} height={36} />
+                </div>
+              ))
+            ) : (
+              <>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-blue-500">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Students</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{totalStudents}</p>
@@ -563,6 +574,8 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-sm font-semibold text-gray-500 mb-2">Active Users (7d)</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{activeStudentsCount}</p>
             </div>
+              </>
+            )}
           </div>
 
           {/* Search and Action Buttons */}
@@ -637,7 +650,17 @@ const ChairpersonModule: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {isLoading ? (
-                    <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading {activeTab.toLowerCase()}...</td></tr>
+                    Array.from({length: Math.min(parseInt(sessionStorage.getItem('adminUserCount') || '5', 10) || 5, 10)}).map((_, i) => (
+                      <tr key={i}>
+                        <td className="px-6 py-4"><Skeleton width={80} /></td>
+                        <td className="px-6 py-4"><Skeleton width={150} /></td>
+                        <td className="px-6 py-4"><Skeleton width={60} borderRadius={999} /></td>
+                        <td className="px-6 py-4"><Skeleton width={80} /></td>
+                        <td className="px-6 py-4"><Skeleton width={180} /></td>
+                        <td className="px-6 py-4"><Skeleton width={50} /></td>
+                        <td className="px-6 py-4 text-right"><Skeleton width={100} /></td>
+                      </tr>
+                    ))
                   ) : filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-12">

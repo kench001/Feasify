@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 // Import your modules
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
@@ -17,6 +19,7 @@ import AdviserDashboard from "./AdviserDashboard";
 
 function App() {
   return (
+    <SkeletonTheme baseColor="#e8ecf0" highlightColor="#f4f6f8">
     <Router>
       <Routes>
         {/* This is the starting page (Login/Signup) */}
@@ -59,6 +62,7 @@ function App() {
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
       </Routes>
     </Router>
+    </SkeletonTheme>
   );
 }
 

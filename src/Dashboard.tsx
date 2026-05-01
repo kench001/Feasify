@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Skeleton from "react-loading-skeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -117,6 +118,7 @@ const Dashboard: React.FC = () => {
       }
 
       setProjects(allProjectsList);
+      sessionStorage.setItem('dashboardProjectCount', allProjectsList.length.toString());
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -418,58 +420,72 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {[
-                {
-                  label: "Total Approved",
-                  value: isLoadingStats ? "-" : totalProjects.toString(),
-                  sub: "Businesses in focus",
-                  icon: Folder,
-                  filterVal: "All Status",
-                },
-                {
-                  label: "Feasible",
-                  value: isLoadingStats ? "-" : feasibleProjects.toString(),
-                  sub: `${feasiblePercentage}% success rate`,
-                  icon: CheckCircle2,
-                  filterVal: "Feasible",
-                },
-                {
-                  label: "In Progress",
-                  value: isLoadingStats ? "-" : inProgressProjects.toString(),
-                  sub: "Awaiting final analysis",
-                  icon: Clock,
-                  filterVal: "In Progress",
-                },
-                {
-                  label: "Avg. ROI",
-                  value: isLoadingStats ? "-" : `${avgROI}%`,
-                  sub: "Across all projects",
-                  icon: BarChart3,
-                  filterVal: "All Status",
-                },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  onClick={() => navigate("/projects")}
-                  className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#c9a654]/10 transition-colors">
-                      <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#c9a654]" />
+              {isLoadingStats ? (
+                Array.from({length: 4}).map((_, i) => (
+                  <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                      <Skeleton width={36} height={36} borderRadius={8} />
+                      <Skeleton width={16} height={16} />
                     </div>
-                    <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#c9a654]" />
+                    <Skeleton width={80} height={36} className="mb-1" />
+                    <Skeleton width={100} height={16} className="mb-1" />
+                    <Skeleton width={140} height={12} />
                   </div>
-                  <p className="text-3xl font-bold text-[#122244]">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1 mb-1">
-                    {stat.label}
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-medium">
-                    {stat.sub}
-                  </p>
-                </div>
-              ))}
+                ))
+              ) : (
+                [
+                  {
+                    label: "Total Approved",
+                    value: totalProjects.toString(),
+                    sub: "Businesses in focus",
+                    icon: Folder,
+                    filterVal: "All Status",
+                  },
+                  {
+                    label: "Feasible",
+                    value: feasibleProjects.toString(),
+                    sub: `${feasiblePercentage}% success rate`,
+                    icon: CheckCircle2,
+                    filterVal: "Feasible",
+                  },
+                  {
+                    label: "In Progress",
+                    value: inProgressProjects.toString(),
+                    sub: "Awaiting final analysis",
+                    icon: Clock,
+                    filterVal: "In Progress",
+                  },
+                  {
+                    label: "Avg. ROI",
+                    value: `${avgROI}%`,
+                    sub: "Across all projects",
+                    icon: BarChart3,
+                    filterVal: "All Status",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    onClick={() => navigate("/projects")}
+                    className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#c9a654]/10 transition-colors">
+                        <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#c9a654]" />
+                      </div>
+                      <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#c9a654]" />
+                    </div>
+                    <p className="text-3xl font-bold text-[#122244]">
+                      {stat.value}
+                    </p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1 mb-1">
+                      {stat.label}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-medium">
+                      {stat.sub}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -487,9 +503,21 @@ const Dashboard: React.FC = () => {
 
               <div className="divide-y divide-gray-50">
                 {isLoadingStats ? (
-                  <div className="p-8 flex justify-center text-gray-400 text-sm">
-                    Loading your projects...
-                  </div>
+                  Array.from({length: parseInt(sessionStorage.getItem('dashboardProjectCount') || '3', 10) || 3}).map((_, i) => (
+                    <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="space-y-1">
+                          <Skeleton width={180} height={16} />
+                          <Skeleton width={120} height={12} />
+                        </div>
+                        <Skeleton width={60} height={20} borderRadius={999} />
+                      </div>
+                      <div className="w-full md:w-48 flex items-center gap-3">
+                        <Skeleton className="flex-1" height={6} borderRadius={999} />
+                        <Skeleton width={30} height={12} />
+                      </div>
+                    </div>
+                  ))
                 ) : projects.length === 0 ? (
                   <div className="p-8 flex flex-col items-center justify-center text-center">
                     <p className="text-gray-500 text-sm mb-2">
