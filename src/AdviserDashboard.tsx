@@ -7,7 +7,8 @@ import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
-  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check
+  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
+  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb
 } from "lucide-react";
 
 interface StudentData {
@@ -52,7 +53,7 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
-  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Revision';
   adviserFeedback?: string; 
   feedbackHistory?: FeedbackItem[];
   financialData?: any;
@@ -115,6 +116,10 @@ const AdviserDashboard: React.FC = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // AI Analysis State
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [modalAiResult, setModalAiResult] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -228,7 +233,211 @@ const AdviserDashboard: React.FC = () => {
 
   const handleOpenProposalModal = (proposal: ProposalData) => {
     setViewingProposal(proposal);
-    setFeedbackInput(""); 
+    setFeedbackInput("");
+    if (proposal.aiAnalysis) {
+      setModalAiResult(proposal.aiAnalysis);
+    } else {
+      setModalAiResult(null);
+    }
+  };
+
+  // --- AI ANALYSIS FUNCTION ---
+  const handleAIAnalysis = async (proposal: ProposalData) => {
+    if (!proposal.id) return;
+    setIsAiAnalyzing(true);
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    // Build a rich context string so the AI understands completeness
+    const fieldCompleteness = [
+      { field: 'Business Name', value: proposal.businessName },
+      { field: 'Business Type', value: proposal.businessType },
+      { field: 'Tagline', value: proposal.tagline },
+      { field: 'Target Market', value: proposal.targetMarket },
+      { field: 'Mission Statement', value: proposal.missionStatement },
+      { field: 'Vision Statement', value: proposal.visionStatement },
+      { field: 'Product Description', value: proposal.productDescription },
+      { field: 'Price Ranges', value: proposal.priceRanges },
+      { field: 'Proposed Location', value: proposal.proposedLocation },
+      { field: 'Promotional Strategy', value: proposal.promotionalStrategy },
+    ];
+    const filledCount = fieldCompleteness.filter(f => f.value && f.value.trim()).length;
+    const missingFields = fieldCompleteness.filter(f => !f.value || !f.value.trim()).map(f => f.field);
+
+    const prompt = `You are a senior business consultant with 20+ years of experience evaluating startup feasibility studies for university entrepreneurship programs. You have deep expertise in market analysis, business model evaluation, and operational planning.
+
+A student group has submitted a business proposal. Your job is to provide a RIGOROUS, SPECIFIC, and HONEST evaluation that will genuinely help them improve. You must act as a tough but fair mentor — not a generic feedback machine.
+
+=== CRITICAL RULES ===
+1. NEVER give generic feedback. Every single strength, weakness, and recommendation MUST directly reference specific details from the proposal (quote the business name, product, target market, location, etc.)
+2. Scores must ACCURATELY reflect the quality. A vague one-liner product description deserves a 3-4, not a 5-7. A well-articulated multi-paragraph strategy deserves an 8-9. Be honest.
+3. Do NOT evaluate financial viability or capital — that is handled in a separate financial analysis module after proposal approval.
+4. If a field says "Not provided" or is empty, that is a MAJOR weakness. Penalize the score accordingly — missing information means the proposal is incomplete.
+5. The overall score must be a WEIGHTED CALCULATION: (concept × 0.30) + (market × 0.25) + (operational × 0.25) + (strategic × 0.20), then multiply by 10 to get 0-100 scale.
+6. Status thresholds: score >= 70 = "FEASIBLE", score 45-69 = "NEEDS_ADJUSTMENT", score < 45 = "NOT_FEASIBLE"
+7. Each strength/weakness must be 1-2 sentences with SPECIFIC references to the proposal content.
+8. Each recommendation must be ACTIONABLE — tell them exactly what to do, not vague advice like "improve your strategy".
+=== END RULES ===
+
+=== PROPOSAL DATA ===
+Business Name: "${proposal.businessName || 'Not provided'}"
+Business Type: "${proposal.businessType || 'Not provided'}"
+Tagline: "${proposal.tagline || 'Not provided'}"
+Target Market: "${proposal.targetMarket || 'Not provided'}"
+Mission Statement: "${proposal.missionStatement || 'Not provided'}"
+Vision Statement: "${proposal.visionStatement || 'Not provided'}"
+Product Description: "${proposal.productDescription || 'Not provided'}"
+Price Ranges: "${proposal.priceRanges || 'Not provided'}"
+Proposed Location: "${proposal.proposedLocation || 'Not provided'}"
+Promotional Strategy: "${proposal.promotionalStrategy || 'Not provided'}"
+Other Details: "${proposal.otherDetails || 'None'}"
+=== END PROPOSAL DATA ===
+
+=== COMPLETENESS CHECK ===
+Fields filled: ${filledCount}/10
+${missingFields.length > 0 ? `Missing fields: ${missingFields.join(', ')}` : 'All fields provided.'}
+=== END COMPLETENESS CHECK ===
+
+Now evaluate across these 4 dimensions. For each, think carefully about what the student actually wrote (not what you assume they meant):
+
+1. CONCEPT CLARITY (Weight: 30%)
+   - Is the business name appropriate and memorable for the type?
+   - Does the tagline effectively communicate the value proposition?
+   - Is the product/service description detailed enough to understand what they're actually selling?
+   - Does the business type match what they're describing?
+   - Are the price ranges reasonable and well-justified for the product?
+
+2. MARKET POTENTIAL (Weight: 25%)
+   - Is the target market specific enough? (e.g., "everyone" is too vague, "college students aged 18-22 in Quezon City" is specific)
+   - Does the product actually solve a problem or fulfill a need for that target market?
+   - Is the proposed location strategic for reaching the target market?
+   - Are there obvious competitors they haven't considered?
+
+3. OPERATIONAL FEASIBILITY (Weight: 25%)
+   - Based on the product description, can this business realistically operate?
+   - Is the location practical for the type of business?
+   - Are there any obvious operational gaps (e.g., food business with no mention of sourcing/suppliers)?
+   - Does the price range make sense for the operational model described?
+
+4. STRATEGIC CLARITY (Weight: 20%)
+   - Do the mission and vision statements align with the actual business model?
+   - Are they generic/copied or genuinely tailored to this business?
+   - Is the promotional strategy specific and actionable, or just buzzwords?
+   - Does everything tie together into a coherent business narrative?
+
+Return ONLY a valid JSON object. No markdown, no code fences, no explanation outside the JSON:
+{
+  "score": <number 0-100, calculated as described above>,
+  "status": "FEASIBLE" | "NEEDS_ADJUSTMENT" | "NOT_FEASIBLE",
+  "metrics": {
+    "concept": <number 1-10>,
+    "market": <number 1-10>,
+    "operational": <number 1-10>,
+    "strategic": <number 1-10>
+  },
+  "strengths": ["<specific strength referencing proposal content>", "<specific strength>", "<specific strength>"],
+  "weaknesses": ["<specific weakness referencing proposal content>" /* leave empty if proposal is exceptional */],
+  "recommendations": ["<actionable recommendation with specific steps>", "<actionable recommendation>"],
+  "draftFeedback": "<A professional 2-3 paragraph feedback addressed directly to the student group as 'Dear Team' or 'Dear [Business Name] Team'. Paragraph 1: Acknowledge what they did well with specific references. Paragraph 2: Identify the key gaps and what concerns you as an evaluator. Paragraph 3: Provide clear next steps they should take before resubmission. Do NOT mention financial analysis or capital — those are evaluated in a separate module. Be encouraging but honest.>"
+}`;
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.75,
+              topP: 0.95,
+              topK: 40,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+      const resData = await response.json();
+      
+      if (!resData.candidates || resData.candidates.length === 0) {
+        throw new Error("Invalid response from Gemini API: " + JSON.stringify(resData));
+      }
+
+      const rawText = resData.candidates[0].content.parts[0].text;
+      const cleanJson = rawText.substring(rawText.indexOf("{"), rawText.lastIndexOf("}") + 1);
+      const aiResult = JSON.parse(cleanJson);
+
+      // Validate and recalculate score to ensure consistency
+      const m = aiResult.metrics || {};
+      const calculatedScore = Math.round(
+        ((m.concept || 5) * 0.30 + (m.market || 5) * 0.25 + (m.operational || 5) * 0.25 + (m.strategic || 5) * 0.20) * 10
+      );
+      const validatedStatus = calculatedScore >= 70 ? 'FEASIBLE' : calculatedScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE';
+
+      const finalResult = {
+        ...aiResult,
+        score: calculatedScore,
+        status: validatedStatus,
+        lastRun: new Date().toISOString(),
+      };
+      await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: finalResult });
+      setModalAiResult(finalResult);
+      if (aiResult.draftFeedback) setFeedbackInput(aiResult.draftFeedback);
+      
+      // Update local state to persist data without refresh
+      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
+      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
+    } catch (e) {
+      console.error("AI Analysis failed:", e);
+      // Context-aware fallback using actual proposal data
+      const hasProduct = !!(proposal.productDescription && proposal.productDescription.trim());
+      const hasTarget = !!(proposal.targetMarket && proposal.targetMarket.trim());
+      const hasLocation = !!(proposal.proposedLocation && proposal.proposedLocation.trim());
+      const hasPromo = !!(proposal.promotionalStrategy && proposal.promotionalStrategy.trim());
+      const hasMission = !!(proposal.missionStatement && proposal.missionStatement.trim());
+
+      const conceptScore = hasProduct ? Math.min(10, 4 + Math.floor((proposal.productDescription?.length || 0) / 100)) : 3;
+      const marketScore = hasTarget && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.targetMarket?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : hasTarget ? 4 : 3;
+      const operationalScore = hasProduct && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.productDescription?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : 3;
+      const strategicScore = hasMission && hasPromo ? Math.min(10, 4 + Math.floor(((proposal.missionStatement?.length || 0) + (proposal.promotionalStrategy?.length || 0)) / 100)) : hasPromo ? 4 : 3;
+      const fallbackScore = Math.round((conceptScore * 0.30 + marketScore * 0.25 + operationalScore * 0.25 + strategicScore * 0.20) * 10);
+
+      const isExcellent = fallbackScore >= 90;
+      const isGood = fallbackScore >= 70 && fallbackScore < 90;
+
+      const fallback = {
+        score: fallbackScore,
+        status: fallbackScore >= 70 ? 'FEASIBLE' : fallbackScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE',
+        metrics: { concept: conceptScore, market: marketScore, operational: operationalScore, strategic: strategicScore },
+        strengths: [
+          `The proposal for "${proposal.businessName || 'the business'}" provides a comprehensive overview of the venture.`,
+          conceptScore >= 8 ? "The business concept and product details are exceptionally well-articulated." : hasProduct ? `A product/service description has been provided for the concept.` : "The team has taken the first step in formalizing their business idea.",
+          marketScore >= 8 ? "The target market and location strategy demonstrate strong market awareness." : hasTarget ? `A target market has been identified.` : "The proposal has been formally submitted for review."
+        ],
+        weaknesses: [
+          ...(!hasProduct ? [`No product description was provided — this is critical for evaluating the concept.`] : (conceptScore < 6 ? ["The product description lacks the depth required for a thorough evaluation."] : [])),
+          ...(!hasTarget ? [`The target market has not been specified, making it impossible to assess market-product fit.`] : (marketScore < 6 ? ["The target market definition could be more specific to ensure effective targeting."] : [])),
+          ...(!hasPromo ? [`No promotional strategy was outlined for reaching potential customers.`] : (strategicScore < 6 ? ["The promotional strategy needs more actionable steps and detailed planning."] : [])),
+        ].filter(Boolean),
+        recommendations: [
+          !hasProduct ? `Write a detailed product/service description explaining exactly what you are selling.` : (conceptScore < 6 ? `Expand the product description with more specific details about features, quality, and differentiation.` : `Continue refining the product offerings to maintain a competitive edge.`),
+          !hasTarget ? `Define your target market with specifics: age range, location, income level, and lifestyle.` : (marketScore < 6 ? `Refine your target market definition with demographic and psychographic details.` : `Regularly analyze market trends to keep the target market strategies relevant.`),
+          !hasPromo ? `Develop a promotional strategy that explains exactly how you will reach your target market.` : (strategicScore < 6 ? `Strengthen your promotional strategy with specific channels, timelines, and budget allocations.` : `Explore innovative promotional channels to maximize reach and engagement.`)
+        ].filter(Boolean),
+        draftFeedback: `Dear ${proposal.businessName || 'Team'},\n\nThank you for submitting your business proposal. We appreciate the effort your group has put into conceptualizing this venture.\n\n${missingFields.length > 0 ? `We noticed that the following areas are incomplete: ${missingFields.join(', ')}. Filling these in will significantly strengthen your proposal.` : isExcellent ? 'Your proposal is exceptionally detailed and well-thought-out, demonstrating a strong understanding of the business fundamentals. There are no major areas of concern. Excellent work!' : isGood ? 'Your proposal is comprehensive and shows a solid foundation. Consider expanding on the specific operational and marketing strategies to further strengthen your plan.' : 'Your proposal provides a basic outline but requires more depth in several key areas to ensure a thorough evaluation.'}\n\nWe recommend reviewing the feedback above and continuously refining your strategies to ensure the success of your business concept.`,
+        lastRun: new Date().toISOString(),
+      };
+      try { await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: fallback }); } catch (_) {}
+      setModalAiResult(fallback);
+      if (fallback.draftFeedback) setFeedbackInput(fallback.draftFeedback);
+      
+      // Update local state to persist data without refresh
+      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: fallback } : p));
+      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: fallback } : prev);
+    } finally {
+      setIsAiAnalyzing(false);
+    }
   };
 
   // --- LOGIC: MULTI-STEP CREATE GROUP ---
@@ -364,10 +573,10 @@ const AdviserDashboard: React.FC = () => {
   };
 
   // --- LOGIC: APPROVE/REJECT PROPOSAL ---
-  const handleProposalAction = async (proposal: ProposalData, action: 'Approve' | 'Reject') => {
+  const handleProposalAction = async (proposal: ProposalData, action: 'Approve' | 'Reject' | 'Revision') => {
     if (!selectedGroup || !proposal.id) return;
     try {
-      const newStatus = action === 'Approve' ? 'Approved' : 'Rejected';
+      const newStatus = action === 'Approve' ? 'Approved' : action === 'Reject' ? 'Rejected' : 'Revision';
       
       let updatePayload: any = { 
         status: newStatus, 
@@ -769,7 +978,10 @@ const AdviserDashboard: React.FC = () => {
                           <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> View Approved Status</button>
                         )}
                         {group.status === 'Active Business' && (
-                           <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4"/> View Active Business</button>
+                          <div className="flex flex-col gap-2 w-full">
+                            <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4"/> View Active Business</button>
+                            <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> View All Proposals</button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -823,16 +1035,18 @@ const AdviserDashboard: React.FC = () => {
                     {groupProposals.filter(p => p.status !== 'Draft').map((proposal, idx) => {
                       const isApproved = proposal.status === 'Approved';
                       const isRejected = proposal.status === 'Rejected';
+                      const isRevision = proposal.status === 'Revision';
                       const isPending = proposal.status === 'Pending';
 
                       return (
-                        <div key={proposal.id} className={`bg-white rounded-xl border-2 p-5 flex justify-between items-center ${isApproved ? 'border-green-400' : isRejected ? 'border-gray-200 opacity-60' : 'border-[#d4af37]'}`}>
+                        <div key={proposal.id} className={`bg-white rounded-xl border-2 p-5 flex justify-between items-center ${isApproved ? 'border-green-400' : isRejected ? 'border-red-200 opacity-80' : isRevision ? 'border-orange-300' : 'border-[#d4af37]'}`}>
                           <div>
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="font-bold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${idx + 1}`}</h3>
                               {isPending && <span className="px-2.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Pending</span>}
                               {isApproved && <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Approved</span>}
                               {isRejected && <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><X className="w-3 h-3"/> Rejected</span>}
+                              {isRevision && <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><Edit2 className="w-3 h-3"/> Needs Revision</span>}
                             </div>
                             <p className="text-sm text-gray-500 mb-1">{proposal.businessName} • {proposal.businessType}</p>
                             <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3"/> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
@@ -1078,151 +1292,321 @@ const AdviserDashboard: React.FC = () => {
 
       {/* MODAL: View Proposal (Adviser Review) */}
       {viewingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start relative">
-              <div className="w-full text-center">
-                <h2 className="text-2xl font-extrabold text-[#122244]">{viewingProposal.businessName || 'Business Proposal'}</h2>
-                <p className="text-sm text-gray-500 mt-1">Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[1.5rem] w-full max-w-[98vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
+            {/* Modal Header */}
+            <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
+              <div className="flex items-center gap-4 md:gap-5">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100/50 shadow-inner">
+                  <FileText className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
+                    {viewingProposal.status === 'Pending' && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}
+                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Approved</span>}
+                    {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5"/> Rejected</span>}
+                  </div>
+                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5"/> Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+                </div>
               </div>
-              <button onClick={() => setViewingProposal(null)} className="absolute right-6 top-6 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setViewingProposal(null)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50"><X className="w-6 h-6" /></button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar bg-white">
+            {/* Modal Body - Split Layout */}
+            <div className="flex-1 overflow-hidden bg-gray-50/50 flex flex-col lg:flex-row rounded-b-[1.5rem]">
               
-              {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
-              {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
-                <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-4 ${
-                  viewingProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
-                  viewingProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
-                  'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
-                    viewingProposal.status === 'Rejected' ? 'text-red-700' :
-                    viewingProposal.status === 'Approved' ? 'text-green-700' :
-                    'text-blue-700'
-                  }`}>
-                    <MessageCircle className="w-4 h-4" /> Adviser Feedback History
-                  </h4>
-                  <div className="space-y-3">
-                    {viewingProposal.feedbackHistory.map(item => (
-                      <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+              {/* LEFT COLUMN: Proposal Details */}
+              <div className="w-full lg:w-[55%] xl:w-[60%] h-full overflow-y-auto custom-scrollbar border-r border-gray-200/80 bg-gray-50/30">
+                <div className="p-6 md:p-10 space-y-10">
+                  
+                  {/* Adviser Feedback Banner */}
+                  {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
+                    <div className="p-6 rounded-2xl border border-blue-200/60 bg-blue-50/40 flex flex-col gap-4 shadow-sm">
+                      <h4 className="text-xs font-extrabold uppercase tracking-widest text-blue-700 flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" /> Previous Feedback History
+                      </h4>
+                      <div className="space-y-4">
+                        {viewingProposal.feedbackHistory.map(item => (
+                          <div key={item.id} className="bg-white p-6 rounded-xl border border-blue-100/60 shadow-sm relative overflow-hidden">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400"></div>
+                            <div className="flex justify-between items-start mb-3">
+                              <span className="font-bold text-base text-[#122244]">{item.authorName}</span>
+                              <span className="text-xs text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            </div>
+                            <p className="text-base text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
                           </div>
-                          <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                        </div>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )}
 
-              {/* BUSINESS OVERVIEW */}
-              <section>
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><FileText className="w-4 h-4 text-blue-500"/> BUSINESS OVERVIEW</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Business Type</label>
-                    <input readOnly value={viewingProposal.businessType} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Business Name</label>
-                    <input readOnly value={viewingProposal.businessName} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Total Capital (₱)</label>
-                    <input readOnly value={viewingProposal.totalCapital} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Tagline</label>
-                    <input readOnly value={viewingProposal.tagline} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Target Market</label>
-                    <textarea readOnly rows={4} value={viewingProposal.targetMarket} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                </div>
-              </section>
-
-              {/* MISSION & VISION */}
-              <section>
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><Star className="w-4 h-4 text-purple-500 fill-current"/> MISSION & VISION</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Mission Statement</label>
-                    <textarea readOnly rows={3} value={viewingProposal.missionStatement} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Vision Statement</label>
-                    <textarea readOnly rows={3} value={viewingProposal.visionStatement} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                </div>
-              </section>
-
-              {/* PRODUCT & PRICING */}
-              <section>
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><div className="w-4 h-4 bg-green-500 rounded text-white flex items-center justify-center font-bold text-[10px]">$</div> PRODUCT & PRICING</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Product Description</label>
-                    <textarea readOnly rows={3} value={viewingProposal.productDescription} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Price Ranges</label>
-                    <textarea readOnly rows={2} value={viewingProposal.priceRanges} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                </div>
-              </section>
-
-              {/* PLACE & PROMOTION */}
-              <section>
-                <h3 className="text-sm font-bold text-[#122244] uppercase tracking-widest flex items-center gap-2 mb-4 border-b border-gray-50 pb-2"><div className="w-4 h-4 bg-orange-400 rounded-full text-white flex items-center justify-center font-bold text-[10px]">📍</div> PLACE & PROMOTION</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Proposed Location</label>
-                    <input readOnly value={viewingProposal.proposedLocation} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Promotional Strategy</label>
-                    <textarea readOnly rows={3} value={viewingProposal.promotionalStrategy} className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white outline-none cursor-default resize-none" />
-                  </div>
-                </div>
-              </section>
-
-              {/* ADVISER FEEDBACK INPUT (Only for Pending Proposals) */}
-              {viewingProposal.status === 'Pending' && (
-                  <section className="mt-8 pt-6 bg-[#122244] rounded-xl p-6 border border-[#1a2f55]">
-                      <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 mb-4"><MessageCircle className="w-4 h-4 text-[#c9a654]" /> Adviser Feedback</h3>
-                      <p className="text-xs text-gray-300 mb-4">Provide feedback before approving or rejecting the proposal.</p>
-                      <textarea
-                        value={feedbackInput}
-                        onChange={(e) => setFeedbackInput(e.target.value)}
-                        placeholder="Type your feedback here..."
-                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm bg-[#1a2f55] text-white placeholder-gray-400"
-                      />
+                  {/* BUSINESS OVERVIEW */}
+                  <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+                      <div className="p-2 bg-blue-100/50 rounded-lg"><FileText className="w-4 h-4 text-blue-600"/></div>
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Business Overview</h3>
+                    </div>
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Type</label>
+                        <div className="text-base font-bold text-[#122244] bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.businessType || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Capital (₱)</label>
+                        <div className="text-base font-bold text-green-700 bg-green-50/50 px-5 py-4 rounded-xl border border-green-100/50">₱ {viewingProposal.totalCapital || '-'}</div>
+                      </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tagline</label>
+                        <div className="text-base text-gray-800 italic bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">"{viewingProposal.tagline || '-'}"</div>
+                      </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Market</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.targetMarket || '-'}</div>
+                      </div>
+                    </div>
                   </section>
-              )}
-            </div>
 
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                {viewingProposal.status === 'Pending' && (
-                    <>
+                  {/* MISSION & VISION */}
+                  <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+                      <div className="p-2 bg-purple-100/50 rounded-lg"><Star className="w-4 h-4 text-purple-600 fill-current"/></div>
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Mission & Vision</h3>
+                    </div>
+                    <div className="p-6 space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mission Statement</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.missionStatement || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vision Statement</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.visionStatement || '-'}</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* PRODUCT & PRICING */}
+                  <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100/50 rounded-lg"><DollarSign className="w-4 h-4 text-emerald-600"/></div>
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Product & Pricing</h3>
+                    </div>
+                    <div className="p-6 space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Description</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.productDescription || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Price Ranges</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.priceRanges || '-'}</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* PLACE & PROMOTION */}
+                  <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                    <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+                      <div className="p-2 bg-orange-100/50 rounded-lg"><Target className="w-4 h-4 text-orange-600"/></div>
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Place & Promotion</h3>
+                    </div>
+                    <div className="p-6 space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Proposed Location</label>
+                        <div className="text-base text-gray-800 font-medium bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.proposedLocation || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Promotional Strategy</label>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.promotionalStrategy || '-'}</div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: AI Analysis & Feedback */}
+              <div className="w-full lg:w-[45%] xl:w-[40%] h-full bg-[#fcfcfd] flex flex-col relative z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.03)]">
+                
+                {/* AI Analysis Scrollable Area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  <div className="p-6 md:p-8">
+                    <div className="flex items-center justify-between mb-8">
+                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
+                         <div className="p-1.5 bg-yellow-100/50 rounded-md"><Sparkles className="w-4 h-4 text-[#c9a654]" /></div>
+                         AI Feasibility Analysis
+                       </h3>
+                       {modalAiResult && !isAiAnalyzing && (
+                          <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+                            <RefreshCw className="w-3 h-3" /> Re-analyze
+                          </button>
+                       )}
+                    </div>
+                    
+                    {isAiAnalyzing ? (
+                      <div className="flex flex-col items-center justify-center py-20 space-y-6 text-center">
+                        <div className="relative w-20 h-20">
+                          <div className="absolute inset-0 rounded-full border-[3px] border-gray-100"></div>
+                          <div className="absolute inset-0 rounded-full border-[3px] border-[#c9a654] border-t-transparent animate-spin"></div>
+                          <Brain className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-[#122244] text-lg">Evaluating Proposal</p>
+                          <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">Our AI is analyzing the proposal against market standards...</p>
+                        </div>
+                      </div>
+                    ) : !modalAiResult ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-200/70 rounded-[1.5rem] p-8 bg-white/50">
+                        <div className="w-20 h-20 bg-blue-50/80 rounded-full flex items-center justify-center mb-5 border border-blue-100/50">
+                          <Brain className="w-10 h-10 text-blue-500" />
+                        </div>
+                        <h4 className="text-lg font-extrabold text-[#122244] mb-2">No Analysis Yet</h4>
+                        <p className="text-sm text-gray-500 mb-8 max-w-[240px]">Run an AI evaluation to get scores, insights, and a draft feedback.</p>
                         <button 
-                            onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
-                            className="px-6 py-2.5 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition-colors">
-                            Reject Proposal
+                          onClick={() => handleAIAnalysis(viewingProposal)} 
+                          className="px-8 py-3.5 bg-[#122244] text-white font-extrabold text-sm rounded-xl hover:bg-[#0a142e] transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 transform hover:-translate-y-0.5">
+                          <Sparkles className="w-4 h-4" /> Analyze with AI
                         </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        
+                        {/* Score Card */}
+                        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-6 relative overflow-hidden">
+                          <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-gray-50 to-transparent rounded-full opacity-50 pointer-events-none"></div>
+                          <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-24 h-24 transform -rotate-90">
+                              <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-50" />
+                              <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                                strokeDasharray={263.89} 
+                                strokeDashoffset={263.89 - (263.89 * modalAiResult.score) / 100}
+                                className={`transition-all duration-1000 ease-out ${modalAiResult.score >= 70 ? 'text-green-500' : modalAiResult.score >= 45 ? 'text-amber-500' : 'text-red-500'}`} />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center flex-col">
+                              <span className="text-2xl font-black text-[#122244]">{modalAiResult.score}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Business Proposal Feasibility</p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-2.5 py-1 text-[10px] font-black rounded-md uppercase tracking-wider ${
+                                modalAiResult.status === 'FEASIBLE' ? 'bg-green-100 text-green-800 border border-green-200' : 
+                                modalAiResult.status === 'NEEDS_ADJUSTMENT' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
+                                'bg-red-100 text-red-800 border border-red-200'}`}>
+                                {modalAiResult.status.replace('_', ' ')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sub Metrics */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {Object.entries(modalAiResult.metrics || {}).map(([key, val]: [string, any]) => (
+                            <div key={key} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                              <div className="flex justify-between items-end mb-3">
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{key}</span>
+                                <span className="text-sm font-black text-[#122244]">{val}/10</span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${val >= 7 ? 'bg-green-500' : val >= 4 ? 'bg-amber-500' : 'bg-red-500'}`} style={{width: `${(val / 10) * 100}%`}}></div></div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Strengths & Weaknesses */}
+                        <div className="space-y-4">
+                          <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-sm">
+                            <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600"/> Key Strengths</h4>
+                            <ul className="space-y-2.5">
+                              {modalAiResult.strengths?.map((s: string, i: number) => (
+                                <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5"><span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4"/></span> <span>{s}</span></li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className={`${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'bg-amber-50/50 border-amber-200/60' : 'bg-green-50/50 border-green-200/60'} border rounded-xl p-5 shadow-sm`}>
+                            <h4 className={`text-xs font-extrabold flex items-center gap-2 mb-3 ${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'text-amber-800' : 'text-green-800'}`}>
+                              {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? <TrendingDown className="w-4 h-4 text-amber-600"/> : <CheckCircle2 className="w-4 h-4 text-green-600"/>} 
+                              Areas of Concern
+                            </h4>
+                            {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? (
+                              <ul className="space-y-2.5">
+                                {modalAiResult.weaknesses.map((w: string, i: number) => (
+                                  <li key={i} className="text-base text-amber-900 leading-relaxed flex items-start gap-2.5"><span className="text-amber-500 mt-1 flex-shrink-0"><AlertCircle className="w-4 h-4"/></span> <span>{w}</span></li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-base text-green-900 leading-relaxed font-medium">There are no major areas of concern. This is an excellent and highly commendable proposal.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Recommendations */}
+                        <div className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm">
+                          <h4 className="text-xs font-extrabold text-[#122244] flex items-center gap-2 mb-4"><Lightbulb className="w-4 h-4 text-[#c9a654]"/> Actionable Recommendations</h4>
+                          <ul className="space-y-3">
+                            {modalAiResult.recommendations?.map((r: string, i: number) => (
+                              <li key={i} className="text-base text-gray-700 leading-relaxed flex items-start gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                <span className="bg-[#122244] text-white font-bold rounded-md w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs mt-0.5 shadow-sm">{i+1}</span>
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ADVISER FEEDBACK SECTION (Sticky Bottom) */}
+                {viewingProposal.status === 'Pending' ? (
+                  <div className="border-t border-gray-200 bg-white p-6 md:p-8 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-5">
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                        <MessageCircle className="w-4.5 h-4.5 text-[#c9a654]" /> Feedback & Decision
+                      </h3>
+                      {modalAiResult && modalAiResult.draftFeedback && (
                         <button 
-                            onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
-                            className="px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-md">
-                            Approve Proposal
+                          onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm w-full xl:w-auto">
+                          <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
                         </button>
-                    </>
+                      )}
+                    </div>
+                    
+                    <textarea
+                      value={feedbackInput}
+                      onChange={(e) => setFeedbackInput(e.target.value)}
+                      placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
+                      className="w-full p-5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-40 text-base bg-gray-50/50 text-gray-900 placeholder-gray-400 mb-6 transition-all shadow-inner"
+                    />
+                    
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button 
+                        onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
+                        disabled={isSaving}
+                        className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
+                        <X className="w-5 h-5" /> Reject Proposal
+                      </button>
+                      <button 
+                        onClick={() => handleProposalAction(viewingProposal, 'Revision')} 
+                        disabled={isSaving}
+                        className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
+                        <Edit2 className="w-5 h-5" /> Needs Revision
+                      </button>
+                      <button 
+                        onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
+                        disabled={isSaving}
+                        className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        Approve Proposal
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-t border-gray-200 bg-white p-6 md:p-8 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
+                     <button onClick={() => setViewingProposal(null)} className="py-3 px-8 bg-gray-100 text-[#122244] font-extrabold text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-sm w-full xl:w-auto">
+                       Close Proposal
+                     </button>
+                  </div>
                 )}
+              </div>
             </div>
           </div>
         </div>
