@@ -42,6 +42,26 @@ import {
   MapPin,
   DollarSign,
 } from "lucide-react";
+import TextareaAutosize from 'react-textarea-autosize';
+
+interface ExpandingTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  minRows?: number;
+}
+
+const Autosize = TextareaAutosize as any;
+
+const ExpandingTextarea: React.FC<ExpandingTextareaProps & { rows?: number }> = ({ value, minRows, rows, ...props }) => {
+  const effectiveMinRows = minRows || rows || 2;
+  const hasText = value && typeof value === 'string' && value.trim().length > 0;
+  return (
+    <Autosize
+      minRows={effectiveMinRows}
+      maxRows={hasText ? undefined : effectiveMinRows}
+      value={value}
+      {...props}
+    />
+  );
+};
 
 interface GroupData {
   id: string;
@@ -1080,7 +1100,7 @@ const Projects: React.FC = () => {
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                         Target Market
                       </label>
-                      <textarea
+                      <ExpandingTextarea
                         disabled={!isEditingMode}
                         rows={3}
                         placeholder="Who are your customers?"
@@ -1106,7 +1126,7 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Mission Statement
                         </label>
-                        <textarea
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
                           rows={2}
                           value={currentProposal.missionStatement}
@@ -1123,7 +1143,7 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Vision Statement
                         </label>
-                        <textarea
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
                           rows={2}
                           value={currentProposal.visionStatement}
@@ -1151,7 +1171,7 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Product Description
                         </label>
-                        <textarea
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
                           rows={3}
                           placeholder="Describe exactly what you are selling."
@@ -1169,7 +1189,7 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Price Ranges
                         </label>
-                        <textarea
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
                           rows={2}
                           placeholder="List price ranges: e.g., Budget (₱40-60), Mid-range (₱60-100), Premium (₱100+)"
@@ -1198,9 +1218,9 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Proposed Location
                         </label>
-                        <input
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
-                          type="text"
+                          rows={2}
                           placeholder="Where will you operate?"
                           value={currentProposal.proposedLocation}
                           onChange={(e) =>
@@ -1209,14 +1229,14 @@ const Projects: React.FC = () => {
                               proposedLocation: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Promotional Strategy
                         </label>
-                        <textarea
+                        <ExpandingTextarea
                           disabled={!isEditingMode}
                           rows={2}
                           placeholder="How will you attract customers?"
@@ -1244,7 +1264,7 @@ const Projects: React.FC = () => {
                       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                         Other Relevant Information (Optional)
                       </label>
-                      <textarea
+                      <ExpandingTextarea
                         disabled={!isEditingMode}
                         rows={4}
                         value={currentProposal.otherDetails}
@@ -1807,7 +1827,7 @@ const Projects: React.FC = () => {
                 <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">
                   Mission & Vision
                 </h4>
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Mission Statement"
                   value={editBasicData.missionStatement}
@@ -1819,7 +1839,7 @@ const Projects: React.FC = () => {
                   }
                   className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
                 />
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Vision Statement"
                   value={editBasicData.visionStatement}
@@ -1837,7 +1857,7 @@ const Projects: React.FC = () => {
                 <h4 className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
                   Strategy & Description
                 </h4>
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Target Market"
                   value={editBasicData.targetMarket}
@@ -1849,7 +1869,7 @@ const Projects: React.FC = () => {
                   }
                   className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
                 />
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Product Description"
                   value={editBasicData.productDescription}
@@ -1861,7 +1881,7 @@ const Projects: React.FC = () => {
                   }
                   className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
                 />
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Price Ranges"
                   value={editBasicData.priceRanges}
@@ -1875,14 +1895,12 @@ const Projects: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
-                    Place & Promotion
-                  </h4>
-                </div>
-                <input
-                  type="text"
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
+                  Place & Promotion
+                </h4>
+                <ExpandingTextarea
+                  rows={2}
                   placeholder="Proposed Location"
                   value={editBasicData.proposedLocation}
                   onChange={(e) =>
@@ -1891,9 +1909,9 @@ const Projects: React.FC = () => {
                       proposedLocation: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
                 />
-                <textarea
+                <ExpandingTextarea
                   rows={2}
                   placeholder="Promotional Strategy"
                   value={editBasicData.promotionalStrategy}
@@ -1911,7 +1929,7 @@ const Projects: React.FC = () => {
                 <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">
                   Additional Details
                 </h4>
-                <textarea
+                <ExpandingTextarea
                   rows={3}
                   placeholder="Other Relevant Information"
                   value={editBasicData.otherDetails}

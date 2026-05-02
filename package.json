@@ -25,6 +25,7 @@
     "react-is": "^19.2.5",
     "react-loading-skeleton": "^3.5.0",
     "react-router-dom": "^7.13.0",
+    "react-textarea-autosize": "^8.5.9",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.3",
     "typescript-eslint": "^8.59.0",
