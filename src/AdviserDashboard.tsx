@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
-  CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
+  CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb
 } from "lucide-react";
@@ -903,7 +904,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGroups.map((group, index) => {
+                {filteredGroups.map((group) => {
                   const totalMembers = group.memberIds.length + 1; 
                   const originalIndex = groups.findIndex(g => g.id === group.id) + 1; 
                   
