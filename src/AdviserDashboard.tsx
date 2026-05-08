@@ -64,7 +64,7 @@ interface ProposalData {
 const AdviserDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("Adviser");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Section Management State
@@ -734,8 +734,17 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       {/* ADVISER SIDEBAR */}
-      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>

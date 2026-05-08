@@ -39,7 +39,7 @@ const Financial_input: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -308,9 +308,16 @@ const Financial_input: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       {/* SIDEBAR */}
       <aside
-        className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/10">
           <img
