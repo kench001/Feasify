@@ -624,22 +624,22 @@ const AI_Analysis: React.FC = () => {
       </aside>
 
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center flex-wrap gap-2 text-sm text-gray-500">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors flex-shrink-0"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-          <span className="mx-2">|</span>
+          <span className="mx-1 sm:mx-2 text-gray-300">|</span>
           <span
-            className="cursor-pointer hover:text-[#c9a654]"
+            className="cursor-pointer hover:text-[#c9a654] truncate"
             onClick={() => navigate("/dashboard")}
           >
             FeasiFy
           </span>
-          <span>›</span>
-          <span className="font-semibold text-gray-900">AI Analysis</span>
+          <span className="text-gray-400">›</span>
+          <span className="font-semibold text-gray-900 truncate">AI Analysis</span>
         </div>
 
         {isAnalyzing ? (
@@ -658,12 +658,12 @@ const AI_Analysis: React.FC = () => {
           </div>
         ) : (
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-              <div>
-                <h1 className="text-3xl font-extrabold text-[#3d2c23]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div className="w-full sm:w-auto min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3d2c23]">
                   AI Analysis
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic font-medium">
+                <p className="text-sm text-gray-500 mt-1 italic font-medium break-words">
                   Evaluation for{" "}
                   <span className="text-[#122244] font-bold">
                     {selectedProject?.name || "Selected Project"}
@@ -673,25 +673,25 @@ const AI_Analysis: React.FC = () => {
               <button
                 onClick={() => executeAnalysis(financials, selectedProjectId)}
                 disabled={!selectedProjectId}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0"
               >
                 <RotateCcw className="w-4 h-4" /> Re-analyze
               </button>
             </div>
 
-            <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
                 Active Project
               </label>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
+                <div className="w-10 h-10 flex-shrink-0 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
                   P#
                 </div>
-                <div>
-                  <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#122244] tracking-tight truncate">
                     {selectedProject?.name || "No Project Selected"}
                   </h2>
-                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded break-words">
                     Verified Approved Business
                   </span>
                 </div>
@@ -702,17 +702,17 @@ const AI_Analysis: React.FC = () => {
               className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
             >
               {/* Verdict Section */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
-                <div className="flex items-start gap-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
                   <div className="flex-shrink-0">
                     <div
-                      className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
+                      className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner mx-auto md:mx-0 ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
                     >
                       <Zap className="w-10 h-10 text-white" />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                  <div className="flex-1 flex flex-col items-center md:items-start">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
                       <h2 className="text-2xl font-extrabold text-[#122244]">
                         Feasibility Verdict
                       </h2>
@@ -728,23 +728,25 @@ const AI_Analysis: React.FC = () => {
                     </p>
                     {improvementTips.feasibility && (
                       <div
-                        className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+                        className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
                       >
-                        <Lightbulb size={12} />{" "}
-                        {feasibilityStatus === "FEASIBLE"
-                          ? "💡 Achievement:"
-                          : "Tip:"}{" "}
-                        {improvementTips.feasibility}
+                        <Lightbulb size={16} className="flex-shrink-0" />{" "}
+                        <span>
+                          {feasibilityStatus === "FEASIBLE"
+                            ? "💡 Achievement:"
+                            : "Tip:"}{" "}
+                          {improvementTips.feasibility}
+                        </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  <div className="flex-shrink-0 text-center md:text-right mt-2 md:mt-0 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100">
                     <div
-                      className={`text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
+                      className={`text-4xl md:text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
                     >
                       {feasibilityScore}
                     </div>
-                    <div className="text-xs font-bold text-gray-400 uppercase">
+                    <div className="text-xs font-bold text-gray-400 uppercase mt-1">
                       out of 100
                     </div>
                   </div>
@@ -753,84 +755,75 @@ const AI_Analysis: React.FC = () => {
 
               {/* Congratulations or Improvement Guide Section */}
               {feasibilityStatus === "FEASIBLE" ? (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-8 shadow-sm mb-8">
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">🎉</div>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                    <div className="text-4xl sm:text-5xl">🎉</div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-extrabold text-green-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 mb-2">
                         Excellent News!
                       </h3>
-                      <p className="text-green-800 font-medium mb-4">
+                      <p className="text-green-800 font-medium mb-4 text-sm sm:text-base">
                         Your feasibility study demonstrates strong business
                         fundamentals. With a score of {feasibilityScore}%, your
                         project shows:
                       </p>
-                      <ul className="space-y-2 text-green-700 text-sm">
+                      <ul className="space-y-3 sm:space-y-2 text-green-700 text-sm text-left">
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Solid financial projections and profit margins
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Adequate market demand and growth potential
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Manageable risk profile with viable market
                             positioning
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-green-200 text-left">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
                           Recommended Next Steps:
                         </p>
-                        <ul className="text-sm text-green-800 space-y-1">
-                          <li>
-                            ✓ Develop detailed implementation and execution plan
-                          </li>
-                          <li>
-                            ✓ Finalize funding strategy and capital requirements
-                          </li>
-                          <li>
-                            ✓ Create marketing and customer acquisition roadmap
-                          </li>
-                          <li>
-                            ✓ Establish key performance indicators (KPIs) for
-                            monitoring
-                          </li>
+                        <ul className="text-sm text-green-800 space-y-2 sm:space-y-1">
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Develop detailed implementation and execution plan</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Finalize funding strategy and capital requirements</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Create marketing and customer acquisition roadmap</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Establish key performance indicators (KPIs) for monitoring</span></li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-8 shadow-sm mb-8">
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">⚡</div>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-6 md:p-8 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                    <div className="text-4xl sm:text-5xl">⚡</div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-extrabold text-amber-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mb-2">
                         Path to Improved Feasibility
                       </h3>
-                      <p className="text-amber-800 font-medium mb-4">
+                      <p className="text-amber-800 font-medium mb-4 text-sm sm:text-base">
                         Your feasibility score of {feasibilityScore}% indicates
                         areas for improvement. Focus on these key areas:
                       </p>
-                      <ul className="space-y-2 text-amber-700 text-sm">
+                      <ul className="space-y-3 sm:space-y-2 text-amber-700 text-sm text-left">
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Cost Structure:</strong> Review variable and
                             fixed costs for optimization opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Market Differentiation:</strong> Develop a
                             unique value proposition to stand out from
@@ -838,39 +831,29 @@ const AI_Analysis: React.FC = () => {
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Revenue Optimization:</strong> Explore
                             pricing strategies and upsell opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Market Validation:</strong> Conduct deeper
                             market research to validate demand assumptions
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-4 p-3 bg-white rounded-lg border border-amber-200">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-amber-200 text-left">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
                           Action Items:
                         </p>
-                        <ul className="text-sm text-amber-800 space-y-1">
-                          <li>
-                            1. Revise financial projections with improved cost
-                            estimates
-                          </li>
-                          <li>
-                            2. Develop competitive differentiation strategy
-                          </li>
-                          <li>
-                            3. Validate market demand through surveys or pilot
-                            programs
-                          </li>
-                          <li>
-                            4. Re-run analysis to track feasibility improvement
-                          </li>
+                        <ul className="text-sm text-amber-800 space-y-2 sm:space-y-1">
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">1.</span> <span>Revise financial projections with improved cost estimates</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">2.</span> <span>Develop competitive differentiation strategy</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">3.</span> <span>Validate market demand through surveys or pilot programs</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">4.</span> <span>Re-run analysis to track feasibility improvement</span></li>
                         </ul>
                       </div>
                     </div>
@@ -969,15 +952,15 @@ const AI_Analysis: React.FC = () => {
               </div>
 
               {/* 5-Year Pro Forma Financial Statement */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
-                <div className="flex items-center justify-between mb-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
                   <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-[#c9a654]" /> 5-Year Pro
+                    <DollarSign className="w-5 h-5 text-[#c9a654] flex-shrink-0" /> 5-Year Pro
                     Forma Financial Projection
                   </h3>
                   <button
                     onClick={() => setShowProFormaInputs(!showProFormaInputs)}
-                    className="text-[11px] font-bold uppercase text-[#c9a654] hover:text-[#a87d3a] transition-colors px-3 py-1.5 border border-[#c9a654]/30 rounded-lg hover:bg-[#c9a654]/5"
+                    className="w-full sm:w-auto text-[11px] font-bold uppercase text-[#c9a654] hover:text-[#a87d3a] transition-colors px-3 py-2 sm:py-1.5 border border-[#c9a654]/30 rounded-lg hover:bg-[#c9a654]/5 flex-shrink-0"
                   >
                     {showProFormaInputs ? "Hide" : "Show"} Assumptions
                   </button>
@@ -985,7 +968,7 @@ const AI_Analysis: React.FC = () => {
 
                 {/* Growth Rate Inputs */}
                 {showProFormaInputs && (
-                  <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <div>
                       <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
                         Revenue Growth Rate (%)
@@ -1264,14 +1247,14 @@ const AI_Analysis: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 mt-8">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
                 <button
                   onClick={() =>
                     navigate("/financial-input", {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-white border border-gray-200 rounded-xl sm:rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
                 >
                   <FileEdit className="w-4 h-4" /> Revise Financial Data
                 </button>
@@ -1281,7 +1264,7 @@ const AI_Analysis: React.FC = () => {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="flex items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-md"
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold text-sm transition-all shadow-md"
                 >
                   <BarChart3 className="w-4 h-4" /> View Full Report
                 </button>
