@@ -227,7 +227,7 @@ const Auth: React.FC = () => {
               />
             </div>
 
-            <p className="text-center text-xs sm:text-sm font-bold uppercase tracking-widest text-white/60 mb-12 lg:mb-16">
+            <p className="text-center text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-white lg:text-black mb-12 lg:mb-16">
               Pamantasan ng Lungsod ng Valenzuela
             </p>
 
