@@ -239,106 +239,72 @@ const AdviserDashboard: React.FC = () => {
       setModalAiResult(proposal.aiAnalysis);
     } else {
       setModalAiResult(null);
+      // AUTOMATIC TRIGGER: Run analysis immediately so the adviser never sees a blank state
+      handleAIAnalysis(proposal);
     }
   };
 
   // --- AI ANALYSIS FUNCTION ---
-  const handleAIAnalysis = async (proposal: ProposalData) => {
+const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
     setIsAiAnalyzing(true);
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    // Build a rich context string so the AI understands completeness
-    const fieldCompleteness = [
-      { field: 'Business Name', value: proposal.businessName },
-      { field: 'Business Type', value: proposal.businessType },
-      { field: 'Tagline', value: proposal.tagline },
-      { field: 'Target Market', value: proposal.targetMarket },
-      { field: 'Mission Statement', value: proposal.missionStatement },
-      { field: 'Vision Statement', value: proposal.visionStatement },
-      { field: 'Product Description', value: proposal.productDescription },
-      { field: 'Price Ranges', value: proposal.priceRanges },
-      { field: 'Proposed Location', value: proposal.proposedLocation },
-      { field: 'Promotional Strategy', value: proposal.promotionalStrategy },
+    // Helper to detect blank or placeholder text
+    const isFieldBlank = (val: any) => {
+        if (!val) return true;
+        const trimmed = String(val).trim().toLowerCase();
+        const placeholders = ["tbd", "none", "n/a", "...", "-", "none provided", "to be determined", "unknown", "na"];
+        return trimmed === "" || placeholders.includes(trimmed);
+    };
+
+    const fields = [
+      { name: 'Business Name', value: proposal.businessName },
+      { name: 'Business Type', value: proposal.businessType },
+      { name: 'Tagline', value: proposal.tagline },
+      { name: 'Target Market', value: proposal.targetMarket },
+      { name: 'Mission Statement', value: proposal.missionStatement },
+      { name: 'Vision Statement', value: proposal.visionStatement },
+      { name: 'Product Description', value: proposal.productDescription },
+      { name: 'Price Ranges', value: proposal.priceRanges },
+      { name: 'Proposed Location', value: proposal.proposedLocation },
+      { name: 'Promotional Strategy', value: proposal.promotionalStrategy },
     ];
-    const filledCount = fieldCompleteness.filter(f => f.value && f.value.trim()).length;
-    const missingFields = fieldCompleteness.filter(f => !f.value || !f.value.trim()).map(f => f.field);
 
-    const prompt = `You are a senior business consultant with 20+ years of experience evaluating startup feasibility studies for university entrepreneurship programs. You have deep expertise in market analysis, business model evaluation, and operational planning.
+    const missingFields = fields.filter(f => isFieldBlank(f.value)).map(f => f.name);
+    const filledCount = fields.length - missingFields.length;
 
-A student group has submitted a business proposal. Your job is to provide a RIGOROUS, SPECIFIC, and HONEST evaluation that will genuinely help them improve. You must act as a tough but fair mentor — not a generic feedback machine.
+    const prompt = `You are a Senior Business Auditor. Your role is to be RIGOROUS, CRITICAL, and HONEST. You are NOT a friendly assistant; you are a mentor who demands professional excellence.
 
 === CRITICAL RULES ===
-1. NEVER give generic feedback. Every single strength, weakness, and recommendation MUST directly reference specific details from the proposal (quote the business name, product, target market, location, etc.)
-2. Scores must ACCURATELY reflect the quality. A vague one-liner product description deserves a 3-4, not a 5-7. A well-articulated multi-paragraph strategy deserves an 8-9. Be honest.
-3. Do NOT evaluate financial viability or capital — that is handled in a separate financial analysis module after proposal approval.
-4. If a field says "Not provided" or is empty, that is a MAJOR weakness. Penalize the score accordingly — missing information means the proposal is incomplete.
-5. The overall score must be a WEIGHTED CALCULATION: (concept × 0.30) + (market × 0.25) + (operational × 0.25) + (strategic × 0.20), then multiply by 10 to get 0-100 scale.
-6. Status thresholds: score >= 70 = "FEASIBLE", score 45-69 = "NEEDS_ADJUSTMENT", score < 45 = "NOT_FEASIBLE"
-7. Each strength/weakness must be 1-2 sentences with SPECIFIC references to the proposal content.
-8. Each recommendation must be ACTIONABLE — tell them exactly what to do, not vague advice like "improve your strategy".
-=== END RULES ===
+1. ZERO TOLERANCE: If a field is blank or contains placeholders (e.g., "TBD", "N/A", "None", "..."), it is a FAILURE. 
+2. NO HALLUCINATED STRENGTHS: If the proposal is blank or consists of placeholders, the "strengths" array MUST be empty []. NEVER say "they took the first step" or "good effort". If there is no substance, there is no strength.
+3. CALL OUT EVERY BLANK: Every missing or placeholder field MUST be listed as a specific weakness.
+4. QUALITY OVER LENGTH: Do not award points based on text length. A long paragraph of fluff is a 0. Only award points for specific, actionable, and realistic data.
+5. SCORE PENALTY: If the Product Description or Target Market is missing, the total score cannot exceed 30.
 
 === PROPOSAL DATA ===
-Business Name: "${proposal.businessName || 'Not provided'}"
-Business Type: "${proposal.businessType || 'Not provided'}"
-Tagline: "${proposal.tagline || 'Not provided'}"
-Target Market: "${proposal.targetMarket || 'Not provided'}"
-Mission Statement: "${proposal.missionStatement || 'Not provided'}"
-Vision Statement: "${proposal.visionStatement || 'Not provided'}"
-Product Description: "${proposal.productDescription || 'Not provided'}"
-Price Ranges: "${proposal.priceRanges || 'Not provided'}"
-Proposed Location: "${proposal.proposedLocation || 'Not provided'}"
-Promotional Strategy: "${proposal.promotionalStrategy || 'Not provided'}"
-Other Details: "${proposal.otherDetails || 'None'}"
-=== END PROPOSAL DATA ===
+${fields.map(f => `${f.name}: ${f.value || 'BLANK'}`).join('\n')}
+Other Details: ${proposal.otherDetails || 'None'}
 
 === COMPLETENESS CHECK ===
-Fields filled: ${filledCount}/10
-${missingFields.length > 0 ? `Missing fields: ${missingFields.join(', ')}` : 'All fields provided.'}
-=== END COMPLETENESS CHECK ===
+Filled Fields: ${filledCount}/10
+Missing/Placeholder Fields: ${missingFields.join(', ')}
 
-Now evaluate across these 4 dimensions. For each, think carefully about what the student actually wrote (not what you assume they meant):
-
-1. CONCEPT CLARITY (Weight: 30%)
-   - Is the business name appropriate and memorable for the type?
-   - Does the tagline effectively communicate the value proposition?
-   - Is the product/service description detailed enough to understand what they're actually selling?
-   - Does the business type match what they're describing?
-   - Are the price ranges reasonable and well-justified for the product?
-
-2. MARKET POTENTIAL (Weight: 25%)
-   - Is the target market specific enough? (e.g., "everyone" is too vague, "college students aged 18-22 in Quezon City" is specific)
-   - Does the product actually solve a problem or fulfill a need for that target market?
-   - Is the proposed location strategic for reaching the target market?
-   - Are there obvious competitors they haven't considered?
-
-3. OPERATIONAL FEASIBILITY (Weight: 25%)
-   - Based on the product description, can this business realistically operate?
-   - Is the location practical for the type of business?
-   - Are there any obvious operational gaps (e.g., food business with no mention of sourcing/suppliers)?
-   - Does the price range make sense for the operational model described?
-
-4. STRATEGIC CLARITY (Weight: 20%)
-   - Do the mission and vision statements align with the actual business model?
-   - Are they generic/copied or genuinely tailored to this business?
-   - Is the promotional strategy specific and actionable, or just buzzwords?
-   - Does everything tie together into a coherent business narrative?
-
-Return ONLY a valid JSON object. No markdown, no code fences, no explanation outside the JSON:
+Return ONLY a valid JSON object:
 {
-  "score": <number 0-100, calculated as described above>,
+  "score": <0-100>,
   "status": "FEASIBLE" | "NEEDS_ADJUSTMENT" | "NOT_FEASIBLE",
   "metrics": {
-    "concept": <number 1-10>,
-    "market": <number 1-10>,
-    "operational": <number 1-10>,
-    "strategic": <number 1-10>
+    "concept": <0-10>,
+    "market": <0-10>,
+    "operational": <0-10>,
+    "strategic": <0-10>
   },
-  "strengths": ["<specific strength referencing proposal content>", "<specific strength>", "<specific strength>"],
-  "weaknesses": ["<specific weakness referencing proposal content>" /* leave empty if proposal is exceptional */],
-  "recommendations": ["<actionable recommendation with specific steps>", "<actionable recommendation>"],
-  "draftFeedback": "<A professional 2-3 paragraph feedback addressed directly to the student group as 'Dear Team' or 'Dear [Business Name] Team'. Paragraph 1: Acknowledge what they did well with specific references. Paragraph 2: Identify the key gaps and what concerns you as an evaluator. Paragraph 3: Provide clear next steps they should take before resubmission. Do NOT mention financial analysis or capital — those are evaluated in a separate module. Be encouraging but honest.>"
+  "strengths": ["<Evidence-based strength or EMPTY ARRAY [] if none>"],
+  "weaknesses": ["<Specifically list every blank/placeholder field as a critical failure>"],
+  "recommendations": ["<Exact steps to fix the missing data>"],
+  "draftFeedback": "<Direct, professional feedback. If blank, be blunt: 'Dear Team, your submission is incomplete. You left [Fields] blank. This cannot be evaluated. Fill all sections and resubmit.'>"
 }`;
 
     try {
@@ -349,91 +315,63 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.75,
-              topP: 0.95,
-              topK: 40,
-              maxOutputTokens: 2048,
-              responseMimeType: "application/json",
+            generationConfig: { 
+                temperature: 0.1, 
+                responseMimeType: "application/json" 
             },
           }),
         }
       );
       const resData = await response.json();
-      
-      if (!resData.candidates || resData.candidates.length === 0) {
-        throw new Error("Invalid response from Gemini API: " + JSON.stringify(resData));
-      }
-
       const rawText = resData.candidates[0].content.parts[0].text;
-      const cleanJson = rawText.substring(rawText.indexOf("{"), rawText.lastIndexOf("}") + 1);
-      const aiResult = JSON.parse(cleanJson);
+      const aiResult = JSON.parse(rawText);
 
-      // Validate and recalculate score to ensure consistency
       const m = aiResult.metrics || {};
-      const calculatedScore = Math.round(
-        ((m.concept || 5) * 0.30 + (m.market || 5) * 0.25 + (m.operational || 5) * 0.25 + (m.strategic || 5) * 0.20) * 10
-      );
-      const validatedStatus = calculatedScore >= 70 ? 'FEASIBLE' : calculatedScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE';
-
+      const calculatedScore = Math.round(((m.concept || 0) * 0.3 + (m.market || 0) * 0.25 + (m.operational || 0) * 0.25 + (m.strategic || 0) * 0.2) * 10);
+      
       const finalResult = {
         ...aiResult,
         score: calculatedScore,
-        status: validatedStatus,
+        status: calculatedScore >= 70 ? 'FEASIBLE' : calculatedScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE',
         lastRun: new Date().toISOString(),
       };
+
       await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: finalResult });
       setModalAiResult(finalResult);
       if (aiResult.draftFeedback) setFeedbackInput(aiResult.draftFeedback);
-      
-      // Update local state to persist data without refresh
       setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
       setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
     } catch (e) {
-      console.error("AI Analysis failed:", e);
-      // Context-aware fallback using actual proposal data
-      const hasProduct = !!(proposal.productDescription && proposal.productDescription.trim());
-      const hasTarget = !!(proposal.targetMarket && proposal.targetMarket.trim());
-      const hasLocation = !!(proposal.proposedLocation && proposal.proposedLocation.trim());
-      const hasPromo = !!(proposal.promotionalStrategy && proposal.promotionalStrategy.trim());
-      const hasMission = !!(proposal.missionStatement && proposal.missionStatement.trim());
+      console.error("AI Error, using strict fallback:", e);
+      
+      const hasProduct = !isFieldBlank(proposal.productDescription);
+      const hasTarget = !isFieldBlank(proposal.targetMarket);
+      const hasLocation = !isFieldBlank(proposal.proposedLocation);
+      const hasPromo = !isFieldBlank(proposal.promotionalStrategy);
 
-      const conceptScore = hasProduct ? Math.min(10, 4 + Math.floor((proposal.productDescription?.length || 0) / 100)) : 3;
-      const marketScore = hasTarget && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.targetMarket?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : hasTarget ? 4 : 3;
-      const operationalScore = hasProduct && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.productDescription?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : 3;
-      const strategicScore = hasMission && hasPromo ? Math.min(10, 4 + Math.floor(((proposal.missionStatement?.length || 0) + (proposal.promotionalStrategy?.length || 0)) / 100)) : hasPromo ? 4 : 3;
-      const fallbackScore = Math.round((conceptScore * 0.30 + marketScore * 0.25 + operationalScore * 0.25 + strategicScore * 0.20) * 10);
-
-      const isExcellent = fallbackScore >= 90;
-      const isGood = fallbackScore >= 70 && fallbackScore < 90;
+      const conceptS = hasProduct ? 4 : 0;
+      const marketS = (hasTarget && hasLocation) ? 4 : 0;
+      const operationalS = (hasProduct && hasLocation) ? 4 : 0;
+      const strategicS = hasPromo ? 4 : 0;
+      const fallbackScore = Math.round((conceptS * 0.3 + marketS * 0.25 + operationalS * 0.25 + strategicS * 0.2) * 10);
 
       const fallback = {
         score: fallbackScore,
         status: fallbackScore >= 70 ? 'FEASIBLE' : fallbackScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE',
-        metrics: { concept: conceptScore, market: marketScore, operational: operationalScore, strategic: strategicScore },
-        strengths: [
-          `The proposal for "${proposal.businessName || 'the business'}" provides a comprehensive overview of the venture.`,
-          conceptScore >= 8 ? "The business concept and product details are exceptionally well-articulated." : hasProduct ? `A product/service description has been provided for the concept.` : "The team has taken the first step in formalizing their business idea.",
-          marketScore >= 8 ? "The target market and location strategy demonstrate strong market awareness." : hasTarget ? `A target market has been identified.` : "The proposal has been formally submitted for review."
-        ],
-        weaknesses: [
-          ...(!hasProduct ? [`No product description was provided — this is critical for evaluating the concept.`] : (conceptScore < 6 ? ["The product description lacks the depth required for a thorough evaluation."] : [])),
-          ...(!hasTarget ? [`The target market has not been specified, making it impossible to assess market-product fit.`] : (marketScore < 6 ? ["The target market definition could be more specific to ensure effective targeting."] : [])),
-          ...(!hasPromo ? [`No promotional strategy was outlined for reaching potential customers.`] : (strategicScore < 6 ? ["The promotional strategy needs more actionable steps and detailed planning."] : [])),
-        ].filter(Boolean),
-        recommendations: [
-          !hasProduct ? `Write a detailed product/service description explaining exactly what you are selling.` : (conceptScore < 6 ? `Expand the product description with more specific details about features, quality, and differentiation.` : `Continue refining the product offerings to maintain a competitive edge.`),
-          !hasTarget ? `Define your target market with specifics: age range, location, income level, and lifestyle.` : (marketScore < 6 ? `Refine your target market definition with demographic and psychographic details.` : `Regularly analyze market trends to keep the target market strategies relevant.`),
-          !hasPromo ? `Develop a promotional strategy that explains exactly how you will reach your target market.` : (strategicScore < 6 ? `Strengthen your promotional strategy with specific channels, timelines, and budget allocations.` : `Explore innovative promotional channels to maximize reach and engagement.`)
-        ].filter(Boolean),
-        draftFeedback: `Dear ${proposal.businessName || 'Team'},\n\nThank you for submitting your business proposal. We appreciate the effort your group has put into conceptualizing this venture.\n\n${missingFields.length > 0 ? `We noticed that the following areas are incomplete: ${missingFields.join(', ')}. Filling these in will significantly strengthen your proposal.` : isExcellent ? 'Your proposal is exceptionally detailed and well-thought-out, demonstrating a strong understanding of the business fundamentals. There are no major areas of concern. Excellent work!' : isGood ? 'Your proposal is comprehensive and shows a solid foundation. Consider expanding on the specific operational and marketing strategies to further strengthen your plan.' : 'Your proposal provides a basic outline but requires more depth in several key areas to ensure a thorough evaluation.'}\n\nWe recommend reviewing the feedback above and continuously refining your strategies to ensure the success of your business concept.`,
+        metrics: { concept: conceptS, market: marketS, operational: operationalS, strategic: strategicS },
+        strengths: [] as string[], // <--- ADD "as string[]" HERE
+        weaknesses: missingFields.map(f => `CRITICAL: ${f} is blank or a placeholder.`),
+        recommendations: missingFields.map(f => `Provide detailed information for ${f}.`),
+        draftFeedback: `Dear ${proposal.businessName || 'Team'},\n\nYour proposal is incomplete. The following fields are blank: ${missingFields.join(', ')}. This cannot be evaluated until these are filled.`,
         lastRun: new Date().toISOString(),
       };
+
+      if (hasProduct) fallback.strengths.push("Product description provided.");
+      if (hasTarget) fallback.strengths.push("Target market provided.");
+
       try { await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: fallback }); } catch (_) {}
       setModalAiResult(fallback);
-      if (fallback.draftFeedback) setFeedbackInput(fallback.draftFeedback);
-      
-      // Update local state to persist data without refresh
+      setFeedbackInput(fallback.draftFeedback);
       setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: fallback } : p));
       setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: fallback } : prev);
     } finally {
@@ -576,6 +514,13 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
   // --- LOGIC: APPROVE/REJECT PROPOSAL ---
   const handleProposalAction = async (proposal: ProposalData, action: 'Approve' | 'Reject' | 'Revision') => {
     if (!selectedGroup || !proposal.id) return;
+
+    // MANDATORY FEEDBACK CHECK
+    if (!feedbackInput.trim()) {
+      alert("Feedback is required. Please provide a justification or comments before submitting your decision.");
+      return;
+    }
+
     try {
       const newStatus = action === 'Approve' ? 'Approved' : action === 'Reject' ? 'Rejected' : 'Revision';
       
@@ -584,17 +529,16 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
         updatedAt: serverTimestamp() 
       };
 
-      if (feedbackInput.trim()) {
-          const newFeedback: FeedbackItem = {
-              id: Date.now().toString(),
-              text: feedbackInput,
-              authorName: userName,
-              role: "Adviser",
-              date: new Date().toISOString()
-          };
-          updatePayload.feedbackHistory = arrayUnion(newFeedback);
-          updatePayload.adviserFeedback = feedbackInput; 
-      }
+      // We now know feedbackInput exists because of the check above
+      const newFeedback: FeedbackItem = {
+          id: Date.now().toString(),
+          text: feedbackInput,
+          authorName: userName,
+          role: "Adviser",
+          date: new Date().toISOString()
+      };
+      updatePayload.feedbackHistory = arrayUnion(newFeedback);
+      updatePayload.adviserFeedback = feedbackInput; 
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
 
@@ -1302,8 +1246,8 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
 
       {/* MODAL: View Proposal (Adviser Review) */}
       {viewingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[1.5rem] w-full max-w-[98vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[1.5rem] w-full max-w-5xl xl:max-w-6xl 2xl:max-w-[1400px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
             {/* Modal Header */}
             <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
               <div className="flex items-center gap-4 md:gap-5">
@@ -1463,18 +1407,17 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                           <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">Our AI is analyzing the proposal against market standards...</p>
                         </div>
                       </div>
-                    ) : !modalAiResult ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-200/70 rounded-[1.5rem] p-8 bg-white/50">
-                        <div className="w-20 h-20 bg-blue-50/80 rounded-full flex items-center justify-center mb-5 border border-blue-100/50">
-                          <Brain className="w-10 h-10 text-blue-500" />
+                    ) : isAiAnalyzing ? (
+                      <div className="flex flex-col items-center justify-center py-20 space-y-6 text-center">
+                        <div className="relative w-20 h-20">
+                          <div className="absolute inset-0 rounded-full border-[3px] border-gray-100"></div>
+                          <div className="absolute inset-0 rounded-full border-[3px] border-[#c9a654] border-t-transparent animate-spin"></div>
+                          <Brain className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
                         </div>
-                        <h4 className="text-lg font-extrabold text-[#122244] mb-2">No Analysis Yet</h4>
-                        <p className="text-sm text-gray-500 mb-8 max-w-[240px]">Run an AI evaluation to get scores, insights, and a draft feedback.</p>
-                        <button 
-                          onClick={() => handleAIAnalysis(viewingProposal)} 
-                          className="px-8 py-3.5 bg-[#122244] text-white font-extrabold text-sm rounded-xl hover:bg-[#0a142e] transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 transform hover:-translate-y-0.5">
-                          <Sparkles className="w-4 h-4" /> Analyze with AI
-                        </button>
+                        <div>
+                          <p className="font-extrabold text-[#122244] text-lg">Evaluating Proposal</p>
+                          <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">Our AI is analyzing the proposal against market standards...</p>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1525,10 +1468,17 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                           <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-sm">
                             <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600"/> Key Strengths</h4>
                             <ul className="space-y-2.5">
-                              {modalAiResult.strengths?.map((s: string, i: number) => (
-                                <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5"><span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4"/></span> <span>{s}</span></li>
-                              ))}
-                            </ul>
+  {modalAiResult.strengths && modalAiResult.strengths.length > 0 ? (
+    modalAiResult.strengths.map((s: string, i: number) => (
+      <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5">
+        <span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4"/></span> 
+        <span>{s}</span>
+      </li>
+    ))
+  ) : (
+    <p className="text-sm text-gray-500 italic">No strengths identified due to missing or insufficient data.</p>
+  )}
+</ul>
                           </div>
                           <div className={`${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'bg-amber-50/50 border-amber-200/60' : 'bg-green-50/50 border-green-200/60'} border rounded-xl p-5 shadow-sm`}>
                             <h4 className={`text-xs font-extrabold flex items-center gap-2 mb-3 ${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'text-amber-800' : 'text-green-800'}`}>
@@ -1590,20 +1540,20 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button 
                         onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
+                        disabled={isSaving || !feedbackInput.trim()}
+                        className={`w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 ${!feedbackInput.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50 hover:border-red-200'}`}>
                         <X className="w-5 h-5" /> Reject Proposal
                       </button>
                       <button 
                         onClick={() => handleProposalAction(viewingProposal, 'Revision')} 
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
+                        disabled={isSaving || !feedbackInput.trim()}
+                        className={`w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 ${!feedbackInput.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-50 hover:border-orange-200'}`}>
                         <Edit2 className="w-5 h-5" /> Needs Revision
                       </button>
                       <button 
                         onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                        disabled={isSaving || !feedbackInput.trim()}
+                        className={`w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${!feedbackInput.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#b59545] hover:shadow-xl hover:-translate-y-0.5'}`}>
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                         Approve Proposal
                       </button>
