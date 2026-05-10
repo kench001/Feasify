@@ -33,6 +33,8 @@ import {
   Bell,
   Calendar,
   Info,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 const Financial_input: React.FC = () => {
@@ -58,82 +60,21 @@ const Financial_input: React.FC = () => {
     competitorCount: 0,
     marketDemand: "Medium",
     operatingDays: "300",
+    equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
+    opexList: [] as { id: string; name: string; amount: number }[],
+    isCapitalBorrowed: false,
+    interestRate: "0",
   });
 
-  // --- PHILIPPINE GRADUATED TAX CALCULATION (TRAIN LAW) WITH PRECISE SIGNALS ---
-  const calculateGraduatedTax = (annualProfit: number) => {
-    const p = annualProfit;
-    if (p <= 250000)
-      return {
-        amount: 0,
-        bracket: "Exempt (below ₱250,000)",
-        baseTax: 0,
-        baseTaxFormula: "₱0 (Profit within Tier 1)",
-        excessFormula: "None",
-        rate: 0,
-        threshold: 0,
-        tier: "Tier 1",
-      };
-
-    if (p <= 400000)
-      return {
-        amount: (p - 250000) * 0.15,
-        bracket: "15% of excess over ₱250,000",
-        baseTax: 0,
-        baseTaxFormula: "₱0 (Tier 1 is exempt)",
-        excessFormula: `(₱${p.toLocaleString()} - ₱250,000)`,
-        rate: 15,
-        threshold: 250000,
-        tier: "Tier 2",
-      };
-
-    if (p <= 800000)
-      return {
-        amount: 22500 + (p - 400000) * 0.2,
-        bracket: "₱22,500 + 20% over ₱400,000",
-        baseTax: 22500,
-        baseTaxFormula: "₱0 (T1) + ₱22,500 (Tier 2: 15% of ₱150,000)",
-        excessFormula: `(₱${p.toLocaleString()} - ₱400,000)`,
-        rate: 20,
-        threshold: 400000,
-        tier: "Tier 3",
-      };
-
-    if (p <= 2000000)
-      return {
-        amount: 102500 + (p - 800000) * 0.25,
-        bracket: "₱102,500 + 25% over ₱800,000",
-        baseTax: 102500,
-        baseTaxFormula: "₱22,500 (T1-2) + ₱80,000 (Tier 3: 20% of ₱400,000)",
-        excessFormula: `(₱${p.toLocaleString()} - ₱80,0000)`,
-        rate: 25,
-        threshold: 800000,
-        tier: "Tier 4",
-      };
-
-    if (p <= 8000000)
-      return {
-        amount: 402500 + (p - 2000000) * 0.3,
-        bracket: "₱402,500 + 30% over ₱2,000,000",
-        baseTax: 402500,
-        baseTaxFormula:
-          "₱102,500 (T1-3) + ₱300,000 (Tier 4: 25% of ₱1,200,000)",
-        excessFormula: `(₱${p.toLocaleString()} - ₱2,000,000)`,
-        rate: 30,
-        threshold: 2000000,
-        tier: "Tier 5",
-      };
-
+  // --- PHILIPPINE BMBE TAX CALCULATION (RA 9178) ---
+  const calculateBMBETax = (annualRevenue: number) => {
+    const percentageTax = annualRevenue * 0.03;
     return {
-      amount: 2202500 + (p - 8000000) * 0.35,
-      bracket: "₱2,202,500 + 35% over ₱8,000,000",
-      baseTax: 2202500,
-      baseTaxFormula:
-        "₱402,500 (T1-4) + ₱1,800,000 (Tier 5: 30% of ₱6,000,000)",
-      excessFormula: `(₱${p.toLocaleString()} - ₱8,000,000)`,
-      rate: 35,
-      threshold: 8000000,
-      tier: "Tier 6",
+      amount: percentageTax,
+      incomeTax: 0,
+      percentageTax: percentageTax,
+      rate: 3,
+      note: "BMBE Exempt from Income Tax"
     };
   };
 
@@ -141,23 +82,34 @@ const Financial_input: React.FC = () => {
   const safeSellingPrice = Number(financials.sellingPrice) || 0;
   const safeMonthlySales = Number(financials.monthlySales) || 0;
   const safeVariableCost = Number(financials.variableCost) || 0;
-  const safeFixedCosts = Number(financials.fixedCosts) || 0;
-  const safeStartupCapital = Number(financials.startupCapital) || 0;
+  
+  const calculatedOpex = financials.opexList && financials.opexList.length > 0
+    ? financials.opexList.reduce((sum, item) => sum + item.amount, 0)
+    : (Number(financials.fixedCosts) || 0);
+  const safeFixedCosts = calculatedOpex;
+  
+  const calculatedStartupCapital = financials.equipmentList && financials.equipmentList.length > 0 
+    ? financials.equipmentList.reduce((sum, item) => sum + item.total, 0)
+    : (Number(financials.startupCapital) || 0);
+  const safeStartupCapital = calculatedStartupCapital;
+  
   const safeOperatingDays = Number(financials.operatingDays) || 300;
 
   const monthlyRevenue = safeSellingPrice * safeMonthlySales;
   const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+  const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
+  
+  const monthlyInterest = financials.isCapitalBorrowed ? (safeStartupCapital * (Number(financials.interestRate) / 100)) / 12 : 0;
+
   const netMonthlyProfit =
-    monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts;
+    monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
 
   const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
   const annualExpenses =
-    ((totalMonthlyVariableCosts + safeFixedCosts) / 30) * safeOperatingDays;
+    ((totalMonthlyVariableCosts + safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
   const annualNetProfitPreTax = annualRevenue - annualExpenses;
 
-  const taxResult = calculateGraduatedTax(
-    annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0,
-  );
+  const taxResult = calculateBMBETax(annualRevenue > 0 ? annualRevenue : 0);
   const annualNetProfitAfterTax =
     (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - taxResult.amount;
 
@@ -225,7 +177,7 @@ const Financial_input: React.FC = () => {
         const approvedProposals = propSnap.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().businessName || "Untitled Proposal",
-          proposalCapital: doc.data().totalCapital || "0", // This must match the field name in Firestore
+          proposalCapital: doc.data().totalCapital || "0",
           financialData: doc.data().financialData || null,
         }));
         setProjects(approvedProposals);
@@ -248,14 +200,21 @@ const Financial_input: React.FC = () => {
     setSelectedProjectId(projectId);
     sessionStorage.setItem("lastSelectedProjectId", projectId);
 
-    // This section syncs the Total Capital from the Proposal to the Startup Capital field
     if (selectedProj.financialData) {
+      let loadedOpex = selectedProj.financialData.opexList || [];
+      if (loadedOpex.length === 0 && selectedProj.financialData.fixedCosts && Number(selectedProj.financialData.fixedCosts) > 0) {
+        loadedOpex = [{
+          id: Date.now().toString(),
+          name: "General OpEx",
+          amount: Number(selectedProj.financialData.fixedCosts)
+        }];
+      }
+
       setFinancials({
         sellingPrice: String(selectedProj.financialData.sellingPrice || "0"),
         monthlySales: String(selectedProj.financialData.monthlySales || "0"),
         variableCost: String(selectedProj.financialData.variableCost || "0"),
         fixedCosts: String(selectedProj.financialData.fixedCosts || "0"),
-        // Prioritize saved financial data, fallback to the Proposal's Total Capital
         startupCapital: String(
           selectedProj.financialData.startupCapital ||
             selectedProj.proposalCapital ||
@@ -266,9 +225,12 @@ const Financial_input: React.FC = () => {
         operatingDays: String(
           selectedProj.financialData.operatingDays || "300",
         ),
+        equipmentList: selectedProj.financialData.equipmentList || [],
+        opexList: loadedOpex,
+        isCapitalBorrowed: selectedProj.financialData.isCapitalBorrowed || false,
+        interestRate: String(selectedProj.financialData.interestRate || "0"),
       });
     } else {
-      // First-time selection: Auto-fills Startup Capital with the Proposal's Total Capital
       setFinancials({
         sellingPrice: "0",
         monthlySales: "0",
@@ -278,6 +240,10 @@ const Financial_input: React.FC = () => {
         competitorCount: 0,
         marketDemand: "Medium",
         operatingDays: "300",
+        equipmentList: [],
+        opexList: [],
+        isCapitalBorrowed: false,
+        interestRate: "0",
       });
     }
   };
@@ -486,8 +452,8 @@ const Financial_input: React.FC = () => {
             </div>
           </div>
 
-          {/* QUICK CARDS WITH DYNAMIC FORMULAS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 text-[#122244]">
+          {/* QUICK CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 text-[#122244]">
             <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-6 shadow-sm text-center">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 Monthly Revenue
@@ -530,11 +496,28 @@ const Financial_input: React.FC = () => {
                 <span className="text-xs text-gray-400 font-bold">units</span>
               </p>
               <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                Fixed Cost / (Price - COGS per Unit)
+                Monthly OpEx / (Price - COGS per Unit)
                 <p className="text-[9px] text-[#c9a654] mt-0.5">
                   ₱{safeFixedCosts.toLocaleString()} / (₱
                   {safeSellingPrice.toLocaleString()} - ₱
                   {safeVariableCost.toLocaleString()})
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-6 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Gross Margin
+              </span>
+              <p className="text-2xl font-black">
+                {grossProfitMargin.toFixed(1)}%
+              </p>
+              <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                (Rev - COGS) / Rev
+                <p className="text-[9px] text-[#c9a654] mt-0.5">
+                  (₱{monthlyRevenue.toLocaleString()} - ₱
+                  {totalMonthlyVariableCosts.toLocaleString()}) / ₱
+                  {monthlyRevenue.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -556,79 +539,177 @@ const Financial_input: React.FC = () => {
                   ₱{monthlyRevenue.toLocaleString()} - ₱
                   {(
                     totalMonthlyVariableCosts + safeFixedCosts
-                  ).toLocaleString()}
+                  ).toLocaleString()}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 text-[#122244]">
-            {/* Sales & Pricing Inputs */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
-              <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
-                <Package className="text-[#c9a654]" /> Sales & Pricing
-              </h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Selling Price
-                  </label>
-                  <input
-                    type="number"
-                    value={financials.sellingPrice}
-                    onChange={(e) =>
-                      setFinancials({
-                        ...financials,
-                        sellingPrice: e.target.value,
-                      })
-                    }
-                    onBlur={() => handleAutoSave()}
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Monthly Sales / UNIT
-                  </label>
-                  <input
-                    type="number"
-                    value={financials.monthlySales}
-                    onChange={(e) =>
-                      setFinancials({
-                        ...financials,
-                        monthlySales: e.target.value,
-                      })
-                    }
-                    onBlur={() => handleAutoSave()}
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold"
-                  />
+          {/* MAIN INPUT GRID - FIXED LAYOUT */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 text-[#122244] items-start">
+            
+            {/* LEFT COLUMN: Sales, Pricing & OpEx */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              {/* Sales & Pricing */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
+                  <Package className="text-[#c9a654]" /> Sales & Pricing
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Selling Price
+                    </label>
+                    <input
+                      type="number"
+                      value={financials.sellingPrice}
+                      onChange={(e) =>
+                        setFinancials({
+                          ...financials,
+                          sellingPrice: e.target.value,
+                        })
+                      }
+                      onBlur={() => handleAutoSave()}
+                      className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Monthly Sales / UNIT
+                    </label>
+                    <input
+                      type="number"
+                      value={financials.monthlySales}
+                      onChange={(e) =>
+                        setFinancials({
+                          ...financials,
+                          monthlySales: e.target.value,
+                        })
+                      }
+                      onBlur={() => handleAutoSave()}
+                      className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Cost of Goods (COGS) / Unit
+                    </label>
+                    <input
+                      type="number"
+                      value={financials.variableCost}
+                      onChange={(e) =>
+                        setFinancials({
+                          ...financials,
+                          variableCost: e.target.value,
+                        })
+                      }
+                      onBlur={() => handleAutoSave()}
+                      className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">
-                  Cost of Goods (COGS) / Unit
-                </label>
-                <input
-                  type="number"
-                  value={financials.variableCost}
-                  onChange={(e) =>
-                    setFinancials({
-                      ...financials,
-                      variableCost: e.target.value,
-                    })
-                  }
-                  onBlur={() => handleAutoSave()}
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold"
-                />
+
+              {/* Monthly Cost (OpEx) */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                <div className="flex justify-between items-center border-b pb-4">
+                  <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
+                    <TrendingUp className="text-[#c9a654]" /> Monthly Cost (OpEx)
+                  </h3>
+                  <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase">Total:</span>
+                    <span className="text-sm font-black text-blue-800">₱{safeFixedCosts.toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm">
+                        <tr className="border-b border-gray-200 text-[10px] uppercase text-gray-500 tracking-wider">
+                          <th className="p-3 font-bold">Expense Name</th>
+                          <th className="p-3 font-bold w-28">Amount</th>
+                          <th className="p-3 font-bold w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {financials.opexList && financials.opexList.map((item, index) => (
+                          <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={item.name}
+                                placeholder="e.g. Electricity, Rent"
+                                onChange={(e) => {
+                                  const newList = [...financials.opexList];
+                                  newList[index].name = e.target.value;
+                                  setFinancials({ ...financials, opexList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.amount}
+                                onChange={(e) => {
+                                  const newList = [...financials.opexList];
+                                  const amt = Number(e.target.value) || 0;
+                                  newList[index].amount = amt;
+                                  setFinancials({ ...financials, opexList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                onClick={() => {
+                                  const newList = financials.opexList.filter(i => i.id !== item.id);
+                                  const newState = { ...financials, opexList: newList };
+                                  setFinancials(newState);
+                                  handleAutoSave(newState);
+                                }}
+                                className="text-red-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {(!financials.opexList || financials.opexList.length === 0) && (
+                          <tr>
+                            <td colSpan={3} className="p-4 text-center text-xs text-gray-400 italic">
+                              No expenses added yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const currentList = financials.opexList || [];
+                      const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                      setFinancials({ ...financials, opexList: [...currentList, newItem] });
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                  >
+                    <Plus size={14} /> Add Expense
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6 text-[#122244]">
+            {/* Capital & Operations - Now takes 8/12 of width */}
+            <div className="lg:col-span-8 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6 text-[#122244]">
               <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest text-[#122244]">
                 <TrendingUp className="text-[#c9a654]" /> Capital & Operations
               </h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1 md:col-span-2">
                   <label className="text-[10px] font-bold text-gray-400 uppercase">
                     Operating Days / Year
                   </label>
@@ -642,248 +723,366 @@ const Financial_input: React.FC = () => {
                       })
                     }
                     onBlur={() => handleAutoSave()}
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold"
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
                   />
                 </div>
-                <div className="space-y-1">
+              </div>
+              
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Fixed Cost (Monthly)
+                    Startup Capital / Equipment List
                   </label>
-                  <input
-                    type="number"
-                    value={financials.fixedCosts}
-                    onChange={(e) =>
-                      setFinancials({
-                        ...financials,
-                        fixedCosts: e.target.value,
-                      })
-                    }
-                    onBlur={() => handleAutoSave()}
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">
-                  Startup Capital
-                </label>
-                <input
-                  type="number"
-                  value={financials.startupCapital}
-                  onChange={(e) =>
-                    setFinancials({
-                      ...financials,
-                      startupCapital: e.target.value,
-                    })
-                  }
-                  onBlur={() => handleAutoSave()}
-                  className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg font-bold"
-                />
-              </div>
-            </div>
-
-            {/* FISCAL SUMMARY CARD */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
-              <div className="flex items-center justify-between border-b pb-4">
-                <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                  <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (TRAIN
-                  Law)
-                </h3>
-                <button
-                  onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
-                  className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1 rounded-lg hover:bg-[#c9a654]/5 transition-all"
-                >
-                  {showTaxBreakdown ? "Hide Details" : "View Computation"}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div className="space-y-4 text-[#122244]">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                      Annual Net Profit (Before Tax)
-                    </label>
-                    <p className="text-2xl font-bold text-[#3d2c23]">
-                      ₱{annualNetProfitPreTax.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                      Estimated Annual Income Tax
-                    </label>
-                    <p className="text-4xl font-black">
-                      ₱{taxResult.amount.toLocaleString()}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
-                      <Info size={14} className="text-green-600" />
-                      <span className="text-[11px] font-bold text-green-700">
-                        {taxResult.bracket}
-                      </span>
-                    </div>
+                  <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-blue-600 uppercase">Total Capital:</span>
+                    <span className="text-sm font-black text-blue-800">₱{calculatedStartupCapital.toLocaleString()}</span>
                   </div>
                 </div>
 
-                {showTaxBreakdown ? (
-                  <div className="bg-[#122244] p-5 rounded-xl text-white shadow-inner animate-in fade-in slide-in-from-top-2 duration-300">
-                    <p className="text-[10px] font-black text-[#c9a654] uppercase mb-4 tracking-widest text-center border-b border-white/10 pb-2">
-                      Official Tax Computation Log
+                {calculatedStartupCapital > 3000000 && (
+                  <div className="flex items-start gap-2 bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-yellow-800 text-xs">
+                    <Info className="w-4 h-4 shrink-0 mt-0.5 text-yellow-600" />
+                    <p>
+                      <strong>Note:</strong> Total assets exceeding ₱3,000,000 may disqualify you from BMBE tax exemptions.
                     </p>
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-gray-400 font-bold uppercase tracking-tighter">
-                            Step 1: Accumulated Base Tax
-                          </span>
-                          <span className="text-white font-bold text-sm">
-                            ₱{taxResult.baseTax.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="bg-black/20 p-2 rounded border-l-2 border-[#c9a654]">
-                          <p className="text-[9px] text-gray-400 uppercase font-bold mb-1">
-                            Previous Tiers Total Sum:
-                          </p>
-                          <p className="text-[10px] text-gray-300 leading-tight">
-                            {taxResult.baseTaxFormula}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1 pt-2 border-t border-white/5">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-gray-400 font-bold uppercase tracking-tighter">
-                            Step 2: {taxResult.tier} Excess Tax
-                          </span>
-                          <span className="text-white font-bold text-sm">
-                            + ₱
-                            {(
-                              taxResult.amount - taxResult.baseTax
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="bg-black/20 p-2 rounded border-l-2 border-blue-400">
-                          <p className="text-[10px] text-gray-300 leading-tight">
-                            Math:{" "}
-                            <span className="text-blue-400">
-                              {taxResult.excessFormula}
-                            </span>{" "}
-                            × {taxResult.rate}%
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between pt-2 border-t-2 border-[#c9a654]/40 font-black text-[#c9a654] text-xs uppercase tracking-tight">
-                        <span>Total Annual Tax Liability:</span>
-                        <span>₱{taxResult.amount.toLocaleString()}</span>
-                      </div>
-                    </div>
                   </div>
-                ) : (
-                  <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
-                    <p className="text-xs text-gray-400 italic">
-                      Click "View Computation" to see the bucket-by-bucket
-                      summation logic behind your tax amount.
-                    </p>
+                )}
+
+                <div className="space-y-3">
+                  {/* SCROLLABLE TABLE CONTAINER */}
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 max-h-[350px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm">
+                        <tr className="border-b border-gray-200 text-[10px] uppercase text-gray-500 tracking-wider">
+                          <th className="p-3 font-bold">Item Name</th>
+                          <th className="p-3 font-bold w-20">Qty</th>
+                          <th className="p-3 font-bold w-28">Unit Price</th>
+                          <th className="p-3 font-bold w-28">Total</th>
+                          <th className="p-3 font-bold w-12 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {financials.equipmentList.map((item, index) => (
+                          <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={item.name}
+                                placeholder="e.g. Machine"
+                                onChange={(e) => {
+                                  const newList = [...financials.equipmentList];
+                                  newList[index].name = e.target.value;
+                                  setFinancials({ ...financials, equipmentList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const newList = [...financials.equipmentList];
+                                  const qty = Number(e.target.value) || 0;
+                                  newList[index].quantity = qty;
+                                  newList[index].total = qty * newList[index].unitPrice;
+                                  setFinancials({ ...financials, equipmentList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.unitPrice}
+                                onChange={(e) => {
+                                  const newList = [...financials.equipmentList];
+                                  const price = Number(e.target.value) || 0;
+                                  newList[index].unitPrice = price;
+                                  newList[index].total = newList[index].quantity * price;
+                                  setFinancials({ ...financials, equipmentList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
+                              />
+                            </td>
+                            <td className="p-2 text-sm font-bold text-gray-700">
+                              ₱{item.total.toLocaleString()}
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                onClick={() => {
+                                  const newList = financials.equipmentList.filter(i => i.id !== item.id);
+                                  const newState = { ...financials, equipmentList: newList };
+                                  setFinancials(newState);
+                                  handleAutoSave(newState);
+                                }}
+                                className="text-red-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newItem = { id: Date.now().toString(), name: "", quantity: 1, unitPrice: 0, total: 0 };
+                      setFinancials({ ...financials, equipmentList: [...financials.equipmentList, newItem] });
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                  >
+                    <Plus size={14} /> Add Item
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Financing Options</h4>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newState = { ...financials, isCapitalBorrowed: !financials.isCapitalBorrowed };
+                      setFinancials(newState);
+                      handleAutoSave(newState);
+                    }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${financials.isCapitalBorrowed ? 'bg-[#c9a654]' : 'bg-gray-200'}`}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${financials.isCapitalBorrowed ? 'translate-x-4' : 'translate-x-1'}`}
+                    />
+                  </button>
+                  <span className="text-sm font-medium text-gray-700">Is this capital borrowed?</span>
+                </div>
+                
+                {financials.isCapitalBorrowed && (
+                  <div className="space-y-1 mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Annual Interest Rate (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={financials.interestRate}
+                        onChange={(e) =>
+                          setFinancials({
+                            ...financials,
+                            interestRate: e.target.value,
+                          })
+                        }
+                        onBlur={() => handleAutoSave()}
+                        className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold pr-8 focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+                    </div>
+                    {monthlyInterest > 0 && (
+                      <p className="text-[10px] text-gray-500 italic mt-1">
+                        Subtracting ₱{monthlyInterest.toLocaleString()} monthly from Net Profit.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Market Indicators */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6 text-[#122244]">
-              <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
-                <Target className="text-[#c9a654]" /> Market Indicators
+          {/* FISCAL SUMMARY CARD */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b pb-4">
+              <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
+                <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (BMBE Tax Framework)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-4 px-2">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase block">
-                    Competitor Count:{" "}
-                    <span className="text-[#122244] font-black text-sm ml-1">
-                      {financials.competitorCount}
-                    </span>
+              <button
+                onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
+                className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1 rounded-lg hover:bg-[#c9a654]/5 transition-all"
+              >
+                {showTaxBreakdown ? "Hide Details" : "View Computation"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-4 text-[#122244]">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Annual Net Profit (Before Tax)
                   </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    value={financials.competitorCount}
-                    onChange={(e) =>
-                      setFinancials({
-                        ...financials,
-                        competitorCount: Number(e.target.value),
-                      })
-                    }
-                    onMouseUp={() => handleAutoSave()}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
-                  />
+                  <p className="text-2xl font-bold text-[#3d2c23]">
+                    ₱{annualNetProfitPreTax.toLocaleString()}
+                  </p>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">
-                    Market Demand
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Estimated Annual Business Tax
                   </label>
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                    {["Low", "Medium", "High"].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => {
-                          const newState = {
-                            ...financials,
-                            marketDemand: level,
-                          };
-                          setFinancials(newState);
-                          handleAutoSave(newState);
-                        }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                          financials.marketDemand === level
-                            ? "bg-white shadow-sm text-[#122244]"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
+                  <p className="text-4xl font-black">
+                    ₱{taxResult.amount.toLocaleString()}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
+                    <Info size={14} className="text-green-600" />
+                    <span className="text-[11px] font-bold text-green-700">
+                      {taxResult.note}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="lg:col-span-2 bg-[#122244] rounded-xl p-8 shadow-md text-white">
-              <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-8 border-b border-white/10 pb-4">
-                <BarChart3 className="text-[#c9a654]" /> Adjusted Annual Metrics
-              </h3>
-              <div className="space-y-6 px-2">
-                <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
-                  <span className="text-sm text-gray-500 italic">
-                    Est. Annual Revenue (at {safeOperatingDays} days)
-                  </span>
-                  <span className="text-xl font-bold text-white">
-                    ₱{annualRevenue.toLocaleString()}
-                  </span>
+              {showTaxBreakdown ? (
+                <div className="bg-[#122244] p-5 rounded-xl text-white shadow-inner animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-[10px] font-black text-[#c9a654] uppercase mb-4 tracking-widest text-center border-b border-white/10 pb-2">
+                    BMBE Tax Computation Log
+                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-gray-400 font-bold uppercase tracking-tighter">
+                          Income Tax (RA 9178)
+                        </span>
+                        <span className="text-green-400 font-bold text-sm">
+                          ₱0
+                        </span>
+                      </div>
+                      <div className="bg-black/20 p-2 rounded border-l-2 border-green-500">
+                        <p className="text-[10px] text-gray-300 leading-tight">
+                          BMBEs are explicitly exempt from income tax arising from their operations.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 pt-2 border-t border-white/5">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-gray-400 font-bold uppercase tracking-tighter">
+                          Percentage Tax
+                        </span>
+                        <span className="text-white font-bold text-sm">
+                          ₱{taxResult.percentageTax.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="bg-black/20 p-2 rounded border-l-2 border-blue-400">
+                        <p className="text-[10px] text-gray-300 leading-tight">
+                          Formula: <span className="text-blue-400">₱{annualRevenue.toLocaleString()} (Gross Sales)</span> × {taxResult.rate}%
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between pt-2 border-t-2 border-[#c9a654]/40 font-black text-[#c9a654] text-xs uppercase tracking-tight">
+                      <span>Total Annual Tax Liability:</span>
+                      <span>₱{taxResult.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
-                  <span className="text-sm text-gray-500 italic text-white">
-                    Net Annual Profit (After Tax)
-                  </span>
-                  <span className="text-xl font-bold text-[#c9a654]">
-                    ₱{annualNetProfitAfterTax.toLocaleString()}
-                  </span>
+              ) : (
+                <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
+                  <p className="text-xs text-gray-400 italic">
+                    Click "View Computation" to see the bucket-by-bucket
+                    summation logic behind your tax amount.
+                  </p>
                 </div>
-                <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
-                  <span className="text-sm text-gray-500 italic text-white">
-                    Payback Period
+              )}
+            </div>
+          </div>
+
+          {/* Market Indicators */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6 text-[#122244]">
+            <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
+              <Target className="text-[#c9a654]" /> Market Indicators
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-4 px-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase block">
+                  Competitor Count:{" "}
+                  <span className="text-[#122244] font-black text-sm ml-1">
+                    {financials.competitorCount}
                   </span>
-                  <span className="text-xl font-bold text-white">
-                    {paybackVal} months
-                  </span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  value={financials.competitorCount}
+                  onChange={(e) =>
+                    setFinancials({
+                      ...financials,
+                      competitorCount: Number(e.target.value),
+                    })
+                  }
+                  onMouseUp={() => handleAutoSave()}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Market Demand
+                </label>
+                <div className="flex bg-gray-100 p-1 rounded-xl">
+                  {["Low", "Medium", "High"].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => {
+                        const newState = {
+                          ...financials,
+                          marketDemand: level,
+                        };
+                        setFinancials(newState);
+                        handleAutoSave(newState);
+                      }}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        financials.marketDemand === level
+                          ? "bg-white shadow-sm text-[#122244]"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex justify-between items-center text-white">
-                  <span className="text-sm text-gray-500 italic text-white text-white">
-                    Adjusted Annual ROI
-                  </span>
-                  <span className="text-xl font-bold text-white text-white">
-                    {estimatedAnnualROI}%
-                  </span>
-                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 bg-[#122244] rounded-xl p-8 shadow-md text-white">
+            <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-8 border-b border-white/10 pb-4">
+              <BarChart3 className="text-[#c9a654]" /> Adjusted Annual Metrics
+            </h3>
+            <div className="space-y-6 px-2">
+              <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
+                <span className="text-sm text-gray-500 italic">
+                  Est. Annual Revenue (at {safeOperatingDays} days)
+                </span>
+                <span className="text-xl font-bold text-white">
+                  ₱{annualRevenue.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
+                <span className="text-sm text-gray-500 italic text-white">
+                  Net Annual Profit (After Tax)
+                </span>
+                <span className="text-xl font-bold text-[#c9a654]">
+                  ₱{annualNetProfitAfterTax.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-4 border-b border-white/5 text-white">
+                <span className="text-sm text-gray-500 italic text-white">
+                  Payback Period
+                </span>
+                <span className="text-xl font-bold text-white">
+                  {paybackVal} months
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-white">
+                <span className="text-sm text-gray-500 italic text-white text-white">
+                  Adjusted Annual ROI
+                </span>
+                <span className="text-xl font-bold text-white text-white">
+                  {estimatedAnnualROI}%
+                </span>
               </div>
             </div>
           </div>

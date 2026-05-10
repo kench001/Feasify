@@ -24,11 +24,8 @@ import {
   Sidebar as SidebarIcon,
   RotateCcw,
   CheckCircle2,
-  TrendingUp,
   AlertCircle,
   Lightbulb,
-  Bell,
-  TrendingDown,
   DollarSign,
 } from "lucide-react";
 import {
@@ -54,7 +51,6 @@ const AI_Analysis: React.FC = () => {
   const location = useLocation();
   const [userName, setUserName] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [projects, setProjects] = useState<any[]>([]);
@@ -68,6 +64,11 @@ const AI_Analysis: React.FC = () => {
     startupCapital: 0,
     competitorCount: 0,
     marketDemand: "Medium",
+    operatingDays: 300,
+    equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
+    opexList: [] as { id: string; name: string; amount: number }[],
+    isCapitalBorrowed: false,
+    interestRate: 0,
   });
 
   const [explanations, setExplanations] = useState<any>({});
@@ -83,6 +84,8 @@ const AI_Analysis: React.FC = () => {
     risk: 0,
     market: 0,
   });
+  const [aiScores, setAiScores] = useState<any>({});
+  const [aiScoreExplanations, setAiScoreExplanations] = useState<any>({});
   const [insights, setInsights] = useState<InsightItem[]>([]);
 
   // Pro Forma Financial Statement States
@@ -171,6 +174,11 @@ const AI_Analysis: React.FC = () => {
         startupCapital: Number(data?.startupCapital) || 0,
         competitorCount: Number(data?.competitorCount) || 0,
         marketDemand: data?.marketDemand || "Medium",
+        operatingDays: Number(data?.operatingDays) || 300,
+        equipmentList: data?.equipmentList || [],
+        opexList: data?.opexList || [],
+        isCapitalBorrowed: data?.isCapitalBorrowed || false,
+        interestRate: Number(data?.interestRate) || 0,
       });
 
       // --- CRITICAL FIX: Properly loading INSIGHTS from database ---
@@ -189,12 +197,16 @@ const AI_Analysis: React.FC = () => {
         setImprovementTips(proj.aiAnalysis.improvementTips || {});
         // Restore the insights array here
         setInsights(proj.aiAnalysis.insights || []);
+        setAiScores(proj.aiAnalysis.aiScores || {});
+        setAiScoreExplanations(proj.aiAnalysis.aiScoreExplanations || {});
       } else if (!location.state?.runAnalysis) {
         setFeasibilityScore(0);
         setFeasibilityStatus("PENDING");
         setInsights([]);
         setExplanations({});
         setImprovementTips({});
+        setAiScores({});
+        setAiScoreExplanations({});
       }
     }
   }, [location.state, projects]);
@@ -217,13 +229,40 @@ const AI_Analysis: React.FC = () => {
     if (!pId) return;
     setIsAnalyzing(true);
 
-    const revenue =
-      (Number(data.sellingPrice) || 0) * (Number(data.monthlySales) || 0);
-    const vCosts =
-      (Number(data.variableCost) || 0) * (Number(data.monthlySales) || 0);
-    const fCosts = Number(data.fixedCosts) || 0;
-    const netProfit = revenue - vCosts - fCosts;
-    const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const safeSellingPrice = Number(data.sellingPrice) || 0;
+    const safeMonthlySales = Number(data.monthlySales) || 0;
+    const safeVariableCost = Number(data.variableCost) || 0;
+    const safeOperatingDays = Number(data.operatingDays) || 300;
+
+    const calculatedOpex = data.opexList && data.opexList.length > 0
+      ? data.opexList.reduce((sum: any, item: any) => sum + item.amount, 0)
+      : (Number(data.fixedCosts) || 0);
+
+    const calculatedStartupCapital = data.equipmentList && data.equipmentList.length > 0 
+      ? data.equipmentList.reduce((sum: any, item: any) => sum + item.total, 0)
+      : (Number(data.startupCapital) || 0);
+
+    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    const monthlyExpenses = totalMonthlyVariableCosts + calculatedOpex;
+    
+    const grossMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
+    const breakEvenUnits = safeSellingPrice - safeVariableCost > 0 ? Math.ceil(calculatedOpex / (safeSellingPrice - safeVariableCost)) : "N/A";
+    
+    const monthlyInterest = data.isCapitalBorrowed ? (calculatedStartupCapital * (Number(data.interestRate) / 100)) / 12 : 0;
+    const netMonthlyProfit = monthlyRevenue - monthlyExpenses - monthlyInterest;
+    
+    const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const annualExpenses = ((monthlyExpenses + monthlyInterest) / 30) * safeOperatingDays;
+    const annualNetProfitPreTax = annualRevenue - annualExpenses;
+
+    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // Simplified BMBE tax (3% percentage tax)
+    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+    const margin = annualRevenue > 0 ? (annualNetProfitAfterTax / annualRevenue) * 100 : 0;
+    
+    const paybackVal = annualNetProfitAfterTax > 0 ? (calculatedStartupCapital / (annualNetProfitAfterTax / 12)).toFixed(1) : "∞";
+    const estimatedAnnualROI = calculatedStartupCapital > 0 ? ((annualNetProfitAfterTax / calculatedStartupCapital) * 100).toFixed(1) : "0.0";
 
     const financialHealth = Math.min(
       100,
@@ -238,7 +277,7 @@ const AI_Analysis: React.FC = () => {
     const riskScore = Math.max(
       0,
       100 -
-        ((Number(data.competitorCount) || 0) * 10 + (netProfit < 0 ? 30 : 0)),
+        ((Number(data.competitorCount) || 0) * 10 + (netMonthlyProfit < 0 ? 30 : 0) + (data.isCapitalBorrowed && margin < 10 ? 20 : 0)),
     );
     const finalScore = Math.floor(
       (financialHealth + marketScore + (100 - riskScore)) / 3,
@@ -260,35 +299,94 @@ const AI_Analysis: React.FC = () => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
       const isFeasible = status === "FEASIBLE";
-      const prompt = `Act as a Senior Business Consultant. Project: Score ${finalScore}%, Margin ${margin.toFixed(1)}%, Risk ${riskScore}%, Status: ${status}.
+      const prompt = `Act as a Senior Business Consultant providing a brutally honest, rigorous, and professional feasibility assessment.
+      Project Status: ${status} (Score: ${finalScore}%)
       
-      ${isFeasible ? `The project is FEASIBLE. Generate a congratulatory message and insights celebrating their achievement. Include positive reinforcement.` : `The project is NOT fully feasible. Generate specific, actionable tips to improve their feasibility study.`}
+      Review the following financial inputs and metrics thoroughly to decide if the project is feasible or not, and how it can be improved:
       
-      Provide analysis in JSON with professional terms like 'Operating Leverage', 'Competitive Moat', and 'Capital Allocation'.
+      [1] Core Financials:
+      - Selling Price per unit: PHP ${safeSellingPrice.toLocaleString()}
+      - Monthly Sales units: ${safeMonthlySales.toLocaleString()}
+      - Variable Cost per unit: PHP ${safeVariableCost.toLocaleString()}
       
-      Return JSON ONLY: 
+      [2] Performance Metrics:
+      - Monthly Revenue: PHP ${monthlyRevenue.toLocaleString()}
+      - Monthly Expenses (Variable + OpEx): PHP ${monthlyExpenses.toLocaleString()}
+      - Break-Even Point: ${breakEvenUnits} units
+      - Gross Margin: ${grossMargin.toFixed(1)}%
+      - Net Profit/Mo (After Interest): PHP ${netMonthlyProfit.toLocaleString()}
+      
+      [3] Capital & Financing:
+      - Startup Capital / Equipment Total: PHP ${calculatedStartupCapital.toLocaleString()}
+      - Financing: ${data.isCapitalBorrowed ? "Borrowed at " + data.interestRate + "% annual interest" : "Self-funded"}
+      - Annual Interest Expense: PHP ${(monthlyInterest * 12).toLocaleString()}
+      - Monthly Interest Expense: PHP ${monthlyInterest.toLocaleString()}
+      
+      [4] Operations & Costs:
+      - Operating Days/Year: ${safeOperatingDays}
+      - Monthly Cost (OpEx): PHP ${calculatedOpex.toLocaleString()}
+      
+      [5] Annual Projections & Tax:
+      - Est. Annual Revenue: PHP ${annualRevenue.toLocaleString()}
+      - Annual Tax (3% BMBE Percentage Tax): PHP ${percentageTax.toLocaleString()}
+      - Net Annual Profit (After Tax): PHP ${annualNetProfitAfterTax.toLocaleString()}
+      - Adjusted Annual ROI: ${estimatedAnnualROI}%
+      - Payback Period: ${paybackVal} months
+      
+      [6] Market Indicators:
+      - Competitor Count: ${data.competitorCount}
+      - Market Demand: ${data.marketDemand}
+      
+      Instructions for Analysis:
+      - Review *every single piece* of data provided above.
+      - Be brutally honest and professional. Do not sugarcoat flaws.
+      - If the margins are too tight, the debt is too high, the break-even is unrealistic, or payback period is too long, state it clearly.
+      - Assess if the Startup Capital matches the scope of Est. Annual Revenue.
+      - Determine the absolute feasibility based on the provided data.
+      - ${isFeasible ? "The project appears mathematically FEASIBLE, but scrutinize the numbers to highlight any potential operational risks, market saturation risks, or financial blindspots." : "The project is NOT fully feasible. Give a professional, strict, and actionable critique pointing out exactly why the financials fall short and what must be improved."}
+      
+      Provide your analysis in JSON format using professional terms like 'Operating Leverage', 'Competitive Moat', 'Debt Service Coverage', and 'Capital Allocation'.
+      
+      IMPORTANT: The JSON below is a SCHEMA TEMPLATE. Do NOT copy the exact text or numbers. You MUST generate your own specific, brutally honest text and calculate your own scores (0-100) based on the user's data! Write at least 2-3 sentences for each explanation to give deep, actionable feedback.
+      
+      Return JSON ONLY matching this exact structure: 
       {
+        "aiScores": {
+          "coreFinancials": 85,
+          "performanceMetrics": 70,
+          "capitalFinancing": 60,
+          "operationsCost": 75,
+          "annualProjectionsTax": 80,
+          "marketIndicators": 65
+        },
+        "aiScoreExplanations": {
+          "coreFinancials": "Your pricing strategy leaves too little room for error. The gap between selling price and variable costs is alarmingly narrow.",
+          "performanceMetrics": "A gross margin of this level is unsustainable. You will struggle to reach break-even with these high OpEx requirements.",
+          "capitalFinancing": "The startup capital is bloated for a project of this scale. You are taking on too much debt with poor capital efficiency.",
+          "operationsCost": "Your monthly OpEx is dangerously high given the operating days. You need to trim the fat immediately.",
+          "annualProjectionsTax": "The payback period is far too long. The annual ROI does not justify the significant risk you are taking.",
+          "marketIndicators": "Entering a market with high competition and only 'Medium' demand means you will bleed cash trying to acquire customers."
+        },
         "explanations": {
-          "feasibility": "Summary of viability.",
-          "financial": "Analysis of liquidity/margins.",
-          "risk": "Assessment of vulnerability.",
-          "market": "Evaluation of demand dynamics."
+          "feasibility": "Summary of overall viability based strictly on the provided numbers, highlighting critical strengths or weaknesses.",
+          "financial": "Deep analysis of liquidity, margins, break-even point, debt, ROI, and cost structure.",
+          "risk": "Assessment of vulnerability including market demand, competition, and payback period risks.",
+          "market": "Evaluation of demand dynamics, pricing strategy, and sales assumptions."
         },
         "tips": {
-          "feasibility": "${isFeasible ? "Congratulations message acknowledging their success." : "Strategic advice to improve feasibility."}",
-          "financial": "${isFeasible ? "Positive insight on financial strength." : "EBITDA improvement advice."}",
-          "risk": "${isFeasible ? "Risk management best practice to maintain success." : "Mitigation strategy."}",
-          "market": "${isFeasible ? "Market opportunity insight." : "Positioning advice."}"
+          "feasibility": "Strategic and actionable advice to fundamentally improve overall feasibility.",
+          "financial": "Specific, brutal advice to improve margins, handle debt, optimize OpEx, or lower break-even.",
+          "risk": "Risk mitigation strategy concerning capital loss or competitive disadvantage.",
+          "market": "Positioning, pricing, or market penetration advice based on the competitor count and demand."
         },
         "insights": [
-          ${isFeasible ? `{"title": "Congratulations!", "description": "Your feasibility study shows strong promise with a ${finalScore}% feasibility score. You've demonstrated solid business fundamentals, financial projections, and market understanding. This business model is ready for further development.", "type": "positive"}` : `{"title": "Improvement Priority 1", "description": "Focus on this key area to strengthen your feasibility study.", "type": "warning"}`},
-          {"title": "${isFeasible ? "Strength:" : "Challenge:"} ${isFeasible ? "Market Position" : "Cost Structure"}", "description": "${isFeasible ? "Your market demand forecast and competitive positioning are well-defined." : "Review your variable and fixed cost structures to improve margins."}", "type": "${isFeasible ? "positive" : "warning"}"},
-          {"title": "${isFeasible ? "Next Steps" : "Action Item"}", "description": "${isFeasible ? "Proceed with confidence. Consider how to scale operations while maintaining your financial health." : "Implement the suggested improvements to strengthen your financial projections and increase feasibility."}", "type": "${isFeasible ? "positive" : "suggestion"}"}
+          {"title": "Core Assessment", "description": "Honest, unvarnished assessment of the primary strength or weakness.", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "Financial Reality Check", "description": "A direct, critical observation about their margins, costs, financing, or ROI.", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "Action Item", "description": "A strict and professional recommendation for immediate improvement.", "type": "suggestion"}
         ]
       }`;
-
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -315,6 +413,8 @@ const AI_Analysis: React.FC = () => {
         explanations: aiResult.explanations,
         improvementTips: aiResult.tips,
         insights: generatedInsights,
+        aiScores: aiResult.aiScores || {},
+        aiScoreExplanations: aiResult.aiScoreExplanations || {},
         lastRun: new Date().toISOString(),
       };
 
@@ -326,6 +426,8 @@ const AI_Analysis: React.FC = () => {
       setExplanations(aiResult.explanations);
       setImprovementTips(aiResult.tips);
       setInsights(generatedInsights);
+      setAiScores(aiResult.aiScores || {});
+      setAiScoreExplanations(aiResult.aiScoreExplanations || {});
     } catch (e) {
       // Professional Fallback with Insights included for persistence
       const isFeasible = status === "FEASIBLE";
@@ -391,6 +493,23 @@ const AI_Analysis: React.FC = () => {
             },
           ];
 
+      const fallbackAiScores = {
+        coreFinancials: finalScore,
+        performanceMetrics: finalScore,
+        capitalFinancing: finalScore,
+        operationsCost: finalScore,
+        annualProjectionsTax: finalScore,
+        marketIndicators: finalScore
+      };
+      const fallbackAiScoreExplanations = {
+        coreFinancials: "Basic financial assessment based on metrics. Re-run analysis for detailed AI insights.",
+        performanceMetrics: "Basic performance metrics assessment based on metrics. Re-run analysis for detailed AI insights.",
+        capitalFinancing: "Basic capital financing assessment based on metrics. Re-run analysis for detailed AI insights.",
+        operationsCost: "Basic operations cost assessment based on metrics. Re-run analysis for detailed AI insights.",
+        annualProjectionsTax: "Basic annual projections assessment based on metrics. Re-run analysis for detailed AI insights.",
+        marketIndicators: "Basic market indicators assessment based on metrics. Re-run analysis for detailed AI insights."
+      };
+
       const fallbackAnalysis = {
         score: finalScore,
         status,
@@ -398,6 +517,8 @@ const AI_Analysis: React.FC = () => {
         explanations: fallbackExplanations,
         improvementTips: fallbackTips,
         insights: fallbackInsights,
+        aiScores: fallbackAiScores,
+        aiScoreExplanations: fallbackAiScoreExplanations,
         lastRun: new Date().toISOString(),
       };
 
@@ -411,6 +532,8 @@ const AI_Analysis: React.FC = () => {
       setExplanations(fallbackExplanations);
       setImprovementTips(fallbackTips);
       setInsights(fallbackInsights);
+      setAiScores(fallbackAiScores);
+      setAiScoreExplanations(fallbackAiScoreExplanations);
     } finally {
       setIsAnalyzing(false);
     }
@@ -424,15 +547,23 @@ const AI_Analysis: React.FC = () => {
     const yearlyNetProfit: number[] = [];
     const yearLabels: string[] = [];
 
-    const currentAnnualRevenue =
-      (Number(financials.sellingPrice) || 0) *
-      (Number(financials.monthlySales) || 0) *
-      12;
-    const currentAnnualCOGS =
-      (Number(financials.variableCost) || 0) *
-      (Number(financials.monthlySales) || 0) *
-      12;
-    const currentAnnualFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeSellingPrice = Number(financials.sellingPrice) || 0;
+    const safeMonthlySales = Number(financials.monthlySales) || 0;
+    const safeVariableCost = Number(financials.variableCost) || 0;
+    const safeFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeOperatingDays = Number(financials.operatingDays) || 300;
+    
+    const calculatedStartupCapital = financials.equipmentList && financials.equipmentList.length > 0 
+      ? financials.equipmentList.reduce((sum: any, item: any) => sum + item.total, 0)
+      : (Number(financials.startupCapital) || 0);
+    const monthlyInterest = financials.isCapitalBorrowed ? (calculatedStartupCapital * (Number(financials.interestRate) / 100)) / 12 : 0;
+
+    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+
+    const currentAnnualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const currentAnnualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
+    const currentAnnualFixedCosts = ((safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
 
     for (let year = 1; year <= 5; year++) {
       const revenueMultiplier = Math.pow(1 + revenueGrowthRate / 100, year - 1);
@@ -441,8 +572,10 @@ const AI_Analysis: React.FC = () => {
       const projectedRevenue = currentAnnualRevenue * revenueMultiplier;
       const projectedCOGS = currentAnnualCOGS * costMultiplier;
       const projectedFixedCosts = currentAnnualFixedCosts * costMultiplier;
+      const percentageTax = projectedRevenue > 0 ? projectedRevenue * 0.03 : 0;
+      
       const projectedNetProfit =
-        projectedRevenue - projectedCOGS - projectedFixedCosts;
+        projectedRevenue - projectedCOGS - projectedFixedCosts - percentageTax;
 
       yearlyRevenue.push(Math.round(projectedRevenue));
       yearlyCOGS.push(Math.round(projectedCOGS));
@@ -472,35 +605,7 @@ const AI_Analysis: React.FC = () => {
     }));
   };
 
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case "positive":
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case "warning":
-        return <TrendingUp className="w-5 h-5 text-orange-500" />;
-      case "info":
-        return <Lightbulb className="w-5 h-5 text-blue-500" />;
-      case "suggestion":
-        return <Lightbulb className="w-5 h-5 text-purple-500" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-400" />;
-    }
-  };
 
-  const getInsightBgColor = (type: string) => {
-    switch (type) {
-      case "positive":
-        return "bg-green-50 border-green-200";
-      case "warning":
-        return "bg-orange-50 border-orange-200";
-      case "info":
-        return "bg-blue-50 border-blue-200";
-      case "suggestion":
-        return "bg-purple-50 border-purple-200";
-      default:
-        return "bg-gray-50 border-gray-200";
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -950,6 +1055,43 @@ const AI_Analysis: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* AI Detailed Score Cards */}
+              {feasibilityStatus !== "PENDING" && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2 mb-6">
+                    <BarChart3 className="w-5 h-5 text-[#c9a654]" /> AI Detailed Assessment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { key: "coreFinancials", label: "Core Financials" },
+                      { key: "performanceMetrics", label: "Performance Metrics" },
+                      { key: "capitalFinancing", label: "Capital & Financing" },
+                      { key: "operationsCost", label: "Operations & Cost" },
+                      { key: "annualProjectionsTax", label: "Annual Projections & Tax" },
+                      { key: "marketIndicators", label: "Market Indicators" }
+                    ].map((item) => (
+                      <div key={item.key} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                          {item.label}
+                        </p>
+                        <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                          {aiScores[item.key] || 0}%
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                          <div
+                            className={`${(aiScores[item.key] || 0) > 70 ? "bg-green-500" : (aiScores[item.key] || 0) > 40 ? "bg-orange-500" : "bg-red-500"} h-1.5 rounded-full`}
+                            style={{ width: `${aiScores[item.key] || 0}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-[10px] text-gray-500 leading-tight flex-1">
+                          {aiScoreExplanations?.[item.key] || "Please re-run the analysis to generate this AI insight."}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 5-Year Pro Forma Financial Statement */}
               <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden">
