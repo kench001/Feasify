@@ -132,7 +132,7 @@ const Projects: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [userUid, setUserUid] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unreadNotificationCount, _setUnreadNotificationCount] = useState(0);
 
@@ -469,9 +469,17 @@ const Projects: React.FC = () => {
   };
 
   const renderSidebar = () => (
-    <aside
-      className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-    >
+    <>
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <aside
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
       <div className="p-6 flex items-center gap-3 border-b border-white/10">
         <img
           src="/dashboard logo.png"
@@ -568,6 +576,7 @@ const Projects: React.FC = () => {
         </button>
       </div>
     </aside>
+    </>
   );
 
   const filteredProposals =

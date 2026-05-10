@@ -24,11 +24,8 @@ import {
   Sidebar as SidebarIcon,
   RotateCcw,
   CheckCircle2,
-  TrendingUp,
   AlertCircle,
   Lightbulb,
-  Bell,
-  TrendingDown,
   DollarSign,
 } from "lucide-react";
 import {
@@ -53,8 +50,7 @@ const AI_Analysis: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [projects, setProjects] = useState<any[]>([]);
@@ -68,6 +64,11 @@ const AI_Analysis: React.FC = () => {
     startupCapital: 0,
     competitorCount: 0,
     marketDemand: "Medium",
+    operatingDays: 300,
+    equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
+    opexList: [] as { id: string; name: string; amount: number }[],
+    isCapitalBorrowed: false,
+    interestRate: 0,
   });
 
   const [explanations, setExplanations] = useState<any>({});
@@ -83,6 +84,8 @@ const AI_Analysis: React.FC = () => {
     risk: 0,
     market: 0,
   });
+  const [aiScores, setAiScores] = useState<any>({});
+  const [aiScoreExplanations, setAiScoreExplanations] = useState<any>({});
   const [insights, setInsights] = useState<InsightItem[]>([]);
 
   // Pro Forma Financial Statement States
@@ -171,6 +174,11 @@ const AI_Analysis: React.FC = () => {
         startupCapital: Number(data?.startupCapital) || 0,
         competitorCount: Number(data?.competitorCount) || 0,
         marketDemand: data?.marketDemand || "Medium",
+        operatingDays: Number(data?.operatingDays) || 300,
+        equipmentList: data?.equipmentList || [],
+        opexList: data?.opexList || [],
+        isCapitalBorrowed: data?.isCapitalBorrowed || false,
+        interestRate: Number(data?.interestRate) || 0,
       });
 
       // --- CRITICAL FIX: Properly loading INSIGHTS from database ---
@@ -189,12 +197,16 @@ const AI_Analysis: React.FC = () => {
         setImprovementTips(proj.aiAnalysis.improvementTips || {});
         // Restore the insights array here
         setInsights(proj.aiAnalysis.insights || []);
+        setAiScores(proj.aiAnalysis.aiScores || {});
+        setAiScoreExplanations(proj.aiAnalysis.aiScoreExplanations || {});
       } else if (!location.state?.runAnalysis) {
         setFeasibilityScore(0);
         setFeasibilityStatus("PENDING");
         setInsights([]);
         setExplanations({});
         setImprovementTips({});
+        setAiScores({});
+        setAiScoreExplanations({});
       }
     }
   }, [location.state, projects]);
@@ -217,13 +229,40 @@ const AI_Analysis: React.FC = () => {
     if (!pId) return;
     setIsAnalyzing(true);
 
-    const revenue =
-      (Number(data.sellingPrice) || 0) * (Number(data.monthlySales) || 0);
-    const vCosts =
-      (Number(data.variableCost) || 0) * (Number(data.monthlySales) || 0);
-    const fCosts = Number(data.fixedCosts) || 0;
-    const netProfit = revenue - vCosts - fCosts;
-    const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const safeSellingPrice = Number(data.sellingPrice) || 0;
+    const safeMonthlySales = Number(data.monthlySales) || 0;
+    const safeVariableCost = Number(data.variableCost) || 0;
+    const safeOperatingDays = Number(data.operatingDays) || 300;
+
+    const calculatedOpex = data.opexList && data.opexList.length > 0
+      ? data.opexList.reduce((sum: any, item: any) => sum + item.amount, 0)
+      : (Number(data.fixedCosts) || 0);
+
+    const calculatedStartupCapital = data.equipmentList && data.equipmentList.length > 0 
+      ? data.equipmentList.reduce((sum: any, item: any) => sum + item.total, 0)
+      : (Number(data.startupCapital) || 0);
+
+    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    const monthlyExpenses = totalMonthlyVariableCosts + calculatedOpex;
+    
+    const grossMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
+    const breakEvenUnits = safeSellingPrice - safeVariableCost > 0 ? Math.ceil(calculatedOpex / (safeSellingPrice - safeVariableCost)) : "N/A";
+    
+    const monthlyInterest = data.isCapitalBorrowed ? (calculatedStartupCapital * (Number(data.interestRate) / 100)) / 12 : 0;
+    const netMonthlyProfit = monthlyRevenue - monthlyExpenses - monthlyInterest;
+    
+    const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const annualExpenses = ((monthlyExpenses + monthlyInterest) / 30) * safeOperatingDays;
+    const annualNetProfitPreTax = annualRevenue - annualExpenses;
+
+    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // Simplified BMBE tax (3% percentage tax)
+    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+    const margin = annualRevenue > 0 ? (annualNetProfitAfterTax / annualRevenue) * 100 : 0;
+    
+    const paybackVal = annualNetProfitAfterTax > 0 ? (calculatedStartupCapital / (annualNetProfitAfterTax / 12)).toFixed(1) : "∞";
+    const estimatedAnnualROI = calculatedStartupCapital > 0 ? ((annualNetProfitAfterTax / calculatedStartupCapital) * 100).toFixed(1) : "0.0";
 
     const financialHealth = Math.min(
       100,
@@ -238,7 +277,7 @@ const AI_Analysis: React.FC = () => {
     const riskScore = Math.max(
       0,
       100 -
-        ((Number(data.competitorCount) || 0) * 10 + (netProfit < 0 ? 30 : 0)),
+        ((Number(data.competitorCount) || 0) * 10 + (netMonthlyProfit < 0 ? 30 : 0) + (data.isCapitalBorrowed && margin < 10 ? 20 : 0)),
     );
     const finalScore = Math.floor(
       (financialHealth + marketScore + (100 - riskScore)) / 3,
@@ -260,35 +299,94 @@ const AI_Analysis: React.FC = () => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
       const isFeasible = status === "FEASIBLE";
-      const prompt = `Act as a Senior Business Consultant. Project: Score ${finalScore}%, Margin ${margin.toFixed(1)}%, Risk ${riskScore}%, Status: ${status}.
+      const prompt = `Act as a Senior Business Consultant providing a brutally honest, rigorous, and professional feasibility assessment.
+      Project Status: ${status} (Score: ${finalScore}%)
       
-      ${isFeasible ? `The project is FEASIBLE. Generate a congratulatory message and insights celebrating their achievement. Include positive reinforcement.` : `The project is NOT fully feasible. Generate specific, actionable tips to improve their feasibility study.`}
+      Review the following financial inputs and metrics thoroughly to decide if the project is feasible or not, and how it can be improved:
       
-      Provide analysis in JSON with professional terms like 'Operating Leverage', 'Competitive Moat', and 'Capital Allocation'.
+      [1] Core Financials:
+      - Selling Price per unit: PHP ${safeSellingPrice.toLocaleString()}
+      - Monthly Sales units: ${safeMonthlySales.toLocaleString()}
+      - Variable Cost per unit: PHP ${safeVariableCost.toLocaleString()}
       
-      Return JSON ONLY: 
+      [2] Performance Metrics:
+      - Monthly Revenue: PHP ${monthlyRevenue.toLocaleString()}
+      - Monthly Expenses (Variable + OpEx): PHP ${monthlyExpenses.toLocaleString()}
+      - Break-Even Point: ${breakEvenUnits} units
+      - Gross Margin: ${grossMargin.toFixed(1)}%
+      - Net Profit/Mo (After Interest): PHP ${netMonthlyProfit.toLocaleString()}
+      
+      [3] Capital & Financing:
+      - Startup Capital / Equipment Total: PHP ${calculatedStartupCapital.toLocaleString()}
+      - Financing: ${data.isCapitalBorrowed ? "Borrowed at " + data.interestRate + "% annual interest" : "Self-funded"}
+      - Annual Interest Expense: PHP ${(monthlyInterest * 12).toLocaleString()}
+      - Monthly Interest Expense: PHP ${monthlyInterest.toLocaleString()}
+      
+      [4] Operations & Costs:
+      - Operating Days/Year: ${safeOperatingDays}
+      - Monthly Cost (OpEx): PHP ${calculatedOpex.toLocaleString()}
+      
+      [5] Annual Projections & Tax:
+      - Est. Annual Revenue: PHP ${annualRevenue.toLocaleString()}
+      - Annual Tax (3% BMBE Percentage Tax): PHP ${percentageTax.toLocaleString()}
+      - Net Annual Profit (After Tax): PHP ${annualNetProfitAfterTax.toLocaleString()}
+      - Adjusted Annual ROI: ${estimatedAnnualROI}%
+      - Payback Period: ${paybackVal} months
+      
+      [6] Market Indicators:
+      - Competitor Count: ${data.competitorCount}
+      - Market Demand: ${data.marketDemand}
+      
+      Instructions for Analysis:
+      - Review *every single piece* of data provided above.
+      - Be brutally honest and professional. Do not sugarcoat flaws.
+      - If the margins are too tight, the debt is too high, the break-even is unrealistic, or payback period is too long, state it clearly.
+      - Assess if the Startup Capital matches the scope of Est. Annual Revenue.
+      - Determine the absolute feasibility based on the provided data.
+      - ${isFeasible ? "The project appears mathematically FEASIBLE, but scrutinize the numbers to highlight any potential operational risks, market saturation risks, or financial blindspots." : "The project is NOT fully feasible. Give a professional, strict, and actionable critique pointing out exactly why the financials fall short and what must be improved."}
+      
+      Provide your analysis in JSON format using professional terms like 'Operating Leverage', 'Competitive Moat', 'Debt Service Coverage', and 'Capital Allocation'.
+      
+      IMPORTANT: The JSON below is a SCHEMA TEMPLATE. Do NOT copy the exact text or numbers. You MUST generate your own specific, brutally honest text and calculate your own scores (0-100) based on the user's data! Write at least 2-3 sentences for each explanation to give deep, actionable feedback.
+      
+      Return JSON ONLY matching this exact structure: 
       {
+        "aiScores": {
+          "coreFinancials": 85,
+          "performanceMetrics": 70,
+          "capitalFinancing": 60,
+          "operationsCost": 75,
+          "annualProjectionsTax": 80,
+          "marketIndicators": 65
+        },
+        "aiScoreExplanations": {
+          "coreFinancials": "Your pricing strategy leaves too little room for error. The gap between selling price and variable costs is alarmingly narrow.",
+          "performanceMetrics": "A gross margin of this level is unsustainable. You will struggle to reach break-even with these high OpEx requirements.",
+          "capitalFinancing": "The startup capital is bloated for a project of this scale. You are taking on too much debt with poor capital efficiency.",
+          "operationsCost": "Your monthly OpEx is dangerously high given the operating days. You need to trim the fat immediately.",
+          "annualProjectionsTax": "The payback period is far too long. The annual ROI does not justify the significant risk you are taking.",
+          "marketIndicators": "Entering a market with high competition and only 'Medium' demand means you will bleed cash trying to acquire customers."
+        },
         "explanations": {
-          "feasibility": "Summary of viability.",
-          "financial": "Analysis of liquidity/margins.",
-          "risk": "Assessment of vulnerability.",
-          "market": "Evaluation of demand dynamics."
+          "feasibility": "Summary of overall viability based strictly on the provided numbers, highlighting critical strengths or weaknesses.",
+          "financial": "Deep analysis of liquidity, margins, break-even point, debt, ROI, and cost structure.",
+          "risk": "Assessment of vulnerability including market demand, competition, and payback period risks.",
+          "market": "Evaluation of demand dynamics, pricing strategy, and sales assumptions."
         },
         "tips": {
-          "feasibility": "${isFeasible ? "Congratulations message acknowledging their success." : "Strategic advice to improve feasibility."}",
-          "financial": "${isFeasible ? "Positive insight on financial strength." : "EBITDA improvement advice."}",
-          "risk": "${isFeasible ? "Risk management best practice to maintain success." : "Mitigation strategy."}",
-          "market": "${isFeasible ? "Market opportunity insight." : "Positioning advice."}"
+          "feasibility": "Strategic and actionable advice to fundamentally improve overall feasibility.",
+          "financial": "Specific, brutal advice to improve margins, handle debt, optimize OpEx, or lower break-even.",
+          "risk": "Risk mitigation strategy concerning capital loss or competitive disadvantage.",
+          "market": "Positioning, pricing, or market penetration advice based on the competitor count and demand."
         },
         "insights": [
-          ${isFeasible ? `{"title": "Congratulations!", "description": "Your feasibility study shows strong promise with a ${finalScore}% feasibility score. You've demonstrated solid business fundamentals, financial projections, and market understanding. This business model is ready for further development.", "type": "positive"}` : `{"title": "Improvement Priority 1", "description": "Focus on this key area to strengthen your feasibility study.", "type": "warning"}`},
-          {"title": "${isFeasible ? "Strength:" : "Challenge:"} ${isFeasible ? "Market Position" : "Cost Structure"}", "description": "${isFeasible ? "Your market demand forecast and competitive positioning are well-defined." : "Review your variable and fixed cost structures to improve margins."}", "type": "${isFeasible ? "positive" : "warning"}"},
-          {"title": "${isFeasible ? "Next Steps" : "Action Item"}", "description": "${isFeasible ? "Proceed with confidence. Consider how to scale operations while maintaining your financial health." : "Implement the suggested improvements to strengthen your financial projections and increase feasibility."}", "type": "${isFeasible ? "positive" : "suggestion"}"}
+          {"title": "Core Assessment", "description": "Honest, unvarnished assessment of the primary strength or weakness.", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "Financial Reality Check", "description": "A direct, critical observation about their margins, costs, financing, or ROI.", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "Action Item", "description": "A strict and professional recommendation for immediate improvement.", "type": "suggestion"}
         ]
       }`;
-
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -315,6 +413,8 @@ const AI_Analysis: React.FC = () => {
         explanations: aiResult.explanations,
         improvementTips: aiResult.tips,
         insights: generatedInsights,
+        aiScores: aiResult.aiScores || {},
+        aiScoreExplanations: aiResult.aiScoreExplanations || {},
         lastRun: new Date().toISOString(),
       };
 
@@ -326,6 +426,8 @@ const AI_Analysis: React.FC = () => {
       setExplanations(aiResult.explanations);
       setImprovementTips(aiResult.tips);
       setInsights(generatedInsights);
+      setAiScores(aiResult.aiScores || {});
+      setAiScoreExplanations(aiResult.aiScoreExplanations || {});
     } catch (e) {
       // Professional Fallback with Insights included for persistence
       const isFeasible = status === "FEASIBLE";
@@ -391,6 +493,23 @@ const AI_Analysis: React.FC = () => {
             },
           ];
 
+      const fallbackAiScores = {
+        coreFinancials: finalScore,
+        performanceMetrics: finalScore,
+        capitalFinancing: finalScore,
+        operationsCost: finalScore,
+        annualProjectionsTax: finalScore,
+        marketIndicators: finalScore
+      };
+      const fallbackAiScoreExplanations = {
+        coreFinancials: "Basic financial assessment based on metrics. Re-run analysis for detailed AI insights.",
+        performanceMetrics: "Basic performance metrics assessment based on metrics. Re-run analysis for detailed AI insights.",
+        capitalFinancing: "Basic capital financing assessment based on metrics. Re-run analysis for detailed AI insights.",
+        operationsCost: "Basic operations cost assessment based on metrics. Re-run analysis for detailed AI insights.",
+        annualProjectionsTax: "Basic annual projections assessment based on metrics. Re-run analysis for detailed AI insights.",
+        marketIndicators: "Basic market indicators assessment based on metrics. Re-run analysis for detailed AI insights."
+      };
+
       const fallbackAnalysis = {
         score: finalScore,
         status,
@@ -398,6 +517,8 @@ const AI_Analysis: React.FC = () => {
         explanations: fallbackExplanations,
         improvementTips: fallbackTips,
         insights: fallbackInsights,
+        aiScores: fallbackAiScores,
+        aiScoreExplanations: fallbackAiScoreExplanations,
         lastRun: new Date().toISOString(),
       };
 
@@ -411,6 +532,8 @@ const AI_Analysis: React.FC = () => {
       setExplanations(fallbackExplanations);
       setImprovementTips(fallbackTips);
       setInsights(fallbackInsights);
+      setAiScores(fallbackAiScores);
+      setAiScoreExplanations(fallbackAiScoreExplanations);
     } finally {
       setIsAnalyzing(false);
     }
@@ -424,15 +547,23 @@ const AI_Analysis: React.FC = () => {
     const yearlyNetProfit: number[] = [];
     const yearLabels: string[] = [];
 
-    const currentAnnualRevenue =
-      (Number(financials.sellingPrice) || 0) *
-      (Number(financials.monthlySales) || 0) *
-      12;
-    const currentAnnualCOGS =
-      (Number(financials.variableCost) || 0) *
-      (Number(financials.monthlySales) || 0) *
-      12;
-    const currentAnnualFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeSellingPrice = Number(financials.sellingPrice) || 0;
+    const safeMonthlySales = Number(financials.monthlySales) || 0;
+    const safeVariableCost = Number(financials.variableCost) || 0;
+    const safeFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeOperatingDays = Number(financials.operatingDays) || 300;
+    
+    const calculatedStartupCapital = financials.equipmentList && financials.equipmentList.length > 0 
+      ? financials.equipmentList.reduce((sum: any, item: any) => sum + item.total, 0)
+      : (Number(financials.startupCapital) || 0);
+    const monthlyInterest = financials.isCapitalBorrowed ? (calculatedStartupCapital * (Number(financials.interestRate) / 100)) / 12 : 0;
+
+    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+
+    const currentAnnualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const currentAnnualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
+    const currentAnnualFixedCosts = ((safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
 
     for (let year = 1; year <= 5; year++) {
       const revenueMultiplier = Math.pow(1 + revenueGrowthRate / 100, year - 1);
@@ -441,8 +572,10 @@ const AI_Analysis: React.FC = () => {
       const projectedRevenue = currentAnnualRevenue * revenueMultiplier;
       const projectedCOGS = currentAnnualCOGS * costMultiplier;
       const projectedFixedCosts = currentAnnualFixedCosts * costMultiplier;
+      const percentageTax = projectedRevenue > 0 ? projectedRevenue * 0.03 : 0;
+      
       const projectedNetProfit =
-        projectedRevenue - projectedCOGS - projectedFixedCosts;
+        projectedRevenue - projectedCOGS - projectedFixedCosts - percentageTax;
 
       yearlyRevenue.push(Math.round(projectedRevenue));
       yearlyCOGS.push(Math.round(projectedCOGS));
@@ -472,35 +605,7 @@ const AI_Analysis: React.FC = () => {
     }));
   };
 
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case "positive":
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case "warning":
-        return <TrendingUp className="w-5 h-5 text-orange-500" />;
-      case "info":
-        return <Lightbulb className="w-5 h-5 text-blue-500" />;
-      case "suggestion":
-        return <Lightbulb className="w-5 h-5 text-purple-500" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-400" />;
-    }
-  };
 
-  const getInsightBgColor = (type: string) => {
-    switch (type) {
-      case "positive":
-        return "bg-green-50 border-green-200";
-      case "warning":
-        return "bg-orange-50 border-orange-200";
-      case "info":
-        return "bg-blue-50 border-blue-200";
-      case "suggestion":
-        return "bg-purple-50 border-purple-200";
-      default:
-        return "bg-gray-50 border-gray-200";
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -526,8 +631,15 @@ const AI_Analysis: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       <aside
-        className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img
@@ -617,22 +729,22 @@ const AI_Analysis: React.FC = () => {
       </aside>
 
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center flex-wrap gap-2 text-sm text-gray-500">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors flex-shrink-0"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-          <span className="mx-2">|</span>
+          <span className="mx-1 sm:mx-2 text-gray-300">|</span>
           <span
-            className="cursor-pointer hover:text-[#c9a654]"
+            className="cursor-pointer hover:text-[#c9a654] truncate"
             onClick={() => navigate("/dashboard")}
           >
             FeasiFy
           </span>
-          <span>›</span>
-          <span className="font-semibold text-gray-900">AI Analysis</span>
+          <span className="text-gray-400">›</span>
+          <span className="font-semibold text-gray-900 truncate">AI Analysis</span>
         </div>
 
         {isAnalyzing ? (
@@ -651,12 +763,12 @@ const AI_Analysis: React.FC = () => {
           </div>
         ) : (
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-              <div>
-                <h1 className="text-3xl font-extrabold text-[#3d2c23]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div className="w-full sm:w-auto min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3d2c23]">
                   AI Analysis
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic font-medium">
+                <p className="text-sm text-gray-500 mt-1 italic font-medium break-words">
                   Evaluation for{" "}
                   <span className="text-[#122244] font-bold">
                     {selectedProject?.name || "Selected Project"}
@@ -666,25 +778,25 @@ const AI_Analysis: React.FC = () => {
               <button
                 onClick={() => executeAnalysis(financials, selectedProjectId)}
                 disabled={!selectedProjectId}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0"
               >
                 <RotateCcw className="w-4 h-4" /> Re-analyze
               </button>
             </div>
 
-            <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
                 Active Project
               </label>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
+                <div className="w-10 h-10 flex-shrink-0 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
                   P#
                 </div>
-                <div>
-                  <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#122244] tracking-tight truncate">
                     {selectedProject?.name || "No Project Selected"}
                   </h2>
-                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded break-words">
                     Verified Approved Business
                   </span>
                 </div>
@@ -695,17 +807,17 @@ const AI_Analysis: React.FC = () => {
               className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
             >
               {/* Verdict Section */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
-                <div className="flex items-start gap-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
                   <div className="flex-shrink-0">
                     <div
-                      className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
+                      className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner mx-auto md:mx-0 ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
                     >
                       <Zap className="w-10 h-10 text-white" />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                  <div className="flex-1 flex flex-col items-center md:items-start">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
                       <h2 className="text-2xl font-extrabold text-[#122244]">
                         Feasibility Verdict
                       </h2>
@@ -721,23 +833,25 @@ const AI_Analysis: React.FC = () => {
                     </p>
                     {improvementTips.feasibility && (
                       <div
-                        className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+                        className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
                       >
-                        <Lightbulb size={12} />{" "}
-                        {feasibilityStatus === "FEASIBLE"
-                          ? "💡 Achievement:"
-                          : "Tip:"}{" "}
-                        {improvementTips.feasibility}
+                        <Lightbulb size={16} className="flex-shrink-0" />{" "}
+                        <span>
+                          {feasibilityStatus === "FEASIBLE"
+                            ? "💡 Achievement:"
+                            : "Tip:"}{" "}
+                          {improvementTips.feasibility}
+                        </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  <div className="flex-shrink-0 text-center md:text-right mt-2 md:mt-0 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100">
                     <div
-                      className={`text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
+                      className={`text-4xl md:text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
                     >
                       {feasibilityScore}
                     </div>
-                    <div className="text-xs font-bold text-gray-400 uppercase">
+                    <div className="text-xs font-bold text-gray-400 uppercase mt-1">
                       out of 100
                     </div>
                   </div>
@@ -746,84 +860,75 @@ const AI_Analysis: React.FC = () => {
 
               {/* Congratulations or Improvement Guide Section */}
               {feasibilityStatus === "FEASIBLE" ? (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-8 shadow-sm mb-8">
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">🎉</div>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                    <div className="text-4xl sm:text-5xl">🎉</div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-extrabold text-green-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 mb-2">
                         Excellent News!
                       </h3>
-                      <p className="text-green-800 font-medium mb-4">
+                      <p className="text-green-800 font-medium mb-4 text-sm sm:text-base">
                         Your feasibility study demonstrates strong business
                         fundamentals. With a score of {feasibilityScore}%, your
                         project shows:
                       </p>
-                      <ul className="space-y-2 text-green-700 text-sm">
+                      <ul className="space-y-3 sm:space-y-2 text-green-700 text-sm text-left">
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Solid financial projections and profit margins
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Adequate market demand and growth potential
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
                           <span>
                             Manageable risk profile with viable market
                             positioning
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-green-200 text-left">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
                           Recommended Next Steps:
                         </p>
-                        <ul className="text-sm text-green-800 space-y-1">
-                          <li>
-                            ✓ Develop detailed implementation and execution plan
-                          </li>
-                          <li>
-                            ✓ Finalize funding strategy and capital requirements
-                          </li>
-                          <li>
-                            ✓ Create marketing and customer acquisition roadmap
-                          </li>
-                          <li>
-                            ✓ Establish key performance indicators (KPIs) for
-                            monitoring
-                          </li>
+                        <ul className="text-sm text-green-800 space-y-2 sm:space-y-1">
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Develop detailed implementation and execution plan</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Finalize funding strategy and capital requirements</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Create marketing and customer acquisition roadmap</span></li>
+                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Establish key performance indicators (KPIs) for monitoring</span></li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-8 shadow-sm mb-8">
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">⚡</div>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-6 md:p-8 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                    <div className="text-4xl sm:text-5xl">⚡</div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-extrabold text-amber-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mb-2">
                         Path to Improved Feasibility
                       </h3>
-                      <p className="text-amber-800 font-medium mb-4">
+                      <p className="text-amber-800 font-medium mb-4 text-sm sm:text-base">
                         Your feasibility score of {feasibilityScore}% indicates
                         areas for improvement. Focus on these key areas:
                       </p>
-                      <ul className="space-y-2 text-amber-700 text-sm">
+                      <ul className="space-y-3 sm:space-y-2 text-amber-700 text-sm text-left">
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Cost Structure:</strong> Review variable and
                             fixed costs for optimization opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Market Differentiation:</strong> Develop a
                             unique value proposition to stand out from
@@ -831,39 +936,29 @@ const AI_Analysis: React.FC = () => {
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Revenue Optimization:</strong> Explore
                             pricing strategies and upsell opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                           <span>
                             <strong>Market Validation:</strong> Conduct deeper
                             market research to validate demand assumptions
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-4 p-3 bg-white rounded-lg border border-amber-200">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-amber-200 text-left">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
                           Action Items:
                         </p>
-                        <ul className="text-sm text-amber-800 space-y-1">
-                          <li>
-                            1. Revise financial projections with improved cost
-                            estimates
-                          </li>
-                          <li>
-                            2. Develop competitive differentiation strategy
-                          </li>
-                          <li>
-                            3. Validate market demand through surveys or pilot
-                            programs
-                          </li>
-                          <li>
-                            4. Re-run analysis to track feasibility improvement
-                          </li>
+                        <ul className="text-sm text-amber-800 space-y-2 sm:space-y-1">
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">1.</span> <span>Revise financial projections with improved cost estimates</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">2.</span> <span>Develop competitive differentiation strategy</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">3.</span> <span>Validate market demand through surveys or pilot programs</span></li>
+                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">4.</span> <span>Re-run analysis to track feasibility improvement</span></li>
                         </ul>
                       </div>
                     </div>
@@ -961,16 +1056,53 @@ const AI_Analysis: React.FC = () => {
                 </div>
               </div>
 
+              {/* AI Detailed Score Cards */}
+              {feasibilityStatus !== "PENDING" && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2 mb-6">
+                    <BarChart3 className="w-5 h-5 text-[#c9a654]" /> AI Detailed Assessment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { key: "coreFinancials", label: "Core Financials" },
+                      { key: "performanceMetrics", label: "Performance Metrics" },
+                      { key: "capitalFinancing", label: "Capital & Financing" },
+                      { key: "operationsCost", label: "Operations & Cost" },
+                      { key: "annualProjectionsTax", label: "Annual Projections & Tax" },
+                      { key: "marketIndicators", label: "Market Indicators" }
+                    ].map((item) => (
+                      <div key={item.key} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                          {item.label}
+                        </p>
+                        <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                          {aiScores[item.key] || 0}%
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                          <div
+                            className={`${(aiScores[item.key] || 0) > 70 ? "bg-green-500" : (aiScores[item.key] || 0) > 40 ? "bg-orange-500" : "bg-red-500"} h-1.5 rounded-full`}
+                            style={{ width: `${aiScores[item.key] || 0}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-[10px] text-gray-500 leading-tight flex-1">
+                          {aiScoreExplanations?.[item.key] || "Please re-run the analysis to generate this AI insight."}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 5-Year Pro Forma Financial Statement */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
-                <div className="flex items-center justify-between mb-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
                   <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-[#c9a654]" /> 5-Year Pro
+                    <DollarSign className="w-5 h-5 text-[#c9a654] flex-shrink-0" /> 5-Year Pro
                     Forma Financial Projection
                   </h3>
                   <button
                     onClick={() => setShowProFormaInputs(!showProFormaInputs)}
-                    className="text-[11px] font-bold uppercase text-[#c9a654] hover:text-[#a87d3a] transition-colors px-3 py-1.5 border border-[#c9a654]/30 rounded-lg hover:bg-[#c9a654]/5"
+                    className="w-full sm:w-auto text-[11px] font-bold uppercase text-[#c9a654] hover:text-[#a87d3a] transition-colors px-3 py-2 sm:py-1.5 border border-[#c9a654]/30 rounded-lg hover:bg-[#c9a654]/5 flex-shrink-0"
                   >
                     {showProFormaInputs ? "Hide" : "Show"} Assumptions
                   </button>
@@ -978,7 +1110,7 @@ const AI_Analysis: React.FC = () => {
 
                 {/* Growth Rate Inputs */}
                 {showProFormaInputs && (
-                  <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <div>
                       <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
                         Revenue Growth Rate (%)
@@ -1257,14 +1389,14 @@ const AI_Analysis: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 mt-8">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
                 <button
                   onClick={() =>
                     navigate("/financial-input", {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-white border border-gray-200 rounded-xl sm:rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
                 >
                   <FileEdit className="w-4 h-4" /> Revise Financial Data
                 </button>
@@ -1274,7 +1406,7 @@ const AI_Analysis: React.FC = () => {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="flex items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-md"
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold text-sm transition-all shadow-md"
                 >
                   <BarChart3 className="w-4 h-4" /> View Full Report
                 </button>
