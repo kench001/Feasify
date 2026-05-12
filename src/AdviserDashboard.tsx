@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
@@ -8,7 +8,7 @@ import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
-  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb
+  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell
 } from "lucide-react";
 
 interface StudentData {
@@ -63,6 +63,7 @@ interface ProposalData {
 
 const AdviserDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userName, setUserName] = useState("Adviser");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -122,6 +123,7 @@ const AdviserDashboard: React.FC = () => {
   const [modalAiResult, setModalAiResult] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -156,14 +158,17 @@ const AdviserDashboard: React.FC = () => {
   // Auto-select the first section when adviser sections load
   useEffect(() => {
     if (adviserSections.length > 0 && !activeSection) {
-      const firstSection = adviserSections[0];
-      setActiveSection(firstSection);
-      const settings = sectionSettingsMap[firstSection];
+      // Check if a section is specified in the URL query params
+      const sectionParam = searchParams.get("section");
+      const sectionToSelect = sectionParam || adviserSections[0];
+      
+      setActiveSection(sectionToSelect);
+      const settings = sectionSettingsMap[sectionToSelect];
       setMinMembers(settings?.minMembers ?? 8);
       setMaxMembers(settings?.maxMembers ?? 10);
-      fetchSectionData(firstSection);
+      fetchSectionData(sectionToSelect);
     }
-  }, [adviserSections, sectionSettingsMap]);
+  }, [adviserSections, sectionSettingsMap, searchParams]);
 
   const fetchSectionData = async (section: string) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
@@ -743,7 +748,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
-              <button className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
+              <button onClick={() => navigate("/adviser/dashboard")}className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
               <div className="pl-4 pr-2 py-2 space-y-2">
                 {adviserSections.map((sectionName) => (
                   <button key={sectionName} onClick={() => { setActiveSection(sectionName); const s = sectionSettingsMap[sectionName]; setMinMembers(s?.minMembers ?? 8); setMaxMembers(s?.maxMembers ?? 10); fetchSectionData(sectionName); }}
@@ -758,7 +763,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
               <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
               <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
             </div>
           </div>
@@ -770,6 +775,16 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
               <p className="text-sm font-semibold truncate text-white">{userName}</p>
               <p className="text-[10px] text-gray-400 truncate">Feasibility Adviser</p>
             </div>
+            <button
+              onClick={() => navigate("/adviser/notifications")}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
         </div>
       </aside>

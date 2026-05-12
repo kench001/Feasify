@@ -3,7 +3,7 @@ import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import emailjs from "@emailjs/browser";
 import {
@@ -23,7 +23,8 @@ import {
   FileSpreadsheet,
   CheckCircle2, 
   AlertTriangle, 
-  AlertCircle
+  AlertCircle,
+  Bell
 } from "lucide-react";
 
 interface UserData {
@@ -53,6 +54,7 @@ const ChairpersonModule: React.FC = () => {
   
   // Tab State
   const [activeTab, setActiveTab] = useState<"Students" | "Advisers">("Students");
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Modals
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -529,6 +531,16 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-sm font-semibold truncate text-white">{userName}</p>
               <p className="text-[10px] text-gray-400 truncate">FM Chairperson</p>
             </div>
+            <button
+              onClick={() => navigate("/admin/chairpersonnotification")}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
         </div>
       </aside>
