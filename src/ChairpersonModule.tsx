@@ -90,6 +90,7 @@ const ChairpersonModule: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form State
@@ -297,6 +298,48 @@ const ChairpersonModule: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Check if file is CSV or Excel
+      const isValidType = 
+        file.type === 'text/csv' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        file.type === 'application/vnd.ms-excel' ||
+        file.name.endsWith('.csv') ||
+        file.name.endsWith('.xlsx') ||
+        file.name.endsWith('.xls');
+
+      if (isValidType) {
+        setSelectedFile(file);
+      } else {
+        setNotificationData({
+          type: 'error',
+          title: 'Invalid File Type',
+          message: 'Please upload a CSV or Excel file (.csv, .xlsx, .xls).'
+        });
+        setShowNotification(true);
+      }
     }
   };
 
@@ -804,7 +847,15 @@ const ChairpersonModule: React.FC = () => {
                 </button>
               </div>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors p-12 text-center relative">
+              <div className={`border-2 border-dashed rounded-2xl transition-all p-12 text-center relative ${
+                isDraggingOver 
+                  ? 'border-[#2f54eb] bg-[#f0f4ff]' 
+                  : 'border-gray-300 bg-gray-50/50 hover:bg-gray-50'
+              }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input 
                   type="file" 
                   accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
@@ -826,7 +877,7 @@ const ChairpersonModule: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <p className="text-lg font-semibold text-gray-700 mb-2">Drag and drop your CSV/Excel file here</p>
+                      <p className="text-lg font-semibold text-gray-700 mb-2">Drag and drop your Excel file here</p>
                       <p className="text-sm text-gray-500 mb-6">or</p>
                     </>
                   )}

@@ -137,8 +137,9 @@ const ChairpersonFeasib: React.FC = () => {
     
     const matchesSection = selectedSection === "All Sections" || p.section === selectedSection;
     const matchesAdviser = selectedAdviser === "All Advisers" || p.adviserName === selectedAdviser;
+    const isApproved = p.status === "Active Business";
 
-    return matchesSearch && matchesSection && matchesAdviser;
+    return matchesSearch && matchesSection && matchesAdviser && isApproved;
   });
 
   // KPI Calculations
