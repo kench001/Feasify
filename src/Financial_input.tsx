@@ -47,6 +47,7 @@ const Financial_input: React.FC = () => {
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
@@ -263,6 +264,25 @@ const Financial_input: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const q = query(
+            collection(db, "notifications"),
+            where("userId", "==", u.uid),
+            where("isRead", "==", false),
+          );
+          const snap = await getDocs(q);
+          setUnreadNotificationCount(snap.size);
+        } catch (error) {
+          console.error("Error fetching unread notifications:", error);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
   const handleLogout = async () => {
     try {
       await signOutUser();
@@ -271,6 +291,16 @@ const Financial_input: React.FC = () => {
     } catch (e) {}
     navigate("/");
   };
+
+  const getInitials = (name: string) =>
+    name
+      ? name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      : "U";
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
@@ -359,6 +389,27 @@ const Financial_input: React.FC = () => {
             </div>
           </div>
         </nav>
+        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
+            {getInitials(userName)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate text-white">
+              {userName || "User"}
+            </p>
+            <p className="text-[10px] text-gray-400 truncate">Student</p>
+          </div>
+          <button
+            onClick={() => navigate("/notifications")}
+            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            )}
+          </button>
+        </div>
       </aside>
 
       <main
