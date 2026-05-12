@@ -867,6 +867,22 @@ const Projects: React.FC = () => {
                             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest truncate">
                               {proposal.businessType || "No Category"}
                             </p>
+                            {/* NEW DATE AND TIME DISPLAY */}
+                            <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 font-medium">
+                              <Clock className="w-3 h-3" />
+                              <span>
+                                {proposal.createdAt?.toDate 
+                                  ? proposal.createdAt.toDate().toLocaleString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric', 
+                                      year: 'numeric', 
+                                      hour: 'numeric', 
+                                      minute: '2-digit',
+                                      hour12: true 
+                                    }) 
+                                  : "Draft (Unsubmitted)"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1292,263 +1308,283 @@ const Projects: React.FC = () => {
             </div>
           )}
 
-          {activeView === "active-business" && activeBusiness && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <button
-                  onClick={() => setActiveView("dashboard")}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Back to Proposals List
-                </button>
-                <button
-                  onClick={() => setActiveView("dashboard")}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
-                >
-                  <Clock className="w-4 h-4" /> View Proposals History
-                </button>
-              </div>
-
-              <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
-                <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654]">
-                    {getInitials(activeBusiness.businessName)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
-                      </span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
-                        <User className="w-3 h-3" /> SECTION: {userGroup?.section}
-                      </span>
-                    </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
-                      {activeBusiness.businessName}
-                    </h1>
-                    <p className="text-sm text-gray-300 font-medium">
-                      {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
-                    </p>
-                  </div>
-                </div>
-                {isLeader && (
+          {activeView === "active-business" && (
+            activeBusiness ? (
+              <div>
+                <div className="flex justify-between items-center mb-4">
                   <button
-                    onClick={() => {
-                      setEditBasicData({ ...activeBusiness });
-                      setShowEditBasicModal(true);
-                    }}
-                    className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
+                    onClick={() => setActiveView("dashboard")}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
                   >
-                    <Pencil className="w-4 h-4" /> Edit Basic Info
+                    <ChevronLeft className="w-4 h-4" /> Back to Proposals List
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => navigate("/financial-input")}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all"
+                  >
+                    <FileEdit className="w-4 h-4" /> Proceed to Financial Input
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6 text-[#122244]">
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-                    <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
-                          <FileText className="w-6 h-6 text-blue-500" />
+                <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
+                  <div className="flex items-center gap-6 z-10 w-full md:w-auto">
+                    <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654]">
+                      {getInitials(activeBusiness.businessName)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                          <User className="w-3 h-3" /> SECTION: {userGroup?.section}
+                        </span>
+                      </div>
+                      <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
+                        {activeBusiness.businessName}
+                      </h1>
+                      <p className="text-sm text-gray-300 font-medium">
+                        {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
+                      </p>
+                    </div>
+                  </div>
+                  {isLeader && (
+                    <button
+                      onClick={() => {
+                        setEditBasicData({ ...activeBusiness });
+                        setShowEditBasicModal(true);
+                      }}
+                      className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
+                    >
+                      <Pencil className="w-4 h-4" /> Edit Basic Info
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-6 text-[#122244]">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+                      <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
+                            <FileText className="w-6 h-6 text-blue-500" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-extrabold text-[#122244]">
+                              Complete Project Overview
+                            </h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              Approved Business Charter
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
+                        <div className="flex-1 pr-6">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Total Capital
+                          </p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₱{activeBusiness.totalCapital || "0"}
+                          </p>
+                        </div>
+                        <div className="flex-1 pl-6">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Business Type
+                          </p>
+                          <p className="text-xl font-bold text-[#122244]">
+                            {activeBusiness.businessType || "Uncategorized"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                            Tagline
+                          </p>
+                          <p className="text-gray-800 font-bold text-lg">
+                            {activeBusiness.tagline || "None Provided"}
+                          </p>
                         </div>
                         <div>
-                          <h3 className="text-xl font-extrabold text-[#122244]">
-                            Complete Project Overview
-                          </h3>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            Approved Business Charter
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Mission Statement
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.missionStatement || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Vision Statement
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.visionStatement || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Target Market
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.targetMarket || "None Provided"}
+                          </p>
+                        </div>
+
+                        <div className="h-px bg-gray-100 my-4"></div>
+
+                        <div>
+                          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
+                            Product Description
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.productDescription || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">
+                            Specific Pricing
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.priceRanges || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+                            Location
+                          </p>
+                          <p className="text-gray-800 font-medium">
+                            {activeBusiness.proposedLocation || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">
+                            Promotional Strategy
+                          </p>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {activeBusiness.promotionalStrategy ||
+                              "None Provided"}
                           </p>
                         </div>
                       </div>
                     </div>
-
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
-                      <div className="flex-1 pr-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Total Capital
-                        </p>
-                        <p className="text-2xl font-bold text-green-600">
-                          ₱{activeBusiness.totalCapital || "0"}
-                        </p>
-                      </div>
-                      <div className="flex-1 pl-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Business Type
-                        </p>
-                        <p className="text-xl font-bold text-[#122244]">
-                          {activeBusiness.businessType || "Uncategorized"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                          Tagline
-                        </p>
-                        <p className="text-gray-800 font-bold text-lg">
-                          {activeBusiness.tagline || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Mission Statement
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.missionStatement || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Vision Statement
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.visionStatement || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Target Market
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.targetMarket || "None Provided"}
-                        </p>
-                      </div>
-
-                      <div className="h-px bg-gray-100 my-4"></div>
-
-                      <div>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
-                          Product Description
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.productDescription || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">
-                          Specific Pricing
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.priceRanges || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
-                          Location
-                        </p>
-                        <p className="text-gray-800 font-medium">
-                          {activeBusiness.proposedLocation || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">
-                          Promotional Strategy
-                        </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                          {activeBusiness.promotionalStrategy ||
-                            "None Provided"}
-                        </p>
-                      </div>
-                    </div>
                   </div>
-                </div>
 
-                <div className="lg:col-span-1">
-                  <div className="space-y-6 sticky top-24">
-                    {/* PROJECT ROSTER */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
-                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
-                        Project Roster
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-6">
-                        {(userGroup?.memberIds.length || 0) + 1} Members Total
-                      </p>
-                      
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                              {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
-                            </div>
-                            <div>
-                              <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
-                              <p className="text-[10px] text-blue-600">Faculty</p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-2">
-                          <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                            {getInitials(userGroup?.leaderName || "")}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
-                              <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {groupMembersData.map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 p-2">
-                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                              {getInitials(member.firstName)}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">
-                                {member.firstName} {member.lastName}
-                              </p>
-                              <p className="text-[10px] text-gray-500">{member.studentId}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                          <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                  <div className="lg:col-span-1">
+                    <div className="space-y-6 sticky top-24">
+                      {/* PROJECT ROSTER */}
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
+                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
+                          Project Roster
                         </h3>
-                        {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
-                          <button
-                            onClick={() => setShowAllFeedback(!showAllFeedback)}
-                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
-                          >
-                            {showAllFeedback ? "Show Less" : "View All History"}
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                        {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
-                          <div className="text-center py-6 text-gray-400">
-                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-xs italic">No feedback provided yet.</p>
-                          </div>
-                        ) : (
-                          (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
-                            <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
-                                </div>
+                        <p className="text-xs text-gray-500 mb-6">
+                          {(userGroup?.memberIds.length || 0) + 1} Members Total
+                        </p>
+                        
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
                               </div>
-                              <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              <div>
+                                <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
+                                <p className="text-[10px] text-blue-600">Faculty</p>
+                              </div>
                             </div>
-                          ))
-                        )}
+                            <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
+                          </div>
+
+                          <div className="flex items-center gap-3 p-2">
+                            <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                              {getInitials(userGroup?.leaderName || "")}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
+                                <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {groupMembersData.map((member) => (
+                            <div key={member.id} className="flex items-center gap-3 p-2">
+                              <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                {getInitials(member.firstName)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {member.firstName} {member.lastName}
+                                </p>
+                                <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                          </h3>
+                          {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
+                            <button
+                              onClick={() => setShowAllFeedback(!showAllFeedback)}
+                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                            >
+                              {showAllFeedback ? "Show Less" : "View All History"}
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                          {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
+                            <div className="text-center py-6 text-gray-400">
+                              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-xs italic">No feedback provided yet.</p>
+                            </div>
+                          ) : (
+                            (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
+                              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl border-2 border-dashed border-red-200 py-20 flex flex-col items-center justify-center text-center shadow-sm">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 border border-red-100">
+                  <ShieldAlert className="w-8 h-8 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-[#122244] mb-2">
+                  Proposal Data Missing
+                </h3>
+                <p className="text-gray-500 mb-6 max-w-md text-sm">
+                  The active business proposal linked to this group could not be found. The document may have been deleted from the database.
+                </p>
+                <button
+                  onClick={() => setActiveView("dashboard")}
+                  className="px-6 py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#1a2f55] shadow-md transition-all"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            )
           )}
         </div>
       </main>

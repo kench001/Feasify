@@ -128,7 +128,7 @@ const ChairpersonFeasib: React.FC = () => {
   const uniqueSections = ["All Sections", ...Array.from(new Set(projects.map(p => p.section).filter(Boolean)))];
   const uniqueAdvisers = ["All Advisers", ...Array.from(new Set(projects.map(p => p.adviserName).filter(Boolean)))];
 
-  // Filtering Logic
+// Filtering Logic
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,11 +137,10 @@ const ChairpersonFeasib: React.FC = () => {
     
     const matchesSection = selectedSection === "All Sections" || p.section === selectedSection;
     const matchesAdviser = selectedAdviser === "All Advisers" || p.adviserName === selectedAdviser;
-    const isApproved = p.status === "Active Business";
 
-    return matchesSearch && matchesSection && matchesAdviser && isApproved;
+    // Removed the strict isApproved check so the Chairperson can see all projects
+    return matchesSearch && matchesSection && matchesAdviser;
   });
-
   // KPI Calculations
   const activeBusinessCount = projects.filter(p => p.status === "Active Business").length;
   const positiveFeasibilityCount = projects.filter(p => p.aiStatus === "FEASIBLE" || p.status === "Feasible").length;
