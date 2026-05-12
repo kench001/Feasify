@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Lightbulb,
   DollarSign,
+  Bell,
 } from "lucide-react";
 import {
   LineChart,
@@ -51,6 +52,7 @@ const AI_Analysis: React.FC = () => {
   const location = useLocation();
   const [userName, setUserName] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [projects, setProjects] = useState<any[]>([]);
@@ -110,6 +112,25 @@ const AI_Analysis: React.FC = () => {
     });
     return () => unsub();
   }, [navigate]);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const q = query(
+            collection(db, "notifications"),
+            where("userId", "==", u.uid),
+            where("isRead", "==", false),
+          );
+          const snap = await getDocs(q);
+          setUnreadNotificationCount(snap.size);
+        } catch (error) {
+          console.error("Error fetching unread notifications:", error);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const loadUserGroup = async (uid: string, section: string) => {
     try {
@@ -725,6 +746,16 @@ const AI_Analysis: React.FC = () => {
             </p>
             <p className="text-[10px] text-gray-400 truncate">Student</p>
           </div>
+          <button
+            onClick={() => navigate("/notifications")}
+            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            )}
+          </button>
         </div>
       </aside>
 
