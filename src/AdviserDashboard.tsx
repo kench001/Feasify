@@ -1003,7 +1003,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
             {/* Content: PROPOSALS TAB */}
             {activeDetailTab === 'Proposals' && (
               <div className="space-y-4">
-                {groupProposals.length === 0 ? (
+                {groupProposals.filter(p => p.status !== 'Draft').length === 0 ? (
                   <div className="py-20 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100"><FileText className="w-8 h-8 text-gray-300" /></div>
                     <h3 className="text-lg font-bold text-[#122244]">No proposals yet</h3>
@@ -1026,7 +1026,6 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                       const isRejected = proposal.status === 'Rejected';
                       const isRevision = proposal.status === 'Revision';
                       const isPending = proposal.status === 'Pending';
-                      const isDraft = proposal.status === 'Draft';
 
                       return (
                         <div key={proposal.id} className={`bg-white rounded-xl border-2 p-5 flex justify-between items-center ${isApproved ? 'border-green-400' : isRejected ? 'border-red-200 opacity-80' : isRevision ? 'border-orange-300' : 'border-[#d4af37]'}`}>
@@ -1037,7 +1036,6 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                               {isApproved && <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Approved</span>}
                               {isRejected && <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><X className="w-3 h-3"/> Rejected</span>}
                               {isRevision && <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><Edit2 className="w-3 h-3"/> Needs Revision</span>}
-                              {isDraft && <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Draft</span>}
                             </div>
                             <p className="text-sm text-gray-500 mb-1">{proposal.businessName} • {proposal.businessType}</p>
                             <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3"/> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>

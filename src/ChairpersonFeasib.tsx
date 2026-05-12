@@ -137,9 +137,12 @@ const ChairpersonFeasib: React.FC = () => {
     
     const matchesSection = selectedSection === "All Sections" || p.section === selectedSection;
     const matchesAdviser = selectedAdviser === "All Advisers" || p.adviserName === selectedAdviser;
+    
+    // Check if the status is Active Business
+    const isActiveBusiness = p.status === "Active Business";
 
-    // Removed the strict isApproved check so the Chairperson can see all projects
-    return matchesSearch && matchesSection && matchesAdviser;
+    // Return true only if it matches all filters AND is an Active Business
+    return matchesSearch && matchesSection && matchesAdviser && isActiveBusiness;
   });
   // KPI Calculations
   const activeBusinessCount = projects.filter(p => p.status === "Active Business").length;

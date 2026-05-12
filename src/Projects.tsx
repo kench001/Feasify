@@ -128,6 +128,27 @@ const initialProposalState: ProposalData = {
   otherDetails: "",
   status: "Draft",
 };
+const formatDateTime = (timestamp: any) => {
+  if (!timestamp) return "";
+  try {
+    // Check if it's a Firebase Timestamp with a toDate method, otherwise assume it's a standard Date/string
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (isNaN(date.getTime())) return "";
+    
+    // en-GB locale formats to DD/MM/YYYY, HH:mm:ss natively
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return "";
+  }
+};
 
 const Projects: React.FC = () => {
   const navigate = useNavigate();
@@ -941,6 +962,15 @@ const Projects: React.FC = () => {
                             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest truncate">
                               {proposal.businessType || "No Category"}
                             </p>
+                            {/* ADDED: Timestamp Display */}
+                            {proposal.createdAt && (
+                              <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>
+                                  Submitted: {formatDateTime(proposal.createdAt)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1393,10 +1423,10 @@ const Projects: React.FC = () => {
                   <ChevronLeft className="w-4 h-4" /> Back to Proposals List
                 </button>
                 <button
-                  onClick={() => setActiveView("dashboard")}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
+                  onClick={() => navigate("/financial-input")}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all"
                 >
-                  <Clock className="w-4 h-4" /> View Proposals History
+                  <FileEdit className="w-4 h-4" /> Proceed to Financial Input
                 </button>
               </div>
 
