@@ -41,6 +41,7 @@ import {
   FileText,
   MapPin,
   DollarSign,
+  AlertCircle,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 
@@ -167,6 +168,10 @@ const Projects: React.FC = () => {
   const [editBasicData, setEditBasicData] =
     useState<ProposalData>(initialProposalState);
 
+  const [showToast, setShowToast] = useState(false);
+  const [toastTitle, setToastTitle] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -224,8 +229,9 @@ const Projects: React.FC = () => {
         setIsMember(member);
         if (member && g.joinedMembers && g.joinedMembers.includes(uid))
           setHasJoined(true);
+        
         await fetchGroupDetails(g);
-        await fetchProposals(g.id);
+        const fetchedProposals = await fetchProposals(g.id);
 
         if (leader && !g.isSetup) {
           setActiveView("leader-setup");
@@ -234,7 +240,7 @@ const Projects: React.FC = () => {
           (!g.joinedMembers || !g.joinedMembers.includes(uid))
         ) {
           setActiveView("member-join");
-        } else if (g.activeProposalId) {
+        } else if (g.activeProposalId && fetchedProposals.some(p => p.id === g.activeProposalId)) {
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
@@ -282,7 +288,7 @@ const Projects: React.FC = () => {
     }
   };
 
-  const fetchProposals = async (groupId: string) => {
+  const fetchProposals = async (groupId: string): Promise<ProposalData[]> => {
     try {
       const q = query(
         collection(db, "proposals"),
@@ -292,8 +298,10 @@ const Projects: React.FC = () => {
       const fetchedProposals = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ProposalData);
       setProposals(fetchedProposals);
       sessionStorage.setItem('projectsProposalCount', fetchedProposals.length.toString());
+      return fetchedProposals;
     } catch (err) {
       console.error(err);
+      return [];
     }
   };
 
@@ -348,6 +356,37 @@ const Projects: React.FC = () => {
 
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) return;
+
+    // Validation for Pending status (Submit to Adviser)
+    if (status === "Pending") {
+      const requiredFields: (keyof ProposalData)[] = [
+        "businessType",
+        "businessName",
+        "totalCapital",
+        "tagline",
+        "targetMarket",
+        "missionStatement",
+        "visionStatement",
+        "productDescription",
+        "priceRanges",
+        "proposedLocation",
+        "promotionalStrategy",
+      ];
+
+      const missingFields = requiredFields.filter((field) => {
+        const value = currentProposal[field];
+        return !value || (typeof value === "string" && value.trim() === "");
+      });
+
+      if (missingFields.length > 0) {
+        setToastTitle("Incomplete Proposal");
+        setToastMessage("Please fill in all required fields before submitting to the adviser.");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       const proposalData = {
@@ -379,7 +418,10 @@ const Projects: React.FC = () => {
       setCurrentProposal(initialProposalState);
     } catch (error) {
       console.error(error);
-      alert("Failed to save proposal.");
+      setToastTitle("Error");
+      setToastMessage("Failed to save proposal.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
     } finally {
       setIsSaving(false);
     }
@@ -426,6 +468,35 @@ const Projects: React.FC = () => {
 
   const handleUpdateBasicInfo = async () => {
     if (!userGroup || !userGroup.activeProposalId) return;
+
+    // Validation
+    const requiredFields: (keyof ProposalData)[] = [
+      "businessType",
+      "businessName",
+      "totalCapital",
+      "tagline",
+      "targetMarket",
+      "missionStatement",
+      "visionStatement",
+      "productDescription",
+      "priceRanges",
+      "proposedLocation",
+      "promotionalStrategy",
+    ];
+
+    const missingFields = requiredFields.filter((field) => {
+      const value = editBasicData[field];
+      return !value || (typeof value === "string" && value.trim() === "");
+    });
+
+    if (missingFields.length > 0) {
+      setToastTitle("Required Fields");
+      setToastMessage("Please fill in all required fields.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateDoc(doc(db, "groups", userGroup.id), {
@@ -462,7 +533,10 @@ const Projects: React.FC = () => {
       setShowEditBasicModal(false);
     } catch (error) {
       console.error("Error updating info:", error);
-      alert("Failed to update information.");
+      setToastTitle("Error");
+      setToastMessage("Failed to update information.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
     } finally {
       setIsSaving(false);
     }
@@ -1032,7 +1106,7 @@ const Projects: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                          Business Type
+                          Business Type <span className="text-red-500">*</span>
                         </label>
                         <select
                           disabled={!isEditingMode}
@@ -1053,7 +1127,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                          Business Name
+                          Business Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           disabled={!isEditingMode}
@@ -1071,7 +1145,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                          Total Capital (₱)
+                          Total Capital (₱) <span className="text-red-500">*</span>
                         </label>
                         <input
                           disabled={!isEditingMode}
@@ -1089,7 +1163,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                          Tagline
+                          Tagline <span className="text-red-500">*</span>
                         </label>
                         <input
                           disabled={!isEditingMode}
@@ -1107,7 +1181,7 @@ const Projects: React.FC = () => {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                        Target Market
+                        Target Market <span className="text-red-500">*</span>
                       </label>
                       <ExpandingTextarea
                         disabled={!isEditingMode}
@@ -1133,7 +1207,7 @@ const Projects: React.FC = () => {
                     <div className="space-y-6">
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Mission Statement
+                          Mission Statement <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1150,7 +1224,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Vision Statement
+                          Vision Statement <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1178,7 +1252,7 @@ const Projects: React.FC = () => {
                     <div className="space-y-6">
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Product Description
+                          Product Description <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1196,7 +1270,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Price Ranges
+                          Price Ranges <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1225,7 +1299,7 @@ const Projects: React.FC = () => {
                     <div className="space-y-6">
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Proposed Location
+                          Proposed Location <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1243,7 +1317,7 @@ const Projects: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                          Promotional Strategy
+                          Promotional Strategy <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
                           disabled={!isEditingMode}
@@ -1292,7 +1366,24 @@ const Projects: React.FC = () => {
             </div>
           )}
 
-          {activeView === "active-business" && activeBusiness && (
+          {activeView === "active-business" && (
+            !activeBusiness ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-[#122244]">Project Not Found</h2>
+                <p className="text-gray-500 mt-2 mb-6 max-w-md">
+                  The project you were working on seems to have been deleted or moved.
+                </p>
+                <button
+                  onClick={() => setActiveView("dashboard")}
+                  className="px-6 py-2.5 bg-[#122244] text-white font-bold rounded-lg hover:bg-[#1a2f55] shadow-md transition-all"
+                >
+                  Return to Proposals
+                </button>
+              </div>
+            ) : (
             <div>
               <div className="flex justify-between items-center mb-4">
                 <button
@@ -1547,8 +1638,9 @@ const Projects: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
-            </div>
+            )
           )}
         </div>
       </main>
@@ -1765,7 +1857,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Business Name
+                    Business Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1781,7 +1873,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Business Type
+                    Business Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={editBasicData.businessType}
@@ -1800,7 +1892,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Total Capital
+                    Total Capital <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1816,7 +1908,7 @@ const Projects: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Tagline
+                    Tagline <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1838,7 +1930,7 @@ const Projects: React.FC = () => {
                 </h4>
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Mission Statement"
+                  placeholder="Mission Statement *"
                   value={editBasicData.missionStatement}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1850,7 +1942,7 @@ const Projects: React.FC = () => {
                 />
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Vision Statement"
+                  placeholder="Vision Statement *"
                   value={editBasicData.visionStatement}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1868,7 +1960,7 @@ const Projects: React.FC = () => {
                 </h4>
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Target Market"
+                  placeholder="Target Market *"
                   value={editBasicData.targetMarket}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1880,7 +1972,7 @@ const Projects: React.FC = () => {
                 />
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Product Description"
+                  placeholder="Product Description *"
                   value={editBasicData.productDescription}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1892,7 +1984,7 @@ const Projects: React.FC = () => {
                 />
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Price Ranges"
+                  placeholder="Price Ranges *"
                   value={editBasicData.priceRanges}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1910,7 +2002,7 @@ const Projects: React.FC = () => {
                 </h4>
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Proposed Location"
+                  placeholder="Proposed Location *"
                   value={editBasicData.proposedLocation}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1922,7 +2014,7 @@ const Projects: React.FC = () => {
                 />
                 <ExpandingTextarea
                   rows={2}
-                  placeholder="Promotional Strategy"
+                  placeholder="Promotional Strategy *"
                   value={editBasicData.promotionalStrategy}
                   onChange={(e) =>
                     setEditBasicData({
@@ -1992,6 +2084,25 @@ const Projects: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {showToast && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
+          <AlertCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
+          <div className="flex-1">
+            <h4 className="font-bold text-gray-900 text-base">
+              {toastTitle}
+            </h4>
+            <p className="text-gray-600 text-sm mt-1">
+              {toastMessage}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowToast(false)}
+            className="text-gray-400 hover:text-gray-600 self-start mt-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
     </div>
