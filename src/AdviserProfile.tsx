@@ -50,13 +50,16 @@ interface Teammate {
   initials: string;
 }
 
-const Profile: React.FC = () => {
+const AdviserProfile: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [adviserSections, setAdviserSections] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState("");
+  const [sectionSettingsMap, setSectionSettingsMap] = useState<Record<string, {minMembers: number, maxMembers: number}>>({});
 
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -124,31 +127,46 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        try {
-          const userSnap = await getDoc(doc(db, "users", u.uid));
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            const fullName = `${data.firstName} ${data.lastName}`;
-            setUserName(fullName);
-
-            setProfileData({
-              firstName: data.firstName || "",
-              lastName: data.lastName || "",
-              username: data.username || data.firstName?.toLowerCase(),
-              email: u.email || data.email || "",
-              groupName: "Syncing...",
-              section: data.section || "Not Assigned",
-              roleInGroup: "",
-            });
-
-            if (data.section) fetchTeamDetails(u.uid, data.section);
+      if (!u) { navigate("/"); return; }
+      try {
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          if (data.role !== "Adviser") {
+            navigate("/dashboard"); return;
           }
-        } catch (e) {
-          console.error(e);
+          
+          const fullName = `${data.firstName} ${data.lastName}`;
+          setUserName(fullName);
+
+          setProfileData({
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            username: data.username || data.firstName?.toLowerCase(),
+            email: u.email || data.email || "",
+            groupName: "Syncing...",
+            section: data.section || "Not Assigned",
+            roleInGroup: "",
+          });
+
+          // Load adviser sections
+          const rawSection = data.section || "Unassigned";
+          const parsedSections = rawSection.split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+          
+          setAdviserSections(parsedSections);
+          if (parsedSections.length > 0) {
+            setActiveSection(parsedSections[0]);
+          }
+
+          if (data.sectionSettings) {
+            setSectionSettingsMap(data.sectionSettings);
+          }
         }
-      } else {
-        navigate("/");
+      } catch (e) {
+        console.error(e);
       }
     });
     return () => unsub();
@@ -266,7 +284,7 @@ const Profile: React.FC = () => {
     await signOutUser();
     localStorage.clear();
     navigate("/");
-  }; // <--- FIXED: Added missing closing brace here
+  };
 
   const handleSaveGroup = async () => {
     setIsSavingGroup(true);
@@ -297,91 +315,62 @@ const Profile: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
-      {/* SIDEBAR */}
-      <aside
-        className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="p-6 border-b border-white/10">
-          <img
-            src="/dashboard logo.png"
-            alt="FeasiFy"
-            className="w-70 h-20 object-contain"
-          />
+      {/* ADVISER SIDEBAR */}
+      <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+         <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-        <nav className="flex-1 p-4 space-y-8 mt-4 text-gray-300">
+        <nav className="flex-1 p-4 space-y-8 mt-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-4 px-2 text-gray-400">
-              Main Menu
-            </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <LayoutDashboard className="w-4 h-4" /> Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/projects")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <Folder className="w-4 h-4" /> Business Proposal
-              </button>
-              <button
-                onClick={() => navigate("/financial-input")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <FileEdit className="w-4 h-4" /> Financial Input
-              </button>
-              <button
-                onClick={() => navigate("/ai-analysis")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <Zap className="w-4 h-4" /> AI Feasibility Analysis
-              </button>
-              <button
-                onClick={() => navigate("/reports")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <BarChart3 className="w-4 h-4" /> Reports
-              </button>
-              <button
-                onClick={() => navigate("/messages")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <MessageCircle className="w-4 h-4" /> Message
-              </button>
+              <button onClick={() => navigate("/adviser/dashboard")}className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold  text-gray-400 transition-all ">My Sections</button>
+              <div className="pl-4 pr-2 py-2 space-y-2">
+                {adviserSections.map((sectionName) => (
+                  <button
+                    key={sectionName}
+                    onClick={() => {
+                      navigate(`/adviser/dashboard?section=${encodeURIComponent(sectionName)}`);
+                    }}
+                    className={`w-full text-left text-sm transition-colors ${
+                      activeSection === sectionName
+                        ? "text-gray-400 hover:text-white"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {sectionName}
+                  </button>
+                ))}
+              </div>
+             
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-4 px-2 text-gray-400">
-              Account
-            </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white shadow-md">
-                <User className="w-4 h-4" /> Profile
-              </button>
-              <button
-                onClick={() => navigate("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <Settings className="w-4 h-4" /> Settings
-              </button>
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-white/5"
-              >
-                <ShieldAlert className="w-4 h-4" /> Logout
-              </button>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white bg-[#c9a654] shadow-md"><User className="w-4 h-4" /> Profile</button>
+              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
             </div>
           </div>
         </nav>
-        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3 text-white">
-          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-            {getInitials(userName)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{userName}</p>
-            <p className="text-[10px] text-gray-400">Student</p>
+        <div className="p-4 border-t border-white/10 bg-black/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">{getInitials(userName)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-white">{userName}</p>
+              <p className="text-[10px] text-gray-400 truncate">Feasibility Adviser</p>
+            </div>
+            <button
+              onClick={() => navigate("/adviser/notifications")}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
         </div>
       </aside>
@@ -413,12 +402,12 @@ const Profile: React.FC = () => {
               <div className="w-full space-y-2 pt-4 mt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center text-xs font-bold text-gray-500">
                   <span>SECTION</span>
-                  <span className="text-[#122244]">{profileData.section}</span>
+                  <span className="text-[#122244]">{activeSection || profileData.section}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold text-gray-500">
                   <span>ROLE</span>
                   <span className="text-[#c9a654]">
-                    {profileData.roleInGroup || "Student"}
+                    Adviser
                   </span>
                 </div>
               </div>
@@ -456,38 +445,11 @@ const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* TEAM COLLABORATORS */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mt-6">
-            <h2 className="text-lg font-bold text-[#122244] mb-6 flex items-center gap-2">
-              👥 Team Collaborators
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {teamCollaborators.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200 hover:bg-white transition-all"
-                >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${m.role === "Leader" ? "bg-purple-600" : "bg-[#122244]"}`}
-                  >
-                    {m.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-[#122244] truncate">
-                      {m.name}
-                    </p>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
-                      {m.role}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          
         </div>
       </main>
 
-      {/* ALL MODALS GO HERE (PROCEED AS BEFORE) */}
+      {/* ALL MODALS GO HERE */}
       {/* FORCE PASSWORD CHANGE MODAL */}
       {showForcePasswordModal && (
         <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
@@ -584,10 +546,7 @@ const Profile: React.FC = () => {
             <button
               onClick={() => {
                 setShowForcePasswordSuccess(false);
-                // Navigate to dashboard and trigger the welcome toast
-                navigate("/dashboard", { 
-                  state: { showWelcome: true, firstName: profileData.firstName } 
-                });
+                navigate("/adviser/dashboard");
               }}
               className="w-full bg-[#122244] hover:bg-black text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
             >
@@ -651,7 +610,7 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* LOGOUT CONFIRMATION (Make sure to keep this if it was also commented out) */}
+      {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center">
             <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
@@ -688,5 +647,4 @@ const Profile: React.FC = () => {
   );
 };
 
-export default Profile;
-
+export default AdviserProfile;
