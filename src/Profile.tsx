@@ -55,7 +55,7 @@ const Profile: React.FC = () => {
   const location = useLocation();
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [profileData, setProfileData] = useState({
@@ -80,6 +80,7 @@ const Profile: React.FC = () => {
   const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
   const [showForcePasswordSuccess, setShowForcePasswordSuccess] =
     useState(false);
+  const [isFirstTimePasswordChange, setIsFirstTimePasswordChange] = useState(false);
 
   // Toggle Eye Icon States
   const [showForceNewPwd, setShowForceNewPwd] = useState(false);
@@ -119,6 +120,7 @@ const Profile: React.FC = () => {
     const state = location.state as any;
     if (state && state.forcePasswordChange) {
       setShowForcePasswordModal(true);
+      setIsFirstTimePasswordChange(true);
     }
   }, [location]);
 
@@ -297,9 +299,16 @@ const Profile: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       {/* SIDEBAR */}
       <aside
-        className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/10">
           <img
@@ -383,6 +392,16 @@ const Profile: React.FC = () => {
             <p className="text-sm font-semibold truncate">{userName}</p>
             <p className="text-[10px] text-gray-400">Student</p>
           </div>
+          <button
+            onClick={() => navigate("/notifications")}
+            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            )}
+          </button>
         </div>
       </aside>
 
@@ -579,19 +598,29 @@ const Profile: React.FC = () => {
             </div>
             <h3 className="text-2xl font-black text-[#122244] mb-2">Password Updated!</h3>
             <p className="text-sm text-gray-500 mb-8 font-medium">
-              Your password has been successfully secured.
+              {isFirstTimePasswordChange 
+                ? "Your password has been successfully set. Please log in again with your new password."
+                : "Your password has been successfully secured."
+              }
             </p>
             <button
               onClick={() => {
                 setShowForcePasswordSuccess(false);
-                // Navigate to dashboard and trigger the welcome toast
-                navigate("/dashboard", { 
-                  state: { showWelcome: true, firstName: profileData.firstName } 
-                });
+                if (isFirstTimePasswordChange) {
+                  signOutUser().catch(console.error);
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  setIsFirstTimePasswordChange(false);
+                  navigate("/");
+                } else {
+                  navigate("/dashboard", { 
+                    state: { showWelcome: true, firstName: profileData.firstName } 
+                  });
+                }
               }}
               className="w-full bg-[#122244] hover:bg-black text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
             >
-              Continue to Dashboard
+              {isFirstTimePasswordChange ? "Re-login" : "Continue to Dashboard"}
             </button>
           </div>
         </div>

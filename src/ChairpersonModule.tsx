@@ -24,7 +24,8 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   AlertCircle,
-  Bell
+  Bell,
+  XCircle
 } from "lucide-react";
 
 interface UserData {
@@ -41,10 +42,19 @@ interface UserData {
   lastLogin?: any;
 }
 
+// --- NEW: Interface for detailed import tracking ---
+interface ImportDetail {
+  row: number;
+  name: string;
+  idNumber: string;
+  status: 'success' | 'failed';
+  message: string;
+}
+
 const ChairpersonModule: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("Chairperson");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // DB State
@@ -62,6 +72,8 @@ const ChairpersonModule: React.FC = () => {
   
   const [showImportResult, setShowImportResult] = useState(false);
   const [importSummary, setImportSummary] = useState({ success: 0, failed: 0 });
+  // --- NEW: State to hold detailed row-by-row results ---
+  const [importDetails, setImportDetails] = useState<ImportDetail[]>([]);
   
   // Notification Modal State
   const [showNotification, setShowNotification] = useState(false);
@@ -75,11 +87,12 @@ const ChairpersonModule: React.FC = () => {
     message: ''
   });
 
-  // --- NEW: IMPORT STATE ---
+  // IMPORT STATE
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState("");
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form State
@@ -170,6 +183,22 @@ const ChairpersonModule: React.FC = () => {
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const cleanId = userForm.plvId.trim();
+    const isDuplicate = usersList.some(
+      (u) => u.studentId?.toLowerCase() === cleanId.toLowerCase() && u.id !== editingUserId
+    );
+
+    if (isDuplicate) {
+      setNotificationData({
+        type: 'error',
+        title: 'Duplicate ID',
+        message: `The ID Number ${cleanId} is already registered in the system.`
+      });
+      setShowNotification(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const userData = {
@@ -177,7 +206,7 @@ const ChairpersonModule: React.FC = () => {
         lastName: userForm.lastName,
         email: userForm.email,
         role: userForm.role,
-        studentId: userForm.plvId,
+        studentId: cleanId,
         section: userForm.section,
         password: userForm.password,
         isFirstLogin: true 
@@ -209,7 +238,7 @@ const ChairpersonModule: React.FC = () => {
               to_email: userForm.email,
               to_name: userForm.firstName,
               password: userForm.password,
-              role: userForm.role
+              role: userForm.role === 'Adviser' ? 'Faculty' : userForm.role
             },
             "Iw4MKLYpB4TPgpXLn"
           );
@@ -261,16 +290,58 @@ const ChairpersonModule: React.FC = () => {
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Student Number", "First Name", "Last Name", "Email", "Section"]
+      ["ID Number", "First Name", "Last Name", "Email", "Section"]
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "Student_Accounts_Template.xlsx");
+    XLSX.writeFile(wb, "Accounts_Template.xlsx");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Check if file is CSV or Excel
+      const isValidType = 
+        file.type === 'text/csv' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        file.type === 'application/vnd.ms-excel' ||
+        file.name.endsWith('.csv') ||
+        file.name.endsWith('.xlsx') ||
+        file.name.endsWith('.xls');
+
+      if (isValidType) {
+        setSelectedFile(file);
+      } else {
+        setNotificationData({
+          type: 'error',
+          title: 'Invalid File Type',
+          message: 'Please upload a CSV or Excel file (.csv, .xlsx, .xls).'
+        });
+        setShowNotification(true);
+      }
     }
   };
 
@@ -311,18 +382,51 @@ const ChairpersonModule: React.FC = () => {
 
           let successCount = 0;
           let errorCount = 0;
+          const detailsLog: ImportDetail[] = []; // Track row-by-row results
+
+          const currentSessionIds = new Set(
+            usersList.map(u => u.studentId?.toLowerCase()).filter(id => id)
+          );
 
           for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i];
-            setImportProgress(`Creating account ${i + 1} of ${jsonData.length}...`);
+            const rowNumber = i + 2; // Excel rows start at 1, header is 1, data starts at 2
+            setImportProgress(`Processing account ${i + 1} of ${jsonData.length}...`);
 
-            const idNumber = (row["idnumber"] || row["studentnumber"] || row["studentnum"])?.toString().trim() || "";
+            const idNumber = (row["facultyid"] || row["facultyidnumber"] || row["idnumber"] || row["studentnumber"] || row["studentnum"])?.toString().trim() || "";
             const firstName = (row["firstname"])?.toString().trim() || "";
             const lastName = (row["lastname"])?.toString().trim() || "";
             const email = (row["email"] || row["emailaddress"])?.toString().trim() || "";
             const section = (row["section"] || row["block"])?.toString().trim() || "";
+            const fullName = `${firstName} ${lastName}`.trim() || 'Unknown User';
 
-            if (!idNumber && !email) continue;
+            // Check if entirely empty row
+            if (!idNumber && !email && !firstName && !lastName) continue;
+
+            // Check missing critical data
+            if (!idNumber || !email) {
+              detailsLog.push({ row: rowNumber, name: fullName, idNumber: idNumber || 'N/A', status: 'failed', message: 'Missing ID Number or Email' });
+              errorCount++;
+              continue;
+            }
+
+            // Check Duplicate ID
+            if (currentSessionIds.has(idNumber.toLowerCase())) {
+              detailsLog.push({ row: rowNumber, name: fullName, idNumber, status: 'failed', message: 'Duplicate ID Number found' });
+              errorCount++;
+              continue; 
+            }
+            currentSessionIds.add(idNumber.toLowerCase()); 
+
+            let assignedRole = "Student";
+            if (row["facultyid"] || row["facultyidnumber"]) {
+              assignedRole = "Adviser";
+            } else {
+              const facultyIdRegex = /^F\d{2}-\d{4}$/i;
+              if (facultyIdRegex.test(idNumber)) {
+                assignedRole = "Adviser";
+              }
+            }
 
             const cleanName = lastName.replace(/\s+/g, '').toUpperCase();
             const suffix = idNumber.length >= 4 ? idNumber.slice(-4) : "0000";
@@ -332,7 +436,7 @@ const ChairpersonModule: React.FC = () => {
               firstName,
               lastName,
               email,
-              role: "Student", 
+              role: assignedRole,
               studentId: idNumber,
               section,
               password: generatedPassword,
@@ -346,6 +450,8 @@ const ChairpersonModule: React.FC = () => {
                 createdAt: serverTimestamp()
               });
               setUsersList(prev => [...prev, { id: newAuthUid, ...userData }]);
+              
+              detailsLog.push({ row: rowNumber, name: fullName, idNumber, status: 'success', message: 'Account created successfully' });
               successCount++;
 
               try {
@@ -356,23 +462,27 @@ const ChairpersonModule: React.FC = () => {
                     to_email: email,
                     to_name: firstName,
                     password: generatedPassword,
-                    role: "Student"
+                    role: assignedRole === 'Adviser' ? 'Faculty' : 'Student'
                   },
                   "Iw4MKLYpB4TPgpXLn"
                 );
               } catch (emailErr) {
-                console.error(`Failed to send welcome email to ${email}:`, emailErr);
-                // We don't increment errorCount here because the account WAS created, 
-                // just the email failed to send.
+                console.error(`Failed to send email to ${email}:`, emailErr);
               }
               
             } catch (err: any) {
               console.error(`Failed to import user ${email}:`, err);
+              let errorMessage = 'Failed to create account';
+              if (err.code === 'auth/email-already-in-use') {
+                errorMessage = 'Email address is already registered';
+              }
+              detailsLog.push({ row: rowNumber, name: fullName, idNumber, status: 'failed', message: errorMessage });
               errorCount++;
             }
           }
 
           setImportSummary({ success: successCount, failed: errorCount });
+          setImportDetails(detailsLog); // Store the detailed log for the modal
           setImportProgress("");
           setIsImporting(false);
           setSelectedFile(null);
@@ -433,7 +543,6 @@ const ChairpersonModule: React.FC = () => {
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
-  // --- DYNAMIC METRICS CALCULATION ---
   const totalStudents = usersList.filter(u => u.role === "Student" || !u.role).length;
   const totalAdvisers = usersList.filter(u => u.role === "Adviser").length;
 
@@ -447,7 +556,6 @@ const ChairpersonModule: React.FC = () => {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Helper Function for Active Status
   const isUserActive = (user: UserData) => {
     const dateToUse = user.lastLogin || user.createdAt;
     if (!dateToUse) return false; 
@@ -487,8 +595,17 @@ const ChairpersonModule: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/30 overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       {/* ADMIN SIDEBAR */}
-      <aside className={`hidden lg:flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
@@ -556,7 +673,7 @@ const ChairpersonModule: React.FC = () => {
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#3d2c23]">User Account Management</h1>
-            <p className="text-sm text-gray-500 mt-2 italic">Manage system access by adding, editing, or deleting accounts for students and faculty advisers.</p>
+            <p className="text-sm text-gray-500 mt-2 italic">Manage system access by adding, editing, or deleting accounts for students and faculty.</p>
           </div>
 
           {/* Stats Cards */}
@@ -575,7 +692,7 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-3xl font-bold text-[#3d2c23]">{totalStudents}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-green-500">
-              <p className="text-sm font-semibold text-gray-500 mb-2">Total Advisers</p>
+              <p className="text-sm font-semibold text-gray-500 mb-2">Total Faculty</p>
               <p className="text-3xl font-bold text-[#3d2c23]">{totalAdvisers}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-purple-500">
@@ -596,7 +713,7 @@ const ChairpersonModule: React.FC = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text" 
-                placeholder={`Search ${activeTab.toLowerCase()}...`}
+                placeholder={`Search ${activeTab === 'Advisers' ? 'faculty' : 'students'}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
@@ -642,7 +759,7 @@ const ChairpersonModule: React.FC = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
                 }`}
               >
-                Faculty Advisers ({totalAdvisers})
+                Faculty ({totalAdvisers})
               </button>
             </div>
 
@@ -678,7 +795,7 @@ const ChairpersonModule: React.FC = () => {
                       <td colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center justify-center text-gray-400">
                           <Users className="w-8 h-8 mb-2 opacity-20" />
-                          <p>No {activeTab.toLowerCase()} found.</p>
+                          <p>No {activeTab === 'Advisers' ? 'faculty' : 'students'} found.</p>
                         </div>
                       </td>
                     </tr>
@@ -689,7 +806,7 @@ const ChairpersonModule: React.FC = () => {
                         <td className="px-6 py-4 font-bold text-[#122244]">{`${user.firstName || ''} ${user.lastName || ''}`}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${user.role === 'Adviser' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
-                            {user.role || 'Student'}
+                            {user.role === 'Adviser' ? 'Faculty' : user.role || 'Student'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-gray-600">{user.section || "—"}</td>
@@ -713,7 +830,7 @@ const ChairpersonModule: React.FC = () => {
         </div>
       </main>
 
-      {/* --- NEW: IMPORT ACCOUNTS MODAL --- */}
+      {/* IMPORT ACCOUNTS MODAL */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
@@ -742,7 +859,15 @@ const ChairpersonModule: React.FC = () => {
                 </button>
               </div>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors p-12 text-center relative">
+              <div className={`border-2 border-dashed rounded-2xl transition-all p-12 text-center relative ${
+                isDraggingOver 
+                  ? 'border-[#2f54eb] bg-[#f0f4ff]' 
+                  : 'border-gray-300 bg-gray-50/50 hover:bg-gray-50'
+              }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input 
                   type="file" 
                   accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
@@ -764,7 +889,7 @@ const ChairpersonModule: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <p className="text-lg font-semibold text-gray-700 mb-2">Drag and drop your CSV/Excel file here</p>
+                      <p className="text-lg font-semibold text-gray-700 mb-2">Drag and drop your Excel file here</p>
                       <p className="text-sm text-gray-500 mb-6">or</p>
                     </>
                   )}
@@ -813,7 +938,7 @@ const ChairpersonModule: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-[#122244]">
-                {editingUserId ? "Edit Account" : `Add New ${userForm.role}`}
+                {editingUserId ? "Edit Account" : `Add New ${userForm.role === 'Adviser' ? 'Faculty' : userForm.role}`}
               </h2>
               <button onClick={() => setIsAddUserModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100">
                 <X className="w-5 h-5" />
@@ -829,7 +954,7 @@ const ChairpersonModule: React.FC = () => {
                   className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none transition-shadow"
                 >
                   <option value="Student">Student</option>
-                  <option value="Adviser">Faculty Adviser</option>
+                  <option value="Adviser">Faculty</option>
                 </select>
               </div>
 
@@ -876,7 +1001,6 @@ const ChairpersonModule: React.FC = () => {
                 />
               </div>
 
-              {/* ONLY show the password field when creating a NEW user */}
               {!editingUserId && (
                 <div>
                   <label className="text-sm font-bold text-gray-700 block mb-1">System Password</label>
@@ -918,35 +1042,62 @@ const ChairpersonModule: React.FC = () => {
         </div>
       )}
       
-      {/* CUSTOM IMPORT RESULT MODAL */}
+      {/* UPGRADED IMPORT RESULT MODAL WITH DETAILED LOGS */}
       {showImportResult && (
         <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex flex-col items-center text-center">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${importSummary.failed === 0 ? 'bg-green-100' : 'bg-orange-100'}`}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-300">
+            
+            <div className="p-6 border-b border-gray-100 flex flex-col items-center">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${importSummary.failed === 0 ? 'bg-green-100' : 'bg-orange-100'}`}>
                 {importSummary.failed === 0 ? (
-                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
                 ) : (
-                  <AlertTriangle className="w-10 h-10 text-orange-500" />
+                  <AlertTriangle className="w-8 h-8 text-orange-500" />
                 )}
               </div>
+              <h3 className="text-xl font-bold text-[#122244] mb-1">Import Complete</h3>
+              <p className="text-sm text-gray-500">The account list has been processed. Here is the summary:</p>
+            </div>
 
-              <h3 className="text-xl font-bold text-[#122244] mb-2">Import Complete</h3>
-              <p className="text-sm text-gray-500 mb-6 px-4">
-                The student list has been processed. Here is the summary:
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                <div className="bg-green-50/50 border border-green-100 rounded-xl p-4">
+            <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
+              <div className="grid grid-cols-2 gap-4 w-full mb-6">
+                <div className="bg-white border border-green-200 rounded-xl p-4 shadow-sm text-center">
                   <p className="text-2xl font-bold text-green-600">{importSummary.success}</p>
-                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest">Successful</p>
+                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest mt-1">Successful</p>
                 </div>
-                <div className="bg-red-50/50 border border-red-100 rounded-xl p-4">
+                <div className="bg-white border border-red-200 rounded-xl p-4 shadow-sm text-center">
                   <p className="text-2xl font-bold text-red-600">{importSummary.failed}</p>
-                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">Failed/Skipped</p>
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest mt-1">Failed / Skipped</p>
                 </div>
               </div>
 
+              <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 px-1">Record Details</h4>
+              <div className="space-y-2">
+                {importDetails.map((detail, index) => (
+                  <div key={index} className="bg-white border border-gray-100 rounded-lg p-4 flex items-start gap-4 shadow-sm">
+                    <div className="mt-0.5">
+                      {detail.status === 'success' ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm font-bold text-gray-900 truncate">{detail.name}</p>
+                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Row {detail.row}</span>
+                      </div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">ID: {detail.idNumber}</p>
+                      <p className={`text-sm ${detail.status === 'success' ? 'text-green-600' : 'text-red-600 font-medium'}`}>
+                        {detail.message}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl">
               <button 
                 onClick={() => setShowImportResult(false)}
                 className="w-full py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all active:scale-[0.98]"
@@ -954,6 +1105,7 @@ const ChairpersonModule: React.FC = () => {
                 Close Summary
               </button>
             </div>
+
           </div>
         </div>
       )}

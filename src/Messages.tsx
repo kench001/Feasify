@@ -29,6 +29,7 @@ import {
   Send,
   Sidebar as SidebarIcon,
   Loader2,
+  Bell,
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 
@@ -74,12 +75,13 @@ const Messages: React.FC = () => {
     localStorage.getItem("chat_group_id") || "",
   );
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // AUTH CHECK
   useEffect(() => {
@@ -155,6 +157,35 @@ const Messages: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const getInitials = (name: string) =>
+    name
+      ? name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      : "U";
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const q = query(
+            collection(db, "notifications"),
+            where("userId", "==", u.uid),
+            where("isRead", "==", false),
+          );
+          const snap = await getDocs(q);
+          setUnreadNotificationCount(snap.size);
+        } catch (error) {
+          console.error("Error fetching unread notifications:", error);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // SOCKET & FIRESTORE REAL-TIME SYNC
   useEffect(() => {
@@ -305,9 +336,16 @@ const Messages: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       {/* SIDEBAR */}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/10">
           <img
@@ -385,7 +423,7 @@ const Messages: React.FC = () => {
         </nav>
         <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3 text-white">
           <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-            {(userName || "U").charAt(0).toUpperCase()}
+            {getInitials(userName)}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">
@@ -393,6 +431,16 @@ const Messages: React.FC = () => {
             </p>
             <p className="text-[10px] text-gray-400 truncate">Student</p>
           </div>
+          <button
+            onClick={() => navigate("/notifications")}
+            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            )}
+          </button>
         </div>
       </aside>
 

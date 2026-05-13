@@ -106,11 +106,10 @@ const Auth: React.FC = () => {
   return (
     <>
       <div
-        className="min-h-screen flex flex-col lg:flex-row bg-white relative bg-cover bg-center"
-        style={{ backgroundImage: "url('/BG.1.png')" }}
+        className="min-h-screen flex flex-col min-[1131px]:flex-row bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-fixed bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')]"
       >
-        {/* LEFT SIDE */}
-        <div className="relative w-full lg:w-1/2 overflow-hidden">
+        {/* DESKTOP LEFT SIDE */}
+        <div className="hidden min-[1131px]:block relative w-full min-[1131px]:w-1/2 overflow-hidden">
           <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-10 md:px-12 md:py-14 lg:px-16 lg:py-20 text-white">
             <div>
               <div className="flex items-center gap-3 mb-10">
@@ -164,8 +163,27 @@ const Auth: React.FC = () => {
           </div>
         </div>
 
+        {/* MOBILE TOP BAR */}
+        <div className="min-[1131px]:hidden w-full bg-[#031a38]/70 px-5 py-6 overflow-hidden">
+          <div className="flex flex-col items-center text-center text-white gap-2">
+            <div className="flex items-center flex-shrink-0">
+              <img
+                src="Logo w Name.png"
+                alt="Feasify"
+                className="h-32 min-[764px]:h-48 w-auto object-contain"
+                style={{ marginTop: "-64px", marginBottom: "-64px" }}
+              />
+            </div>
+            <div className="max-w-xs min-[764px]:max-w-md">
+              <p className="text-sm sm:text-base min-[764px]:text-lg text-white/80 leading-snug m-0">
+                Analyze feasibility, track metrics and generate AI insights.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* RIGHT SIDE */}
-        <div className="relative w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 md:p-12 lg:p-16 overflow-hidden">
+        <div className="relative w-full min-[1131px]:w-1/2 flex items-center justify-center p-6 sm:p-10 min-[764px]:p-16 min-[1131px]:p-16 overflow-hidden">
           <div className="absolute inset-0 opacity-15">
             <svg
               viewBox="0 0 800 800"
@@ -190,30 +208,30 @@ const Auth: React.FC = () => {
             </svg>
           </div>
 
-          <div className="relative w-full max-w-md">
-            <div className="flex justify-center gap-6 mb-10">
+          <div className="relative w-full max-w-md min-[764px]:max-w-xl">
+            <div className="flex justify-center gap-4 min-[764px]:gap-8 min-[1131px]:gap-6 mb-10 min-[764px]:mb-14 min-[1131px]:mb-14">
               <img
                 src="/Caba Logo.png"
                 alt="College of Business Administration"
-                className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
               />
               <img
                 src="/fm.jpg"
                 alt="Finance Executives"
-                className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
               />
               <img
                 src="/plv.jpg"
                 alt="Pamantasan ng Lungsod ng Valenzuela"
-                className="h-25 w-25 object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
               />
             </div>
 
-            <p className="text-center text-sm font-bold uppercase tracking-widest text-slate-900 mb-12">
+            <p className="text-center text-xs sm:text-sm min-[764px]:text-lg font-bold uppercase tracking-[0.3em] text-white min-[1131px]:text-black mb-12 min-[1131px]:mb-16">
               Pamantasan ng Lungsod ng Valenzuela
             </p>
 
-            <div className="bg-white">
+            <div className="bg-white/95 p-6 sm:p-8 min-[764px]:p-12 min-[1131px]:p-10 rounded-2xl shadow-xl border border-gray-100/50 backdrop-blur-sm min-[764px]:max-w-xl mx-auto">
               <form className="space-y-6" onSubmit={handleLogin} noValidate>
                 {apiError && (
                   <p className="text-sm text-red-500 mb-4">{apiError}</p>

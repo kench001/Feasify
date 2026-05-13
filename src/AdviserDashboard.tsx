@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import "react-loading-skeleton/dist/skeleton.css";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion, setDoc } from "firebase/firestore";
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
-  CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, Lock, TrendingUp,
+  CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell
 } from "lucide-react";
@@ -96,7 +97,7 @@ const AdviserDashboard: React.FC = () => {
   // Modals & Popovers
   const [showAllStudentsModal, setShowAllStudentsModal] = useState(false);
   const [showAutoGroupConfirm, setShowAutoGroupConfirm] = useState(false);
-  const [showReshuffleConfirm, setShowReshuffleConfirm] = useState(false);
+  const [showAllAssignedModal, setShowAllAssignedModal] = useState(false); // NEW MODAL STATE
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null); 
@@ -504,7 +505,14 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
       const assignedIds = new Set<string>();
       currentGroupsList.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
       const unassignedStudents = students.filter(s => !assignedIds.has(s.id));
-      if (unassignedStudents.length === 0) { alert("All students are already assigned!"); setIsLoading(false); return; }
+      
+      // TRIGGER CUSTOM MODAL IF NO UNASSIGNED STUDENTS
+      if (unassignedStudents.length === 0) { 
+        setShowAutoGroupConfirm(false); // Close current confirmation
+        setShowAllAssignedModal(true);  // Open custom notification modal
+        setIsLoading(false); 
+        return; 
+      }
 
       const shuffled = [...unassignedStudents].sort(() => 0.5 - Math.random());
       const batch = writeBatch(db);
@@ -532,20 +540,6 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
       await batch.commit(); setGroups(updatedGroups); setShowAutoGroupConfirm(false);
     } catch (error) { console.error(error); alert("Failed to auto-group."); } 
     finally { setIsLoading(false); }
-  };
-
-  const handleReshuffle = async () => {
-    setIsLoading(true);
-    try {
-      // Persist per-section settings before reshuffling
-      await saveSectionSettings();
-
-      const batch = writeBatch(db);
-      groups.forEach(g => batch.delete(doc(db, "groups", g.id)));
-      await batch.commit();
-      setGroups([]); setShowReshuffleConfirm(false);
-      await executeAutoGroup([]);
-    } catch (error) { console.error(error); alert("Failed to reshuffle."); setIsLoading(false); }
   };
 
   const executeChangeLeader = async () => {
@@ -858,7 +852,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
               )}
             </div>
 
-            {/* Tabs & Reshuffle Row */}
+            {/* Tabs Row (Reshuffle removed) */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-200 pb-2">
               <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 custom-scrollbar">
                 {['All Groups', 'Pending Review', 'Approved Proposal', 'Drafting', 'Active Business'].map(tab => (
@@ -868,11 +862,6 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                   </button>
                 ))}
               </div>
-              {groups.length > 0 && (
-                <button onClick={() => setShowReshuffleConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap">
-                  <RefreshCw className="w-4 h-4" /> Reshuffle
-                </button>
-              )}
             </div>
 
             {/* Groups Grid */}
@@ -918,7 +907,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGroups.map((group, index) => {
+                {filteredGroups.map((group) => {
                   const totalMembers = group.memberIds.length + 1; 
                   const originalIndex = groups.findIndex(g => g.id === group.id) + 1; 
                   
@@ -1047,7 +1036,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                       </div>
                     )}
 
-                    {groupProposals.filter(p => p.status !== 'Draft').map((proposal, idx) => {
+                    {groupProposals.map((proposal, idx) => {
                       const isApproved = proposal.status === 'Approved';
                       const isRejected = proposal.status === 'Rejected';
                       const isRevision = proposal.status === 'Revision';
@@ -1321,6 +1310,7 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                     {viewingProposal.status === 'Pending' && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}
                     {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Approved</span>}
                     {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5"/> Rejected</span>}
+                    {viewingProposal.status === 'Revision' && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><Edit2 className="w-3.5 h-3.5"/> Needs Revision</span>}
                   </div>
                   <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5"/> Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
                 </div>
@@ -1859,37 +1849,26 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
         </div>
       )}
 
-      {/* MODAL: Reshuffle Confirmation */}
-      {showReshuffleConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+      {/* NEW MODAL: All Students Assigned Alert */}
+      {showAllAssignedModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-start">
               <div className="flex items-center gap-3">
-                <div className="bg-red-50 p-2 rounded-full">
-                  <RefreshCw className="w-6 h-6 text-red-500" />
+                <div className="bg-blue-50 p-2 rounded-full">
+                  <CheckCircle2 className="w-6 h-6 text-blue-500" />
                 </div>
-                <h2 className="text-xl font-bold text-[#122244]">Reshuffle All Groups?</h2>
+                <h2 className="text-xl font-bold text-[#122244]">Already Assigned</h2>
               </div>
-              <button onClick={() => setShowReshuffleConfirm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => setShowAllAssignedModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Min. Members</label>
-                  <input type="number" value={minMembers} onChange={e=>setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Max. Members</label>
-                  <input type="number" value={maxMembers} onChange={e=>setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
-                </div>
-              </div>
+            <div className="p-6">
               <p className="text-gray-600 text-sm leading-relaxed">
-                This will <strong>clear all current group assignments</strong> and randomly recreate them using <strong>{minMembers} to {maxMembers}</strong> members per group.
+                All students in this section are already assigned to a group!
               </p>
             </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => setShowReshuffleConfirm(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={handleReshuffle} className="px-5 py-2.5 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700">Yes, Reshuffle</button>
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-2xl">
+              <button onClick={() => setShowAllAssignedModal(false)} className="px-5 py-2.5 bg-[#122244] text-white font-semibold rounded-lg shadow-md hover:bg-[#1a3263]">OK</button>
             </div>
           </div>
         </div>
@@ -1951,8 +1930,6 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
           </div>
         </div>
       )}
-
-
 
       {/* MODAL: Change Leader */}
       {showChangeLeaderModal && groupToChangeLeader && (
