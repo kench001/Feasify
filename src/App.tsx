@@ -13,9 +13,14 @@ import Profile from "./Profile";
 import SettingsPage from "./Settings";
 import ChairpersonSettings from "./ChairpersonSettings";
 import Notifications from "./Notifications";
+import ChairpersonNotifications from "./ChairpersonNotifications";
+import AdviserNotifications from "./AdviserNotifications";
 import ChairpersonModule from "./ChairpersonModule";
 import ChairpersonFeasib from "./ChairpersonFeasib";
 import AdviserDashboard from "./AdviserDashboard";
+import AdviserSettings from "./AdviserSettings";
+import AdviserProfile from "./AdviserProfile";
+import ChairpersonProfile from "./ChairpersonProfile";
 
 function App() {
   return (
@@ -57,9 +62,16 @@ function App() {
         {/* Admin Modules */}
         <Route path="/admin/users" element={<ChairpersonModule />} />
         <Route path="/admin/projects" element={<ChairpersonFeasib />} /> {/* <-- Add this route */}
+        <Route path="/admin/chairpersonnotification" element={<ChairpersonNotifications />} />
 
         {/* Adviser Modules */}
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
+        <Route path="/adviser/profile" element={<AdviserProfile />} />
+        <Route path="/adviser/settings" element={<AdviserSettings />} />
+        <Route path="/adviser/notifications" element={<AdviserNotifications />} />
+        
+        {/* Chairperson Profile */}
+        <Route path="/admin/profile" element={<ChairpersonProfile />} />
       </Routes>
     </Router>
     </SkeletonTheme>

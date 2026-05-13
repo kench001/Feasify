@@ -15,7 +15,8 @@ import {
   TrendingUp,
   CheckCircle2,
   AlertCircle,
-  Briefcase
+  Briefcase,
+  Bell
 } from "lucide-react";
 
 interface ProjectData {
@@ -42,6 +43,7 @@ const ChairpersonFeasib: React.FC = () => {
   const [selectedSection, setSelectedSection] = useState("All Sections");
   const [selectedAdviser, setSelectedAdviser] = useState("All Advisers");
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -182,7 +184,7 @@ const ChairpersonFeasib: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={() => navigate('/admin/profile')}className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
                 <User className="w-5 h-5" /> Profile
               </button>
               <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
@@ -204,6 +206,16 @@ const ChairpersonFeasib: React.FC = () => {
               <p className="text-sm font-semibold truncate text-white">{userName}</p>
               <p className="text-[10px] text-gray-400 truncate">FM Chairperson</p>
             </div>
+            <button
+              onClick={() => navigate("/admin/chairpersonnotification")}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative shrink-0"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
           </div>
         </div>
       </aside>
