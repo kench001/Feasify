@@ -42,6 +42,7 @@ import {
   MapPin,
   DollarSign,
   AlertCircle,
+  Save,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 
@@ -181,8 +182,11 @@ const Projects: React.FC = () => {
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
   const [showEditBasicModal, setShowEditBasicModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [proposalToDelete, setProposalToDelete] = useState<ProposalData | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("All changes saved");
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [showAllFeedback, setShowAllFeedback] = useState(false);
 
@@ -265,6 +269,30 @@ const Projects: React.FC = () => {
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
+          // Self-healing: Clear dead references or mismatched titles
+          const activePropExists = g.activeProposalId && fetchedProposals.some(p => p.id === g.activeProposalId);
+          let needsFix = false;
+          const fixData: any = {};
+
+          if (g.activeProposalId && !activePropExists) {
+            fixData.activeProposalId = "";
+            fixData.status = "Drafting";
+            fixData.title = "Feasibility Project";
+            needsFix = true;
+          } else if (!g.activeProposalId && g.title && g.title !== "Feasibility Project") {
+            // Check if the title belongs to an existing proposal
+            const titleMatchesExisting = fetchedProposals.some(p => p.businessName === g.title);
+            if (!titleMatchesExisting) {
+              fixData.title = "Feasibility Project";
+              fixData.status = "Drafting";
+              needsFix = true;
+            }
+          }
+
+          if (needsFix && leader) {
+            await updateDoc(doc(db, "groups", g.id), fixData);
+            setUserGroup(prev => prev ? { ...prev, ...fixData } : null);
+          }
           setActiveView("dashboard");
         }
       } else {
@@ -375,6 +403,46 @@ const Projects: React.FC = () => {
     }
   };
 
+  const handleAutoSave = async (dataToSave = currentProposal) => {
+    if (!userGroup) return;
+    // Only auto-save if we are in editing mode
+    if (!isEditingMode) return;
+    
+    // Don't auto-save if business name and type are both empty (avoiding empty drafts)
+    if (!dataToSave.businessName && !dataToSave.businessType) return;
+
+    setIsSaving(true);
+    setSaveStatus("Saving...");
+    try {
+      const proposalData = {
+        ...dataToSave,
+        groupId: userGroup.id,
+        status: dataToSave.status || "Draft",
+      };
+      
+      if (dataToSave.id) {
+        await updateDoc(doc(db, "proposals", dataToSave.id), {
+          ...proposalData,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        const docRef = await addDoc(collection(db, "proposals"), {
+          ...proposalData,
+          createdAt: serverTimestamp(),
+        });
+        setCurrentProposal(prev => ({ ...prev, id: docRef.id }));
+        // Refresh local proposals list to include the new ID
+        fetchProposals(userGroup.id);
+      }
+      setSaveStatus("All changes saved");
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("Save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) return;
 
@@ -451,6 +519,23 @@ const Projects: React.FC = () => {
   const handleDeleteProposal = async (proposalId: string) => {
     try {
       await deleteDoc(doc(db, "proposals", proposalId));
+      
+      // If the deleted proposal was the active business, clear it from the group
+      if (userGroup && userGroup.activeProposalId === proposalId) {
+        await updateDoc(doc(db, "groups", userGroup.id), {
+          activeProposalId: "",
+          status: "Drafting",
+          title: "Feasibility Project"
+        });
+        
+        setUserGroup(prev => prev ? {
+          ...prev,
+          activeProposalId: "",
+          status: "Drafting",
+          title: "Feasibility Project"
+        } : null);
+      }
+
       setProposals((prev) => prev.filter((p) => p.id !== proposalId));
       setOpenDropdownId(null);
     } catch (error) {
@@ -874,16 +959,30 @@ const Projects: React.FC = () => {
                 <h2 className="text-2xl font-bold text-[#122244]">
                   Business Proposals
                 </h2>
-                <button
-                  onClick={() => {
-                    setCurrentProposal(initialProposalState);
-                    setIsEditingMode(true);
-                    setActiveView("form");
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all text-sm"
-                >
-                  + New Proposal
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => {
+                      setCurrentProposal(initialProposalState);
+                      setIsEditingMode(true);
+                      setSaveStatus("All changes saved");
+                      setActiveView("form");
+                    }}
+                    disabled={!!activeBusiness}
+                    className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
+                      activeBusiness 
+                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
+                        : "bg-[#c9a654] text-white hover:bg-[#b59545]"
+                    }`}
+                  >
+                    + New Proposal
+                  </button>
+                  {activeBusiness && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                      Already has Approved Business
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex space-x-6 border-b border-gray-200 mb-6">
@@ -975,15 +1074,30 @@ const Projects: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                           {isApproved ? (
-                            <button
-                              onClick={() => {
-                                setCurrentProposal(proposal);
-                                setShowLockInModal(true);
-                              }}
-                              className="px-5 py-2.5 bg-green-600 text-white font-bold text-sm rounded-lg hover:bg-green-700 w-full sm:w-auto"
-                            >
-                              Setup Approved Business
-                            </button>
+                            userGroup?.activeProposalId === proposal.id ? (
+                              <button
+                                onClick={() => setActiveView("active-business")}
+                                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
+                              >
+                                <FileText className="w-4 h-4" /> View Details
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setCurrentProposal(proposal);
+                                  setShowLockInModal(true);
+                                }}
+                                disabled={!!activeBusiness}
+                                className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${
+                                  activeBusiness 
+                                    ? "bg-gray-400 cursor-not-allowed opacity-70" 
+                                    : "bg-green-600 hover:bg-green-700 shadow-md"
+                                }`}
+                                title={activeBusiness ? "Another business is already setup" : ""}
+                              >
+                                Setup Approved Business
+                              </button>
+                            )
                           ) : (
                             <>
                               <button
@@ -997,16 +1111,30 @@ const Projects: React.FC = () => {
                                 <FileText className="w-4 h-4" /> Open
                               </button>
                               {!isRejected && (
-                                <button
-                                  onClick={() => {
-                                    setCurrentProposal(proposal);
-                                    setIsEditingMode(true);
-                                    setActiveView("form");
-                                  }}
-                                  className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
-                                >
-                                  <Edit className="w-4 h-4" /> Edit
-                                </button>
+                                <div className="relative group">
+                                  <button
+                                    onClick={() => {
+                                      setCurrentProposal(proposal);
+                                      setIsEditingMode(true);
+                                      setSaveStatus("All changes saved");
+                                      setActiveView("form");
+                                    }}
+                                    disabled={proposal.status === 'Pending'}
+                                    className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+                                      proposal.status === 'Pending'
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
+                                        : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
+                                    }`}
+                                  >
+                                    <Edit className="w-4 h-4" /> Edit
+                                  </button>
+                                  {proposal.status === 'Pending' && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                                      Wait for Revision
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </>
                           )}
@@ -1026,9 +1154,11 @@ const Projects: React.FC = () => {
                             {openDropdownId === proposal.id && (
                               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
                                 <button
-                                  onClick={() =>
-                                    handleDeleteProposal(proposal.id!)
-                                  }
+                                  onClick={() => {
+                                    setProposalToDelete(proposal);
+                                    setShowDeleteConfirmModal(true);
+                                    setOpenDropdownId(null);
+                                  }}
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                                 >
                                   Delete
@@ -1056,15 +1186,15 @@ const Projects: React.FC = () => {
                     <ChevronLeft className="w-4 h-4" /> Back to Proposals
                   </button>
                 </div>
-                <div className="flex gap-3 w-full sm:w-auto">
+                <div className="flex gap-3 w-full sm:w-auto items-center">
                   {isEditingMode && (
-                    <button
-                      onClick={() => handleSaveProposal("Draft")}
-                      disabled={isSaving}
-                      className="flex-1 sm:flex-none px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm"
-                    >
-                      Save as Draft
-                    </button>
+                    <div className="flex items-center gap-2 px-4">
+                      <span
+                        className={`text-xs font-bold flex items-center gap-1.5 ${isSaving ? "text-gray-400 animate-pulse" : "text-green-600"}`}
+                      >
+                        {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />} {saveStatus}
+                      </span>
+                    </div>
                   )}
                   {isEditingMode && (
                     <button
@@ -1141,12 +1271,12 @@ const Projects: React.FC = () => {
                         <select
                           disabled={!isEditingMode}
                           value={currentProposal.businessType}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              businessType: e.target.value,
-                            })
-                          }
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            const updatedProposal = { ...currentProposal, businessType: newValue };
+                            setCurrentProposal(updatedProposal);
+                            handleAutoSave(updatedProposal);
+                          }}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         >
                           <option value="">Select category...</option>
@@ -1169,6 +1299,7 @@ const Projects: React.FC = () => {
                               businessName: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           placeholder="e.g. Eggdesal"
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
@@ -1187,6 +1318,7 @@ const Projects: React.FC = () => {
                               totalCapital: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           placeholder="₱ 0.00"
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
@@ -1205,6 +1337,7 @@ const Projects: React.FC = () => {
                               tagline: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
                         />
                       </div>
@@ -1224,6 +1357,7 @@ const Projects: React.FC = () => {
                             targetMarket: e.target.value,
                           })
                         }
+                        onBlur={() => handleAutoSave()}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                       />
                     </div>
@@ -1249,6 +1383,7 @@ const Projects: React.FC = () => {
                               missionStatement: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1266,6 +1401,7 @@ const Projects: React.FC = () => {
                               visionStatement: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1295,6 +1431,7 @@ const Projects: React.FC = () => {
                               productDescription: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1313,6 +1450,7 @@ const Projects: React.FC = () => {
                               priceRanges: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1342,6 +1480,7 @@ const Projects: React.FC = () => {
                               proposedLocation: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1360,6 +1499,7 @@ const Projects: React.FC = () => {
                               promotionalStrategy: e.target.value,
                             })
                           }
+                          onBlur={() => handleAutoSave()}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                         />
                       </div>
@@ -1387,6 +1527,7 @@ const Projects: React.FC = () => {
                             otherDetails: e.target.value,
                           })
                         }
+                        onBlur={() => handleAutoSave()}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
                       />
                     </div>
@@ -1853,6 +1994,51 @@ const Projects: React.FC = () => {
                 className="px-5 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-md transition-colors"
               >
                 Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirmModal && proposalToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-extrabold mb-2 text-red-600">
+              Delete Proposal?
+            </h2>
+            <p className="text-sm text-gray-500 mb-2">
+              Are you sure you want to delete <span className="font-bold text-[#122244]">"{proposalToDelete.businessName}"</span>?
+            </p>
+            <div className="bg-red-50 p-3 rounded-lg mb-8">
+              <p className="text-[11px] font-bold text-red-700 uppercase tracking-tight">
+                This action is permanent and cannot be undone. All data associated with this proposal will be lost forever.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setProposalToDelete(null);
+                }}
+                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (proposalToDelete.id) {
+                    handleDeleteProposal(proposalToDelete.id);
+                  }
+                  setShowDeleteConfirmModal(false);
+                  setProposalToDelete(null);
+                }}
+                className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-lg shadow-md hover:bg-red-700 transition-colors"
+              >
+                Yes, Delete Forever
               </button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -32,6 +33,16 @@ import {
   Bell,
 } from "lucide-react";
 
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+  date: string;
+  financialData: any;
+  aiAnalysis: any;
+  isApproved: boolean;
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,7 +51,7 @@ const Dashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
@@ -56,86 +67,23 @@ const Dashboard: React.FC = () => {
     navigate("/");
   };
 
-  const loadUserGroup = async (uid: string, section: string) => {
-    setIsLoadingStats(true);
-    try {
-      const q = query(
-        collection(db, "groups"),
-        where("section", "==", section),
-      );
-      const snap = await getDocs(q);
 
-      const allProjectsList: any[] = [];
-
-      for (const groupDoc of snap.docs) {
-        const groupData = groupDoc.data();
-
-        if (
-          groupData.leaderId === uid ||
-          (groupData.memberIds && groupData.memberIds.includes(uid))
-        ) {
-          const propQ = query(
-            collection(db, "proposals"),
-            where("groupId", "==", groupDoc.id),
-          );
-          const propSnap = await getDocs(propQ);
-
-          const approvedProps = propSnap.docs.filter(
-            (d) =>
-              d.data().status === "Approved" || d.data().status === "APPROVED",
-          );
-
-          if (approvedProps.length > 0) {
-            approvedProps.forEach((pDoc) => {
-              const pData = pDoc.data();
-              allProjectsList.push({
-                id: pDoc.id,
-                name: pData.businessName || pData.title || "Untitled Project",
-                status:
-                  pData.aiAnalysis?.status === "FEASIBLE"
-                    ? "Feasible"
-                    : "In Progress",
-                date: pData.createdAt
-                  ? new Date(pData.createdAt.toDate()).toLocaleDateString()
-                  : "Recent",
-                financialData: pData.financialData || null,
-                aiAnalysis: pData.aiAnalysis || null,
-              });
-            });
-          } else {
-            allProjectsList.push({
-              id: groupDoc.id,
-              name: groupData.title || "Pending Business Name",
-              status: "Pending",
-              date: groupData.createdAt
-                ? new Date(groupData.createdAt.toDate()).toLocaleDateString()
-                : "New",
-              financialData: null,
-              aiAnalysis: null,
-            });
-          }
-        }
-      }
-
-      setProjects(allProjectsList);
-      sessionStorage.setItem('dashboardProjectCount', allProjectsList.length.toString());
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
-    } finally {
-      setIsLoadingStats(false);
-    }
-  };
 
   useEffect(() => {
-    const state = location.state as any;
-    if (state && state.showWelcome) {
-      setWelcomeName(state.firstName || "User");
-      setShowWelcomeToast(true);
-      window.history.replaceState({}, document.title);
-      setTimeout(() => setShowWelcomeToast(false), 4000);
-    }
+    let unsubscribeProjects: (() => void) | undefined;
+    let unsubscribeNotifications: (() => void) | undefined;
 
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      // Cleanup previous listeners
+      if (unsubscribeProjects) {
+        unsubscribeProjects();
+        unsubscribeProjects = undefined;
+      }
+      if (unsubscribeNotifications) {
+        unsubscribeNotifications();
+        unsubscribeNotifications = undefined;
+      }
+
       if (u) {
         if (u.email?.toLowerCase() === "chairperson@gmail.com") {
           navigate("/admin/users");
@@ -143,14 +91,12 @@ const Dashboard: React.FC = () => {
         }
 
         try {
-          const snap = await getDoc(doc(db, "users", u.uid));
-          if (snap.exists()) {
-            const data = snap.data() as any;
+          const userDoc = await getDoc(doc(db, "users", u.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
             const first = data.firstName || "";
             const last = data.lastName || "";
 
-            // --- NEW: SECURITY GUARD ---
-            // If they bypassed the login screen routing, catch them here!
             if (data.isFirstLogin === true) {
               navigate("/profile", {
                 state: { forcePasswordChange: true, firstName: first },
@@ -163,62 +109,154 @@ const Dashboard: React.FC = () => {
               return;
             }
 
-            setUserName(
-              [first, last].filter(Boolean).join(" ") || u.displayName || "",
-            );
+            setUserName([first, last].filter(Boolean).join(" ") || u.displayName || "");
             if (!welcomeName && first) setWelcomeName(first);
 
+            // Setup Real-time Notifications
+            const notifQ = query(
+              collection(db, "notifications"),
+              where("userId", "==", u.uid),
+              where("isRead", "==", false),
+            );
+            unsubscribeNotifications = onSnapshot(notifQ, (snap) => {
+              setUnreadNotificationCount(snap.size);
+            }, (err) => console.error("Notifications listener error:", err));
+
+            // Setup Real-time Projects
             if (data.section) {
-              loadUserGroup(u.uid, data.section);
+              unsubscribeProjects = setupProjectListener(u.uid, data.section);
             } else {
               setIsLoadingStats(false);
             }
           } else {
-            setUserName(
-              u.displayName || (u.email ? u.email.split("@")[0] : ""),
-            );
+            setUserName(u.displayName || u.email?.split("@")[0] || "User");
             setIsLoadingStats(false);
           }
         } catch (e) {
-          setUserName(u.displayName || (u.email ? u.email.split("@")[0] : ""));
+          console.error("Dashboard auth effect error:", e);
           setIsLoadingStats(false);
         }
       } else {
         navigate("/");
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsubAuth();
+      if (unsubscribeProjects) unsubscribeProjects();
+      if (unsubscribeNotifications) unsubscribeNotifications();
+    };
   }, [location, welcomeName, navigate]);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        try {
-          const q = query(
-            collection(db, "notifications"),
-            where("userId", "==", u.uid),
-            where("isRead", "==", false),
-          );
-          const snap = await getDocs(q);
-          setUnreadNotificationCount(snap.size);
-        } catch (error) {
-          console.error(error);
-        }
+  const setupProjectListener = (uid: string, section: string) => {
+    setIsLoadingStats(true);
+    const q = query(collection(db, "groups"), where("section", "==", section));
+
+    let unsubscribeProposals: (() => void) | undefined;
+
+    const groupUnsub = onSnapshot(q, (groupSnap) => {
+      const myGroups = groupSnap.docs.filter((doc) => {
+        const data = doc.data();
+        return (
+          data.leaderId === uid ||
+          (data.memberIds && data.memberIds.includes(uid))
+        );
+      });
+
+      if (myGroups.length === 0) {
+        setProjects([]);
+        setIsLoadingStats(false);
+        return;
       }
+
+      const groupIds = myGroups.map((d) => d.id);
+      if (unsubscribeProposals) unsubscribeProposals();
+
+      const propQ = query(
+        collection(db, "proposals"),
+        where("groupId", "in", groupIds),
+      );
+
+      unsubscribeProposals = onSnapshot(propQ, (propSnap) => {
+        const allProjectsList: Project[] = [];
+        const proposalsByGroup: Record<string, any[]> = {};
+
+        propSnap.docs.forEach((d) => {
+          const data = { id: d.id, ...d.data() };
+          const gid = (data as any).groupId;
+          if (!proposalsByGroup[gid]) proposalsByGroup[gid] = [];
+          proposalsByGroup[gid].push(data);
+        });
+
+        myGroups.forEach((groupDoc) => {
+          const groupData = groupDoc.data();
+          const groupProps = proposalsByGroup[groupDoc.id] || [];
+
+          const approvedProps = groupProps.filter(
+            (p) => p.status === "Approved" || p.status === "APPROVED",
+          );
+
+          if (approvedProps.length > 0) {
+            approvedProps.forEach((pData) => {
+              allProjectsList.push({
+                id: pData.id,
+                name: pData.businessName || pData.title || "Untitled Project",
+                status:
+                  pData.aiAnalysis?.status === "FEASIBLE"
+                    ? "Feasible"
+                    : "In Progress",
+                date: pData.createdAt?.toDate
+                  ? new Date(pData.createdAt.toDate()).toLocaleDateString()
+                  : "Recent",
+                financialData: pData.financialData || null,
+                aiAnalysis: pData.aiAnalysis || null,
+                isApproved: true,
+              });
+            });
+          } else if (groupProps.length > 0) {
+            allProjectsList.push({
+              id: groupDoc.id,
+              name: groupData.title || "Pending Business Name",
+              status: "Pending",
+              date: groupData.createdAt?.toDate
+                ? new Date(groupData.createdAt.toDate()).toLocaleDateString()
+                : "New",
+              financialData: null,
+              aiAnalysis: null,
+              isApproved: false,
+            });
+          }
+        });
+
+        setProjects(allProjectsList);
+        sessionStorage.setItem("dashboardProjectCount", allProjectsList.length.toString());
+        setIsLoadingStats(false);
+      }, (err) => {
+        console.error("Proposals listener error:", err);
+        setIsLoadingStats(false);
+      });
+    }, (err) => {
+      console.error("Groups listener error:", err);
+      setIsLoadingStats(false);
     });
-    return () => unsub();
-  }, []);
+
+    return () => {
+      groupUnsub();
+      if (unsubscribeProposals) unsubscribeProposals();
+    };
+  };
 
   const totalProjects = projects.length;
+  const totalApproved = projects.filter(p => p.isApproved).length;
   const feasibleProjects = projects.filter(
     (p) => p.status === "Feasible",
   ).length;
   const feasiblePercentage =
-    totalProjects > 0
-      ? Math.round((feasibleProjects / totalProjects) * 100)
+    totalApproved > 0
+      ? Math.round((feasibleProjects / totalApproved) * 100)
       : 0;
   const inProgressProjects = projects.filter(
-    (p) => p.status === "In Progress" || p.status === "Pending",
+    (p) => p.status === "In Progress",
   ).length;
 
   let totalROI = 0;
@@ -444,7 +482,7 @@ const Dashboard: React.FC = () => {
                 [
                   {
                     label: "Total Approved",
-                    value: totalProjects.toString(),
+                    value: totalApproved.toString(),
                     sub: "Businesses in focus",
                     icon: Folder,
                     filterVal: "All Status",
