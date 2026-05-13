@@ -874,16 +874,29 @@ const Projects: React.FC = () => {
                 <h2 className="text-2xl font-bold text-[#122244]">
                   Business Proposals
                 </h2>
-                <button
-                  onClick={() => {
-                    setCurrentProposal(initialProposalState);
-                    setIsEditingMode(true);
-                    setActiveView("form");
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all text-sm"
-                >
-                  + New Proposal
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => {
+                      setCurrentProposal(initialProposalState);
+                      setIsEditingMode(true);
+                      setActiveView("form");
+                    }}
+                    disabled={!!userGroup?.activeProposalId}
+                    className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
+                      userGroup?.activeProposalId 
+                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
+                        : "bg-[#c9a654] text-white hover:bg-[#b59545]"
+                    }`}
+                  >
+                    + New Proposal
+                  </button>
+                  {userGroup?.activeProposalId && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                      Already has Approved Business
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex space-x-6 border-b border-gray-200 mb-6">
@@ -975,15 +988,30 @@ const Projects: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                           {isApproved ? (
-                            <button
-                              onClick={() => {
-                                setCurrentProposal(proposal);
-                                setShowLockInModal(true);
-                              }}
-                              className="px-5 py-2.5 bg-green-600 text-white font-bold text-sm rounded-lg hover:bg-green-700 w-full sm:w-auto"
-                            >
-                              Setup Approved Business
-                            </button>
+                            userGroup?.activeProposalId === proposal.id ? (
+                              <button
+                                onClick={() => setActiveView("active-business")}
+                                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
+                              >
+                                <FileText className="w-4 h-4" /> View Details
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setCurrentProposal(proposal);
+                                  setShowLockInModal(true);
+                                }}
+                                disabled={!!userGroup?.activeProposalId}
+                                className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${
+                                  userGroup?.activeProposalId 
+                                    ? "bg-gray-400 cursor-not-allowed opacity-70" 
+                                    : "bg-green-600 hover:bg-green-700 shadow-md"
+                                }`}
+                                title={userGroup?.activeProposalId ? "Another business is already setup" : ""}
+                              >
+                                Setup Approved Business
+                              </button>
+                            )
                           ) : (
                             <>
                               <button
