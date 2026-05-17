@@ -53,18 +53,18 @@ const Financial_input: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState("All changes saved");
 
   const [financials, setFinancials] = useState({
-    sellingPrice: "0",
-    monthlySales: "0",
-    variableCost: "0",
-    fixedCosts: "0",
-    startupCapital: "0",
+    sellingPrice: "",
+    monthlySales: "",
+    variableCost: "",
+    fixedCosts: "",
+    startupCapital: "",
     competitorCount: 0,
     marketDemand: "Medium",
     operatingDays: "300",
     equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
     opexList: [] as { id: string; name: string; amount: number }[],
     isCapitalBorrowed: false,
-    interestRate: "0",
+    interestRate: "",
   });
 
   // --- PHILIPPINE BMBE TAX CALCULATION (RA 9178) ---
@@ -211,15 +211,19 @@ const Financial_input: React.FC = () => {
         }];
       }
 
+      const getVal = (val: any) => {
+        if (val === undefined || val === null || String(val) === "0") return "";
+        return String(val);
+      };
+
       setFinancials({
-        sellingPrice: String(selectedProj.financialData.sellingPrice || "0"),
-        monthlySales: String(selectedProj.financialData.monthlySales || "0"),
-        variableCost: String(selectedProj.financialData.variableCost || "0"),
-        fixedCosts: String(selectedProj.financialData.fixedCosts || "0"),
-        startupCapital: String(
+        sellingPrice: getVal(selectedProj.financialData.sellingPrice),
+        monthlySales: getVal(selectedProj.financialData.monthlySales),
+        variableCost: getVal(selectedProj.financialData.variableCost),
+        fixedCosts: getVal(selectedProj.financialData.fixedCosts),
+        startupCapital: getVal(
           selectedProj.financialData.startupCapital ||
-            selectedProj.proposalCapital ||
-            "0",
+            selectedProj.proposalCapital
         ),
         competitorCount: selectedProj.financialData.competitorCount || 0,
         marketDemand: selectedProj.financialData.marketDemand || "Medium",
@@ -229,22 +233,27 @@ const Financial_input: React.FC = () => {
         equipmentList: selectedProj.financialData.equipmentList || [],
         opexList: loadedOpex,
         isCapitalBorrowed: selectedProj.financialData.isCapitalBorrowed || false,
-        interestRate: String(selectedProj.financialData.interestRate || "0"),
+        interestRate: getVal(selectedProj.financialData.interestRate),
       });
     } else {
+      const getVal = (val: any) => {
+        if (val === undefined || val === null || String(val) === "0") return "";
+        return String(val);
+      };
+
       setFinancials({
-        sellingPrice: "0",
-        monthlySales: "0",
-        variableCost: "0",
-        fixedCosts: "0",
-        startupCapital: String(selectedProj.proposalCapital || "0"),
+        sellingPrice: "",
+        monthlySales: "",
+        variableCost: "",
+        fixedCosts: "",
+        startupCapital: getVal(selectedProj.proposalCapital),
         competitorCount: 0,
         marketDemand: "Medium",
         operatingDays: "300",
         equipmentList: [],
         opexList: [],
         isCapitalBorrowed: false,
-        interestRate: "0",
+        interestRate: "",
       });
     }
   };
@@ -614,6 +623,7 @@ const Financial_input: React.FC = () => {
                     <input
                       type="number"
                       value={financials.sellingPrice}
+                      placeholder="0"
                       onChange={(e) =>
                         setFinancials({
                           ...financials,
@@ -631,6 +641,7 @@ const Financial_input: React.FC = () => {
                     <input
                       type="number"
                       value={financials.monthlySales}
+                      placeholder="0"
                       onChange={(e) =>
                         setFinancials({
                           ...financials,
@@ -648,6 +659,7 @@ const Financial_input: React.FC = () => {
                     <input
                       type="number"
                       value={financials.variableCost}
+                      placeholder="0"
                       onChange={(e) =>
                         setFinancials({
                           ...financials,
@@ -704,10 +716,11 @@ const Financial_input: React.FC = () => {
                               <input
                                 type="number"
                                 min="0"
-                                value={item.amount}
+                                value={item.amount === 0 ? "" : item.amount}
+                                placeholder="0"
                                 onChange={(e) => {
                                   const newList = [...financials.opexList];
-                                  const amt = Number(e.target.value) || 0;
+                                  const amt = e.target.value === "" ? 0 : Number(e.target.value);
                                   newList[index].amount = amt;
                                   setFinancials({ ...financials, opexList: newList });
                                 }}
@@ -849,10 +862,11 @@ const Financial_input: React.FC = () => {
                               <input
                                 type="number"
                                 min="0"
-                                value={item.unitPrice}
+                                value={item.unitPrice === 0 ? "" : item.unitPrice}
+                                placeholder="0"
                                 onChange={(e) => {
                                   const newList = [...financials.equipmentList];
-                                  const price = Number(e.target.value) || 0;
+                                  const price = e.target.value === "" ? 0 : Number(e.target.value);
                                   newList[index].unitPrice = price;
                                   newList[index].total = newList[index].quantity * price;
                                   setFinancials({ ...financials, equipmentList: newList });
@@ -922,6 +936,7 @@ const Financial_input: React.FC = () => {
                       <input
                         type="number"
                         value={financials.interestRate}
+                        placeholder="0"
                         onChange={(e) =>
                           setFinancials({
                             ...financials,
