@@ -3,10 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import {
   onAuthStateChanged,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
   updatePassword,
-  verifyBeforeUpdateEmail,
 } from "firebase/auth";
 import {
   doc,
@@ -19,24 +16,15 @@ import {
   getDocs,
 } from "firebase/firestore";
 import {
-  LayoutDashboard,
-  Folder,
-  FileEdit,
-  Zap,
-  BarChart3,
-  MessageCircle,
   User,
   Settings,
   ShieldAlert,
   Sidebar as SidebarIcon,
   X,
   Lock,
-  Mail,
-  UserCircle,
   Loader2,
   Bell,
   Users,
-  ShieldCheck,
   AlertCircle,
   Eye,
   EyeOff,
@@ -59,6 +47,12 @@ const ChairpersonProfile: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
+  // Initialize theme tracking directly from localStorage persistence
+  const [darkModeEnabled] = useState(() => {
+    const saved = localStorage.getItem("darkModeEnabled");
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
@@ -79,8 +73,7 @@ const ChairpersonProfile: React.FC = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
-  const [showForcePasswordSuccess, setShowForcePasswordSuccess] =
-    useState(false);
+  const [showForcePasswordSuccess, setShowForcePasswordSuccess] = useState(false);
 
   // Toggle Eye Icon States
   const [showForceNewPwd, setShowForceNewPwd] = useState(false);
@@ -96,7 +89,7 @@ const ChairpersonProfile: React.FC = () => {
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
 
-  // --- 1. NOTIFICATION SYNC (MOVED OUT OF HELPER) ---
+  // Sync notification badges
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -206,23 +199,6 @@ const ChairpersonProfile: React.FC = () => {
     navigate("/");
   };
 
-  const handleSaveGroup = async () => {
-    setIsSavingGroup(true);
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        await updateDoc(doc(db, "users", user.uid), {
-          groupName: profileData.groupName,
-        });
-        setIsEditingGroup(false);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSavingGroup(false);
-    }
-  };
-
   const getInitials = (name: string) =>
     name
       ? name
@@ -234,10 +210,10 @@ const ChairpersonProfile: React.FC = () => {
       : "U";
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+    <div className={`flex min-h-screen overflow-hidden transition-colors duration-200 ${darkModeEnabled ? "bg-[#0f172a] text-gray-100" : "bg-gray-50 text-gray-900"}`}>
       {/* ADMIN SIDEBAR */}
-      <aside className={`hidden lg:flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+      <aside className={`hidden lg:flex w-72 text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${darkModeEnabled ? "bg-[#0b1428] border-r border-gray-800" : "bg-[#122244]"}`}>
+        <div className={`p-6 flex items-center gap-3 border-b ${darkModeEnabled ? "border-gray-800" : "border-white/10"}`}>
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
 
@@ -245,10 +221,10 @@ const ChairpersonProfile: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold  text-white transition-all">
+              <button onClick={() => navigate('/admin/users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${darkModeEnabled ? "text-gray-300 hover:text-white hover:bg-white/5" : "text-gray-300 hover:text-white hover:bg-white/10"}`}>
                 <Users className="w-5 h-5" /> User Accounts Management
               </button>
-              <button onClick={() => navigate('/admin/projects')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={() => navigate('/admin/projects')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${darkModeEnabled ? "text-gray-300 hover:text-white hover:bg-white/5" : "text-gray-300 hover:text-white hover:bg-white/10"}`}>
                 <FileText className="w-5 h-5" /> Business Feasibility Management
               </button>
             </div>
@@ -257,20 +233,20 @@ const ChairpersonProfile: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-[#c9a654] shadow-md">
+              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
                 <User className="w-5 h-5" /> Profile
               </button>
-              <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={() => navigate('/admin/chairpersonsettings')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${darkModeEnabled ? "text-gray-300 hover:text-white hover:bg-white/5" : "text-gray-300 hover:text-white hover:bg-white/10"}`}>
                 <Settings className="w-5 h-5" /> Settings
               </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={() => setShowLogoutConfirm(true)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${darkModeEnabled ? "text-gray-300 hover:text-white hover:bg-white/5" : "text-gray-300 hover:text-white hover:bg-white/10"}`}>
                 <ShieldAlert className="w-5 h-5" /> Logout
               </button>
             </div>
           </div>
         </nav>
 
-        <div className="p-4 border-t border-white/10 bg-black/20">
+        <div className={`p-4 border-t bg-black/20 ${darkModeEnabled ? "border-gray-800 bg-gray-900/50" : "border-white/10"}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
               {getInitials(userName)}
@@ -281,7 +257,7 @@ const ChairpersonProfile: React.FC = () => {
             </div>
             <button
               onClick={() => navigate("/admin/chairpersonnotification")}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              className={`p-2 rounded-lg transition-all relative flex-shrink-0 ${darkModeEnabled ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
               title="Notifications"
             >
               <Bell className="w-5 h-5" />
@@ -297,32 +273,34 @@ const ChairpersonProfile: React.FC = () => {
       <main
         className={`flex-1 transition-all duration-300 min-h-screen ${isSidebarOpen ? "lg:ml-72" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className={`p-4 flex items-center gap-2 text-sm border-b transition-colors ${darkModeEnabled ? "bg-gray-800/50 border-gray-700 text-gray-400" : "bg-white border-gray-100 text-gray-500"}`}>
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800"
+            className={`w-4 h-4 cursor-pointer transition-colors ${darkModeEnabled ? "hover:text-gray-200" : "hover:text-gray-800"}`}
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-          <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-          <span className="font-semibold text-gray-900">Profile</span>
+          <span className={`mx-2 ${darkModeEnabled ? "text-gray-700" : "text-gray-300"}`}>|</span> 
+          <span className={`cursor-pointer transition-colors ${darkModeEnabled ? "hover:text-[#c9a654] text-gray-300" : "hover:text-[#c9a654] text-gray-900"}`} onClick={() => navigate('/admin/users')}>FeasiFy</span> 
+          <span className={`mx-1 ${darkModeEnabled ? "text-gray-600" : "text-gray-400"}`}>›</span>{" "}
+          <span className={`font-semibold ${darkModeEnabled ? "text-white" : "text-gray-900"}`}>Profile</span>
         </div>
 
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-6">
             {/* USER PROFILE CARD */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col items-center text-center">
+            <div className={`rounded-2xl border shadow-sm p-6 flex flex-col items-center text-center transition-colors ${darkModeEnabled ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md">
                 {getInitials(userName)}
               </div>
-              <h3 className="text-xl font-bold text-[#122244]">{userName}</h3>
-              <p className="text-gray-500 font-semibold text-sm mb-4">
+              <h3 className={`text-xl font-bold ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>{userName}</h3>
+              <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm mb-4">
                 @{profileData.username}
               </p>
-              <div className="w-full space-y-2 pt-4 mt-4 border-t border-gray-200">
-                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+              <div className={`w-full space-y-2 pt-4 mt-4 border-t ${darkModeEnabled ? "border-gray-700" : "border-gray-200"}`}>
+                <div className="flex justify-between items-center text-xs font-bold text-gray-500 dark:text-gray-400">
                   <span>SECTION</span>
-                  <span className="text-[#122244]">{profileData.section}</span>
+                  <span className={darkModeEnabled ? "text-white" : "text-[#122244]"}>{profileData.section}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                <div className="flex justify-between items-center text-xs font-bold text-gray-500 dark:text-gray-400">
                   <span>ROLE</span>
                   <span className="text-[#c9a654]">
                     Chairperson
@@ -332,24 +310,24 @@ const ChairpersonProfile: React.FC = () => {
             </div>
 
             {/* ACCOUNT SETTINGS CARD */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-6 text-[#122244]">
+            <div className={`rounded-2xl border shadow-sm p-6 transition-colors ${darkModeEnabled ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <h2 className={`text-lg font-bold mb-6 ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>
                 Account Settings
               </h2>
               <div className="space-y-5">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Email Address
                   </label>
-                  <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
+                  <div className={`px-4 py-3 border rounded-lg text-sm font-semibold mt-1 ${darkModeEnabled ? "bg-gray-900/50 border-gray-700 text-gray-300" : "bg-gray-50 border border-gray-200 text-gray-700"}`}>
                     <span className="truncate">{profileData.email}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     User Handle
                   </label>
-                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
+                  <div className={`flex items-center justify-between px-4 py-3 border rounded-lg text-sm font-semibold mt-1 ${darkModeEnabled ? "bg-gray-900/50 border-gray-700 text-gray-300" : "bg-gray-50 border border-gray-200 text-gray-700"}`}>
                     <span className="truncate">@{profileData.username}</span>
                     <button
                       onClick={() => setShowUsernameModal(true)}
@@ -362,29 +340,26 @@ const ChairpersonProfile: React.FC = () => {
               </div>
             </div>
           </div>
-
-          
         </div>
       </main>
 
-      {/* ALL MODALS GO HERE */}
       {/* FORCE PASSWORD CHANGE MODAL */}
       {showForcePasswordModal && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className={`rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 ${darkModeEnabled ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-600 dark:text-red-500">
                 <ShieldAlert className="w-8 h-8" />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-center text-[#122244] mb-2">Security Update Required</h3>
-            <p className="text-sm text-center text-gray-500 mb-8 font-medium">
+            <h3 className={`text-2xl font-black text-center mb-2 ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>Security Update Required</h3>
+            <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-8 font-medium">
               Please change your default password to continue.
             </p>
 
             <form onSubmit={handleForcePasswordChange} className="space-y-5">
               {modalError && (
-                <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-2 font-bold">
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-4 rounded-xl flex items-center gap-2 font-bold border border-red-100 dark:border-red-800/50">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {modalError}
                 </div>
@@ -398,7 +373,7 @@ const ChairpersonProfile: React.FC = () => {
                     type={showForceNewPwd ? "text" : "password"}
                     value={forcePwdData.new}
                     onChange={(e) => setForcePwdData({ ...forcePwdData, new: e.target.value })}
-                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    className={`w-full pl-12 pr-12 py-3.5 border rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all ${darkModeEnabled ? "bg-gray-900 border-gray-700 text-white placeholder-gray-600" : "bg-gray-50 border-gray-100 text-gray-800 placeholder-gray-400"}`}
                     placeholder="Enter new password"
                     required
                     minLength={8}
@@ -406,7 +381,7 @@ const ChairpersonProfile: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowForceNewPwd(!showForceNewPwd)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     {showForceNewPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -421,7 +396,7 @@ const ChairpersonProfile: React.FC = () => {
                     type={showForceConfirmPwd ? "text" : "password"}
                     value={forcePwdData.confirm}
                     onChange={(e) => setForcePwdData({ ...forcePwdData, confirm: e.target.value })}
-                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    className={`w-full pl-12 pr-12 py-3.5 border rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all ${darkModeEnabled ? "bg-gray-900 border-gray-700 text-white placeholder-gray-600" : "bg-gray-50 border-gray-100 text-gray-800 placeholder-gray-400"}`}
                     placeholder="Confirm new password"
                     required
                     minLength={8}
@@ -429,7 +404,7 @@ const ChairpersonProfile: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowForceConfirmPwd(!showForceConfirmPwd)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     {showForceConfirmPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -450,15 +425,15 @@ const ChairpersonProfile: React.FC = () => {
 
       {/* SUCCESS MODAL FOR PASSWORD CHANGE */}
       {showForcePasswordSuccess && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className={`rounded-3xl p-8 w-full max-w-md shadow-2xl text-center animate-in zoom-in-95 duration-200 ${darkModeEnabled ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-500">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-[#122244] mb-2">Password Updated!</h3>
-            <p className="text-sm text-gray-500 mb-8 font-medium">
+            <h3 className={`text-2xl font-black mb-2 ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>Password Updated!</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 font-medium">
               Your password has been successfully secured.
             </p>
             <button
@@ -466,7 +441,7 @@ const ChairpersonProfile: React.FC = () => {
                 setShowForcePasswordSuccess(false);
                 navigate("/admin/projects");
               }}
-              className="w-full bg-[#122244] hover:bg-black text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
+              className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors text-white ${darkModeEnabled ? "bg-blue-600 hover:bg-blue-700" : "bg-[#122244] hover:bg-black"}`}
             >
               Continue to Dashboard
             </button>
@@ -476,30 +451,30 @@ const ChairpersonProfile: React.FC = () => {
 
       {/* USERNAME MODAL */}
       {showUsernameModal && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-[#122244] mb-4">Update User Handle</h3>
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className={`rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 border ${darkModeEnabled ? "bg-gray-800 border-gray-700" : "bg-white border-transparent"}`}>
+            <h3 className={`text-xl font-bold mb-4 ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>Update User Handle</h3>
             <form onSubmit={handleChangeUsername} className="space-y-4">
               {modalError && (
-                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold">
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold border border-red-100 dark:border-red-800/50">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {modalError}
                 </div>
               )}
               {modalSuccess && (
-                <div className="bg-green-50 text-green-600 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold">
+                <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold border border-green-100 dark:border-green-800/50">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   {modalSuccess}
                 </div>
               )}
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">New User Handle</label>
+                <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">New User Handle</label>
                 <input
                   type="text"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   placeholder={`@${profileData.username}`}
-                  className="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                  className={`w-full mt-2 px-4 py-3 border rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all ${darkModeEnabled ? "bg-gray-900 border-gray-700 text-white placeholder-gray-600" : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400"}`}
                 />
               </div>
               <div className="flex gap-3 pt-2">
@@ -511,7 +486,7 @@ const ChairpersonProfile: React.FC = () => {
                     setModalError("");
                     setModalSuccess("");
                   }}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-bold transition-colors ${darkModeEnabled ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
                 >
                   Cancel
                 </button>
@@ -530,19 +505,19 @@ const ChairpersonProfile: React.FC = () => {
 
       {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center">
-            <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
-              <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center">
+            <div className={`rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl border animate-in fade-in zoom-in-95 duration-200 ${darkModeEnabled ? "bg-gray-800 border-gray-700" : "bg-white border-transparent"}`}>
+              <h3 className={`text-lg font-bold mb-2 text-center ${darkModeEnabled ? "text-white" : "text-[#122244]"}`}>
                 Sign Out?
               </h3>
-              <p className="text-sm text-gray-600 mb-6 text-center italic">
+              <p className={`text-sm mb-6 text-center italic ${darkModeEnabled ? "text-gray-400" : "text-gray-600"}`}>
                 Are you sure you want to log out of your session?
               </p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className={`flex-1 px-5 py-2.5 rounded-lg border text-sm font-bold transition-colors ${darkModeEnabled ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
                 >
                   Stay
                 </button>
@@ -553,7 +528,7 @@ const ChairpersonProfile: React.FC = () => {
                     setShowLogoutConfirm(false);
                     handleLogout();
                   }}
-                  className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
+                  className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 dark:shadow-none transition-colors"
                 >
                   Logout
                 </button>
