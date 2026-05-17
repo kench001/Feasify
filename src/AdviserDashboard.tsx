@@ -269,81 +269,50 @@ const AdviserDashboard: React.FC = () => {
     const filledCount = fieldCompleteness.filter(f => f.value && f.value.trim()).length;
     const missingFields = fieldCompleteness.filter(f => !f.value || !f.value.trim()).map(f => f.field);
 
-    const prompt = `You are a senior business consultant with 20+ years of experience evaluating startup feasibility studies for university entrepreneurship programs. You have deep expertise in market analysis, business model evaluation, and operational planning.
+    const prompt = `You are a senior business consultant with 20+ years of experience evaluating startup feasibility studies. You have a reputation for being professional, direct, and brutally honest. Your goal is not to be nice, but to ensure the business actually succeeds by identifying fatal flaws early.
 
-A student group has submitted a business proposal. Your job is to provide a RIGOROUS, SPECIFIC, and HONEST evaluation that will genuinely help them improve. You must act as a tough but fair mentor — not a generic feedback machine.
-
-=== CRITICAL RULES ===
-1. NEVER give generic feedback. Every single strength, weakness, and recommendation MUST directly reference specific details from the proposal (quote the business name, product, target market, location, etc.)
-2. Scores must ACCURATELY reflect the quality. A vague one-liner product description deserves a 3-4, not a 5-7. A well-articulated multi-paragraph strategy deserves an 8-9. Be honest.
-3. Do NOT evaluate financial viability or capital — that is handled in a separate financial analysis module after proposal approval.
-4. If a field says "Not provided" or is empty, that is a MAJOR weakness. Penalize the score accordingly — missing information means the proposal is incomplete.
-5. The overall score must be a WEIGHTED CALCULATION: (concept × 0.30) + (market × 0.25) + (operational × 0.25) + (strategic × 0.20), then multiply by 10 to get 0-100 scale.
-6. Status thresholds: score >= 70 = "FEASIBLE", score 45-69 = "NEEDS_ADJUSTMENT", score < 45 = "NOT_FEASIBLE"
-7. Each strength/weakness must be 1-2 sentences with SPECIFIC references to the proposal content.
-8. Each recommendation must be ACTIONABLE — tell them exactly what to do, not vague advice like "improve your strategy".
-=== END RULES ===
+A student group has submitted a business proposal. Analyze it with extreme rigor.
 
 === PROPOSAL DATA ===
 Business Name: "${proposal.businessName || 'Not provided'}"
 Business Type: "${proposal.businessType || 'Not provided'}"
 Tagline: "${proposal.tagline || 'Not provided'}"
 Target Market: "${proposal.targetMarket || 'Not provided'}"
-Mission Statement: "${proposal.missionStatement || 'Not provided'}"
-Vision Statement: "${proposal.visionStatement || 'Not provided'}"
-Product Description: "${proposal.productDescription || 'Not provided'}"
-Price Ranges: "${proposal.priceRanges || 'Not provided'}"
+Mission/Vision: "${proposal.missionStatement || 'Not provided'} / ${proposal.visionStatement || 'Not provided'}"
+Product/Description: "${proposal.productDescription || 'Not provided'}"
+Price/Range: "${proposal.priceRanges || 'Not provided'}"
 Proposed Location: "${proposal.proposedLocation || 'Not provided'}"
 Promotional Strategy: "${proposal.promotionalStrategy || 'Not provided'}"
-Other Details: "${proposal.otherDetails || 'None'}"
 === END PROPOSAL DATA ===
 
-=== COMPLETENESS CHECK ===
-Fields filled: ${filledCount}/10
-${missingFields.length > 0 ? `Missing fields: ${missingFields.join(', ')}` : 'All fields provided.'}
-=== END COMPLETENESS CHECK ===
+=== ANALYSIS REQUIREMENTS ===
+1. TONE: Professional, senior-level consultant. Use sharp, direct language.
+2. BRUTAL HONESTY: If the target market is too broad, call it out. If the location doesn't match the market, explain why it will fail. If the pricing is unrealistic for the product, be blunt.
+3. SCORING RUBRIC:
+   - Concept (0-10): Originality, clarity of value proposition, and problem-solution fit.
+   - Market (0-10): Specificity of target audience, location suitability, and competitive awareness.
+   - Operational (0-10): Realism of the product delivery and logistical logic.
+   - Strategic (0-10): Clarity of mission/vision and effectiveness of promotional plans.
+4. REALITY CHECK: Provide a dedicated "realityCheck" section. If the scores are high (e.g., >8/10), the reality check should be encouraging or focus on scaling. If the scores are low, it should identify critical flaws.
+5. SENTIMENT ALIGNMENT: Ensure that "strengths", "weaknesses", and "realityCheck" correlate with your metrics. High scores MUST reflect positive feedback. If a metric is 9/10, do not list it as a major weakness.
+6. FEEDBACK DRAFT: Write a formal professional letter addressed to the "Team". Address the reality check head-on. If the business is strong, be commendatory. If weak, be firm but constructive.
+7. WEIGHTED SCORE: Calculate a total feasibility score from 0-100. High scores should be awarded to well-thought-out, complete, and viable plans.
 
-Now evaluate across these 4 dimensions. For each, think carefully about what the student actually wrote (not what you assume they meant):
-
-1. CONCEPT CLARITY (Weight: 30%)
-   - Is the business name appropriate and memorable for the type?
-   - Does the tagline effectively communicate the value proposition?
-   - Is the product/service description detailed enough to understand what they're actually selling?
-   - Does the business type match what they're describing?
-   - Are the price ranges reasonable and well-justified for the product?
-
-2. MARKET POTENTIAL (Weight: 25%)
-   - Is the target market specific enough? (e.g., "everyone" is too vague, "college students aged 18-22 in Quezon City" is specific)
-   - Does the product actually solve a problem or fulfill a need for that target market?
-   - Is the proposed location strategic for reaching the target market?
-   - Are there obvious competitors they haven't considered?
-
-3. OPERATIONAL FEASIBILITY (Weight: 25%)
-   - Based on the product description, can this business realistically operate?
-   - Is the location practical for the type of business?
-   - Are there any obvious operational gaps (e.g., food business with no mention of sourcing/suppliers)?
-   - Does the price range make sense for the operational model described?
-
-4. STRATEGIC CLARITY (Weight: 20%)
-   - Do the mission and vision statements align with the actual business model?
-   - Are they generic/copied or genuinely tailored to this business?
-   - Is the promotional strategy specific and actionable, or just buzzwords?
-   - Does everything tie together into a coherent business narrative?
-
-Return ONLY a valid JSON object. No markdown, no code fences, no explanation outside the JSON:
+Return ONLY a valid JSON object:
 {
-  "score": <number 0-100, calculated as described above>,
+  "score": <number 0-100>,
   "status": "FEASIBLE" | "NEEDS_ADJUSTMENT" | "NOT_FEASIBLE",
   "metrics": {
-    "concept": <number 1-10>,
-    "market": <number 1-10>,
-    "operational": <number 1-10>,
-    "strategic": <number 1-10>
+    "concept": <number 0-10>,
+    "market": <number 0-10>,
+    "operational": <number 0-10>,
+    "strategic": <number 0-10>
   },
-  "strengths": ["<specific strength referencing proposal content>", "<specific strength>", "<specific strength>"],
-  "weaknesses": ["<specific weakness referencing proposal content>" /* leave empty if proposal is exceptional */],
-  "recommendations": ["<actionable recommendation with specific steps>", "<actionable recommendation>"],
-  "draftFeedback": "<A professional 2-3 paragraph feedback addressed directly to the student group as 'Dear Team' or 'Dear [Business Name] Team'. Paragraph 1: Acknowledge what they did well with specific references. Paragraph 2: Identify the key gaps and what concerns you as an evaluator. Paragraph 3: Provide clear next steps they should take before resubmission. Do NOT mention financial analysis or capital — those are evaluated in a separate module. Be encouraging but honest.>"
+  "strengths": ["list of specific strengths"],
+  "weaknesses": ["list of specific, blunt weaknesses"],
+  "realityCheck": "A 2-3 sentence 'brutal reality check' identifying the most critical flaw or challenge.",
+  "recommendations": ["list of actionable, high-impact steps"],
+  "draftFeedback": "A formal professional letter to the 'Team'. Address the reality check head-on and provide a professional path forward."
 }`;
 
     try {
@@ -374,17 +343,8 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
       const cleanJson = rawText.substring(rawText.indexOf("{"), rawText.lastIndexOf("}") + 1);
       const aiResult = JSON.parse(cleanJson);
 
-      // Validate and recalculate score to ensure consistency
-      const m = aiResult.metrics || {};
-      const calculatedScore = Math.round(
-        ((m.concept || 5) * 0.30 + (m.market || 5) * 0.25 + (m.operational || 5) * 0.25 + (m.strategic || 5) * 0.20) * 10
-      );
-      const validatedStatus = calculatedScore >= 70 ? 'FEASIBLE' : calculatedScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE';
-
       const finalResult = {
         ...aiResult,
-        score: calculatedScore,
-        status: validatedStatus,
         lastRun: new Date().toISOString(),
       };
       await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: finalResult });
@@ -416,22 +376,51 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
         score: fallbackScore,
         status: fallbackScore >= 70 ? 'FEASIBLE' : fallbackScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE',
         metrics: { concept: conceptScore, market: marketScore, operational: operationalScore, strategic: strategicScore },
-        strengths: [
-          `The proposal for "${proposal.businessName || 'the business'}" provides a comprehensive overview of the venture.`,
-          conceptScore >= 8 ? "The business concept and product details are exceptionally well-articulated." : hasProduct ? `A product/service description has been provided for the concept.` : "The team has taken the first step in formalizing their business idea.",
-          marketScore >= 8 ? "The target market and location strategy demonstrate strong market awareness." : hasTarget ? `A target market has been identified.` : "The proposal has been formally submitted for review."
-        ],
-        weaknesses: [
-          ...(!hasProduct ? [`No product description was provided — this is critical for evaluating the concept.`] : (conceptScore < 6 ? ["The product description lacks the depth required for a thorough evaluation."] : [])),
-          ...(!hasTarget ? [`The target market has not been specified, making it impossible to assess market-product fit.`] : (marketScore < 6 ? ["The target market definition could be more specific to ensure effective targeting."] : [])),
-          ...(!hasPromo ? [`No promotional strategy was outlined for reaching potential customers.`] : (strategicScore < 6 ? ["The promotional strategy needs more actionable steps and detailed planning."] : [])),
-        ].filter(Boolean),
-        recommendations: [
-          !hasProduct ? `Write a detailed product/service description explaining exactly what you are selling.` : (conceptScore < 6 ? `Expand the product description with more specific details about features, quality, and differentiation.` : `Continue refining the product offerings to maintain a competitive edge.`),
-          !hasTarget ? `Define your target market with specifics: age range, location, income level, and lifestyle.` : (marketScore < 6 ? `Refine your target market definition with demographic and psychographic details.` : `Regularly analyze market trends to keep the target market strategies relevant.`),
-          !hasPromo ? `Develop a promotional strategy that explains exactly how you will reach your target market.` : (strategicScore < 6 ? `Strengthen your promotional strategy with specific channels, timelines, and budget allocations.` : `Explore innovative promotional channels to maximize reach and engagement.`)
-        ].filter(Boolean),
-        draftFeedback: `Dear ${proposal.businessName || 'Team'},\n\nThank you for submitting your business proposal. We appreciate the effort your group has put into conceptualizing this venture.\n\n${missingFields.length > 0 ? `We noticed that the following areas are incomplete: ${missingFields.join(', ')}. Filling these in will significantly strengthen your proposal.` : isExcellent ? 'Your proposal is exceptionally detailed and well-thought-out, demonstrating a strong understanding of the business fundamentals. There are no major areas of concern. Excellent work!' : isGood ? 'Your proposal is comprehensive and shows a solid foundation. Consider expanding on the specific operational and marketing strategies to further strengthen your plan.' : 'Your proposal provides a basic outline but requires more depth in several key areas to ensure a thorough evaluation.'}\n\nWe recommend reviewing the feedback above and continuously refining your strategies to ensure the success of your business concept.`,
+        strengths: isExcellent 
+          ? ["Exceptional clarity in business vision and product value proposition.", "Highly viable target market and strategic operational plan."]
+          : isGood 
+            ? ["Well-defined business concept with a clear path to execution.", "Solid understanding of the target market requirements."]
+            : ["Proposal formally submitted for professional evaluation."],
+        weaknesses: missingFields.length > 0 
+          ? [`Missing critical information: ${missingFields.join(', ')}`] 
+          : isExcellent 
+            ? [] 
+            : isGood 
+              ? ["Minor refinements needed in operational scaling details."]
+              : ["Proposal requires more depth in strategic and operational sections."],
+        realityCheck: missingFields.length > 0 
+          ? "The proposal is currently incomplete. A business cannot be evaluated without all core strategic elements."
+          : isExcellent
+            ? "This is a high-potential concept with strong foundations. The main challenge will be maintaining this quality during execution."
+            : isGood
+              ? "The business has a solid core. Focus on unique branding to stand out in the competitive landscape."
+              : "Generic business models often fail due to lack of differentiation in a competitive market.",
+        recommendations: missingFields.length > 0 
+          ? [
+              `Complete the following sections: ${missingFields.join(', ')}.`,
+              "Ensure all fields have detailed and professional content.",
+              "Review the proposal with your team for consistency."
+            ]
+          : isExcellent
+            ? ["Prepare for phase 1 implementation.", "Begin sourcing potential vendors.", "Develop a brand style guide."]
+            : isGood
+              ? ["Develop a more specific target market profile.", "Align location strategy with customer density data.", "Prepare detailed financial projections."]
+              : ["Refine the business concept for more clarity.", "Conduct further market research.", "Detail the operational requirements."],
+        draftFeedback: `Dear Team,\n\nYour business proposal for ${proposal.businessName || 'the group'} has been received. ${
+          isExcellent 
+            ? 'We are highly impressed by the depth and professional clarity of your vision.' 
+            : isGood 
+              ? 'This is a solid proposal with a clear path forward and strong foundations.' 
+              : 'After an initial review, we have identified several areas that require immediate attention.'
+        }\n\n${
+          missingFields.length > 0 
+            ? `The following sections are missing or incomplete: ${missingFields.join(', ')}. Without these, we cannot perform a full feasibility analysis.` 
+            : isExcellent 
+              ? 'Your strategic planning is commendable and shows significant professional rigor. We look forward to seeing your detailed financial projections in the next phase.' 
+              : isGood
+                ? 'Your concept is well-grounded. To further strengthen your feasibility, focus on refining the alignment between your location strategy and target market data.'
+                : 'Please refine your proposal by focusing on more specific, data-driven strategies. The current plan requires more depth in the strategic and operational sections to be considered viable.'
+        }\n\nRegards,\nAdvisory Committee`,
         lastRun: new Date().toISOString(),
       };
       try { await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: fallback }); } catch (_) {}
@@ -1541,6 +1530,18 @@ Return ONLY a valid JSON object. No markdown, no code fences, no explanation out
                             )}
                           </div>
                         </div>
+
+                        {/* Reality Check */}
+                        {modalAiResult.realityCheck && (
+                          <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-5 shadow-sm">
+                            <h4 className="text-xs font-extrabold text-red-800 flex items-center gap-2 mb-3">
+                              <AlertCircle className="w-4 h-4 text-red-600"/> Reality Check
+                            </h4>
+                            <p className="text-base text-red-900 leading-relaxed font-medium italic">
+                              "{modalAiResult.realityCheck}"
+                            </p>
+                          </div>
+                        )}
 
                         {/* Recommendations */}
                         <div className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm">

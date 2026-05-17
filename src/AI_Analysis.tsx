@@ -319,74 +319,80 @@ const AI_Analysis: React.FC = () => {
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
-      const isFeasible = status === "FEASIBLE";
       const prompt = `Act as a Senior Business Consultant providing a brutally honest, rigorous, and professional feasibility assessment.
-      Project Status: ${status} (Score: ${finalScore}%)
-      
-      Review the following financial inputs and metrics thoroughly to decide if the project is feasible or not, and how it can be improved:
-      
+
+      You must INDEPENDENTLY evaluate this project based SOLELY on the financial data below. Do NOT assume any pre-determined outcome. Your 6 category scores (0-100) will be averaged to produce the final feasibility verdict, so score honestly and ensure your written analysis is fully consistent with your numerical scores.
+
+      SCORING RULES:
+      - Each score must be 0-100
+      - A score >= 70 means that category is strong/feasible
+      - A score 45-69 means moderate with concerns
+      - A score < 45 means that category is weak/not feasible
+      - The AVERAGE of all 6 scores determines the final verdict (>=70 = FEASIBLE, 45-69 = MODERATE, <45 = NOT FEASIBLE)
+      - Your written explanations MUST match your scores. If you describe a problem, give a LOW score. If something is genuinely strong, give a HIGH score. NEVER contradict your own scores.
+
       [1] Core Financials:
       - Selling Price per unit: PHP ${safeSellingPrice.toLocaleString()}
       - Monthly Sales units: ${safeMonthlySales.toLocaleString()}
       - Variable Cost per unit: PHP ${safeVariableCost.toLocaleString()}
-      
+
       [2] Performance Metrics:
       - Monthly Revenue: PHP ${monthlyRevenue.toLocaleString()}
       - Monthly Expenses (Variable + OpEx): PHP ${monthlyExpenses.toLocaleString()}
       - Break-Even Point: ${breakEvenUnits} units
       - Gross Margin: ${grossMargin.toFixed(1)}%
       - Net Profit/Mo (After Interest): PHP ${netMonthlyProfit.toLocaleString()}
-      
+
       [3] Capital & Financing:
       - Startup Capital / Equipment Total: PHP ${calculatedStartupCapital.toLocaleString()}
       - Financing: ${data.isCapitalBorrowed ? "Borrowed at " + data.interestRate + "% annual interest" : "Self-funded"}
       - Annual Interest Expense: PHP ${(monthlyInterest * 12).toLocaleString()}
       - Monthly Interest Expense: PHP ${monthlyInterest.toLocaleString()}
-      
+
       [4] Operations & Costs:
       - Operating Days/Year: ${safeOperatingDays}
       - Monthly Cost (OpEx): PHP ${calculatedOpex.toLocaleString()}
-      
+
       [5] Annual Projections & Tax:
       - Est. Annual Revenue: PHP ${annualRevenue.toLocaleString()}
       - Annual Tax (3% BMBE Percentage Tax): PHP ${percentageTax.toLocaleString()}
       - Net Annual Profit (After Tax): PHP ${annualNetProfitAfterTax.toLocaleString()}
       - Adjusted Annual ROI: ${estimatedAnnualROI}%
       - Payback Period: ${paybackVal} months
-      
+
       [6] Market Indicators:
       - Competitor Count: ${data.competitorCount}
       - Market Demand: ${data.marketDemand}
-      
+
       Instructions for Analysis:
       - Review *every single piece* of data provided above.
       - Be brutally honest and professional. Do not sugarcoat flaws.
       - If the margins are too tight, the debt is too high, the break-even is unrealistic, or payback period is too long, state it clearly.
       - Assess if the Startup Capital matches the scope of Est. Annual Revenue.
-      - Determine the absolute feasibility based on the provided data.
-      - ${isFeasible ? "The project appears mathematically FEASIBLE, but scrutinize the numbers to highlight any potential operational risks, market saturation risks, or financial blindspots." : "The project is NOT fully feasible. Give a professional, strict, and actionable critique pointing out exactly why the financials fall short and what must be improved."}
-      
+      - Determine the absolute feasibility based on the provided data alone.
+      - Your scores MUST accurately reflect your written analysis. Consistency between scores and text is mandatory.
+
       Provide your analysis in JSON format using professional terms like 'Operating Leverage', 'Competitive Moat', 'Debt Service Coverage', and 'Capital Allocation'.
-      
+
       IMPORTANT: The JSON below is a SCHEMA TEMPLATE. Do NOT copy the exact text or numbers. You MUST generate your own specific, brutally honest text and calculate your own scores (0-100) based on the user's data! Write at least 2-3 sentences for each explanation to give deep, actionable feedback.
-      
-      Return JSON ONLY matching this exact structure: 
+
+      Return JSON ONLY matching this exact structure:
       {
         "aiScores": {
-          "coreFinancials": 85,
-          "performanceMetrics": 70,
-          "capitalFinancing": 60,
-          "operationsCost": 75,
-          "annualProjectionsTax": 80,
-          "marketIndicators": 65
+          "coreFinancials": "<your_score_0_to_100>",
+          "performanceMetrics": "<your_score_0_to_100>",
+          "capitalFinancing": "<your_score_0_to_100>",
+          "operationsCost": "<your_score_0_to_100>",
+          "annualProjectionsTax": "<your_score_0_to_100>",
+          "marketIndicators": "<your_score_0_to_100>"
         },
         "aiScoreExplanations": {
-          "coreFinancials": "Your pricing strategy leaves too little room for error. The gap between selling price and variable costs is alarmingly narrow.",
-          "performanceMetrics": "A gross margin of this level is unsustainable. You will struggle to reach break-even with these high OpEx requirements.",
-          "capitalFinancing": "The startup capital is bloated for a project of this scale. You are taking on too much debt with poor capital efficiency.",
-          "operationsCost": "Your monthly OpEx is dangerously high given the operating days. You need to trim the fat immediately.",
-          "annualProjectionsTax": "The payback period is far too long. The annual ROI does not justify the significant risk you are taking.",
-          "marketIndicators": "Entering a market with high competition and only 'Medium' demand means you will bleed cash trying to acquire customers."
+          "coreFinancials": "Your specific, brutally honest analysis of the pricing strategy and unit economics...",
+          "performanceMetrics": "Your specific analysis of gross margin, break-even, and monthly profitability...",
+          "capitalFinancing": "Your specific analysis of capital structure, debt burden, and financing terms...",
+          "operationsCost": "Your specific analysis of operational costs relative to revenue and operating days...",
+          "annualProjectionsTax": "Your specific analysis of annual ROI, payback period, and tax impact...",
+          "marketIndicators": "Your specific analysis of competitive landscape and demand dynamics..."
         },
         "explanations": {
           "feasibility": "Summary of overall viability based strictly on the provided numbers, highlighting critical strengths or weaknesses.",
@@ -401,8 +407,8 @@ const AI_Analysis: React.FC = () => {
           "market": "Positioning, pricing, or market penetration advice based on the competitor count and demand."
         },
         "insights": [
-          {"title": "Core Assessment", "description": "Honest, unvarnished assessment of the primary strength or weakness.", "type": "${isFeasible ? "positive" : "warning"}"},
-          {"title": "Financial Reality Check", "description": "A direct, critical observation about their margins, costs, financing, or ROI.", "type": "${isFeasible ? "positive" : "warning"}"},
+          {"title": "Core Assessment", "description": "Honest, unvarnished assessment of the primary strength or weakness.", "type": "positive or warning depending on your evaluation"},
+          {"title": "Financial Reality Check", "description": "A direct, critical observation about their margins, costs, financing, or ROI.", "type": "positive or warning depending on your evaluation"},
           {"title": "Action Item", "description": "A strict and professional recommendation for immediate improvement.", "type": "suggestion"}
         ]
       }`;
@@ -427,10 +433,27 @@ const AI_Analysis: React.FC = () => {
         (i: any, idx: number) => ({ ...i, id: `ai-${idx}` }),
       );
 
+      // Derive verdict from AI's 6 detailed assessment scores
+      const rawScores = aiResult.aiScores || {};
+      const scoreKeys = ["coreFinancials", "performanceMetrics", "capitalFinancing", "operationsCost", "annualProjectionsTax", "marketIndicators"];
+      const scoreValues = scoreKeys.map(k => Math.min(100, Math.max(0, Number(rawScores[k]) || 0)));
+      const aiDerivedScore = scoreValues.length > 0
+        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+        : finalScore;
+      const aiDerivedStatus: "FEASIBLE" | "MODERATE" | "NOT_FEASIBLE" =
+        aiDerivedScore >= 70 ? "FEASIBLE" : aiDerivedScore >= 45 ? "MODERATE" : "NOT_FEASIBLE";
+
+      const aiDerivedMetrics = {
+        feasibility: aiDerivedScore,
+        financial: calculatedMetrics.financial,
+        risk: calculatedMetrics.risk,
+        market: calculatedMetrics.market,
+      };
+
       const finalData = {
-        score: finalScore,
-        status,
-        metrics: calculatedMetrics,
+        score: aiDerivedScore,
+        status: aiDerivedStatus,
+        metrics: aiDerivedMetrics,
         explanations: aiResult.explanations,
         improvementTips: aiResult.tips,
         insights: generatedInsights,
@@ -441,9 +464,9 @@ const AI_Analysis: React.FC = () => {
 
       await updateDoc(doc(db, "proposals", pId), { aiAnalysis: finalData });
 
-      setFeasibilityScore(finalScore);
-      setFeasibilityStatus(status);
-      setMetrics(calculatedMetrics);
+      setFeasibilityScore(aiDerivedScore);
+      setFeasibilityStatus(aiDerivedStatus);
+      setMetrics(aiDerivedMetrics);
       setExplanations(aiResult.explanations);
       setImprovementTips(aiResult.tips);
       setInsights(generatedInsights);
