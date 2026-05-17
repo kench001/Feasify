@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import { useTheme } from "./ThemeContext";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -13,7 +14,7 @@ import {
   limit,
   onSnapshot,
   getDocs,
-  setDoc, // NEW IMPORT ADDED HERE
+  setDoc,
   orderBy,
 } from "firebase/firestore";
 import {
@@ -59,6 +60,9 @@ interface GroupMember {
 
 const Messages: React.FC = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
+  
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -334,8 +338,11 @@ const Messages: React.FC = () => {
     navigate("/");
   };
 
+  const skeletonBase = isDarkMode ? "#374151" : "#e8ecf0";
+  const skeletonHighlight = isDarkMode ? "#4B5563" : "#f4f6f8";
+
   return (
-    <div className="flex h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+    <div className="flex h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden text-[#122244] dark:text-gray-100 transition-colors duration-300">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -345,7 +352,7 @@ const Messages: React.FC = () => {
       )}
       {/* SIDEBAR */}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/10">
           <img
@@ -448,29 +455,29 @@ const Messages: React.FC = () => {
       <main
         className={`flex-1 flex flex-col transition-all duration-300 ease-in-out h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 flex-shrink-0">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 flex-shrink-0 transition-colors">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
           <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-          <span className="font-semibold text-gray-900">Messages</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Messages</span>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 flex flex-col bg-white min-w-0 h-full">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex-shrink-0">
-              <h1 className="text-2xl font-extrabold text-[#122244]">
+          <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 min-w-0 h-full transition-colors">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/50 flex-shrink-0 transition-colors">
+              <h1 className="text-2xl font-extrabold text-[#122244] dark:text-white transition-colors">
                 Team Group Chat
               </h1>
-              <p className="text-xs text-gray-500 font-medium italic underline decoration-[#c9a654]">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium italic underline decoration-[#c9a654] transition-colors">
                 Permanent History Secured
               </p>
             </div>
 
             <div
               ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 scroll-smooth"
+              className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 dark:bg-gray-900/50 scroll-smooth transition-colors"
             >
               {isLoading && messages.length === 0 ? (
                 Array.from({length: Math.min(parseInt(sessionStorage.getItem('chatMessageCount') || '4', 10) || 4, 8)}).map((_, i) => {
@@ -478,20 +485,20 @@ const Messages: React.FC = () => {
                   return (
                     <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                       <div className={`flex gap-3 max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                        <Skeleton width={36} height={36} borderRadius={12} />
+                        <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={36} height={36} borderRadius={12} />
                         <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                          <Skeleton width={80} height={12} className="mb-1" />
-                          <Skeleton width={isMe ? 150 : 220} height={45} borderRadius={16} />
-                          <Skeleton width={40} height={10} className="mt-1" />
+                          <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={80} height={12} className="mb-1" />
+                          <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={isMe ? 150 : 220} height={45} borderRadius={16} />
+                          <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={40} height={10} className="mt-1" />
                         </div>
                       </div>
                     </div>
                   );
                 })
               ) : messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center opacity-40 text-[#122244]">
+                <div className="h-full flex flex-col items-center justify-center opacity-40 text-[#122244] dark:text-gray-300">
                   <MessageCircle size={48} />
-                  <p className="text-sm italic font-medium mt-2">
+                  <p className="text-sm italic font-medium mt-2 transition-colors">
                     No messages yet.
                   </p>
                 </div>
@@ -507,7 +514,7 @@ const Messages: React.FC = () => {
                         className={`flex gap-3 max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
                       >
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0 ${isMe ? "bg-[#c9a654]" : "bg-[#122244]"}`}
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0 transition-colors ${isMe ? "bg-[#c9a654]" : "bg-[#122244] dark:bg-gray-600"}`}
                         >
                           {msg.senderInitials}
                         </div>
@@ -515,21 +522,21 @@ const Messages: React.FC = () => {
                           className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[11px] font-extrabold text-[#122244]">
+                            <span className="text-[11px] font-extrabold text-[#122244] dark:text-gray-200 transition-colors">
                               {msg.senderName}
                             </span>
                             {msg.role === "Leader" && (
-                              <span className="text-[8px] bg-yellow-100 text-yellow-700 px-1.5 rounded font-bold uppercase tracking-widest">
+                              <span className="text-[8px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 rounded font-bold uppercase tracking-widest transition-colors">
                                 Leader
                               </span>
                             )}
                           </div>
                           <div
-                            className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isMe ? "bg-[#122244] text-white rounded-tr-none" : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"}`}
+                            className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed transition-colors ${isMe ? "bg-[#122244] dark:bg-[#1a3263] text-white rounded-tr-none" : "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-600 rounded-tl-none"}`}
                           >
                             {msg.content}
                           </div>
-                          <span className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">
+                          <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase tracking-tighter transition-colors">
                             {msg.time}
                           </span>
                         </div>
@@ -540,7 +547,7 @@ const Messages: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
+            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 transition-colors">
               <form
                 onSubmit={handleSendMessage}
                 className="flex gap-3 max-w-5xl mx-auto"
@@ -548,14 +555,14 @@ const Messages: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Type your message..."
-                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:bg-white transition-all font-medium text-[#122244]"
+                  className="flex-1 px-5 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:bg-white dark:focus:bg-gray-800 transition-all font-medium text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                 />
                 <button
                   type="submit"
                   disabled={!newMessage.trim() || !groupId}
-                  className="bg-[#122244] hover:bg-[#1a3263] text-white p-3.5 rounded-xl shadow-md transition-all disabled:opacity-50"
+                  className="bg-[#122244] dark:bg-[#c9a654] hover:bg-[#1a3263] dark:hover:bg-[#b59545] text-white p-3.5 rounded-xl shadow-md transition-all disabled:opacity-50"
                 >
                   <Send size={18} />
                 </button>
@@ -563,24 +570,24 @@ const Messages: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-80 bg-white border-l border-gray-100 hidden xl:flex flex-col p-4 space-y-4 overflow-y-auto flex-shrink-0">
-            <h3 className="font-extrabold text-[#122244] tracking-tight text-lg px-2">
+          <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-700 hidden xl:flex flex-col p-4 space-y-4 overflow-y-auto flex-shrink-0 transition-colors">
+            <h3 className="font-extrabold text-[#122244] dark:text-white tracking-tight text-lg px-2 transition-colors">
               Group Roster
             </h3>
             {groupMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${member.role === "Leader" ? "bg-purple-600" : "bg-green-600"}`}
                 >
                   {member.initials}
                 </div>
-                <div className="flex-1 min-w-0 text-[#122244]">
+                <div className="flex-1 min-w-0 text-[#122244] dark:text-white transition-colors">
                   <p className="text-sm font-bold truncate">{member.name}</p>
                   <span
-                    className={`text-[9px] font-extrabold uppercase tracking-widest ${member.role === "Leader" ? "text-purple-600" : "text-blue-600"}`}
+                    className={`text-[9px] font-extrabold uppercase tracking-widest ${member.role === "Leader" ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"}`}
                   >
                     {member.role}
                   </span>
@@ -595,18 +602,18 @@ const Messages: React.FC = () => {
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-colors"
             onClick={() => setShowLogoutConfirm(false)}
           />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl text-center relative text-[#122244]">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl text-center relative text-[#122244] dark:text-white transition-colors">
             <h3 className="text-lg font-bold mb-2">Sign Out?</h3>
-            <p className="text-sm text-gray-600 mb-6 italic">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 italic transition-colors">
               Are you sure you want to log out?
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
-                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50"
+                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => setShowLogoutConfirm(false)}
               >
                 Stay

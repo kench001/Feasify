@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import { useTheme } from "./ThemeContext";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -46,6 +47,8 @@ interface Project {
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -66,8 +69,6 @@ const Dashboard: React.FC = () => {
     }
     navigate("/");
   };
-
-
 
   useEffect(() => {
     let unsubscribeProjects: (() => void) | undefined;
@@ -285,17 +286,17 @@ const Dashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Feasible":
-        return "bg-green-100 text-green-700";
+        return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
       case "In Progress":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
       case "Needs Review":
-        return "bg-orange-100 text-orange-700";
+        return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
       case "Not Feasible":
-        return "bg-red-100 text-red-700";
+        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
       case "Pending":
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
     }
   };
 
@@ -317,9 +318,13 @@ const Dashboard: React.FC = () => {
           .slice(0, 2)
       : "U";
 
+  // Optional: Define skeleton colors based on theme
+  const skeletonBase = isDarkMode ? "#374151" : "#e8ecf0";
+  const skeletonHighlight = isDarkMode ? "#4B5563" : "#f4f6f8";
+
   return (
     <>
-      <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden transition-colors duration-300">
         {/* Mobile Backdrop */}
         {isSidebarOpen && (
           <div
@@ -329,7 +334,7 @@ const Dashboard: React.FC = () => {
         )}
 
         <aside
-          className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+          className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
         >
           <div className="p-6 flex items-center gap-3 border-b border-white/10">
             <img
@@ -436,24 +441,24 @@ const Dashboard: React.FC = () => {
         <main
           className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
         >
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
             <SidebarIcon
-              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+              className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             />
             <span className="mx-2">|</span>
-            <span className="font-semibold text-gray-900">FeasiFy</span>
+            <span className="font-semibold text-gray-900 dark:text-white">FeasiFy</span>
             <span>›</span>
-            <span className="font-semibold text-gray-900">Dashboard</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Dashboard</span>
           </div>
 
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 dark:border-gray-700 pb-6 transition-colors">
               <div>
-                <h1 className="text-3xl font-extrabold text-[#3d2c23]">
+                <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white transition-colors">
                   Dashboard
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 italic transition-colors">
                   Overview of your feasibility studies and key metrics
                 </p>
               </div>
@@ -468,14 +473,14 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {isLoadingStats ? (
                 Array.from({length: 4}).map((_, i) => (
-                  <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                  <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
                     <div className="flex justify-between items-start mb-4">
-                      <Skeleton width={36} height={36} borderRadius={8} />
-                      <Skeleton width={16} height={16} />
+                      <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={36} height={36} borderRadius={8} />
+                      <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={16} height={16} />
                     </div>
-                    <Skeleton width={80} height={36} className="mb-1" />
-                    <Skeleton width={100} height={16} className="mb-1" />
-                    <Skeleton width={140} height={12} />
+                    <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={80} height={36} className="mb-1" />
+                    <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={100} height={16} className="mb-1" />
+                    <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={140} height={12} />
                   </div>
                 ))
               ) : (
@@ -512,21 +517,21 @@ const Dashboard: React.FC = () => {
                   <div
                     key={stat.label}
                     onClick={() => navigate("/projects")}
-                    className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                    className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all group cursor-pointer"
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#c9a654]/10 transition-colors">
-                        <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#c9a654]" />
+                      <div className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg group-hover:bg-[#c9a654]/10 transition-colors">
+                        <stat.icon className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-[#c9a654] dark:group-hover:text-[#c9a654]" />
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#c9a654]" />
+                      <ArrowUpRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-[#c9a654] dark:group-hover:text-[#c9a654]" />
                     </div>
-                    <p className="text-3xl font-bold text-[#122244]">
+                    <p className="text-3xl font-bold text-[#122244] dark:text-white transition-colors">
                       {stat.value}
                     </p>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1 mb-1">
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-1 mb-1 transition-colors">
                       {stat.label}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-medium">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium transition-colors">
                       {stat.sub}
                     </p>
                   </div>
@@ -534,9 +539,9 @@ const Dashboard: React.FC = () => {
               )}
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                <h3 className="font-bold text-[#122244] text-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 transition-colors">
+                <h3 className="font-bold text-[#122244] dark:text-white text-lg transition-colors">
                   Approved Projects List
                 </h3>
                 <button
@@ -547,26 +552,26 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 dark:divide-gray-700 transition-colors">
                 {isLoadingStats ? (
                   Array.from({length: parseInt(sessionStorage.getItem('dashboardProjectCount') || '3', 10) || 3}).map((_, i) => (
                     <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="space-y-1">
-                          <Skeleton width={180} height={16} />
-                          <Skeleton width={120} height={12} />
+                          <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={180} height={16} />
+                          <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={120} height={12} />
                         </div>
-                        <Skeleton width={60} height={20} borderRadius={999} />
+                        <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={60} height={20} borderRadius={999} />
                       </div>
                       <div className="w-full md:w-48 flex items-center gap-3">
-                        <Skeleton className="flex-1" height={6} borderRadius={999} />
-                        <Skeleton width={30} height={12} />
+                        <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} className="flex-1" height={6} borderRadius={999} />
+                        <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={30} height={12} />
                       </div>
                     </div>
                   ))
                 ) : projects.length === 0 ? (
                   <div className="p-8 flex flex-col items-center justify-center text-center">
-                    <p className="text-gray-500 text-sm mb-2">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-2 transition-colors">
                       No approved proposals found.
                     </p>
                     <button
@@ -580,7 +585,7 @@ const Dashboard: React.FC = () => {
                   projects.map((project) => (
                     <div
                       key={project.id}
-                      className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                       onClick={() =>
                         navigate("/financial-input", {
                           state: { projectId: project.id },
@@ -589,10 +594,10 @@ const Dashboard: React.FC = () => {
                     >
                       <div className="flex items-center gap-4">
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-gray-900">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">
                             {project.name}
                           </p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest transition-colors">
                             {project.status === "Pending"
                               ? "Group Container"
                               : `Business Project • Created: ${project.date}`}
@@ -605,13 +610,13 @@ const Dashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="w-full md:w-48 flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                           <div
                             className="h-full bg-[#c9a654] transition-all duration-1000"
                             style={{ width: getEstimatedProgress(project) }}
                           />
                         </div>
-                        <span className="text-[10px] font-bold text-gray-500">
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 transition-colors">
                           {getEstimatedProgress(project)}
                         </span>
                       </div>
@@ -624,20 +629,20 @@ const Dashboard: React.FC = () => {
         </main>
 
         {showWelcomeToast && (
-          <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-50 animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-800 border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-50 animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg transition-colors">
             <CheckCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
             <div className="flex-1">
-              <h4 className="font-bold text-gray-900 text-base">
+              <h4 className="font-bold text-gray-900 dark:text-white text-base transition-colors">
                 Login Successful
               </h4>
-              <p className="text-gray-600 text-sm mt-1">
+              <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 transition-colors">
                 Welcome to FeasiFy{" "}
-                <span className="font-bold text-gray-900">{welcomeName}</span>!
+                <span className="font-bold text-gray-900 dark:text-white">{welcomeName}</span>!
               </p>
             </div>
             <button
               onClick={() => setShowWelcomeToast(false)}
-              className="text-gray-400 hover:text-gray-600 self-start mt-1"
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 self-start mt-1 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -647,21 +652,21 @@ const Dashboard: React.FC = () => {
         {showLogoutConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-colors"
               onClick={() => setShowLogoutConfirm(false)}
             />
-            <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
-              <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200 transition-colors">
+              <h3 className="text-lg font-bold text-[#122244] dark:text-white mb-2 text-center transition-colors">
                 Sign Out?
               </h3>
-              <p className="text-sm text-gray-600 mb-6 text-center italic">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center italic transition-colors">
                 Are you sure you want to log out of your session?
               </p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Stay
                 </button>

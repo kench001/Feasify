@@ -18,6 +18,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { useTheme } from "./ThemeContext";
 import {
   LayoutDashboard,
   Folder,
@@ -53,6 +54,9 @@ interface Teammate {
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
+  
   const [userName, setUserName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -268,7 +272,7 @@ const Profile: React.FC = () => {
     await signOutUser();
     localStorage.clear();
     navigate("/");
-  }; // <--- FIXED: Added missing closing brace here
+  };
 
   const handleSaveGroup = async () => {
     setIsSavingGroup(true);
@@ -298,7 +302,7 @@ const Profile: React.FC = () => {
       : "U";
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244]">
+    <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden text-[#122244] dark:text-gray-100 transition-colors duration-300">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -308,7 +312,7 @@ const Profile: React.FC = () => {
       )}
       {/* SIDEBAR */}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 border-b border-white/10">
           <img
@@ -409,34 +413,34 @@ const Profile: React.FC = () => {
       <main
         className={`flex-1 transition-all duration-300 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
           <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-          <span className="font-semibold text-gray-900">Profile</span>
+          <span className="font-semibold text-gray-900 dark:text-white transition-colors">Profile</span>
         </div>
 
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-6">
             {/* USER PROFILE CARD */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col items-center text-center">
-              <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 flex flex-col items-center text-center transition-colors">
+              <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md transition-colors">
                 {getInitials(userName)}
               </div>
-              <h3 className="text-xl font-bold text-[#122244]">{userName}</h3>
-              <p className="text-gray-500 font-semibold text-sm mb-4">
+              <h3 className="text-xl font-bold text-[#122244] dark:text-white transition-colors">{userName}</h3>
+              <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm mb-4 transition-colors">
                 @{profileData.username}
               </p>
-              <div className="w-full space-y-2 pt-4 mt-4 border-t border-gray-200">
-                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+              <div className="w-full space-y-2 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 transition-colors">
+                <div className="flex justify-between items-center text-xs font-bold text-gray-500 dark:text-gray-400 transition-colors">
                   <span>SECTION</span>
-                  <span className="text-[#122244]">{profileData.section}</span>
+                  <span className="text-[#122244] dark:text-white transition-colors">{profileData.section}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                <div className="flex justify-between items-center text-xs font-bold text-gray-500 dark:text-gray-400 transition-colors">
                   <span>ROLE</span>
-                  <span className="text-[#c9a654]">
+                  <span className="text-[#c9a654] transition-colors">
                     {profileData.roleInGroup || "Student"}
                   </span>
                 </div>
@@ -444,28 +448,28 @@ const Profile: React.FC = () => {
             </div>
 
             {/* ACCOUNT SETTINGS CARD */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-6 text-[#122244]">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 transition-colors">
+              <h2 className="text-lg font-bold mb-6 text-[#122244] dark:text-white transition-colors">
                 Account Settings
               </h2>
               <div className="space-y-5">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                     Email Address
                   </label>
-                  <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 mt-1 transition-colors">
                     <span className="truncate">{profileData.email}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">
                     User Handle
                   </label>
-                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 mt-1 transition-colors">
                     <span className="truncate">@{profileData.username}</span>
                     <button
                       onClick={() => setShowUsernameModal(true)}
-                      className="text-[#c9a654] hover:text-[#b59545] font-semibold ml-2 whitespace-nowrap"
+                      className="text-[#c9a654] hover:text-[#b59545] font-semibold ml-2 whitespace-nowrap transition-colors"
                     >
                       Update
                     </button>
@@ -476,26 +480,26 @@ const Profile: React.FC = () => {
           </div>
 
           {/* TEAM COLLABORATORS */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mt-6">
-            <h2 className="text-lg font-bold text-[#122244] mb-6 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 mt-6 transition-colors">
+            <h2 className="text-lg font-bold text-[#122244] dark:text-white mb-6 flex items-center gap-2 transition-colors">
               👥 Team Collaborators
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {teamCollaborators.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200 hover:bg-white transition-all"
+                  className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-700 transition-all cursor-pointer"
                 >
                   <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${m.role === "Leader" ? "bg-purple-600" : "bg-[#122244]"}`}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 transition-colors ${m.role === "Leader" ? "bg-purple-600" : "bg-[#122244] dark:bg-blue-600"}`}
                   >
                     {m.initials}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-[#122244] truncate">
+                    <p className="text-sm font-bold text-[#122244] dark:text-white truncate transition-colors">
                       {m.name}
                     </p>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 transition-colors">
                       {m.role}
                     </p>
                   </div>
@@ -507,37 +511,38 @@ const Profile: React.FC = () => {
       </main>
 
       {/* ALL MODALS GO HERE (PROCEED AS BEFORE) */}
+      
       {/* FORCE PASSWORD CHANGE MODAL */}
       {showForcePasswordModal && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 transition-colors">
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 transition-colors">
                 <ShieldAlert className="w-8 h-8" />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-center text-[#122244] mb-2">Security Update Required</h3>
-            <p className="text-sm text-center text-gray-500 mb-8 font-medium">
+            <h3 className="text-2xl font-black text-center text-[#122244] dark:text-white mb-2 transition-colors">Security Update Required</h3>
+            <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-8 font-medium transition-colors">
               Please change your default password to continue.
             </p>
 
             <form onSubmit={handleForcePasswordChange} className="space-y-5">
               {modalError && (
-                <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-2 font-bold">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-4 rounded-xl flex items-center gap-2 font-bold transition-colors">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {modalError}
                 </div>
               )}
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">New Password</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 transition-colors">New Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 transition-colors" />
                   <input
                     type={showForceNewPwd ? "text" : "password"}
                     value={forcePwdData.new}
                     onChange={(e) => setForcePwdData({ ...forcePwdData, new: e.target.value })}
-                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all placeholder-gray-400 dark:placeholder-gray-500"
                     placeholder="Enter new password"
                     required
                     minLength={8}
@@ -545,7 +550,7 @@ const Profile: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowForceNewPwd(!showForceNewPwd)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
                     {showForceNewPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -553,14 +558,14 @@ const Profile: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Confirm Password</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 transition-colors">Confirm Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 transition-colors" />
                   <input
                     type={showForceConfirmPwd ? "text" : "password"}
                     value={forcePwdData.confirm}
                     onChange={(e) => setForcePwdData({ ...forcePwdData, confirm: e.target.value })}
-                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                    className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all placeholder-gray-400 dark:placeholder-gray-500"
                     placeholder="Confirm new password"
                     required
                     minLength={8}
@@ -568,7 +573,7 @@ const Profile: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowForceConfirmPwd(!showForceConfirmPwd)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
                     {showForceConfirmPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -589,15 +594,15 @@ const Profile: React.FC = () => {
 
       {/* SUCCESS MODAL FOR PASSWORD CHANGE */}
       {showForcePasswordSuccess && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl text-center animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 w-full max-w-md shadow-2xl text-center animate-in zoom-in-95 duration-200 transition-colors">
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 transition-colors">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-[#122244] mb-2">Password Updated!</h3>
-            <p className="text-sm text-gray-500 mb-8 font-medium">
+            <h3 className="text-2xl font-black text-[#122244] dark:text-white mb-2 transition-colors">Password Updated!</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 font-medium transition-colors">
               {isFirstTimePasswordChange 
                 ? "Your password has been successfully set. Please log in again with your new password."
                 : "Your password has been successfully secured."
@@ -618,7 +623,7 @@ const Profile: React.FC = () => {
                   });
                 }
               }}
-              className="w-full bg-[#122244] hover:bg-black text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
+              className="w-full bg-[#122244] dark:bg-black hover:bg-black dark:hover:bg-gray-900 text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-colors"
             >
               {isFirstTimePasswordChange ? "Re-login" : "Continue to Dashboard"}
             </button>
@@ -628,30 +633,30 @@ const Profile: React.FC = () => {
 
       {/* USERNAME MODAL */}
       {showUsernameModal && (
-        <div className="fixed inset-0 bg-[#122244]/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-[#122244] mb-4">Update User Handle</h3>
+        <div className="fixed inset-0 bg-[#122244]/90 dark:bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 transition-colors">
+            <h3 className="text-xl font-bold text-[#122244] dark:text-white mb-4 transition-colors">Update User Handle</h3>
             <form onSubmit={handleChangeUsername} className="space-y-4">
               {modalError && (
-                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold transition-colors">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {modalError}
                 </div>
               )}
               {modalSuccess && (
-                <div className="bg-green-50 text-green-600 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold">
+                <div className="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-sm p-3 rounded-lg flex items-center gap-2 font-semibold transition-colors">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   {modalSuccess}
                 </div>
               )}
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">New User Handle</label>
+                <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors">New User Handle</label>
                 <input
                   type="text"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   placeholder={`@${profileData.username}`}
-                  className="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                  className="w-full mt-2 px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
               <div className="flex gap-3 pt-2">
@@ -663,7 +668,7 @@ const Profile: React.FC = () => {
                     setModalError("");
                     setModalSuccess("");
                   }}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -680,21 +685,21 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* LOGOUT CONFIRMATION (Make sure to keep this if it was also commented out) */}
+      {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center">
-            <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
-              <h3 className="text-lg font-bold text-[#122244] mb-2 text-center">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-center transition-colors">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200 transition-colors">
+              <h3 className="text-lg font-bold text-[#122244] dark:text-white mb-2 text-center transition-colors">
                 Sign Out?
               </h3>
-              <p className="text-sm text-gray-600 mb-6 text-center italic">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center italic transition-colors">
                 Are you sure you want to log out of your session?
               </p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Stay
                 </button>
@@ -718,4 +723,3 @@ const Profile: React.FC = () => {
 };
 
 export default Profile;
-

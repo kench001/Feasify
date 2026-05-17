@@ -16,6 +16,7 @@ import {
   serverTimestamp,
   deleteDoc,
 } from "firebase/firestore";
+import { useTheme } from "./ThemeContext";
 import {
   LayoutDashboard,
   Folder,
@@ -83,7 +84,6 @@ interface GroupData {
   activeProposalId?: string;
 }
 
-// Added FeedbackItem interface
 interface FeedbackItem {
   id: string;
   text: string;
@@ -109,7 +109,7 @@ interface ProposalData {
   otherDetails: string;
   status: "Draft" | "Pending" | "Approved" | "Rejected" | "Revision";
   adviserFeedback?: string;
-  feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
+  feedbackHistory?: FeedbackItem[];
   createdAt?: any;
 }
 
@@ -129,14 +129,12 @@ const initialProposalState: ProposalData = {
   otherDetails: "",
   status: "Draft",
 };
+
 const formatDateTime = (timestamp: any) => {
   if (!timestamp) return "";
   try {
-    // Check if it's a Firebase Timestamp with a toDate method, otherwise assume it's a standard Date/string
     const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
     if (isNaN(date.getTime())) return "";
-    
-    // en-GB locale formats to DD/MM/YYYY, HH:mm:ss natively
     return date.toLocaleString('en-GB', {
       day: '2-digit',
       month: '2-digit',
@@ -153,6 +151,9 @@ const formatDateTime = (timestamp: any) => {
 
 const Projects: React.FC = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
+  
   const [userName, setUserName] = useState("");
   const [userUid, setUserUid] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -269,7 +270,6 @@ const Projects: React.FC = () => {
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
-          // Self-healing: Clear dead references or mismatched titles
           const activePropExists = g.activeProposalId && fetchedProposals.some(p => p.id === g.activeProposalId);
           let needsFix = false;
           const fixData: any = {};
@@ -280,7 +280,6 @@ const Projects: React.FC = () => {
             fixData.title = "Feasibility Project";
             needsFix = true;
           } else if (!g.activeProposalId && g.title && g.title !== "Feasibility Project") {
-            // Check if the title belongs to an existing proposal
             const titleMatchesExisting = fetchedProposals.some(p => p.businessName === g.title);
             if (!titleMatchesExisting) {
               fixData.title = "Feasibility Project";
@@ -405,10 +404,7 @@ const Projects: React.FC = () => {
 
   const handleAutoSave = async (dataToSave = currentProposal) => {
     if (!userGroup) return;
-    // Only auto-save if we are in editing mode
     if (!isEditingMode) return;
-    
-    // Don't auto-save if business name and type are both empty (avoiding empty drafts)
     if (!dataToSave.businessName && !dataToSave.businessType) return;
 
     setIsSaving(true);
@@ -431,7 +427,6 @@ const Projects: React.FC = () => {
           createdAt: serverTimestamp(),
         });
         setCurrentProposal(prev => ({ ...prev, id: docRef.id }));
-        // Refresh local proposals list to include the new ID
         fetchProposals(userGroup.id);
       }
       setSaveStatus("All changes saved");
@@ -446,7 +441,6 @@ const Projects: React.FC = () => {
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) return;
 
-    // Validation for Pending status (Submit to Adviser)
     if (status === "Pending") {
       const requiredFields: (keyof ProposalData)[] = [
         "businessType",
@@ -520,7 +514,6 @@ const Projects: React.FC = () => {
     try {
       await deleteDoc(doc(db, "proposals", proposalId));
       
-      // If the deleted proposal was the active business, clear it from the group
       if (userGroup && userGroup.activeProposalId === proposalId) {
         await updateDoc(doc(db, "groups", userGroup.id), {
           activeProposalId: "",
@@ -575,7 +568,6 @@ const Projects: React.FC = () => {
   const handleUpdateBasicInfo = async () => {
     if (!userGroup || !userGroup.activeProposalId) return;
 
-    // Validation
     const requiredFields: (keyof ProposalData)[] = [
       "businessType",
       "businessName",
@@ -648,17 +640,20 @@ const Projects: React.FC = () => {
     }
   };
 
+  const skeletonBase = isDarkMode ? "#374151" : "#e8ecf0";
+  const skeletonHighlight = isDarkMode ? "#4B5563" : "#f4f6f8";
+
   const renderSidebar = () => (
     <>
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[50] lg:hidden transition-colors"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
       <div className="p-6 flex items-center gap-3 border-b border-white/10">
         <img
@@ -734,7 +729,7 @@ const Projects: React.FC = () => {
           </div>
         </div>
       </nav>
-      <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
+      <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3 text-white">
         <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
           {getInitials(userName)}
         </div>
@@ -770,42 +765,42 @@ const Projects: React.FC = () => {
   if (activeView === "loading") {
     const cachedCount = parseInt(sessionStorage.getItem('projectsProposalCount') || '3', 10) || 3;
     return (
-      <div className="flex min-h-screen bg-gray-50/50">
+      <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden transition-colors duration-300">
         {renderSidebar()}
         <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}>
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-            <SidebarIcon className="w-4 h-4 cursor-pointer text-gray-300" />
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
+            <SidebarIcon className="w-4 h-4 cursor-pointer text-gray-300 dark:text-gray-600" />
             <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-            <span className="font-semibold text-gray-900">Projects</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Projects</span>
           </div>
           <div className="p-6 md:p-8 max-w-6xl mx-auto">
-             <Skeleton width={250} height={36} className="mb-2" />
-             <div className="bg-[#122244] rounded-xl mb-6 flex items-center p-6 gap-6">
-                <Skeleton width={80} height={80} borderRadius={16} highlightColor="#2a3c5a" baseColor="#1a2942" />
+             <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={250} height={36} className="mb-2" />
+             <div className="bg-[#122244] dark:bg-gray-950 rounded-xl mb-6 flex items-center p-6 gap-6 transition-colors">
+                <Skeleton width={80} height={80} borderRadius={16} highlightColor={isDarkMode ? "#374151" : "#2a3c5a"} baseColor={isDarkMode ? "#1f2937" : "#1a2942"} />
                 <div>
-                   <Skeleton width={120} height={16} className="mb-2" highlightColor="#2a3c5a" baseColor="#1a2942" />
-                   <Skeleton width={200} height={24} className="mb-1" highlightColor="#2a3c5a" baseColor="#1a2942" />
-                   <Skeleton width={150} height={12} highlightColor="#2a3c5a" baseColor="#1a2942" />
+                   <Skeleton width={120} height={16} className="mb-2" highlightColor={isDarkMode ? "#374151" : "#2a3c5a"} baseColor={isDarkMode ? "#1f2937" : "#1a2942"} />
+                   <Skeleton width={200} height={24} className="mb-1" highlightColor={isDarkMode ? "#374151" : "#2a3c5a"} baseColor={isDarkMode ? "#1f2937" : "#1a2942"} />
+                   <Skeleton width={150} height={12} highlightColor={isDarkMode ? "#374151" : "#2a3c5a"} baseColor={isDarkMode ? "#1f2937" : "#1a2942"} />
                 </div>
              </div>
              <div className="flex justify-between items-center mb-6">
-               <Skeleton width={200} height={28} />
-               <Skeleton width={120} height={36} borderRadius={8} />
+               <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={200} height={28} />
+               <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={120} height={36} borderRadius={8} />
              </div>
-             <div className="flex space-x-6 border-b border-gray-200 mb-6">
-               <Skeleton width={400} height={24} />
+             <div className="flex space-x-6 border-b border-gray-200 dark:border-gray-700 mb-6 transition-colors">
+               <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={400} height={24} />
              </div>
              <div className="space-y-4">
                {Array.from({length: cachedCount}).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-5 flex items-center justify-between">
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-5 flex items-center justify-between transition-colors">
                      <div className="flex gap-4 items-center">
-                        <Skeleton width={48} height={48} borderRadius={8} />
+                        <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={48} height={48} borderRadius={8} />
                         <div>
-                           <Skeleton width={180} height={20} className="mb-1" />
-                           <Skeleton width={100} height={12} />
+                           <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={180} height={20} className="mb-1" />
+                           <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={100} height={12} />
                         </div>
                      </div>
-                     <Skeleton width={150} height={36} borderRadius={8} />
+                     <Skeleton baseColor={skeletonBase} highlightColor={skeletonHighlight} width={150} height={36} borderRadius={8} />
                   </div>
                ))}
              </div>
@@ -820,31 +815,31 @@ const Projects: React.FC = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50">
+    <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden transition-colors duration-300">
       {renderSidebar()}
 
       <main
         className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
           <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-          <span className="font-semibold text-gray-900">Projects</span>
+          <span className="font-semibold text-gray-900 dark:text-white transition-colors">Projects</span>
         </div>
 
         <div className="p-6 md:p-8 max-w-6xl mx-auto">
           {activeView === "no-group" && (
             <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-gray-400" />
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 transition-colors">
+                <Users className="w-8 h-8 text-gray-400 dark:text-gray-500 transition-colors" />
               </div>
-              <h2 className="text-xl font-bold text-[#122244]">
+              <h2 className="text-xl font-bold text-[#122244] dark:text-white transition-colors">
                 Not Assigned Yet
               </h2>
-              <p className="text-gray-500 mt-2 max-w-md">
+              <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md transition-colors">
                 Your adviser has not assigned you to a feasibility group yet.
               </p>
             </div>
@@ -852,14 +847,14 @@ const Projects: React.FC = () => {
 
           {activeView === "leader-setup" && (
             <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
+              <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white mb-1 transition-colors">
                 Business Proposal
               </h1>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center border-dashed">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                  <Star className="w-8 h-8 text-blue-500" />
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center border-dashed transition-colors">
+                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6 transition-colors">
+                  <Star className="w-8 h-8 text-blue-500 dark:text-blue-400 transition-colors" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#122244] mb-2">
+                <h2 className="text-2xl font-bold text-[#122244] dark:text-white mb-2 transition-colors">
                   You're assigned as Group Leader!
                 </h2>
                 <button
@@ -874,14 +869,14 @@ const Projects: React.FC = () => {
 
           {activeView === "member-join" && (
             <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
+              <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white mb-1 transition-colors">
                 Business Proposal
               </h1>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 border border-blue-100">
-                  <Bell className="w-8 h-8 text-blue-500" />
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center transition-colors">
+                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6 border border-blue-100 dark:border-blue-800 transition-colors">
+                  <Bell className="w-8 h-8 text-blue-500 dark:text-blue-400 transition-colors" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#122244] mb-2">
+                <h2 className="text-2xl font-bold text-[#122244] dark:text-white mb-2 transition-colors">
                   You're added to a group!
                 </h2>
                 <button
@@ -896,30 +891,30 @@ const Projects: React.FC = () => {
 
           {activeView === "dashboard" && userGroup && (
             <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
+              <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white mb-1 transition-colors">
                 Business Proposal
               </h1>
-              <div className="bg-[#122244] rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-6 text-white relative">
+              <div className="bg-[#122244] dark:bg-gray-950 rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-6 text-white relative transition-colors">
                 <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner flex-shrink-0">
-                    <span className="text-2xl font-bold text-white tracking-widest">
+                  <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner flex-shrink-0 transition-colors">
+                    <span className="text-2xl font-bold text-white tracking-widest transition-colors">
                       G{userGroup.id.slice(-1) || "1"}
                     </span>
                   </div>
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest bg-[#4285F4] px-2 py-1 rounded">
+                    <div className="flex items-center gap-3 mb-2 transition-colors">
+                      <span className="text-[10px] font-bold uppercase tracking-widest bg-[#4285F4] px-2 py-1 rounded transition-colors">
                         PROPOSAL PHASE
                       </span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300 transition-colors">
                         <User className="w-3 h-3" /> SECTION:{" "}
                         {userGroup.section}
                       </span>
                     </div>
-                    <h1 className="text-2xl font-bold mb-1">
+                    <h1 className="text-2xl font-bold mb-1 transition-colors">
                       {userGroup.title}
                     </h1>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-400 transition-colors">
                       + Adviser: Prof.{" "}
                       {adviserData ? adviserData.lastName : "Cruz"}
                     </p>
@@ -931,35 +926,35 @@ const Projects: React.FC = () => {
                 >
                   <Users className="w-4 h-4" /> {userGroup.memberIds.length + 1}{" "}
                   Members{" "}
-                  <span className="text-[10px] uppercase ml-1">View Team</span>
+                  <span className="text-[10px] uppercase ml-1 transition-colors">View Team</span>
                 </button>
               </div>
 
               {userGroup.status === "Active Business" && activeBusiness && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-green-700">
+                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-xl flex items-center justify-between transition-colors">
+                  <div className="flex items-center gap-3 text-green-700 dark:text-green-400 transition-colors">
                     <CheckCircle2 size={20} />
-                    <p className="text-sm font-bold">
+                    <p className="text-sm font-bold transition-colors">
                       Currently Active:{" "}
-                      <span className="underline">
+                      <span className="underline transition-colors">
                         {activeBusiness.businessName}
                       </span>
                     </p>
                   </div>
                   <button
                     onClick={() => setActiveView("active-business")}
-                    className="text-xs font-black uppercase text-green-800 hover:underline"
+                    className="text-xs font-black uppercase text-green-800 dark:text-green-300 hover:underline transition-colors"
                   >
                     View Active Details
                   </button>
                 </div>
               )}
 
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-[#122244]">
+              <div className="flex justify-between items-center mb-6 transition-colors">
+                <h2 className="text-2xl font-bold text-[#122244] dark:text-white transition-colors">
                   Business Proposals
                 </h2>
-                <div className="relative group">
+                <div className="relative group transition-colors">
                   <button
                     onClick={() => {
                       setCurrentProposal(initialProposalState);
@@ -970,22 +965,22 @@ const Projects: React.FC = () => {
                     disabled={!!activeBusiness}
                     className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
                       activeBusiness 
-                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
+                        ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-70 text-white" 
                         : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                     }`}
                   >
                     + New Proposal
                   </button>
                   {activeBusiness && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] dark:bg-gray-700 text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10 dark:border-gray-600">
                       Already has Approved Business
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244] dark:border-t-gray-700"></div>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex space-x-6 border-b border-gray-200 mb-6">
+              <div className="flex space-x-6 border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto transition-colors">
                 {[
                   "All Proposals",
                   "Drafts",
@@ -997,7 +992,7 @@ const Projects: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => setDashboardTab(tab as any)}
-                    className={`pb-3 text-sm font-bold transition-colors border-b-2 ${dashboardTab === tab ? "border-[#4285F4] text-[#4285F4]" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+                    className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${dashboardTab === tab ? "border-[#4285F4] text-[#4285F4]" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"}`}
                   >
                     {tab}
                   </button>
@@ -1005,20 +1000,20 @@ const Projects: React.FC = () => {
               </div>
 
               {proposals.length === 0 ? (
-                <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-20 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
-                    <FileText className="w-8 h-8 text-gray-300" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 py-20 flex flex-col items-center justify-center text-center transition-colors">
+                  <div className="w-16 h-16 bg-gray-50 dark:bg-gray-700/50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100 dark:border-gray-600 transition-colors">
+                    <FileText className="w-8 h-8 text-gray-300 dark:text-gray-500 transition-colors" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#122244]">
+                  <h3 className="text-lg font-bold text-[#122244] dark:text-white transition-colors">
                     No proposals yet
                   </h3>
                 </div>
               ) : filteredProposals.length === 0 ? (
-                <p className="text-center text-gray-500 py-12">
+                <p className="text-center text-gray-500 dark:text-gray-400 py-12 transition-colors">
                   No proposals found for this filter.
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 transition-colors">
                   {filteredProposals.map((proposal) => {
                     let isApproved = proposal.status === "Approved";
                     let isRejected = proposal.status === "Rejected";
@@ -1027,43 +1022,42 @@ const Projects: React.FC = () => {
                     return (
                       <div
                         key={proposal.id}
-                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
-                          isApproved ? "border-green-400" : 
-                          isRejected ? "border-red-300" : 
-                          isRevision ? "border-orange-300" : "border-gray-200"
+                        className={`bg-white dark:bg-gray-800 rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${
+                          isApproved ? "border-green-400 dark:border-green-700" : 
+                          isRejected ? "border-red-300 dark:border-red-800" : 
+                          isRevision ? "border-orange-300 dark:border-orange-700" : "border-gray-200 dark:border-gray-700"
                         }`}
                       >
-                        <div className="flex gap-4 items-center w-full sm:w-auto">
+                        <div className="flex gap-4 items-center w-full sm:w-auto transition-colors">
                           <div
-                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
-                              isApproved ? "bg-green-50 text-green-600" : 
-                              isRejected ? "bg-red-50 text-red-600" : 
-                              isRevision ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-500"
+                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg transition-colors ${
+                              isApproved ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400" : 
+                              isRejected ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400" : 
+                              isRevision ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400" : "bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400"
                             }`}
                           >
                             B#
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1 flex-wrap">
-                              <h3 className="font-bold text-[#122244] text-lg truncate max-w-[250px]">
+                          <div className="flex-1 min-w-0 transition-colors">
+                            <div className="flex items-center gap-3 mb-1 flex-wrap transition-colors">
+                              <h3 className="font-bold text-[#122244] dark:text-white text-lg truncate max-w-[250px] transition-colors">
                                 {proposal.businessName}
                               </h3>
-                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                                proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
-                                proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-600'
+                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider transition-colors ${
+                                proposal.status === 'Approved' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' :
+                                proposal.status === 'Rejected' ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' :
+                                proposal.status === 'Revision' ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300' :
+                                proposal.status === 'Pending' ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300' :
+                                'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                               }`}>
                                 {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest truncate">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate transition-colors">
                               {proposal.businessType || "No Category"}
                             </p>
-                            {/* ADDED: Timestamp Display */}
                             {proposal.createdAt && (
-                              <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
+                              <div className="flex items-center text-gray-400 dark:text-gray-500 mt-1.5 gap-1.5 text-xs font-medium transition-colors">
                                 <Clock className="w-3.5 h-3.5" />
                                 <span>
                                   Submitted: {formatDateTime(proposal.createdAt)}
@@ -1072,12 +1066,12 @@ const Projects: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end transition-colors">
                           {isApproved ? (
                             userGroup?.activeProposalId === proposal.id ? (
                               <button
                                 onClick={() => setActiveView("active-business")}
-                                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
+                                className="px-5 py-2.5 bg-blue-600 dark:bg-blue-700 text-white font-bold text-sm rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
                               >
                                 <FileText className="w-4 h-4" /> View Details
                               </button>
@@ -1090,8 +1084,8 @@ const Projects: React.FC = () => {
                                 disabled={!!activeBusiness}
                                 className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${
                                   activeBusiness 
-                                    ? "bg-gray-400 cursor-not-allowed opacity-70" 
-                                    : "bg-green-600 hover:bg-green-700 shadow-md"
+                                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-70" 
+                                    : "bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-600 shadow-md"
                                 }`}
                                 title={activeBusiness ? "Another business is already setup" : ""}
                               >
@@ -1106,12 +1100,12 @@ const Projects: React.FC = () => {
                                   setIsEditingMode(false);
                                   setActiveView("form");
                                 }}
-                                className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                                className="px-5 py-2 bg-blue-50 dark:bg-blue-900/30 text-[#4285F4] dark:text-blue-400 font-bold text-sm rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-2 transition-colors"
                               >
                                 <FileText className="w-4 h-4" /> Open
                               </button>
                               {!isRejected && (
-                                <div className="relative group">
+                                <div className="relative group transition-colors">
                                   <button
                                     onClick={() => {
                                       setCurrentProposal(proposal);
@@ -1122,23 +1116,23 @@ const Projects: React.FC = () => {
                                     disabled={proposal.status === 'Pending'}
                                     className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
                                       proposal.status === 'Pending'
-                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
-                                        : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
+                                        ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70"
+                                        : "bg-blue-50 dark:bg-blue-900/30 text-[#4285F4] dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                                     }`}
                                   >
                                     <Edit className="w-4 h-4" /> Edit
                                   </button>
                                   {proposal.status === 'Pending' && (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] dark:bg-gray-700 text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10 dark:border-gray-600">
                                       Wait for Revision
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244] dark:border-t-gray-700"></div>
                                     </div>
                                   )}
                                 </div>
                               )}
                             </>
                           )}
-                          <div className="relative">
+                          <div className="relative transition-colors">
                             <button
                               onClick={() =>
                                 setOpenDropdownId(
@@ -1147,19 +1141,19 @@ const Projects: React.FC = () => {
                                     : proposal.id || null,
                                 )
                               }
-                              className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </button>
                             {openDropdownId === proposal.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
+                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-xl z-10 py-1 transition-colors">
                                 <button
                                   onClick={() => {
                                     setProposalToDelete(proposal);
                                     setShowDeleteConfirmModal(true);
                                     setOpenDropdownId(null);
                                   }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                                 >
                                   Delete
                                 </button>
@@ -1177,20 +1171,20 @@ const Projects: React.FC = () => {
 
           {activeView === "form" && (
             <div>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 transition-colors">
+                <div className="flex items-center gap-4 transition-colors">
                   <button
                     onClick={() => setActiveView("dashboard")}
-                    className="flex items-center gap-2 text-sm font-bold text-[#4285F4] hover:text-blue-700"
+                    className="flex items-center gap-2 text-sm font-bold text-[#4285F4] dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" /> Back to Proposals
                   </button>
                 </div>
-                <div className="flex gap-3 w-full sm:w-auto items-center">
+                <div className="flex gap-3 w-full sm:w-auto items-center transition-colors">
                   {isEditingMode && (
-                    <div className="flex items-center gap-2 px-4">
+                    <div className="flex items-center gap-2 px-4 transition-colors">
                       <span
-                        className={`text-xs font-bold flex items-center gap-1.5 ${isSaving ? "text-gray-400 animate-pulse" : "text-green-600"}`}
+                        className={`text-xs font-bold flex items-center gap-1.5 transition-colors ${isSaving ? "text-gray-400 dark:text-gray-500 animate-pulse" : "text-green-600 dark:text-green-400"}`}
                       >
                         {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />} {saveStatus}
                       </span>
@@ -1200,72 +1194,72 @@ const Projects: React.FC = () => {
                     <button
                       onClick={() => handleSaveProposal("Pending")}
                       disabled={isSaving}
-                      className="flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md"
+                      className="flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-colors"
                     >
                       Submit to Adviser
                     </button>
                   )}
                 </div>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-8 border-b border-gray-100 text-center bg-gray-50/50">
-                  <h2 className="text-3xl font-extrabold text-[#122244] mb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
+                <div className="p-8 border-b border-gray-100 dark:border-gray-700 text-center bg-gray-50/50 dark:bg-gray-800/50 transition-colors">
+                  <h2 className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                     {currentProposal.businessName || "New Business Proposal"}
                   </h2>
-                  <div className="w-full max-w-lg mx-auto h-px bg-blue-600 mb-2"></div>
+                  <div className="w-full max-w-lg mx-auto h-px bg-blue-600 dark:bg-blue-500 mb-2 transition-colors"></div>
                 </div>
 
-                <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244]">
+                <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244] dark:text-white transition-colors">
                   
                   {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
                   {currentProposal.feedbackHistory && currentProposal.feedbackHistory.length > 0 && (
-                    <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 ${
-                      currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
-                      currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
-                      'bg-blue-50 border-blue-200'
+                    <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 transition-colors ${
+                      currentProposal.status === 'Rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+                      currentProposal.status === 'Approved' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                      'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                     }`}>
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
-                          currentProposal.status === 'Rejected' ? 'text-red-700' :
-                          currentProposal.status === 'Approved' ? 'text-green-700' :
-                          'text-blue-700'
+                      <div className="flex justify-between items-center mb-4 transition-colors">
+                        <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 transition-colors ${
+                          currentProposal.status === 'Rejected' ? 'text-red-700 dark:text-red-400' :
+                          currentProposal.status === 'Approved' ? 'text-green-700 dark:text-green-400' :
+                          'text-blue-700 dark:text-blue-400'
                         }`}>
                           <MessageCircle className="w-4 h-4" /> Adviser Feedback {currentProposal.feedbackHistory.length > 1 && !showAllFeedback ? "(Latest)" : "History"}
                         </h4>
                         {currentProposal.feedbackHistory.length > 1 && (
                           <button
                             onClick={() => setShowAllFeedback(!showAllFeedback)}
-                            className="text-xs font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline transition-colors"
                           >
                             {showAllFeedback ? "Show Less" : "View All History"}
                           </button>
                         )}
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-3 transition-colors">
                         {(showAllFeedback ? currentProposal.feedbackHistory : currentProposal.feedbackHistory.slice(-1)).map(item => (
-                          <div key={item.id} className="bg-white/60 p-4 rounded-lg border border-white/50 shadow-sm">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                          <div key={item.id} className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg border border-white/50 dark:border-gray-700 shadow-sm transition-colors">
+                            <div className="flex justify-between items-start mb-2 transition-colors">
+                              <div className="flex items-center gap-2 transition-colors">
+                                <span className="font-bold text-sm text-[#122244] dark:text-white transition-colors">{item.authorName}</span>
+                                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-[9px] font-black rounded uppercase tracking-wider transition-colors">{item.role}</span>
                               </div>
-                              <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium transition-colors">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
                             </div>
-                            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed transition-colors">{item.text}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <section>
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
-                      <FileText className="w-5 h-5 text-blue-500" /> BUSINESS
+                  <section className="transition-colors">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6 transition-colors">
+                      <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" /> BUSINESS
                       OVERVIEW
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 transition-colors">
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Business Type <span className="text-red-500">*</span>
                         </label>
                         <select
@@ -1277,7 +1271,7 @@ const Projects: React.FC = () => {
                             setCurrentProposal(updatedProposal);
                             handleAutoSave(updatedProposal);
                           }}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm font-medium transition-colors ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         >
                           <option value="">Select category...</option>
                           <option>Food & Beverage</option>
@@ -1286,7 +1280,7 @@ const Projects: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Business Name <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -1301,11 +1295,11 @@ const Projects: React.FC = () => {
                           }
                           onBlur={() => handleAutoSave()}
                           placeholder="e.g. Eggdesal"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Total Capital (₱) <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -1320,11 +1314,11 @@ const Projects: React.FC = () => {
                           }
                           onBlur={() => handleAutoSave()}
                           placeholder="₱ 0.00"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Tagline <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -1338,12 +1332,12 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm font-medium transition-colors ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                      <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                         Target Market <span className="text-red-500">*</span>
                       </label>
                       <ExpandingTextarea
@@ -1358,19 +1352,19 @@ const Projects: React.FC = () => {
                           })
                         }
                         onBlur={() => handleAutoSave()}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                       />
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
-                      <Star className="w-5 h-5 text-purple-500 fill-current" />{" "}
+                  <section className="transition-colors">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6 transition-colors">
+                      <Star className="w-5 h-5 text-purple-500 dark:text-purple-400 fill-current" />{" "}
                       MISSION & VISION
                     </h3>
-                    <div className="space-y-6">
+                    <div className="space-y-6 transition-colors">
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Mission Statement <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1384,11 +1378,11 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Vision Statement <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1402,22 +1396,22 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
-                      <div className="p-1.5 bg-green-50 rounded-lg">
-                        <DollarSign className="w-4 h-4 text-green-600" />
+                  <section className="transition-colors">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6 transition-colors">
+                      <div className="p-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg transition-colors">
+                        <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400 transition-colors" />
                       </div>{" "}
                       PRODUCT & PRICING
                     </h3>
-                    <div className="space-y-6">
+                    <div className="space-y-6 transition-colors">
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Product Description <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1432,11 +1426,11 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Price Ranges <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1451,22 +1445,22 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
-                      <div className="p-1.5 bg-orange-50 rounded-lg">
-                        <MapPin className="w-4 h-4 text-orange-600" />
+                  <section className="transition-colors">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6 transition-colors">
+                      <div className="p-1.5 bg-orange-50 dark:bg-orange-900/30 rounded-lg transition-colors">
+                        <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400 transition-colors" />
                       </div>{" "}
                       PLACE AND PROMOTION
                     </h3>
-                    <div className="space-y-6">
+                    <div className="space-y-6 transition-colors">
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Proposed Location <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1481,11 +1475,11 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                           Promotional Strategy <span className="text-red-500">*</span>
                         </label>
                         <ExpandingTextarea
@@ -1500,21 +1494,21 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                         />
                       </div>
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6">
-                      <div className="p-1.5 bg-gray-100 rounded-lg">
-                        <MoreVertical className="w-4 h-4 text-gray-600" />
+                  <section className="transition-colors">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-6 transition-colors">
+                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg transition-colors">
+                        <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400 transition-colors" />
                       </div>{" "}
                       ADDITIONAL DETAILS
                     </h3>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                    <div className="transition-colors">
+                      <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block mb-1.5 transition-colors">
                         Other Relevant Information (Optional)
                       </label>
                       <ExpandingTextarea
@@ -1528,7 +1522,7 @@ const Projects: React.FC = () => {
                           })
                         }
                         onBlur={() => handleAutoSave()}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none text-sm resize-none font-medium transition-colors ${!isEditingMode ? 'opacity-70 dark:bg-gray-800 dark:text-gray-300 cursor-not-allowed' : 'text-[#122244] dark:text-white'}`}
                       />
                     </div>
                   </section>
@@ -1539,12 +1533,12 @@ const Projects: React.FC = () => {
 
           {activeView === "active-business" && (
             !activeBusiness ? (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                  <AlertCircle className="w-8 h-8 text-red-500" />
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-12 transition-colors">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 transition-colors">
+                  <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400 transition-colors" />
                 </div>
-                <h2 className="text-xl font-bold text-[#122244]">Project Not Found</h2>
-                <p className="text-gray-500 mt-2 mb-6 max-w-md">
+                <h2 className="text-xl font-bold text-[#122244] dark:text-white transition-colors">Project Not Found</h2>
+                <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6 max-w-md transition-colors">
                   The project you were working on seems to have been deleted or moved.
                 </p>
                 <button
@@ -1555,11 +1549,11 @@ const Projects: React.FC = () => {
                 </button>
               </div>
             ) : (
-            <div>
-              <div className="flex justify-between items-center mb-4">
+            <div className="transition-colors">
+              <div className="flex justify-between items-center mb-4 transition-colors">
                 <button
                   onClick={() => setActiveView("dashboard")}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" /> Back to Proposals List
                 </button>
@@ -1571,24 +1565,24 @@ const Projects: React.FC = () => {
                 </button>
               </div>
 
-              <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
-                <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654]">
+              <div className="bg-[#122244] dark:bg-gray-950 rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative transition-colors">
+                <div className="flex items-center gap-6 z-10 w-full md:w-auto transition-colors">
+                  <div className="w-24 h-24 bg-[#1a2f55] dark:bg-gray-800 rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 dark:border-gray-700 shadow-inner flex-shrink-0 text-[#c9a654] transition-colors">
                     {getInitials(activeBusiness.businessName)}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                  <div className="transition-colors">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap transition-colors">
+                      <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1 transition-colors">
                         <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
                       </span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300 dark:text-gray-400 transition-colors">
                         <User className="w-3 h-3" /> SECTION: {userGroup?.section}
                       </span>
                     </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
+                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight transition-colors">
                       {activeBusiness.businessName}
                     </h1>
-                    <p className="text-sm text-gray-300 font-medium">
+                    <p className="text-sm text-gray-300 dark:text-gray-400 font-medium transition-colors">
                       {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
                     </p>
                   </div>
@@ -1599,116 +1593,116 @@ const Projects: React.FC = () => {
                       setEditBasicData({ ...activeBusiness });
                       setShowEditBasicModal(true);
                     }}
-                    className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
+                    className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 dark:border-gray-700 hover:bg-white/10 dark:hover:bg-gray-800 rounded-xl text-sm font-bold transition-all z-10"
                   >
                     <Pencil className="w-4 h-4" /> Edit Basic Info
                   </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6 text-[#122244]">
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-                    <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
-                          <FileText className="w-6 h-6 text-blue-500" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 transition-colors">
+                <div className="lg:col-span-2 space-y-6 text-[#122244] dark:text-white transition-colors">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 transition-colors">
+                    <div className="flex justify-between items-start mb-8 border-b border-gray-100 dark:border-gray-700 pb-6 transition-colors">
+                      <div className="flex items-center gap-3 transition-colors">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-full border border-blue-100 dark:border-blue-800 transition-colors">
+                          <FileText className="w-6 h-6 text-blue-500 dark:text-blue-400 transition-colors" />
                         </div>
-                        <div>
-                          <h3 className="text-xl font-extrabold text-[#122244]">
+                        <div className="transition-colors">
+                          <h3 className="text-xl font-extrabold text-[#122244] dark:text-white transition-colors">
                             Complete Project Overview
                           </h3>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest transition-colors">
                             Approved Business Charter
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
-                      <div className="flex-1 pr-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 dark:divide-gray-600 text-center border border-gray-100 dark:border-gray-600 transition-colors">
+                      <div className="flex-1 pr-6 transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 transition-colors">
                           Total Capital
                         </p>
-                        <p className="text-2xl font-bold text-green-600">
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-500 transition-colors">
                           ₱{activeBusiness.totalCapital || "0"}
                         </p>
                       </div>
-                      <div className="flex-1 pl-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                      <div className="flex-1 pl-6 transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 transition-colors">
                           Business Type
                         </p>
-                        <p className="text-xl font-bold text-[#122244]">
+                        <p className="text-xl font-bold text-[#122244] dark:text-white transition-colors">
                           {activeBusiness.businessType || "Uncategorized"}
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    <div className="space-y-6 transition-colors">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1 transition-colors">
                           Tagline
                         </p>
-                        <p className="text-gray-800 font-bold text-lg">
+                        <p className="text-gray-800 dark:text-gray-200 font-bold text-lg transition-colors">
                           {activeBusiness.tagline || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 transition-colors">
                           Mission Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.missionStatement || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 transition-colors">
                           Vision Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.visionStatement || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 transition-colors">
                           Target Market
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.targetMarket || "None Provided"}
                         </p>
                       </div>
 
-                      <div className="h-px bg-gray-100 my-4"></div>
+                      <div className="h-px bg-gray-100 dark:bg-gray-700 my-4 transition-colors"></div>
 
-                      <div>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-1 transition-colors">
                           Product Description
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.productDescription || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-green-500 dark:text-green-400 uppercase tracking-widest mb-1 transition-colors">
                           Specific Pricing
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.priceRanges || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-orange-500 dark:text-orange-400 uppercase tracking-widest mb-1 transition-colors">
                           Location
                         </p>
-                        <p className="text-gray-800 font-medium">
+                        <p className="text-gray-800 dark:text-gray-200 font-medium transition-colors">
                           {activeBusiness.proposedLocation || "None Provided"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">
+                      <div className="transition-colors">
+                        <p className="text-[10px] font-bold text-purple-500 dark:text-purple-400 uppercase tracking-widest mb-1 transition-colors">
                           Promotional Strategy
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                           {activeBusiness.promotionalStrategy ||
                             "None Provided"}
                         </p>
@@ -1717,53 +1711,53 @@ const Projects: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="lg:col-span-1">
-                  <div className="space-y-6 sticky top-24">
+                <div className="lg:col-span-1 transition-colors">
+                  <div className="space-y-6 sticky top-24 transition-colors">
                     {/* PROJECT ROSTER */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
-                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 text-[#122244] dark:text-white transition-colors">
+                      <h3 className="text-xs font-extrabold text-[#122244] dark:text-white uppercase tracking-widest mb-1 transition-colors">
                         Project Roster
                       </h3>
-                      <p className="text-xs text-gray-500 mb-6">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 transition-colors">
                         {(userGroup?.memberIds.length || 0) + 1} Members Total
                       </p>
                       
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                      <div className="space-y-4 transition-colors">
+                        <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl transition-colors">
+                          <div className="flex items-center gap-3 transition-colors">
+                            <div className="w-10 h-10 bg-[#122244] dark:bg-gray-700 rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm transition-colors">
                               {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
                             </div>
-                            <div>
-                              <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
-                              <p className="text-[10px] text-blue-600">Faculty</p>
+                            <div className="transition-colors">
+                              <p className="font-bold text-[#122244] dark:text-white text-sm transition-colors">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
+                              <p className="text-[10px] text-blue-600 dark:text-blue-400 transition-colors">Faculty</p>
                             </div>
                           </div>
-                          <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
+                          <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded transition-colors">Adviser</span>
                         </div>
 
-                        <div className="flex items-center gap-3 p-2">
-                          <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                        <div className="flex items-center gap-3 p-2 transition-colors">
+                          <div className="w-10 h-10 bg-purple-600 dark:bg-purple-700 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm transition-colors">
                             {getInitials(userGroup?.leaderName || "")}
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
-                              <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
+                          <div className="flex-1 transition-colors">
+                            <div className="flex items-center gap-2 transition-colors">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">{userGroup?.leaderName}</p>
+                              <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded transition-colors">Leader</span>
                             </div>
                           </div>
                         </div>
 
                         {groupMembersData.map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 p-2">
-                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          <div key={member.id} className="flex items-center gap-3 p-2 transition-colors">
+                            <div className="w-10 h-10 bg-green-500 dark:bg-green-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm transition-colors">
                               {getInitials(member.firstName)}
                             </div>
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">
+                            <div className="transition-colors">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">
                                 {member.firstName} {member.lastName}
                               </p>
-                              <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors">{member.studentId}</p>
                             </div>
                           </div>
                         ))}
@@ -1771,37 +1765,37 @@ const Projects: React.FC = () => {
                     </div>
 
                     {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                          <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 transition-colors">
+                      <div className="flex justify-between items-center mb-4 transition-colors">
+                        <h3 className="text-xs font-extrabold text-[#122244] dark:text-white uppercase tracking-widest flex items-center gap-2 transition-colors">
+                          <MessageCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 transition-colors" /> ADVISER FEEDBACK
                         </h3>
                         {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
                           <button
                             onClick={() => setShowAllFeedback(!showAllFeedback)}
-                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline transition-colors"
                           >
                             {showAllFeedback ? "Show Less" : "View All History"}
                           </button>
                         )}
                       </div>
-                      <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 transition-colors">
                         {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
-                          <div className="text-center py-6 text-gray-400">
-                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-xs italic">No feedback provided yet.</p>
+                          <div className="text-center py-6 text-gray-400 dark:text-gray-500 transition-colors">
+                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50 transition-colors" />
+                            <p className="text-xs italic transition-colors">No feedback provided yet.</p>
                           </div>
                         ) : (
                           (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
-                            <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                            <div key={item.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 dark:border-l-blue-600 flex flex-col gap-2 transition-colors">
+                              <div className="flex justify-between items-start transition-colors">
+                                <div className="flex items-center gap-2 transition-colors">
+                                  <span className="font-bold text-sm text-[#122244] dark:text-white transition-colors">{item.authorName}</span>
+                                  <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[9px] font-black rounded uppercase tracking-wider transition-colors">{item.role}</span>
                                 </div>
                               </div>
-                              <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium transition-colors">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap transition-colors">{item.text}</p>
                             </div>
                           ))
                         )}
@@ -1818,55 +1812,55 @@ const Projects: React.FC = () => {
 
       {/* SETUP MODAL */}
       {showSetupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
-              <div className="w-full">
-                <h2 className="text-2xl font-extrabold">Team Setup</h2>
-                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] transition-colors">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-start text-center relative text-[#122244] dark:text-white transition-colors">
+              <div className="w-full transition-colors">
+                <h2 className="text-2xl font-extrabold transition-colors">Team Setup</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mt-1 transition-colors">
                   Review your assigned members
                 </p>
               </div>
               <button
                 onClick={() => setShowSetupModal(false)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+                className="absolute top-6 right-6 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Render Member List */}
-            <div className="p-6 overflow-y-auto space-y-4">
+            <div className="p-6 overflow-y-auto space-y-4 transition-colors">
               {groupMembersData.length > 0 ? (
                 groupMembersData.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
+                    className="flex items-center gap-4 p-3 border border-gray-100 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-700/50 transition-colors"
                   >
-                    <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <div className="w-12 h-12 bg-green-500 dark:bg-green-600 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm transition-colors">
                       {getInitials(`${member.firstName} ${member.lastName}`)}
                     </div>
-                    <div>
-                      <p className="font-bold text-[#122244] text-sm">
+                    <div className="transition-colors">
+                      <p className="font-bold text-[#122244] dark:text-white text-sm transition-colors">
                         {member.firstName} {member.lastName}
                       </p>
-                      <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">
+                      <p className="text-[10px] font-black uppercase text-green-600 dark:text-green-400 tracking-tighter transition-colors">
                         Team Member
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10">
-                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">
+                <div className="text-center py-10 transition-colors">
+                  <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3 transition-colors" />
+                  <p className="text-gray-500 dark:text-gray-400 text-sm transition-colors">
                     No members found in this group.
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-2xl">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex justify-end bg-gray-50/50 dark:bg-gray-700/50 rounded-b-2xl transition-colors">
               <button
                 onClick={handleFinishTeamSetup}
                 className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md hover:bg-[#b59545] transition-all"
@@ -1880,78 +1874,78 @@ const Projects: React.FC = () => {
 
       {/* ROSTER MODAL */}
       {showRosterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 text-[#122244]">
-            <div className="flex justify-between items-start mb-6 border-b pb-4">
-              <div>
-                <h2 className="text-2xl font-extrabold">Project Roster</h2>
-                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col animate-in zoom-in-95 duration-200 text-[#122244] dark:text-white transition-colors">
+            <div className="flex justify-between items-start mb-6 border-b border-gray-200 dark:border-gray-700 pb-4 transition-colors">
+              <div className="transition-colors">
+                <h2 className="text-2xl font-extrabold transition-colors">Project Roster</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold transition-colors">
                   Group {userGroup?.id.slice(-1) || "1"} Team Members
                 </p>
               </div>
               <button
                 onClick={() => setShowRosterModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 transition-colors">
               {adviserData && (
-                <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                  <div className="w-12 h-12 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                <div className="flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl transition-colors">
+                  <div className="w-12 h-12 bg-[#122244] dark:bg-gray-700 rounded-lg text-white flex items-center justify-center font-bold text-lg shadow-sm transition-colors">
                     {getInitials(
                       `${adviserData.firstName} ${adviserData.lastName}`,
                     )}
                   </div>
-                  <div>
-                    <p className="font-bold text-[#122244] text-sm">
+                  <div className="transition-colors">
+                    <p className="font-bold text-[#122244] dark:text-white text-sm transition-colors">
                       Prof. {adviserData.firstName} {adviserData.lastName}
                     </p>
-                    <p className="text-[10px] font-black uppercase text-blue-600 tracking-tighter">
+                    <p className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-tighter transition-colors">
                       Academic Adviser
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                <div className="w-12 h-12 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
+              <div className="flex items-center gap-4 p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div className="w-12 h-12 bg-purple-600 dark:bg-purple-700 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm transition-colors">
                   {getInitials(userGroup?.leaderName || "")}
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-sm">
+                <div className="flex-1 transition-colors">
+                  <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">
                     {userGroup?.leaderName}
                   </p>
-                  <p className="text-[10px] font-black uppercase text-purple-600 tracking-tighter">
+                  <p className="text-[10px] font-black uppercase text-purple-600 dark:text-purple-400 tracking-tighter transition-colors">
                     Group Leader
                   </p>
                 </div>
-                <Star className="w-4 h-4 text-purple-600 fill-current opacity-20" />
+                <Star className="w-4 h-4 text-purple-600 dark:text-purple-400 fill-current opacity-20 transition-colors" />
               </div>
 
               {groupMembersData.length > 0 ? (
                 groupMembersData.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <div className="w-12 h-12 bg-green-500 dark:bg-green-600 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm transition-colors">
                       {getInitials(`${member.firstName} ${member.lastName}`)}
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">
+                    <div className="transition-colors">
+                      <p className="font-bold text-gray-900 dark:text-white text-sm transition-colors">
                         {member.firstName} {member.lastName}
                       </p>
-                      <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">
+                      <p className="text-[10px] font-black uppercase text-green-600 dark:text-green-400 tracking-tighter transition-colors">
                         Team Member
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-center py-4 text-gray-400 text-xs italic">
+                <p className="text-center py-4 text-gray-400 dark:text-gray-500 text-xs italic transition-colors">
                   No other members added yet.
                 </p>
               )}
@@ -1959,7 +1953,7 @@ const Projects: React.FC = () => {
 
             <button
               onClick={() => setShowRosterModal(false)}
-              className="mt-6 w-full py-3 bg-[#122244] text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all"
+              className="mt-6 w-full py-3 bg-[#122244] dark:bg-gray-700 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all"
             >
               Close Team View
             </button>
@@ -1969,29 +1963,29 @@ const Projects: React.FC = () => {
 
       {/* LOCK-IN MODAL */}
       {showLockInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center">
-            <Zap className="w-16 h-16 text-blue-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-extrabold mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244] dark:text-white transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center transition-colors">
+            <Zap className="w-16 h-16 text-blue-500 dark:text-blue-400 mx-auto mb-6 transition-colors" />
+            <h2 className="text-2xl font-extrabold mb-2 transition-colors">
               Set as Active Business?
             </h2>
-            <p className="text-sm text-gray-500 mb-8">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 transition-colors">
               Lock in{" "}
-              <span className="font-bold text-[#122244]">
+              <span className="font-bold text-[#122244] dark:text-white transition-colors">
                 {currentProposal.businessName}
               </span>{" "}
               as official business?
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center transition-colors">
               <button
                 onClick={() => setShowLockInModal(false)}
-                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg"
+                className="px-5 py-2.5 text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLockInBusiness}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-md transition-colors"
+                className="px-5 py-2.5 text-sm font-bold text-white bg-green-600 dark:bg-green-700 rounded-lg shadow-md transition-colors"
               >
                 Proceed
               </button>
@@ -2002,29 +1996,29 @@ const Projects: React.FC = () => {
 
       {/* DELETE CONFIRMATION MODAL */}
       {showDeleteConfirmModal && proposalToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShieldAlert className="w-8 h-8 text-red-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244] dark:text-white transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200 transition-colors">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors">
+              <ShieldAlert className="w-8 h-8 text-red-500 dark:text-red-400 transition-colors" />
             </div>
-            <h2 className="text-2xl font-extrabold mb-2 text-red-600">
+            <h2 className="text-2xl font-extrabold mb-2 text-red-600 dark:text-red-400 transition-colors">
               Delete Proposal?
             </h2>
-            <p className="text-sm text-gray-500 mb-2">
-              Are you sure you want to delete <span className="font-bold text-[#122244]">"{proposalToDelete.businessName}"</span>?
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 transition-colors">
+              Are you sure you want to delete <span className="font-bold text-[#122244] dark:text-white transition-colors">"{proposalToDelete.businessName}"</span>?
             </p>
-            <div className="bg-red-50 p-3 rounded-lg mb-8">
-              <p className="text-[11px] font-bold text-red-700 uppercase tracking-tight">
+            <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg mb-8 transition-colors">
+              <p className="text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-tight transition-colors">
                 This action is permanent and cannot be undone. All data associated with this proposal will be lost forever.
               </p>
             </div>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center transition-colors">
               <button
                 onClick={() => {
                   setShowDeleteConfirmModal(false);
                   setProposalToDelete(null);
                 }}
-                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
@@ -2036,7 +2030,7 @@ const Projects: React.FC = () => {
                   setShowDeleteConfirmModal(false);
                   setProposalToDelete(null);
                 }}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-lg shadow-md hover:bg-red-700 transition-colors"
+                className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 dark:bg-red-700 rounded-lg shadow-md hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
                 Yes, Delete Forever
               </button>
@@ -2047,32 +2041,32 @@ const Projects: React.FC = () => {
 
       {/* EDIT BASIC INFO MODAL (EXTENDED) */}
       {showEditBasicModal && activeBusiness && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl text-[#122244]">
-              <div>
-                <h2 className="text-xl font-bold">Update Business Details</h2>
-                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] transition-colors">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-t-2xl text-[#122244] dark:text-white transition-colors">
+              <div className="transition-colors">
+                <h2 className="text-xl font-bold transition-colors">Update Business Details</h2>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest transition-colors">
                   Active Workspace: {activeBusiness.businessName}
                 </p>
               </div>
               <button
                 onClick={() => setShowEditBasicModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 text-[#122244]">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-2">
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 text-[#122244] dark:text-white transition-colors">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 transition-colors">
+                <div className="md:col-span-2 transition-colors">
+                  <h4 className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-tighter mb-2 transition-colors">
                     Basic Overview
                   </h4>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                <div className="transition-colors">
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase block mb-1 transition-colors">
                     Business Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -2084,11 +2078,11 @@ const Projects: React.FC = () => {
                         businessName: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium outline-none transition-colors text-[#122244] dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                <div className="transition-colors">
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase block mb-1 transition-colors">
                     Business Type <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -2099,15 +2093,15 @@ const Projects: React.FC = () => {
                         businessType: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium outline-none transition-colors text-[#122244] dark:text-white"
                   >
                     <option>Food & Beverage</option>
                     <option>Retail</option>
                     <option>Services</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                <div className="transition-colors">
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase block mb-1 transition-colors">
                     Total Capital <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -2119,11 +2113,11 @@ const Projects: React.FC = () => {
                         totalCapital: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium outline-none transition-colors text-[#122244] dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                <div className="transition-colors">
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase block mb-1 transition-colors">
                     Tagline <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -2135,13 +2129,13 @@ const Projects: React.FC = () => {
                         tagline: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium outline-none transition-colors text-[#122244] dark:text-white"
                   />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">
+              <div className="space-y-4 transition-colors">
+                <h4 className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-tighter transition-colors">
                   Mission & Vision
                 </h4>
                 <ExpandingTextarea
@@ -2154,7 +2148,7 @@ const Projects: React.FC = () => {
                       missionStatement: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <ExpandingTextarea
                   rows={2}
@@ -2166,12 +2160,12 @@ const Projects: React.FC = () => {
                       visionStatement: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
+              <div className="space-y-4 transition-colors">
+                <h4 className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-tighter transition-colors">
                   Strategy & Description
                 </h4>
                 <ExpandingTextarea
@@ -2184,7 +2178,7 @@ const Projects: React.FC = () => {
                       targetMarket: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <ExpandingTextarea
                   rows={2}
@@ -2196,7 +2190,7 @@ const Projects: React.FC = () => {
                       productDescription: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <ExpandingTextarea
                   rows={2}
@@ -2208,12 +2202,12 @@ const Projects: React.FC = () => {
                       priceRanges: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
+              <div className="space-y-4 transition-colors">
+                <h4 className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-tighter transition-colors">
                   Place & Promotion
                 </h4>
                 <ExpandingTextarea
@@ -2226,7 +2220,7 @@ const Projects: React.FC = () => {
                       proposedLocation: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <ExpandingTextarea
                   rows={2}
@@ -2238,12 +2232,12 @@ const Projects: React.FC = () => {
                       promotionalStrategy: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">
+              <div className="space-y-4 transition-colors">
+                <h4 className="text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-tighter transition-colors">
                   Additional Details
                 </h4>
                 <ExpandingTextarea
@@ -2256,22 +2250,22 @@ const Projects: React.FC = () => {
                       otherDetails: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm resize-none font-medium outline-none transition-colors text-[#122244] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 flex gap-3 bg-gray-50/50 rounded-b-2xl">
+            <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex gap-3 bg-gray-50/50 dark:bg-gray-800/50 rounded-b-2xl transition-colors">
               <button
                 onClick={() => setShowEditBasicModal(false)}
-                className="flex-1 px-4 py-2.5 text-gray-600 font-bold text-sm hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 font-bold text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateBasicInfo}
                 disabled={isSaving}
-                className="flex-1 px-4 py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#1a2f55] shadow-md transition-all flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-[#122244] dark:bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-[#1a2f55] dark:hover:bg-blue-500 shadow-md transition-all flex items-center justify-center gap-2"
               >
                 {isSaving ? "Syncing..." : "Update Proposal"}
               </button>
@@ -2282,19 +2276,19 @@ const Projects: React.FC = () => {
 
       {/* LOGOUT CONFIRM */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-[#122244]">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl text-center">
-            <h3 className="text-lg font-bold mb-2">Confirm Logout</h3>
-            <div className="flex gap-3 justify-center">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-[#122244] dark:text-white transition-colors">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm shadow-2xl text-center transition-colors">
+            <h3 className="text-lg font-bold mb-2 transition-colors">Confirm Logout</h3>
+            <div className="flex gap-3 justify-center transition-colors">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg"
+                className="px-5 py-2.5 text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="px-5 py-2.5 text-sm font-bold bg-red-600 text-white rounded-lg"
+                className="px-5 py-2.5 text-sm font-bold bg-red-600 dark:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Logout
               </button>
@@ -2303,19 +2297,19 @@ const Projects: React.FC = () => {
         </div>
       )}
       {showToast && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
-          <AlertCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
-          <div className="flex-1">
-            <h4 className="font-bold text-gray-900 text-base">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-800 border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg transition-colors">
+          <AlertCircle className="w-7 h-7 text-[#c9a654] shrink-0 transition-colors" />
+          <div className="flex-1 transition-colors">
+            <h4 className="font-bold text-gray-900 dark:text-white text-base transition-colors">
               {toastTitle}
             </h4>
-            <p className="text-gray-600 text-sm mt-1">
+            <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 transition-colors">
               {toastMessage}
             </p>
           </div>
           <button
             onClick={() => setShowToast(false)}
-            className="text-gray-400 hover:text-gray-600 self-start mt-1"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 self-start mt-1 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

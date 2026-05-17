@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import { useTheme } from "./ThemeContext";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -50,6 +51,9 @@ interface InsightItem {
 const AI_Analysis: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
+
   const [userName, setUserName] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -202,7 +206,6 @@ const AI_Analysis: React.FC = () => {
         interestRate: Number(data?.interestRate) || 0,
       });
 
-      // --- CRITICAL FIX: Properly loading INSIGHTS from database ---
       if (proj.aiAnalysis && !location.state?.runAnalysis) {
         setFeasibilityScore(proj.aiAnalysis.score || 0);
         setFeasibilityStatus(proj.aiAnalysis.status || "PENDING");
@@ -216,7 +219,6 @@ const AI_Analysis: React.FC = () => {
         );
         setExplanations(proj.aiAnalysis.explanations || {});
         setImprovementTips(proj.aiAnalysis.improvementTips || {});
-        // Restore the insights array here
         setInsights(proj.aiAnalysis.insights || []);
         setAiScores(proj.aiAnalysis.aiScores || {});
         setAiScoreExplanations(proj.aiAnalysis.aiScoreExplanations || {});
@@ -277,7 +279,7 @@ const AI_Analysis: React.FC = () => {
     const annualExpenses = ((monthlyExpenses + monthlyInterest) / 30) * safeOperatingDays;
     const annualNetProfitPreTax = annualRevenue - annualExpenses;
 
-    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // Simplified BMBE tax (3% percentage tax)
+    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; 
     const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
 
     const margin = annualRevenue > 0 ? (annualNetProfitAfterTax / annualRevenue) * 100 : 0;
@@ -433,7 +435,6 @@ const AI_Analysis: React.FC = () => {
         (i: any, idx: number) => ({ ...i, id: `ai-${idx}` }),
       );
 
-      // Derive verdict from AI's 6 detailed assessment scores
       const rawScores = aiResult.aiScores || {};
       const scoreKeys = ["coreFinancials", "performanceMetrics", "capitalFinancing", "operationsCost", "annualProjectionsTax", "marketIndicators"];
       const scoreValues = scoreKeys.map(k => Math.min(100, Math.max(0, Number(rawScores[k]) || 0)));
@@ -473,7 +474,6 @@ const AI_Analysis: React.FC = () => {
       setAiScores(aiResult.aiScores || {});
       setAiScoreExplanations(aiResult.aiScoreExplanations || {});
     } catch (e) {
-      // Professional Fallback with Insights included for persistence
       const isFeasible = status === "FEASIBLE";
       const fallbackExplanations = {
         feasibility: `${isFeasible ? `Congratulations! Viability evaluated at ${finalScore}% - your business model shows strong potential.` : `Viability evaluated at ${finalScore}% based on fiscal projections - there are opportunities for improvement.`}`,
@@ -583,7 +583,6 @@ const AI_Analysis: React.FC = () => {
     }
   };
 
-  // Calculate 5-Year Pro Forma Financial Statement
   const generateProFormaData = () => {
     const yearlyRevenue: number[] = [];
     const yearlyCOGS: number[] = [];
@@ -637,7 +636,6 @@ const AI_Analysis: React.FC = () => {
     };
   };
 
-  // Format data for Recharts
   const getChartData = () => {
     const proForma = generateProFormaData();
     return proForma.yearLabels.map((label, index) => ({
@@ -648,8 +646,6 @@ const AI_Analysis: React.FC = () => {
       "Net Profit": proForma.yearlyNetProfit[index],
     }));
   };
-
-
 
   const handleLogout = async () => {
     try {
@@ -674,7 +670,7 @@ const AI_Analysis: React.FC = () => {
       : "U";
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden transition-colors duration-300">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -683,7 +679,7 @@ const AI_Analysis: React.FC = () => {
         />
       )}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img
@@ -783,35 +779,35 @@ const AI_Analysis: React.FC = () => {
       </aside>
 
       <main
-        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 dark:bg-gray-900 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center flex-wrap gap-2 text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center flex-wrap gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors flex-shrink-0"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors flex-shrink-0"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-          <span className="mx-1 sm:mx-2 text-gray-300">|</span>
+          <span className="mx-1 sm:mx-2 text-gray-300 dark:text-gray-600">|</span>
           <span
-            className="cursor-pointer hover:text-[#c9a654] truncate"
+            className="cursor-pointer hover:text-[#c9a654] transition-colors truncate"
             onClick={() => navigate("/dashboard")}
           >
             FeasiFy
           </span>
-          <span className="text-gray-400">›</span>
-          <span className="font-semibold text-gray-900 truncate">AI Analysis</span>
+          <span className="text-gray-400 dark:text-gray-500">›</span>
+          <span className="font-semibold text-gray-900 dark:text-white truncate transition-colors">AI Analysis</span>
         </div>
 
         {isAnalyzing ? (
           <div className="flex flex-col items-center justify-center min-h-[70vh]">
             <div className="relative w-24 h-24 mb-6">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-100"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-gray-700"></div>
               <div className="absolute inset-0 rounded-full border-4 border-[#c9a654] border-t-transparent animate-spin"></div>
               <Zap className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
             </div>
-            <h2 className="text-2xl font-bold text-[#122244] mb-2">
+            <h2 className="text-2xl font-bold text-[#122244] dark:text-white mb-2 transition-colors">
               Analyzing Model...
             </h2>
-            <p className="text-gray-500 italic">
+            <p className="text-gray-500 dark:text-gray-400 italic transition-colors">
               Processing professional insights for {selectedProject?.name}...
             </p>
           </div>
@@ -819,12 +815,12 @@ const AI_Analysis: React.FC = () => {
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div className="w-full sm:w-auto min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3d2c23]">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3d2c23] dark:text-white transition-colors">
                   AI Analysis
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic font-medium break-words">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 italic font-medium break-words transition-colors">
                   Evaluation for{" "}
-                  <span className="text-[#122244] font-bold">
+                  <span className="text-[#122244] dark:text-white font-bold transition-colors">
                     {selectedProject?.name || "Selected Project"}
                   </span>
                 </p>
@@ -832,25 +828,25 @@ const AI_Analysis: React.FC = () => {
               <button
                 onClick={() => executeAnalysis(financials, selectedProjectId)}
                 disabled={!selectedProjectId}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex-shrink-0 disabled:opacity-50"
               >
                 <RotateCcw className="w-4 h-4" /> Re-analyze
               </button>
             </div>
 
-            <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
+            <div className="mb-8 bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
+              <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2 transition-colors">
                 Active Project
               </label>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex-shrink-0 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">
+                <div className="w-10 h-10 flex-shrink-0 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100 dark:border-blue-800 transition-colors">
                   P#
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#122244] tracking-tight truncate">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#122244] dark:text-white tracking-tight truncate transition-colors">
                     {selectedProject?.name || "No Project Selected"}
                   </h2>
-                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded break-words">
+                  <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded break-words transition-colors">
                     Verified Approved Business
                   </span>
                 </div>
@@ -861,7 +857,7 @@ const AI_Analysis: React.FC = () => {
               className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
             >
               {/* Verdict Section */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 shadow-sm mb-8 transition-colors">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
                   <div className="flex-shrink-0">
                     <div
@@ -872,7 +868,7 @@ const AI_Analysis: React.FC = () => {
                   </div>
                   <div className="flex-1 flex flex-col items-center md:items-start">
                     <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
-                      <h2 className="text-2xl font-extrabold text-[#122244]">
+                      <h2 className="text-2xl font-extrabold text-[#122244] dark:text-white transition-colors">
                         Feasibility Verdict
                       </h2>
                       <span
@@ -881,13 +877,13 @@ const AI_Analysis: React.FC = () => {
                         {feasibilityStatus?.replace("_", " ")}
                       </span>
                     </div>
-                    <p className="text-gray-600 text-sm leading-relaxed">
+                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors">
                       {explanations.feasibility ||
                         "Calculated based on current inputs."}
                     </p>
                     {improvementTips.feasibility && (
                       <div
-                        className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+                        className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left transition-colors ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800" : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"}`}
                       >
                         <Lightbulb size={16} className="flex-shrink-0" />{" "}
                         <span>
@@ -899,13 +895,13 @@ const AI_Analysis: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex-shrink-0 text-center md:text-right mt-2 md:mt-0 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100">
+                  <div className="flex-shrink-0 text-center md:text-right mt-2 md:mt-0 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100 dark:border-gray-700 transition-colors">
                     <div
                       className={`text-4xl md:text-5xl font-extrabold ${feasibilityStatus === "FEASIBLE" ? "text-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "text-red-500" : "text-orange-500"}`}
                     >
                       {feasibilityScore}
                     </div>
-                    <div className="text-xs font-bold text-gray-400 uppercase mt-1">
+                    <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mt-1 transition-colors">
                       out of 100
                     </div>
                   </div>
@@ -914,44 +910,44 @@ const AI_Analysis: React.FC = () => {
 
               {/* Congratulations or Improvement Guide Section */}
               {feasibilityStatus === "FEASIBLE" ? (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border-2 border-green-200 dark:border-green-800 p-6 md:p-8 shadow-sm mb-8 transition-colors">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
                     <div className="text-4xl sm:text-5xl">🎉</div>
                     <div className="flex-1">
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 dark:text-green-400 mb-2 transition-colors">
                         Excellent News!
                       </h3>
-                      <p className="text-green-800 font-medium mb-4 text-sm sm:text-base">
+                      <p className="text-green-800 dark:text-green-300 font-medium mb-4 text-sm sm:text-base transition-colors">
                         Your feasibility study demonstrates strong business
                         fundamentals. With a score of {feasibilityScore}%, your
                         project shows:
                       </p>
-                      <ul className="space-y-3 sm:space-y-2 text-green-700 text-sm text-left">
+                      <ul className="space-y-3 sm:space-y-2 text-green-700 dark:text-green-400 text-sm text-left transition-colors">
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600 dark:text-green-500" />
                           <span>
                             Solid financial projections and profit margins
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600 dark:text-green-500" />
                           <span>
                             Adequate market demand and growth potential
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600 dark:text-green-500" />
                           <span>
                             Manageable risk profile with viable market
                             positioning
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-green-200 text-left">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white dark:bg-gray-800 rounded-xl sm:rounded-lg border border-green-200 dark:border-green-800 text-left transition-colors">
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3 sm:mb-2 transition-colors">
                           Recommended Next Steps:
                         </p>
-                        <ul className="text-sm text-green-800 space-y-2 sm:space-y-1">
+                        <ul className="text-sm text-green-800 dark:text-green-400 space-y-2 sm:space-y-1 transition-colors">
                           <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Develop detailed implementation and execution plan</span></li>
                           <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Finalize funding strategy and capital requirements</span></li>
                           <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Create marketing and customer acquisition roadmap</span></li>
@@ -962,27 +958,27 @@ const AI_Analysis: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border-2 border-amber-200 dark:border-amber-800 p-6 md:p-8 shadow-sm mb-8 transition-colors">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
                     <div className="text-4xl sm:text-5xl">⚡</div>
                     <div className="flex-1">
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mb-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 dark:text-amber-400 mb-2 transition-colors">
                         Path to Improved Feasibility
                       </h3>
-                      <p className="text-amber-800 font-medium mb-4 text-sm sm:text-base">
+                      <p className="text-amber-800 dark:text-amber-300 font-medium mb-4 text-sm sm:text-base transition-colors">
                         Your feasibility score of {feasibilityScore}% indicates
                         areas for improvement. Focus on these key areas:
                       </p>
-                      <ul className="space-y-3 sm:space-y-2 text-amber-700 text-sm text-left">
+                      <ul className="space-y-3 sm:space-y-2 text-amber-700 dark:text-amber-400 text-sm text-left transition-colors">
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-500" />
                           <span>
                             <strong>Cost Structure:</strong> Review variable and
                             fixed costs for optimization opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-500" />
                           <span>
                             <strong>Market Differentiation:</strong> Develop a
                             unique value proposition to stand out from
@@ -990,25 +986,25 @@ const AI_Analysis: React.FC = () => {
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-500" />
                           <span>
                             <strong>Revenue Optimization:</strong> Explore
                             pricing strategies and upsell opportunities
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-500" />
                           <span>
                             <strong>Market Validation:</strong> Conduct deeper
                             market research to validate demand assumptions
                           </span>
                         </li>
                       </ul>
-                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-amber-200 text-left">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
+                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white dark:bg-gray-800 rounded-xl sm:rounded-lg border border-amber-200 dark:border-amber-800 text-left transition-colors">
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3 sm:mb-2 transition-colors">
                           Action Items:
                         </p>
-                        <ul className="text-sm text-amber-800 space-y-2 sm:space-y-1">
+                        <ul className="text-sm text-amber-800 dark:text-amber-400 space-y-2 sm:space-y-1 transition-colors">
                           <li className="flex gap-2"><span className="font-bold flex-shrink-0">1.</span> <span>Revise financial projections with improved cost estimates</span></li>
                           <li className="flex gap-2"><span className="font-bold flex-shrink-0">2.</span> <span>Develop competitive differentiation strategy</span></li>
                           <li className="flex gap-2"><span className="font-bold flex-shrink-0">3.</span> <span>Validate market demand through surveys or pilot programs</span></li>
@@ -1022,88 +1018,88 @@ const AI_Analysis: React.FC = () => {
 
               {/* 4 Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col transition-colors">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                     Feasibility Score
                   </p>
-                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                  <div className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                     {metrics.feasibility}%
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mb-4 transition-colors">
                     <div
-                      className="bg-[#122244] h-1.5 rounded-full"
+                      className="bg-[#122244] dark:bg-gray-400 h-1.5 rounded-full transition-colors"
                       style={{ width: `${metrics.feasibility}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-tight flex-1">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight flex-1 transition-colors">
                     {explanations.feasibility}
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col transition-colors">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                     Financial Health
                   </p>
-                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                  <div className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                     {metrics.financial}%
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mb-4 transition-colors">
                     <div
-                      className={`${metrics.financial > 70 ? "bg-green-500" : "bg-red-500"} h-1.5 rounded-full`}
+                      className={`${metrics.financial > 70 ? "bg-green-500" : "bg-red-500"} h-1.5 rounded-full transition-colors`}
                       style={{ width: `${metrics.financial}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-3 flex-1 transition-colors">
                     {explanations.financial}
                   </p>
                   {improvementTips.financial && (
-                    <div className="mt-auto p-2 bg-blue-50 rounded text-[9px] text-blue-700 font-bold border border-blue-100 italic">
+                    <div className="mt-auto p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-[9px] text-blue-700 dark:text-blue-400 font-bold border border-blue-100 dark:border-blue-800 italic transition-colors">
                       Tip: {improvementTips.financial}
                     </div>
                   )}
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col transition-colors">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                     Risk assessment
                   </p>
-                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                  <div className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                     {metrics.risk}%
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mb-4 transition-colors">
                     <div
-                      className={`${metrics.risk < 40 ? "bg-green-500" : "bg-orange-500"} h-1.5 rounded-full`}
+                      className={`${metrics.risk < 40 ? "bg-green-500" : "bg-orange-500"} h-1.5 rounded-full transition-colors`}
                       style={{ width: `${metrics.risk}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-3 flex-1 transition-colors">
                     {explanations.risk}
                   </p>
                   {improvementTips.risk && (
-                    <div className="mt-auto p-2 bg-orange-50 rounded text-[9px] text-orange-700 font-bold border border-orange-100 italic">
+                    <div className="mt-auto p-2 bg-orange-50 dark:bg-orange-900/20 rounded text-[9px] text-orange-700 dark:text-orange-400 font-bold border border-orange-100 dark:border-orange-800 italic transition-colors">
                       Tip: {improvementTips.risk}
                     </div>
                   )}
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col transition-colors">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                     Market viability
                   </p>
-                  <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                  <div className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                     {metrics.market}%
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mb-4 transition-colors">
                     <div
-                      className="bg-[#c9a654] h-1.5 rounded-full"
+                      className="bg-[#c9a654] h-1.5 rounded-full transition-colors"
                       style={{ width: `${metrics.market}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-tight mb-3 flex-1">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-3 flex-1 transition-colors">
                     {explanations.market}
                   </p>
                   {improvementTips.market && (
-                    <div className="mt-auto p-2 bg-purple-50 rounded text-[9px] text-purple-700 font-bold border border-purple-100 italic">
+                    <div className="mt-auto p-2 bg-purple-50 dark:bg-purple-900/20 rounded text-[9px] text-purple-700 dark:text-purple-400 font-bold border border-purple-100 dark:border-purple-800 italic transition-colors">
                       Tip: {improvementTips.market}
                     </div>
                   )}
@@ -1113,7 +1109,7 @@ const AI_Analysis: React.FC = () => {
               {/* AI Detailed Score Cards */}
               {feasibilityStatus !== "PENDING" && (
                 <div className="mb-8">
-                  <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2 mb-6">
+                  <h3 className="text-lg font-extrabold text-[#122244] dark:text-white flex items-center gap-2 mb-6 transition-colors">
                     <BarChart3 className="w-5 h-5 text-[#c9a654]" /> AI Detailed Assessment
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1125,20 +1121,20 @@ const AI_Analysis: React.FC = () => {
                       { key: "annualProjectionsTax", label: "Annual Projections & Tax" },
                       { key: "marketIndicators", label: "Market Indicators" }
                     ].map((item) => (
-                      <div key={item.key} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                      <div key={item.key} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col transition-colors">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                           {item.label}
                         </p>
-                        <div className="text-3xl font-extrabold text-[#122244] mb-2">
+                        <div className="text-3xl font-extrabold text-[#122244] dark:text-white mb-2 transition-colors">
                           {aiScores[item.key] || 0}%
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mb-4 transition-colors">
                           <div
-                            className={`${(aiScores[item.key] || 0) > 70 ? "bg-green-500" : (aiScores[item.key] || 0) > 40 ? "bg-orange-500" : "bg-red-500"} h-1.5 rounded-full`}
+                            className={`${(aiScores[item.key] || 0) > 70 ? "bg-green-500" : (aiScores[item.key] || 0) > 40 ? "bg-orange-500" : "bg-red-500"} h-1.5 rounded-full transition-colors`}
                             style={{ width: `${aiScores[item.key] || 0}%` }}
                           ></div>
                         </div>
-                        <p className="text-[10px] text-gray-500 leading-tight flex-1">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight flex-1 transition-colors">
                           {aiScoreExplanations?.[item.key] || "Please re-run the analysis to generate this AI insight."}
                         </p>
                       </div>
@@ -1148,9 +1144,9 @@ const AI_Analysis: React.FC = () => {
               )}
 
               {/* 5-Year Pro Forma Financial Statement */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden transition-colors">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-                  <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
+                  <h3 className="text-lg font-extrabold text-[#122244] dark:text-white flex items-center gap-2 transition-colors">
                     <DollarSign className="w-5 h-5 text-[#c9a654] flex-shrink-0" /> 5-Year Pro
                     Forma Financial Projection
                   </h3>
@@ -1164,9 +1160,9 @@ const AI_Analysis: React.FC = () => {
 
                 {/* Growth Rate Inputs */}
                 {showProFormaInputs && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 transition-colors">
                     <div>
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
+                      <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest block mb-2 transition-colors">
                         Revenue Growth Rate (%)
                       </label>
                       <div className="flex items-center gap-3">
@@ -1178,18 +1174,18 @@ const AI_Analysis: React.FC = () => {
                           onChange={(e) =>
                             setRevenueGrowthRate(Number(e.target.value))
                           }
-                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                          className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
                         />
-                        <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm">
+                        <div className="w-12 px-2 py-1.5 text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-bold text-[#122244] dark:text-white text-sm transition-colors">
                           {revenueGrowthRate}%
                         </div>
                       </div>
-                      <p className="text-[9px] text-gray-500 mt-1 italic">
+                      <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-1 italic transition-colors">
                         Projected annual revenue increase
                       </p>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
+                      <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest block mb-2 transition-colors">
                         Cost Growth Rate (%)
                       </label>
                       <div className="flex items-center gap-3">
@@ -1201,13 +1197,13 @@ const AI_Analysis: React.FC = () => {
                           onChange={(e) =>
                             setCostGrowthRate(Number(e.target.value))
                           }
-                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                          className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
                         />
-                        <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm">
+                        <div className="w-12 px-2 py-1.5 text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-bold text-[#122244] dark:text-white text-sm transition-colors">
                           {costGrowthRate}%
                         </div>
                       </div>
-                      <p className="text-[9px] text-gray-500 mt-1 italic">
+                      <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-1 italic transition-colors">
                         Projected annual cost increase
                       </p>
                     </div>
@@ -1228,29 +1224,30 @@ const AI_Analysis: React.FC = () => {
                       data={getChartData()}
                       margin={{ top: 10, right: 50, left: 60, bottom: 40 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#374151" : "#e5e7eb"} />
                       <XAxis
                         dataKey="year"
-                        tick={{ fill: "#6b7280", fontSize: 12 }}
-                        stroke="#d1d5db"
+                        tick={{ fill: isDarkMode ? "#9ca3af" : "#6b7280", fontSize: 12 }}
+                        stroke={isDarkMode ? "#4b5563" : "#d1d5db"}
                       />
                       <YAxis
-                        tick={{ fill: "#6b7280", fontSize: 12 }}
-                        stroke="#d1d5db"
+                        tick={{ fill: isDarkMode ? "#9ca3af" : "#6b7280", fontSize: 12 }}
+                        stroke={isDarkMode ? "#4b5563" : "#d1d5db"}
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#ffffff",
-                          border: "1px solid #e5e7eb",
+                          backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                          border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
                           borderRadius: "0.5rem",
                           padding: "8px",
+                          color: isDarkMode ? "#f3f4f6" : "#122244"
                         }}
                         formatter={(value: any) =>
                           typeof value === "number"
-                             ? `₱${value.toLocaleString("en-PH")}`
+                              ? `₱${value.toLocaleString("en-PH")}`
                             : value
                         }
-                        labelStyle={{ color: "#122244" }}
+                        labelStyle={{ color: isDarkMode ? "#f3f4f6" : "#122244" }}
                       />
                       <Legend
                         wrapperStyle={{ paddingTop: "20px" }}
@@ -1298,65 +1295,65 @@ const AI_Analysis: React.FC = () => {
                 </div>
 
                 {/* Pro Forma Summary Table */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b-2 border-gray-200 bg-gray-50">
-                        <th className="text-left px-4 py-3 font-bold text-gray-700">
+                      <tr className="border-b-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 transition-colors">
+                        <th className="text-left px-4 py-3 font-bold text-gray-700 dark:text-gray-300">
                           Metric
                         </th>
                         {getChartData().map((row, idx) => (
                           <th
                             key={idx}
-                            className="text-right px-4 py-3 font-bold text-gray-700"
+                            className="text-right px-4 py-3 font-bold text-gray-700 dark:text-gray-300"
                           >
                             {row.year}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
-                      <tr className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold text-gray-800">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-gray-800 dark:text-gray-200">
                           Revenue
                         </td>
                         {getChartData().map((row, idx) => (
                           <td
                             key={idx}
-                            className="text-right px-4 py-3 text-green-600 font-bold"
+                            className="text-right px-4 py-3 text-green-600 dark:text-green-500 font-bold"
                           >
                              ₱{row.Revenue.toLocaleString("en-PH")}
                           </td>
                         ))}
                       </tr>
-                      <tr className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold text-gray-800">
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-gray-800 dark:text-gray-200">
                           COGS
                         </td>
                         {getChartData().map((row, idx) => (
                           <td
                             key={idx}
-                            className="text-right px-4 py-3 text-red-600 font-bold"
+                            className="text-right px-4 py-3 text-red-600 dark:text-red-500 font-bold"
                           >
                             ₱{row.COGS.toLocaleString("en-PH")}
                           </td>
                         ))}
                       </tr>
-                      <tr className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold text-gray-800">
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-gray-800 dark:text-gray-200">
                           Fixed Costs
                         </td>
                         {getChartData().map((row, idx) => (
                           <td
                             key={idx}
-                            className="text-right px-4 py-3 text-amber-600 font-bold"
+                            className="text-right px-4 py-3 text-amber-600 dark:text-amber-500 font-bold"
                           >
                              ₱{row["Fixed Costs"].toLocaleString("en-PH")}
                           </td>
                         ))}
                       </tr>
-                      <tr className="bg-blue-50 border-t-2 border-blue-200">
-                        <td className="px-4 py-3 font-extrabold text-blue-900">
+                      <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-800/50 transition-colors">
+                        <td className="px-4 py-3 font-extrabold text-blue-900 dark:text-blue-400">
                           Net Profit
                         </td>
                         {getChartData().map((row, idx) => (
@@ -1364,8 +1361,8 @@ const AI_Analysis: React.FC = () => {
                             key={idx}
                             className={`text-right px-4 py-3 font-extrabold ${
                               row["Net Profit"] >= 0
-                                ? "text-blue-600"
-                                : "text-red-600"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-red-600 dark:text-red-500"
                             }`}
                           >
                              ₱{row["Net Profit"].toLocaleString("en-PH")}
@@ -1377,11 +1374,11 @@ const AI_Analysis: React.FC = () => {
                 </div>
 
                 {/* Pro Forma Insights */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-[11px] font-bold text-blue-900 uppercase mb-2">
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg transition-colors">
+                  <p className="text-[11px] font-bold text-blue-900 dark:text-blue-400 uppercase mb-2">
                     💡 Projection Insights
                   </p>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                  <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
                     <li>
                       • Revenue is projected to grow at{" "}
                       <strong>{revenueGrowthRate}% annually</strong>, reaching{" "}
@@ -1403,8 +1400,8 @@ const AI_Analysis: React.FC = () => {
               </div>
 
               {/* Strategic Insights */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-                <h3 className="text-lg font-extrabold text-[#122244] mb-6 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 shadow-sm transition-colors">
+                <h3 className="text-lg font-extrabold text-[#122244] dark:text-white mb-6 flex items-center gap-2 transition-colors">
                   <Lightbulb className="w-5 h-5 text-[#c9a654]" /> Strategic
                   Insights
                 </h3>
@@ -1413,20 +1410,20 @@ const AI_Analysis: React.FC = () => {
                     {insights.map((insight) => (
                       <div
                         key={insight.id}
-                        className="rounded-xl border p-5 flex gap-4 bg-gray-50/50 shadow-sm transition-all hover:bg-white"
+                        className="rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex gap-4 bg-gray-50/50 dark:bg-gray-700/50 shadow-sm transition-all hover:bg-white dark:hover:bg-gray-700"
                       >
                         <div className="flex-shrink-0 mt-0.5">
                           {insight.type === "positive" ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-500" />
                           ) : (
                             <AlertCircle className="w-5 h-5 text-orange-500" />
                           )}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-[#122244] mb-1">
+                          <h4 className="font-bold text-[#122244] dark:text-white mb-1 transition-colors">
                             {insight.title}
                           </h4>
-                          <p className="text-sm text-gray-700 leading-relaxed">
+                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed transition-colors">
                             {insight.description}
                           </p>
                         </div>
@@ -1434,9 +1431,9 @@ const AI_Analysis: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 border border-dashed border-gray-200 rounded-xl">
-                    <Lightbulb className="w-8 h-8 text-gray-300 mb-3" />
-                    <p className="text-gray-500 text-sm font-medium">
+                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600 rounded-xl transition-colors">
+                    <Lightbulb className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-3 transition-colors" />
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium transition-colors">
                       Re-analyze to refresh insights.
                     </p>
                   </div>
@@ -1450,7 +1447,7 @@ const AI_Analysis: React.FC = () => {
                       state: { projectId: selectedProjectId },
                     })
                   }
-                  className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-white border border-gray-200 rounded-xl sm:rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl sm:rounded-lg font-bold text-sm text-[#122244] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm"
                 >
                   <FileEdit className="w-4 h-4" /> Revise Financial Data
                 </button>
@@ -1473,23 +1470,23 @@ const AI_Analysis: React.FC = () => {
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-colors"
             onClick={() => setShowLogoutConfirm(false)}
           />
-          <div className="bg-white rounded-2xl p-6 z-10 w-full max-w-sm shadow-xl text-center relative">
-            <h3 className="text-lg font-bold text-[#122244] mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-full max-w-sm shadow-xl text-center relative transition-colors">
+            <h3 className="text-lg font-bold text-[#122244] dark:text-white mb-6 transition-colors">
               Sign out of FeasiFy?
             </h3>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold shadow-md"
+                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md transition-colors"
               >
                 Logout
               </button>

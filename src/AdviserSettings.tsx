@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
+import { useTheme } from "./ThemeContext";
 import {
   User,
   Settings as SettingsIcon,
@@ -16,6 +17,9 @@ import {
 
 const AdviserSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
+  
   const [userName, setUserName] = useState("Adviser");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -27,9 +31,8 @@ const AdviserSettings: React.FC = () => {
   const [minMembers, setMinMembers] = useState(8);
   const [maxMembers, setMaxMembers] = useState(10);
 
-  // Dummy toggles for UI
+  // Toggles for UI
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
@@ -116,10 +119,10 @@ const AdviserSettings: React.FC = () => {
       : "A";
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden transition-colors duration-300">
       {/* ADVISER SIDEBAR */}
       <aside
-        className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${
+        className={`hidden lg:flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -214,9 +217,9 @@ const AdviserSettings: React.FC = () => {
           isSidebarOpen ? "lg:ml-64" : "ml-0"
         }`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
           <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+            className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           />
           <span className="mx-2">|</span>
@@ -227,29 +230,29 @@ const AdviserSettings: React.FC = () => {
             FeasiFy
           </span>
           <span>›</span>
-          <span className="font-semibold text-gray-900">Settings</span>
+          <span className="font-semibold text-gray-900 dark:text-white transition-colors">Settings</span>
         </div>
 
         <div className="p-6 md:p-8 max-w-4xl mx-auto w-full">
-          <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-8">
+          <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white mb-8 transition-colors">
             Settings
           </h1>
 
           <div className="space-y-6">
             {/* Preferences */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="font-bold text-[#122244]">Preferences</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
+              <div className="p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 transition-colors">
+                <h3 className="font-bold text-[#122244] dark:text-white transition-colors">Preferences</h3>
               </div>
-              <div className="divide-y divide-gray-100">
-                <div className="p-5 flex items-center justify-between">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700 transition-colors">
+                <div className="p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Bell className="w-5 h-5 text-gray-400" />
+                    <Bell className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">
                         Email Notifications
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
                         Receive alerts when group submissions are updated.
                       </p>
                     </div>
@@ -257,7 +260,7 @@ const AdviserSettings: React.FC = () => {
                   <button
                     onClick={() => setNotificationsEnabled(!notificationsEnabled)}
                     className={`w-12 h-6 rounded-full transition-colors relative ${
-                      notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
+                      notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <div
@@ -267,37 +270,40 @@ const AdviserSettings: React.FC = () => {
                     ></div>
                   </button>
                 </div>
-                <div className="p-5 flex items-center justify-between">
+
+                {/* DARK MODE TOGGLE */}
+                <div className="p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Moon className="w-5 h-5 text-gray-400" />
+                    <Moon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">
                         Dark Mode
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
                         Toggle dark appearance for the application.
                       </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => setDarkModeEnabled(!darkModeEnabled)}
+                    onClick={toggleTheme}
                     className={`w-12 h-6 rounded-full transition-colors relative ${
-                      darkModeEnabled ? "bg-[#122244]" : "bg-gray-300"
+                      isDarkMode ? "bg-[#c9a654]" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <div
                       className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
-                        darkModeEnabled ? "left-7" : "left-1"
+                        isDarkMode ? "left-7" : "left-1"
                       }`}
                     ></div>
                   </button>
                 </div>
-                <div className="p-5 flex items-center justify-between">
+
+                <div className="p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Globe className="w-5 h-5 text-gray-400" />
+                    <Globe className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm font-bold text-gray-900">Language</p>
-                      <p className="text-xs text-gray-500">English (US)</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">Language</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">English (US)</p>
                     </div>
                   </div>
                 </div>
@@ -305,20 +311,20 @@ const AdviserSettings: React.FC = () => {
             </div>
 
             {/* Security */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="font-bold text-[#122244]">Security</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
+              <div className="p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 transition-colors">
+                <h3 className="font-bold text-[#122244] dark:text-white transition-colors">Security</h3>
               </div>
               <div className="p-5">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-5 mb-5">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-5 mb-5 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Lock className="w-5 h-5 text-gray-400" />
+                    <Lock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm font-bold text-gray-900">Password</p>
-                      <p className="text-xs text-gray-500">Last changed: Never</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white transition-colors">Password</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">Last changed: Never</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                  <button className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
                     Change Password
                   </button>
                 </div>
@@ -330,27 +336,27 @@ const AdviserSettings: React.FC = () => {
 
       {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-colors"
             onClick={() => setShowLogoutConfirm(false)}
           />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-[#122244] mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200 transition-colors">
+            <h3 className="text-lg font-bold text-[#122244] dark:text-white mb-2 transition-colors">
               Confirm logout
             </h3>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 transition-colors">
               Are you sure you want to log out?
             </p>
             <div className="flex justify-end gap-3">
               <button
-                className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                className="px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => setShowLogoutConfirm(false)}
               >
                 Cancel
               </button>
               <button
-                className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md"
+                className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md transition-colors"
                 onClick={() => {
                   setShowLogoutConfirm(false);
                   handleLogout();

@@ -180,7 +180,7 @@ const Reports: React.FC = () => {
     name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden print:overflow-visible print:block">
+    <div className="flex min-h-screen bg-gray-50/50 dark:bg-gray-900 overflow-hidden print:overflow-visible print:block transition-colors duration-300">
       {/* Inject Print-Specific Styles */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
@@ -201,9 +201,9 @@ const Reports: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-[50] lg:hidden print:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* Sidebar - Marked as print:hidden */}
+      {/* Sidebar */}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 print:hidden`}
+        className={`flex w-64 bg-[#122244] dark:bg-gray-950 text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 print:hidden`}
       >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
@@ -245,57 +245,58 @@ const Reports: React.FC = () => {
       </aside>
 
       <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"} print:ml-0 print:p-0`}>
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 print:hidden">
-          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors print:hidden">
+          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
           <span className="cursor-pointer hover:text-[#c9a654] transition-colors" onClick={() => navigate("/dashboard")}>FeasiFy</span>
           <span>›</span>
-          <span className="font-semibold text-gray-900">Reports</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Reports</span>
         </div>
 
         <div className="p-6 md:p-8 max-w-5xl mx-auto print:p-0 print:max-w-full">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6 print:hidden">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 dark:border-gray-700 pb-6 transition-colors print:hidden">
             <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23]">Executive Reports</h1>
-              <p className="text-sm text-gray-500 mt-1 italic">Download and print your official AI-generated feasibility study documentation.</p>
+              <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white transition-colors">Executive Reports</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 italic transition-colors">Download and print your official AI-generated feasibility study documentation.</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => window.print()} disabled={!selectedProject?.aiAnalysis} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"><Printer className="w-4 h-4" /> Print Document</button>
+              <button onClick={() => window.print()} disabled={!selectedProject?.aiAnalysis} className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm disabled:opacity-50"><Printer className="w-4 h-4" /> Print Document</button>
               <button onClick={handleDownloadPDF} disabled={!selectedProject?.aiAnalysis || isDownloading} className="flex items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-md disabled:opacity-50"><Download className="w-4 h-4" /> {isDownloading ? "Generating..." : "Download PDF"}</button>
             </div>
           </div>
 
-          <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm print:hidden">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Project Document Under Evaluation</label>
+          <div className="mb-8 bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors print:hidden">
+            <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">Project Document Under Evaluation</label>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">P#</div>
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100 dark:border-blue-800 transition-colors">P#</div>
               <div>
-                <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">{selectedProjectId && projects.length > 0 ? projects.find((p) => p.id === selectedProjectId)?.name : "No active project"}</h2>
-                {selectedProjectId && <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">Verified Approved Business</span>}
+                <h2 className="text-2xl font-extrabold text-[#122244] dark:text-white tracking-tight transition-colors">{selectedProjectId && projects.length > 0 ? projects.find((p) => p.id === selectedProjectId)?.name : "No active project"}</h2>
+                {selectedProjectId && <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded transition-colors">Verified Approved Business</span>}
               </div>
             </div>
           </div>
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center min-h-[40vh]">
-              <div className="w-8 h-8 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-gray-500 font-medium text-sm">Loading reports...</p>
+              <div className="w-8 h-8 border-4 border-[#122244] dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin mb-4 transition-colors"></div>
+              <p className="text-gray-500 dark:text-gray-400 font-medium text-sm transition-colors">Loading reports...</p>
             </div>
           ) : !selectedProject ? (
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-20 flex flex-col items-center justify-center text-center print:hidden">
-              <FileText className="w-12 h-12 text-gray-300 mb-4" />
-              <h3 className="text-xl font-bold text-[#122244]">No Project Selected</h3>
-              <p className="text-gray-500 mt-2">Open a workspace to view its associated reports.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 py-20 flex flex-col items-center justify-center text-center transition-colors print:hidden">
+              <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4 transition-colors" />
+              <h3 className="text-xl font-bold text-[#122244] dark:text-white transition-colors">No Project Selected</h3>
+              <p className="text-gray-500 dark:text-gray-400 mt-2 transition-colors">Open a workspace to view its associated reports.</p>
             </div>
           ) : !selectedProject.aiAnalysis ? (
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-20 flex flex-col items-center justify-center text-center print:hidden">
-              <FileText className="w-12 h-12 text-gray-300 mb-4" />
-              <h3 className="text-xl font-bold text-[#122244]">No Report Available</h3>
-              <p className="text-gray-500 mt-2 mb-6">You need to run an AI Feasibility Analysis first.</p>
-              <button onClick={() => navigate("/ai-analysis")} className="bg-[#122244] text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-[#1a3263] transition-colors">Go to Analysis Module</button>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 py-20 flex flex-col items-center justify-center text-center transition-colors print:hidden">
+              <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4 transition-colors" />
+              <h3 className="text-xl font-bold text-[#122244] dark:text-white transition-colors">No Report Available</h3>
+              <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6 transition-colors">You need to run an AI Feasibility Analysis first.</p>
+              <button onClick={() => navigate("/ai-analysis")} className="bg-[#122244] dark:bg-gray-700 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-[#1a3263] dark:hover:bg-gray-600 transition-colors">Go to Analysis Module</button>
             </div>
           ) : (
-            <div ref={reportRef} className="bg-white rounded-xl border border-gray-200 shadow-lg p-10 md:p-16 mb-12 print:shadow-none print:border-none print:p-0">
+            /* NOTE: reportRef intentionally stays light-themed so the PDF output generates beautifully with black text on a white page. */
+            <div ref={reportRef} className="bg-white rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg dark:shadow-2xl dark:shadow-black/50 p-10 md:p-16 mb-12 print:shadow-none print:border-none print:p-0 transition-colors">
               <div className="border-b-2 border-[#122244] pb-8 mb-8 text-center">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Executive Summary</h2>
                 <h1 className="text-4xl font-extrabold text-[#3d2c23] mb-4">{selectedProject.name}</h1>
@@ -360,13 +361,13 @@ const Reports: React.FC = () => {
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-[#122244] mb-2">Confirm logout</h3>
-            <p className="text-sm text-gray-600 mb-6">Are you sure you want to log out?</p>
+          <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-colors" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 z-10 w-11/12 max-w-md shadow-xl animate-in fade-in zoom-in-95 duration-200 transition-colors">
+            <h3 className="text-lg font-bold text-[#122244] dark:text-white mb-2 transition-colors">Confirm logout</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 transition-colors">Are you sure you want to log out?</p>
             <div className="flex justify-end gap-3">
-              <button className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
-              <button className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Logout</button>
+              <button className="px-5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+              <button className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md transition-colors" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Logout</button>
             </div>
           </div>
         </div>

@@ -21,9 +21,11 @@ import AdviserDashboard from "./AdviserDashboard";
 import AdviserSettings from "./AdviserSettings";
 import AdviserProfile from "./AdviserProfile";
 import ChairpersonProfile from "./ChairpersonProfile";
+import { ThemeProvider } from "./ThemeContext";
 
 function App() {
   return (
+    <ThemeProvider>
     <SkeletonTheme baseColor="#e8ecf0" highlightColor="#f4f6f8">
     <Router>
       <Routes>
@@ -75,7 +77,10 @@ function App() {
       </Routes>
     </Router>
     </SkeletonTheme>
+    </ThemeProvider>
   );
 }
+
+
 
 export default App;
