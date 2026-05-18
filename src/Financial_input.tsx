@@ -47,6 +47,7 @@ const Financial_input: React.FC = () => {
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
+  const [taxTab, setTaxTab] = useState<"log" | "math">("math");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -1001,48 +1002,140 @@ const Financial_input: React.FC = () => {
               </div>
 
               {showTaxBreakdown ? (
-                <div className="bg-[#122244] p-5 rounded-xl text-white shadow-inner animate-in fade-in slide-in-from-top-2 duration-300">
-                  <p className="text-[10px] font-black text-[#c9a654] uppercase mb-4 tracking-widest text-center border-b border-white/10 pb-2">
-                    BMBE Tax Computation Log
-                  </p>
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-gray-400 font-bold uppercase tracking-tighter">
-                          Income Tax (RA 9178)
-                        </span>
-                        <span className="text-green-400 font-bold text-sm">
-                          ₱0
-                        </span>
-                      </div>
-                      <div className="bg-black/20 p-2 rounded border-l-2 border-green-500">
-                        <p className="text-[10px] text-gray-300 leading-tight">
-                          BMBEs are explicitly exempt from income tax arising from their operations.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 pt-2 border-t border-white/5">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-gray-400 font-bold uppercase tracking-tighter">
-                          Percentage Tax
-                        </span>
-                        <span className="text-white font-bold text-sm">
-                          ₱{taxResult.percentageTax.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="bg-black/20 p-2 rounded border-l-2 border-blue-400">
-                        <p className="text-[10px] text-gray-300 leading-tight">
-                          Formula: <span className="text-blue-400">₱{annualRevenue.toLocaleString()} (Gross Sales)</span> × {taxResult.rate}%
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between pt-2 border-t-2 border-[#c9a654]/40 font-black text-[#c9a654] text-xs uppercase tracking-tight">
-                      <span>Total Annual Tax Liability:</span>
-                      <span>₱{taxResult.amount.toLocaleString()}</span>
+                <div className="bg-[#122244] p-5 rounded-xl text-white shadow-xl border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                    <p className="text-[10px] font-black text-[#c9a654] uppercase tracking-widest">
+                      BMBE Computation
+                    </p>
+                    <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5">
+                      <button
+                        onClick={() => setTaxTab("math")}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "math" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                      >
+                        Math Breakdown
+                      </button>
+                      <button
+                        onClick={() => setTaxTab("log")}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "log" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                      >
+                        Tax Log
+                      </button>
                     </div>
                   </div>
+
+                  {taxTab === "math" ? (
+                    <div className="space-y-4 animate-in fade-in duration-300">
+                      {/* Subtle Horizontal Pipeline */}
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 py-2 px-3 bg-black/15 rounded-lg border border-white/5 text-[9px] font-bold text-gray-300">
+                        <span>₱{safeSellingPrice.toLocaleString()}</span>
+                        <span className="text-gray-600">➜</span>
+                        <span>₱{monthlyRevenue.toLocaleString()}</span>
+                        <span className="text-gray-600">➜</span>
+                        <span>₱{Math.round(monthlyRevenue / 30).toLocaleString()}</span>
+                        <span className="text-gray-600">➜</span>
+                        <span className="text-[#c9a654]">₱{annualRevenue.toLocaleString()}</span>
+                        <span className="text-gray-600">➜</span>
+                        <span className="text-green-400">₱{taxResult.amount.toLocaleString()} (3% Tax)</span>
+                      </div>
+
+                      {/* Premium Vertical Timeline */}
+                      <div className="relative pl-5 border-l border-white/10 space-y-4 my-2 ml-2.5">
+                        {/* Step 1 */}
+                        <div className="relative">
+                          <span className="absolute -left-[27px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#c9a654]/50 bg-[#122244] text-[8px] font-bold text-[#c9a654]">
+                            1
+                          </span>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-200">Monthly Revenue</p>
+                            <p className="text-[9px] text-gray-400 mt-0.5 leading-normal">
+                              ₱{safeSellingPrice.toLocaleString()} Price × {safeMonthlySales.toLocaleString()} sales/mo = <span className="text-[#c9a654] font-bold">₱{monthlyRevenue.toLocaleString()}/mo</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div className="relative">
+                          <span className="absolute -left-[27px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-blue-400/50 bg-[#122244] text-[8px] font-bold text-blue-400">
+                            2
+                          </span>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-200">Daily Revenue Conversion</p>
+                            <p className="text-[9px] text-gray-400 mt-0.5 leading-normal">
+                              ₱{monthlyRevenue.toLocaleString()} monthly revenue ÷ 30 days = <span className="text-blue-400 font-bold">₱{Math.round(monthlyRevenue / 30).toLocaleString()}/day</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 3 */}
+                        <div className="relative">
+                          <span className="absolute -left-[27px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-purple-400/50 bg-[#122244] text-[8px] font-bold text-purple-400">
+                            3
+                          </span>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-200">Annual Gross Sales</p>
+                            <p className="text-[9px] text-gray-400 mt-0.5 leading-normal">
+                              ₱{Math.round(monthlyRevenue / 30).toLocaleString()}/day × {safeOperatingDays} days/yr = <span className="text-purple-400 font-bold">₱{annualRevenue.toLocaleString()}/yr</span>
+                            </p>
+                            <p className="text-[8px] text-yellow-500/80 font-medium italic mt-0.5 leading-normal">
+                              Note: This is an Annual Gross Sales figure, not a monthly amount.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Step 4 */}
+                        <div className="relative">
+                          <span className="absolute -left-[27px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-green-500/50 bg-[#122244] text-[8px] font-bold text-green-400">
+                            4
+                          </span>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-200">BMBE Tax (3% Flat)</p>
+                            <p className="text-[9px] text-gray-400 mt-0.5 leading-normal">
+                              ₱{annualRevenue.toLocaleString()} Annual Revenue × 3% = <span className="text-green-400 font-bold">₱{taxResult.amount.toLocaleString()}</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in duration-300">
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-gray-400 font-bold uppercase tracking-tighter">
+                            Income Tax (RA 9178)
+                          </span>
+                          <span className="text-green-400 font-bold text-sm">
+                            ₱0
+                          </span>
+                        </div>
+                        <div className="bg-black/20 p-2 rounded border-l-2 border-green-500">
+                          <p className="text-[10px] text-gray-300 leading-tight">
+                            BMBEs are explicitly exempt from income tax arising from their operations.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-gray-400 font-bold uppercase tracking-tighter">
+                            Percentage Tax
+                          </span>
+                          <span className="text-white font-bold text-sm">
+                            ₱{taxResult.percentageTax.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="bg-black/20 p-2 rounded border-l-2 border-blue-400">
+                          <p className="text-[10px] text-gray-300 leading-tight">
+                            Formula: <span className="text-blue-400">₱{annualRevenue.toLocaleString()} (Gross Sales)</span> × {taxResult.rate}%
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between pt-2 border-t-2 border-[#c9a654]/40 font-black text-[#c9a654] text-xs uppercase tracking-tight">
+                        <span>Total Annual Tax Liability:</span>
+                        <span>₱{taxResult.amount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
