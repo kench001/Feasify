@@ -773,7 +773,7 @@ Return ONLY a valid JSON object:
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+      <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto overflow-x-hidden ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
         <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 sticky top-0 z-10">
           <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
@@ -1190,26 +1190,32 @@ Return ONLY a valid JSON object:
                                                 <p className="text-sm text-gray-500">{activeProposal.aiAnalysis.explanations?.feasibility || "Evaluation completed."}</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`text-5xl font-extrabold ${activeProposal.aiAnalysis.status === 'FEASIBLE' ? 'text-green-500' : 'text-orange-500'}`}>{activeProposal.aiAnalysis.score || 0}</div>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase">Score / 100</p>
+                                                <div className={`text-5xl font-extrabold ...`}>
+  {(activeProposal.aiAnalysis.score || 0) / 10}
+</div>
+<p className="text-[10px] font-bold text-gray-400 uppercase">Score / 10</p>
                                             </div>
                                         </div>
                                         
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
-                                                const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
-                                                const val = activeProposal.aiAnalysis.metrics?.[key] || 0;
-                                                const desc = activeProposal.aiAnalysis.explanations?.[key];
-                                                return (
-                                                    <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
-                                                        <p className="text-2xl font-bold text-[#122244] mb-2">{val}%</p>
-                                                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3"><div className="bg-[#122244] h-1.5 rounded-full" style={{width: `${val}%`}}></div></div>
-                                                        <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
+    {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
+        const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
+        const rawVal = activeProposal.aiAnalysis.metrics?.[key] || 0;
+        const displayVal = rawVal > 10 ? rawVal / 10 : rawVal; // Convert 90 to 9
+        const barWidth = rawVal > 10 ? rawVal : rawVal * 10; // Ensure 90%
+        const desc = activeProposal.aiAnalysis.explanations?.[key];
+        return (
+            <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
+                <p className="text-2xl font-bold text-[#122244] mb-2">{displayVal}/10</p>
+                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+                    <div className="bg-[#122244] h-1.5 rounded-full transition-all duration-500" style={{ width: `${barWidth}%` }}></div>
+                </div>
+                <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
+            </div>
+        )
+    })}
+</div>
 
                                         <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
                                             <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
@@ -1286,7 +1292,7 @@ Return ONLY a valid JSON object:
       {/* MODAL: View Proposal (Adviser Review) */}
       {viewingProposal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[1.5rem] w-full max-w-[98vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
+          <div className="bg-white rounded-[1.5rem] w-full max-w-[95vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
             {/* Modal Header */}
             <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
               <div className="flex items-center gap-4 md:gap-5">
@@ -1493,16 +1499,25 @@ Return ONLY a valid JSON object:
 
                         {/* Sub Metrics */}
                         <div className="grid grid-cols-2 gap-4">
-                          {Object.entries(modalAiResult.metrics || {}).map(([key, val]: [string, any]) => (
-                            <div key={key} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                              <div className="flex justify-between items-end mb-3">
-                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{key}</span>
-                                <span className="text-sm font-black text-[#122244]">{val}/10</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${val >= 7 ? 'bg-green-500' : val >= 4 ? 'bg-amber-500' : 'bg-red-500'}`} style={{width: `${(val / 10) * 100}%`}}></div></div>
-                            </div>
-                          ))}
-                        </div>
+  {Object.entries(modalAiResult.metrics || {}).map(([key, val]: [string, any]) => {
+    const displayVal = val > 10 ? val / 10 : val;
+    const barWidth = val > 10 ? val : val * 10;
+    return (
+      <div key={key} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex justify-between items-end mb-3">
+          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{key}</span>
+          <span className="text-sm font-black text-[#122244]">{displayVal}/10</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-1.5">
+          <div 
+            className={`h-1.5 rounded-full transition-all duration-500 ${val >= 70 || val >= 7 ? 'bg-green-500' : val >= 40 || val >= 4 ? 'bg-amber-500' : 'bg-red-500'}`} 
+            style={{ width: `${barWidth}%` }}
+          ></div>
+        </div>
+      </div>
+    );
+  })}
+</div>
 
                         {/* Strengths & Weaknesses */}
                         <div className="space-y-4">
