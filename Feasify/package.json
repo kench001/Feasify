@@ -6,7 +6,7 @@
   "scripts": {
     "vite": "vite",
     "server": "cd ../feasify-backend && npm run dev",
-    "dev": "concurrently \"npm run vite\" \"npm run server\"",
+    "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

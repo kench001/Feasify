@@ -1,0 +1,12 @@
+{
+    "name": "feasify_project_root",
+    "version": "1.0.0",
+    "description": "Master controller for Frontend and Backend",
+    "main": "index.js",
+    "scripts": {
+        "dev": "concurrently \"npm run dev --prefix Feasify\" \"node feasify-backend/index.js\""
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.0"
+    }
+}
