@@ -1,0 +1,10 @@
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile('public/BG.1.png')
+$rect = New-Object System.Drawing.Rectangle(200, 0, 450, 524)
+$bmp = New-Object System.Drawing.Bitmap($rect.Width, $rect.Height)
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)), $rect, [System.Drawing.GraphicsUnit]::Pixel)
+$bmp.Save('public/BG.1-mobile.png', [System.Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose()
+$bmp.Dispose()
+$img.Dispose()
