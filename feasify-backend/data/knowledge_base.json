@@ -1,0 +1,112 @@
+{
+    "evaluation_framework": {
+        "gateway_phase": {
+            "rules": [
+                {
+                    "id": "DF-01",
+                    "name": "Legality & Ethical Compliance",
+                    "description": "The business concept must represent a legal, ethical, and safe enterprise under Philippine law. No scams, unregistered schemes, or deceptive trade practices.",
+                    "verification": "Check that the product and business type do not violate local or national laws."
+                },
+                {
+                    "id": "DF-02",
+                    "name": "Gross Margin Test",
+                    "description": "The selling price per unit must be strictly greater than the unit cost of goods sold (COGS).",
+                    "verification": "Selling Price - COGS > 0"
+                },
+                {
+                    "id": "DF-03",
+                    "name": "Capital Reconciliation Test",
+                    "description": "The sum of all startup equipment, inventory, licenses, and initial working capital reserve must match the declared total capital.",
+                    "verification": "Sum of Startup Costs + Cash Reserve = Declared Total Capital."
+                }
+            ]
+        },
+        "graded_categories": [
+            {
+                "category": "Category 1: Financial Viability & Risk",
+                "weight_points": 35,
+                "criteria": {
+                    "excellent": "31-35 pts. Pricing and COGS are highly realistic. Startup budget contains a healthy cash/working capital reserve (at least 1-2 months of OPEX). Monthly sales relate logically to daily capacity.",
+                    "satisfactory": "25-30 pts. Math is correct, margins are healthy. Cash reserve is low (less than 1 month of OPEX). Projections are slightly optimistic but mathematically sound.",
+                    "needs_improvement": "18-24 pts. Calculations contain minor errors. OPEX estimates are missing key elements (utilities, benefits). Cash reserve is practically non-existent.",
+                    "unacceptable": "0-17 pts. Major mathematical errors. Projections are wildly unrealistic."
+                }
+            },
+            {
+                "category": "Category 2: Operational & Location Feasibility",
+                "weight_points": 25,
+                "criteria": {
+                    "excellent": "22-25 pts. Proposed location has a specific address corresponding to the target demographic. Rent is realistic. Equipment list is comprehensive and matches the projected volume.",
+                    "satisfactory": "18-21 pts. Location is realistic but rent or leasehold estimates are slightly low. Equipment is functional, minor tools might be underbudgeted.",
+                    "needs_improvement": "13-17 pts. Location is vague or mismatched with target market. Critical production equipment is missing.",
+                    "unacceptable": "0-12 pts. Location is omitted or unviable. Equipment list is insufficient to produce the product."
+                }
+            },
+            {
+                "category": "Category 3: Market & Promotional Feasibility",
+                "weight_points": 25,
+                "criteria": {
+                    "excellent": "22-25 pts. Target market is clearly defined (age, income, geography). Promotional strategies utilize a realistic mix of digital and physical channels with matched budgets.",
+                    "satisfactory": "18-21 pts. Target market is defined but too broad. Promotional strategies are standard ('just post on Facebook') without unique local allocations.",
+                    "needs_improvement": "13-17 pts. Target market is poorly defined. Marketing ideas are generic, and promotional activities do not align with the budget.",
+                    "unacceptable": "0-12 pts. No clear marketing/promotional plan, or relies on wildly unrealistic assumptions."
+                }
+            },
+            {
+                "category": "Category 4: Strategic Alignment & Completeness",
+                "weight_points": 15,
+                "criteria": {
+                    "excellent": "13-15 pts. Mission and Vision statements are clear, professional, and directly reflected in the product offering. Formatting is clean and consistent.",
+                    "satisfactory": "10-12 pts. Mission and Vision are standard but functional. Document is complete with minor formatting or spelling errors.",
+                    "needs_improvement": "7-9 pts. Mission, Vision, and product description lack cohesion (e.g., mission states healthy food but the menu is deep-fried junk food). Disorganized.",
+                    "unacceptable": "0-6 pts. Key qualitative sections are missing, copy-pasted, or completely unaligned."
+                }
+            }
+        ],
+        "performance_matrix": [
+            {
+                "score_range": "90-100",
+                "grade": "Outstanding",
+                "status": "PASS (Highly Feasible)",
+                "recommendation": "Strong, well-designed study with realistic financial buffers. Ready for execution."
+            },
+            {
+                "score_range": "75-89",
+                "grade": "Satisfactory",
+                "status": "PASS (Feasible with Risks)",
+                "recommendation": "Mathematically sound and logical. Minor adjustments (such as increasing working capital or refining marketing) recommended."
+            },
+            {
+                "score_range": "70-74",
+                "grade": "Conditional",
+                "status": "CONDITIONAL PASS",
+                "recommendation": "Requires major revisions to either the operational or financial section before receiving a passing grade."
+            },
+            {
+                "score_range": "Below 70",
+                "grade": "Unsatisfactory",
+                "status": "FAIL",
+                "recommendation": "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot."
+            }
+        ]
+    },
+    "exemplars": [
+        {
+            "name": "The Dory House Co. (Dory-Yaki)",
+            "type": "Food Service Quick-Service Food Stall",
+            "capital": 900000.0,
+            "location": "Unit 1B #17 G. Lazaro St., Dalandanan, Valenzuela City",
+            "pricing": "₱45.00 (Regular) to ₱60.00 (Premium)",
+            "promotional_strategy": "Multi-channel (FB, IG, TikTok), local micro-influencer partnerships, flyers, customer loyalty cards, back-to-school discounts."
+        },
+        {
+            "name": "Empinoy",
+            "type": "Food Service Quick-Service Food Stall (Empanada Specialty)",
+            "capital": 216000.0,
+            "location": "1358 Que Grande Street, Ugong, Valenzuela City",
+            "pricing": "₱45.00 (fruit) up to ₱99.00 (Pinoy ulam flavors)",
+            "promotional_strategy": "Daily/weekly social media ads, direct customer contact via SMS, physical product sampling, custom monthly marketing themes."
+        }
+    ]
+}
