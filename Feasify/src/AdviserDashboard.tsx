@@ -6,7 +6,7 @@ import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion, setDoc } from "firebase/firestore";
 import {
-  User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive, 
+  User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell
@@ -55,7 +55,7 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   status: 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Revision';
-  adviserFeedback?: string; 
+  adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[];
   financialData?: any;
   aiAnalysis?: any;
@@ -68,7 +68,7 @@ const AdviserDashboard: React.FC = () => {
   const [userName, setUserName] = useState("Adviser");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  
+
   // Section Management State
   const [adviserSections, setAdviserSections] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState("");
@@ -76,7 +76,7 @@ const AdviserDashboard: React.FC = () => {
   // Data States
   const [students, setStudents] = useState<StudentData[]>([]);
   const [groups, setGroups] = useState<GroupData[]>([]);
-  const [groupProposals, setGroupProposals] = useState<ProposalData[]>([]); 
+  const [groupProposals, setGroupProposals] = useState<ProposalData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // View & Tab States
@@ -88,7 +88,7 @@ const AdviserDashboard: React.FC = () => {
   const [activeProposal, setActiveProposal] = useState<ProposalData | null>(null);
 
   // Per-section group settings
-  const [sectionSettingsMap, setSectionSettingsMap] = useState<Record<string, {minMembers: number, maxMembers: number}>>({});
+  const [sectionSettingsMap, setSectionSettingsMap] = useState<Record<string, { minMembers: number, maxMembers: number }>>({});
   const [sectionGroupCountMap, setSectionGroupCountMap] = useState<Record<string, number>>({});
   const [minMembers, setMinMembers] = useState(8);
   const [maxMembers, setMaxMembers] = useState(10);
@@ -100,8 +100,8 @@ const AdviserDashboard: React.FC = () => {
   const [showAllAssignedModal, setShowAllAssignedModal] = useState(false); // NEW MODAL STATE
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null); 
-  
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
   // Create Group Multi-Step State
   const [showCreateLeaderModal, setShowCreateLeaderModal] = useState(false);
   const [showCreateMembersModal, setShowCreateMembersModal] = useState(false);
@@ -143,7 +143,7 @@ const AdviserDashboard: React.FC = () => {
             .map((s: string) => s.trim())
             .filter(Boolean)
             .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-          
+
           // Load per-section settings from Firestore
           if (data.sectionSettings) {
             setSectionSettingsMap(data.sectionSettings);
@@ -162,7 +162,7 @@ const AdviserDashboard: React.FC = () => {
       // Check if a section is specified in the URL query params
       const sectionParam = searchParams.get("section");
       const sectionToSelect = sectionParam || adviserSections[0];
-      
+
       setActiveSection(sectionToSelect);
       const settings = sectionSettingsMap[sectionToSelect];
       setMinMembers(settings?.minMembers ?? 8);
@@ -186,7 +186,7 @@ const AdviserDashboard: React.FC = () => {
       const fetchedGroups = groupSnap.docs.map(d => ({ id: d.id, ...d.data(), status: d.data().status || 'Drafting' } as GroupData));
       setGroups(fetchedGroups);
       setSectionGroupCountMap(prev => ({ ...prev, [section]: fetchedGroups.length }));
-    } catch (error) { console.error("Error fetching data:", error); } 
+    } catch (error) { console.error("Error fetching data:", error); }
     finally { setIsLoading(false); }
   };
 
@@ -201,7 +201,7 @@ const AdviserDashboard: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    try { await signOutUser(); localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+    try { await signOutUser(); localStorage.clear(); sessionStorage.clear(); } catch (e) { }
     navigate("/");
   };
 
@@ -211,29 +211,29 @@ const AdviserDashboard: React.FC = () => {
     setSelectedGroup(group);
     setActiveView('group-details');
     setActiveDetailTab('Proposals');
-    fetchGroupProposals(group.id); 
+    fetchGroupProposals(group.id);
   };
 
   const handleOpenActiveBusiness = async (group: GroupData) => {
     setSelectedGroup(group);
     if (!group.activeProposalId) {
-        alert("No active proposal linked to this group.");
-        return;
+      alert("No active proposal linked to this group.");
+      return;
     }
     setIsLoading(true);
     try {
-        const docRef = doc(db, "proposals", group.activeProposalId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            setActiveProposal({ id: docSnap.id, ...docSnap.data() } as ProposalData);
-            setActiveView('active-business');
-            setActiveBusinessTab('Profile');
-        }
-    } catch(e) {
-        console.error(e);
-        alert("Failed to fetch business details.");
+      const docRef = doc(db, "proposals", group.activeProposalId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setActiveProposal({ id: docSnap.id, ...docSnap.data() } as ProposalData);
+        setActiveView('active-business');
+        setActiveBusinessTab('Profile');
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to fetch business details.");
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -251,185 +251,74 @@ const AdviserDashboard: React.FC = () => {
   const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
     setIsAiAnalyzing(true);
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    // Build a rich context string so the AI understands completeness
-    const fieldCompleteness = [
-      { field: 'Business Name', value: proposal.businessName },
-      { field: 'Business Type', value: proposal.businessType },
-      { field: 'Tagline', value: proposal.tagline },
-      { field: 'Target Market', value: proposal.targetMarket },
-      { field: 'Mission Statement', value: proposal.missionStatement },
-      { field: 'Vision Statement', value: proposal.visionStatement },
-      { field: 'Product Description', value: proposal.productDescription },
-      { field: 'Price Ranges', value: proposal.priceRanges },
-      { field: 'Proposed Location', value: proposal.proposedLocation },
-      { field: 'Promotional Strategy', value: proposal.promotionalStrategy },
-    ];
-    const filledCount = fieldCompleteness.filter(f => f.value && f.value.trim()).length;
-    const missingFields = fieldCompleteness.filter(f => !f.value || !f.value.trim()).map(f => f.field);
-
-    const prompt = `You are a senior business consultant with 20+ years of experience evaluating startup feasibility studies. You have a reputation for being professional, direct, and brutally honest. Your goal is not to be nice, but to ensure the business actually succeeds by identifying fatal flaws early.
-
-A student group has submitted a business proposal. Analyze it with extreme rigor.
-
-=== PROPOSAL DATA ===
-Business Name: "${proposal.businessName || 'Not provided'}"
-Business Type: "${proposal.businessType || 'Not provided'}"
-Tagline: "${proposal.tagline || 'Not provided'}"
-Target Market: "${proposal.targetMarket || 'Not provided'}"
-Mission/Vision: "${proposal.missionStatement || 'Not provided'} / ${proposal.visionStatement || 'Not provided'}"
-Product/Description: "${proposal.productDescription || 'Not provided'}"
-Price/Range: "${proposal.priceRanges || 'Not provided'}"
-Proposed Location: "${proposal.proposedLocation || 'Not provided'}"
-Promotional Strategy: "${proposal.promotionalStrategy || 'Not provided'}"
-=== END PROPOSAL DATA ===
-
-=== ANALYSIS REQUIREMENTS ===
-1. TONE: Professional, senior-level consultant. Use sharp, direct language.
-2. BRUTAL HONESTY: If the target market is too broad, call it out. If the location doesn't match the market, explain why it will fail. If the pricing is unrealistic for the product, be blunt.
-3. SCORING RUBRIC:
-   - Concept (0-10): Originality, clarity of value proposition, and problem-solution fit.
-   - Market (0-10): Specificity of target audience, location suitability, and competitive awareness.
-   - Operational (0-10): Realism of the product delivery and logistical logic.
-   - Strategic (0-10): Clarity of mission/vision and effectiveness of promotional plans.
-4. REALITY CHECK: Provide a dedicated "realityCheck" section. If the scores are high (e.g., >8/10), the reality check should be encouraging or focus on scaling. If the scores are low, it should identify critical flaws.
-5. SENTIMENT ALIGNMENT: Ensure that "strengths", "weaknesses", and "realityCheck" correlate with your metrics. High scores MUST reflect positive feedback. If a metric is 9/10, do not list it as a major weakness.
-6. FEEDBACK DRAFT: Write a formal professional letter addressed to the "Team". Address the reality check head-on. If the business is strong, be commendatory. If weak, be firm but constructive.
-7. WEIGHTED SCORE: Calculate a total feasibility score from 0-100. High scores should be awarded to well-thought-out, complete, and viable plans.
-
-Return ONLY a valid JSON object:
-{
-  "score": <number 0-100>,
-  "status": "FEASIBLE" | "NEEDS_ADJUSTMENT" | "NOT_FEASIBLE",
-  "metrics": {
-    "concept": <number 0-10>,
-    "market": <number 0-10>,
-    "operational": <number 0-10>,
-    "strategic": <number 0-10>
-  },
-  "strengths": ["list of specific strengths"],
-  "weaknesses": ["list of specific, blunt weaknesses"],
-  "realityCheck": "A 2-3 sentence 'brutal reality check' identifying the most critical flaw or challenge.",
-  "recommendations": ["list of actionable, high-impact steps"],
-  "draftFeedback": "A formal professional letter to the 'Team'. Address the reality check head-on and provide a professional path forward."
-}`;
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.75,
-              topP: 0.95,
-              topK: 40,
-              maxOutputTokens: 2048,
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
-      const resData = await response.json();
-      
-      if (!resData.candidates || resData.candidates.length === 0) {
-        throw new Error("Invalid response from Gemini API: " + JSON.stringify(resData));
+      // 1. Call your local backend (The RAG System) instead of the external API
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: proposal.id,
+          businessName: proposal.businessName,
+          businessType: proposal.businessType,
+          totalCapital: proposal.totalCapital,
+          tagline: proposal.tagline,
+          targetMarket: proposal.targetMarket,
+          missionStatement: proposal.missionStatement,
+          visionStatement: proposal.visionStatement,
+          productDescription: proposal.productDescription,
+          priceRanges: proposal.priceRanges,
+          proposedLocation: proposal.proposedLocation,
+          promotionalStrategy: proposal.promotionalStrategy,
+          financialData: proposal.financialData || {},
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
       }
 
-      const rawText = resData.candidates[0].content.parts[0].text;
-      const cleanJson = rawText.substring(rawText.indexOf("{"), rawText.lastIndexOf("}") + 1);
-      const aiResult = JSON.parse(cleanJson);
+      const aiResult = await response.json();
+
+      // 2. Map the Backend RAG result to the Adviser's UI format
+      // Note: We ensure the results match the components the Adviser sees
+      const formatInsightItem = (i: any) => {
+        if (!i) return "";
+        if (typeof i === "string") return i;
+        if (i.title && i.description) return `${i.title}: ${i.description}`;
+        return i.description || i.title || "";
+      };
 
       const finalResult = {
         ...aiResult,
+        // Mapping the RAG 'insights' to the 'strengths/weaknesses' format the Adviser UI expects
+        strengths: aiResult.insights?.filter((i: any) => i.type === 'positive').map(formatInsightItem) || [],
+        weaknesses: aiResult.insights?.filter((i: any) => i.type === 'warning').map(formatInsightItem) || [],
+        recommendations: aiResult.insights?.filter((i: any) => i.type === 'info').map(formatInsightItem) || [],
         lastRun: new Date().toISOString(),
       };
-      await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: finalResult });
+
+      // 3. Save the RAG result to Firebase so the student and adviser both see it
+      await updateDoc(doc(db, "proposals", proposal.id), {
+        aiAnalysis: finalResult
+      });
+
+      // 4. Update UI States
       setModalAiResult(finalResult);
-      if (aiResult.draftFeedback) setFeedbackInput(aiResult.draftFeedback);
-      
-      // Update local state to persist data without refresh
+
+      // If the backend provides a draft feedback letter, put it in the textarea
+      if (aiResult.draftFeedback) {
+        setFeedbackInput(aiResult.draftFeedback);
+      }
+
+      // Update local state so the UI refreshes immediately
       setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
       setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
+
     } catch (e) {
-      console.error("AI Analysis failed:", e);
-      // Context-aware fallback using actual proposal data
-      const hasProduct = !!(proposal.productDescription && proposal.productDescription.trim());
-      const hasTarget = !!(proposal.targetMarket && proposal.targetMarket.trim());
-      const hasLocation = !!(proposal.proposedLocation && proposal.proposedLocation.trim());
-      const hasPromo = !!(proposal.promotionalStrategy && proposal.promotionalStrategy.trim());
-      const hasMission = !!(proposal.missionStatement && proposal.missionStatement.trim());
-
-      const conceptScore = hasProduct ? Math.min(10, 4 + Math.floor((proposal.productDescription?.length || 0) / 100)) : 3;
-      const marketScore = hasTarget && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.targetMarket?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : hasTarget ? 4 : 3;
-      const operationalScore = hasProduct && hasLocation ? Math.min(10, 4 + Math.floor(((proposal.productDescription?.length || 0) + (proposal.proposedLocation?.length || 0)) / 100)) : 3;
-      const strategicScore = hasMission && hasPromo ? Math.min(10, 4 + Math.floor(((proposal.missionStatement?.length || 0) + (proposal.promotionalStrategy?.length || 0)) / 100)) : hasPromo ? 4 : 3;
-      const fallbackScore = Math.round((conceptScore * 0.30 + marketScore * 0.25 + operationalScore * 0.25 + strategicScore * 0.20) * 10);
-
-      const isExcellent = fallbackScore >= 90;
-      const isGood = fallbackScore >= 70 && fallbackScore < 90;
-
-      const fallback = {
-        score: fallbackScore,
-        status: fallbackScore >= 70 ? 'FEASIBLE' : fallbackScore >= 45 ? 'NEEDS_ADJUSTMENT' : 'NOT_FEASIBLE',
-        metrics: { concept: conceptScore, market: marketScore, operational: operationalScore, strategic: strategicScore },
-        strengths: isExcellent 
-          ? ["Exceptional clarity in business vision and product value proposition.", "Highly viable target market and strategic operational plan."]
-          : isGood 
-            ? ["Well-defined business concept with a clear path to execution.", "Solid understanding of the target market requirements."]
-            : ["Proposal formally submitted for professional evaluation."],
-        weaknesses: missingFields.length > 0 
-          ? [`Missing critical information: ${missingFields.join(', ')}`] 
-          : isExcellent 
-            ? [] 
-            : isGood 
-              ? ["Minor refinements needed in operational scaling details."]
-              : ["Proposal requires more depth in strategic and operational sections."],
-        realityCheck: missingFields.length > 0 
-          ? "The proposal is currently incomplete. A business cannot be evaluated without all core strategic elements."
-          : isExcellent
-            ? "This is a high-potential concept with strong foundations. The main challenge will be maintaining this quality during execution."
-            : isGood
-              ? "The business has a solid core. Focus on unique branding to stand out in the competitive landscape."
-              : "Generic business models often fail due to lack of differentiation in a competitive market.",
-        recommendations: missingFields.length > 0 
-          ? [
-              `Complete the following sections: ${missingFields.join(', ')}.`,
-              "Ensure all fields have detailed and professional content.",
-              "Review the proposal with your team for consistency."
-            ]
-          : isExcellent
-            ? ["Prepare for phase 1 implementation.", "Begin sourcing potential vendors.", "Develop a brand style guide."]
-            : isGood
-              ? ["Develop a more specific target market profile.", "Align location strategy with customer density data.", "Prepare detailed financial projections."]
-              : ["Refine the business concept for more clarity.", "Conduct further market research.", "Detail the operational requirements."],
-        draftFeedback: `Dear Team,\n\nYour business proposal for ${proposal.businessName || 'the group'} has been received. ${
-          isExcellent 
-            ? 'We are highly impressed by the depth and professional clarity of your vision.' 
-            : isGood 
-              ? 'This is a solid proposal with a clear path forward and strong foundations.' 
-              : 'After an initial review, we have identified several areas that require immediate attention.'
-        }\n\n${
-          missingFields.length > 0 
-            ? `The following sections are missing or incomplete: ${missingFields.join(', ')}. Without these, we cannot perform a full feasibility analysis.` 
-            : isExcellent 
-              ? 'Your strategic planning is commendable and shows significant professional rigor. We look forward to seeing your detailed financial projections in the next phase.' 
-              : isGood
-                ? 'Your concept is well-grounded. To further strengthen your feasibility, focus on refining the alignment between your location strategy and target market data.'
-                : 'Please refine your proposal by focusing on more specific, data-driven strategies. The current plan requires more depth in the strategic and operational sections to be considered viable.'
-        }\n\nRegards,\nAdvisory Committee`,
-        lastRun: new Date().toISOString(),
-      };
-      try { await updateDoc(doc(db, "proposals", proposal.id), { aiAnalysis: fallback }); } catch (_) {}
-      setModalAiResult(fallback);
-      if (fallback.draftFeedback) setFeedbackInput(fallback.draftFeedback);
-      
-      // Update local state to persist data without refresh
-      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: fallback } : p));
-      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: fallback } : prev);
+      console.error("❌ RAG AI Analysis failed:", e);
+      alert("The AI Auditor was unable to analyze this proposal. Please ensure the backend server is running and the proposal is registered in the knowledge base.");
     } finally {
       setIsAiAnalyzing(false);
     }
@@ -444,32 +333,32 @@ Return ONLY a valid JSON object:
       if (!leader) return;
 
       const docRef = await addDoc(collection(db, "groups"), {
-        section: activeSection, 
-        leaderId: leader.id, 
+        section: activeSection,
+        leaderId: leader.id,
         leaderName: `${leader.firstName} ${leader.lastName}`,
-        title: "Pending Business Name", 
-        memberIds: selectedMemberIds, 
-        status: 'Drafting', 
+        title: "Pending Business Name",
+        memberIds: selectedMemberIds,
+        status: 'Drafting',
         createdAt: serverTimestamp()
       });
 
-      const newGroup: GroupData = { 
-        id: docRef.id, 
-        leaderId: leader.id, 
-        leaderName: `${leader.firstName} ${leader.lastName}`, 
-        title: "Pending Business Name", 
-        memberIds: selectedMemberIds, 
-        status: 'Drafting', 
-        section: activeSection 
+      const newGroup: GroupData = {
+        id: docRef.id,
+        leaderId: leader.id,
+        leaderName: `${leader.firstName} ${leader.lastName}`,
+        title: "Pending Business Name",
+        memberIds: selectedMemberIds,
+        status: 'Drafting',
+        section: activeSection
       };
 
       setGroups(prev => [...prev, newGroup]);
       setShowCreateMembersModal(false);
       setSelectedLeaderId("");
       setSelectedMemberIds([]);
-    } catch (error) { 
-      console.error(error); 
-      alert("Failed to create group."); 
+    } catch (error) {
+      console.error(error);
+      alert("Failed to create group.");
     } finally {
       setIsLoading(false);
     }
@@ -494,13 +383,13 @@ Return ONLY a valid JSON object:
       const assignedIds = new Set<string>();
       currentGroupsList.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
       const unassignedStudents = students.filter(s => !assignedIds.has(s.id));
-      
+
       // TRIGGER CUSTOM MODAL IF NO UNASSIGNED STUDENTS
-      if (unassignedStudents.length === 0) { 
+      if (unassignedStudents.length === 0) {
         setShowAutoGroupConfirm(false); // Close current confirmation
         setShowAllAssignedModal(true);  // Open custom notification modal
-        setIsLoading(false); 
-        return; 
+        setIsLoading(false);
+        return;
       }
 
       const shuffled = [...unassignedStudents].sort(() => 0.5 - Math.random());
@@ -508,7 +397,7 @@ Return ONLY a valid JSON object:
       let updatedGroups = [...currentGroupsList];
 
       for (let g of updatedGroups) {
-        while (g.memberIds.length < maxMembers - 1 && shuffled.length > 0) { 
+        while (g.memberIds.length < maxMembers - 1 && shuffled.length > 0) {
           const student = shuffled.pop()!;
           g.memberIds.push(student.id);
           batch.update(doc(db, "groups", g.id), { memberIds: g.memberIds });
@@ -527,7 +416,7 @@ Return ONLY a valid JSON object:
         updatedGroups.push({ id: newGroupRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: members, status: 'Drafting', section: activeSection });
       }
       await batch.commit(); setGroups(updatedGroups); setShowAutoGroupConfirm(false);
-    } catch (error) { console.error(error); alert("Failed to auto-group."); } 
+    } catch (error) { console.error(error); alert("Failed to auto-group."); }
     finally { setIsLoading(false); }
   };
 
@@ -565,22 +454,22 @@ Return ONLY a valid JSON object:
     if (!selectedGroup || !proposal.id) return;
     try {
       const newStatus = action === 'Approve' ? 'Approved' : action === 'Reject' ? 'Rejected' : 'Revision';
-      
-      let updatePayload: any = { 
-        status: newStatus, 
-        updatedAt: serverTimestamp() 
+
+      let updatePayload: any = {
+        status: newStatus,
+        updatedAt: serverTimestamp()
       };
 
       if (feedbackInput.trim()) {
-          const newFeedback: FeedbackItem = {
-              id: Date.now().toString(),
-              text: feedbackInput,
-              authorName: userName,
-              role: "Adviser",
-              date: new Date().toISOString()
-          };
-          updatePayload.feedbackHistory = arrayUnion(newFeedback);
-          updatePayload.adviserFeedback = feedbackInput; 
+        const newFeedback: FeedbackItem = {
+          id: Date.now().toString(),
+          text: feedbackInput,
+          authorName: userName,
+          role: "Adviser",
+          date: new Date().toISOString()
+        };
+        updatePayload.feedbackHistory = arrayUnion(newFeedback);
+        updatePayload.adviserFeedback = feedbackInput;
       }
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
@@ -591,7 +480,7 @@ Return ONLY a valid JSON object:
       } else if (action === 'Reject') {
         const otherPending = groupProposals.filter(p => p.id !== proposal.id && p.status === 'Pending');
         if (otherPending.length === 0 && selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
-            newGroupStatus = 'Drafting';
+          newGroupStatus = 'Drafting';
         }
       }
 
@@ -610,37 +499,37 @@ Return ONLY a valid JSON object:
   const handleSubmitFeedback = async () => {
     if (!feedbackInput.trim() || !activeProposal?.id) return;
     setIsSaving(true);
-    
+
     const newFeedback: FeedbackItem = {
-        id: Date.now().toString(),
-        text: feedbackInput,
-        authorName: userName,
-        role: "Adviser",
-        date: new Date().toISOString()
+      id: Date.now().toString(),
+      text: feedbackInput,
+      authorName: userName,
+      role: "Adviser",
+      date: new Date().toISOString()
     };
 
     try {
-        await updateDoc(doc(db, "proposals", activeProposal.id), {
-            feedbackHistory: arrayUnion(newFeedback)
-        });
-        
-        setActiveProposal(prev => prev ? {
-            ...prev,
-            feedbackHistory: [...(prev.feedbackHistory || []), newFeedback]
-        } : null);
-        setFeedbackInput("");
+      await updateDoc(doc(db, "proposals", activeProposal.id), {
+        feedbackHistory: arrayUnion(newFeedback)
+      });
+
+      setActiveProposal(prev => prev ? {
+        ...prev,
+        feedbackHistory: [...(prev.feedbackHistory || []), newFeedback]
+      } : null);
+      setFeedbackInput("");
     } catch (error) {
-        console.error(error);
-        alert("Failed to submit feedback.");
+      console.error(error);
+      alert("Failed to submit feedback.");
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
   // Financial Calculations for Read-Only Display
   const renderFinancialData = () => {
     if (!activeProposal?.financialData) return <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">No financial data has been input yet.</div>;
-    
+
     const fin = activeProposal.financialData;
     const safeSellingPrice = Number(fin.sellingPrice) || 0;
     const safeMonthlySales = Number(fin.monthlySales) || 0;
@@ -661,62 +550,62 @@ Return ONLY a valid JSON object:
     const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
 
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm border border-gray-100">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Revenue</span>
-                <p className="text-2xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
-              </div>
-              <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-5 shadow-sm border border-gray-100">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Expenses</span>
-                <p className="text-2xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
-              </div>
-              <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm border border-gray-100">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Break-Even</span>
-                <p className="text-2xl font-black text-[#122244]">{breakEvenUnits} <span className="text-xs text-gray-400">units</span></p>
-              </div>
-              <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Net Profit/mo</span>
-                <p className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
-                    <h4 className="text-sm font-bold text-[#122244] mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-[#c9a654]" /> Student Inputs</h4>
-                    <div className="space-y-4">
-                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Selling Price</span><span className="font-bold">₱{safeSellingPrice.toLocaleString()}</span></div>
-                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Est. Monthly Sales</span><span className="font-bold">{safeMonthlySales.toLocaleString()} units</span></div>
-                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Variable Cost/Unit</span><span className="font-bold">₱{safeVariableCost.toLocaleString()}</span></div>
-                        <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Fixed Costs/Mo</span><span className="font-bold">₱{safeFixedCosts.toLocaleString()}</span></div>
-                        <div className="flex justify-between pb-2"><span className="text-sm text-gray-500">Startup Capital</span><span className="font-bold text-blue-600">₱{safeStartupCapital.toLocaleString()}</span></div>
-                    </div>
-                </div>
-
-                <div className="bg-[#122244] text-white rounded-xl p-6 shadow-md">
-                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#c9a654]" /> Quick Metrics</h4>
-                    <div className="space-y-4">
-                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Revenue</span><span className="font-bold text-green-400">₱{annualRevenue.toLocaleString()}</span></div>
-                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Net Profit</span><span className="font-bold">₱{annualNetProfit.toLocaleString()}</span></div>
-                        <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Payback Period</span><span className="font-bold text-[#c9a654]">{paybackVal} {paybackVal !== "∞" ? "months" : ""}</span></div>
-                        <div className="flex justify-between pb-2"><span className="text-sm text-gray-400">Est. Annual ROI</span><span className="font-bold text-xl">{estimatedAnnualROI}%</span></div>
-                    </div>
-                </div>
-            </div>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm border border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Revenue</span>
+            <p className="text-2xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-5 shadow-sm border border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Expenses</span>
+            <p className="text-2xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm border border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Break-Even</span>
+            <p className="text-2xl font-black text-[#122244]">{breakEvenUnits} <span className="text-xs text-gray-400">units</span></p>
+          </div>
+          <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Net Profit/mo</span>
+            <p className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
+          </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+            <h4 className="text-sm font-bold text-[#122244] mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-[#c9a654]" /> Student Inputs</h4>
+            <div className="space-y-4">
+              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Selling Price</span><span className="font-bold">₱{safeSellingPrice.toLocaleString()}</span></div>
+              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Est. Monthly Sales</span><span className="font-bold">{safeMonthlySales.toLocaleString()} units</span></div>
+              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Variable Cost/Unit</span><span className="font-bold">₱{safeVariableCost.toLocaleString()}</span></div>
+              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Fixed Costs/Mo</span><span className="font-bold">₱{safeFixedCosts.toLocaleString()}</span></div>
+              <div className="flex justify-between pb-2"><span className="text-sm text-gray-500">Startup Capital</span><span className="font-bold text-blue-600">₱{safeStartupCapital.toLocaleString()}</span></div>
+            </div>
+          </div>
+
+          <div className="bg-[#122244] text-white rounded-xl p-6 shadow-md">
+            <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#c9a654]" /> Quick Metrics</h4>
+            <div className="space-y-4">
+              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Revenue</span><span className="font-bold text-green-400">₱{annualRevenue.toLocaleString()}</span></div>
+              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Net Profit</span><span className="font-bold">₱{annualNetProfit.toLocaleString()}</span></div>
+              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Payback Period</span><span className="font-bold text-[#c9a654]">{paybackVal} {paybackVal !== "∞" ? "months" : ""}</span></div>
+              <div className="flex justify-between pb-2"><span className="text-sm text-gray-400">Est. Annual ROI</span><span className="font-bold text-xl">{estimatedAnnualROI}%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
   // FIXED Metrics Calculations: Guaranteed to never be negative by filtering actual students.
   const assignedIds = new Set<string>();
-  groups.forEach(g => { 
-    if (g.leaderId) assignedIds.add(g.leaderId); 
-    if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => assignedIds.add(id)); 
+  groups.forEach(g => {
+    if (g.leaderId) assignedIds.add(g.leaderId);
+    if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => assignedIds.add(id));
   });
-  
+
   const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm));
   const filteredGroups = activeDashboardTab === 'All Groups' ? groups : groups.filter(g => g.status === activeDashboardTab);
-  
+
   // This physically counts how many fetched students do not exist inside the assigned Set
   const unassignedCount = students.filter(s => !assignedIds.has(s.id)).length;
 
@@ -725,13 +614,13 @@ Return ONLY a valid JSON object:
       {/* ADVISER SIDEBAR */}
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-         <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
+          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
         <nav className="flex-1 p-4 space-y-8 mt-4">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/dashboard")}className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
+              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
               <div className="pl-4 pr-2 py-2 space-y-2">
                 {adviserSections.map((sectionName) => (
                   <button key={sectionName} onClick={() => { setActiveSection(sectionName); const s = sectionSettingsMap[sectionName]; setMinMembers(s?.minMembers ?? 8); setMaxMembers(s?.maxMembers ?? 10); fetchSectionData(sectionName); }}
@@ -778,7 +667,7 @@ Return ONLY a valid JSON object:
           <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
           <span className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors" onClick={() => setActiveView('dashboard')}>FeasiFy</span>
-          
+
           {(activeView === 'group-details' || activeView === 'active-business') && selectedGroup && (
             <>
               <span className="mx-2">›</span>
@@ -792,13 +681,13 @@ Return ONLY a valid JSON object:
         {/* ------------------------------------------------------------------------------------------------- */}
         {activeView === 'dashboard' && (
           <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-            
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 pb-6">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#122244]">{activeSection}</h1>
                 <p className="text-sm text-gray-500 mt-1 italic">Manage feasibility groups and team leaders for this section.</p>
               </div>
-              
+
               {/* === REORDERED TOP BUTTONS === */}
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowAllStudentsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"><Users className="w-4 h-4" /> View All Students</button>
@@ -810,7 +699,7 @@ Return ONLY a valid JSON object:
             {/* Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               {isLoading ? (
-                Array.from({length: 4}).map((_, i) => (
+                Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex justify-between items-center">
                     <div className="w-2/3">
                       <Skeleton width="60%" height={12} className="mb-2" />
@@ -821,22 +710,22 @@ Return ONLY a valid JSON object:
                 ))
               ) : (
                 <>
-              <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#4285F4] flex justify-between items-center">
-                <div><p className="text-xs font-semibold text-gray-500 mb-1">Total Students</p><p className="text-3xl font-bold text-[#122244]">{students.length}</p></div>
-                <div className="bg-blue-50 p-2 rounded-lg"><Users className="w-5 h-5 text-[#4285F4]" /></div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#d4af37] flex justify-between items-center">
-                <div><p className="text-xs font-semibold text-gray-500 mb-1">Total Groups</p><p className="text-3xl font-bold text-[#122244]">{groups.length}</p></div>
-                <div className="bg-yellow-50 p-2 rounded-lg"><Archive className="w-5 h-5 text-[#d4af37]" /></div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#34A853] flex justify-between items-center">
-                <div><p className="text-xs font-semibold text-gray-500 mb-1">Leaders Assigned</p><p className="text-3xl font-bold text-[#122244]">{groups.length}</p></div>
-                <div className="bg-green-50 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5 text-[#34A853]" /></div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#EA4335] flex justify-between items-center">
-                <div><p className="text-xs font-semibold text-gray-500 mb-1">Students Unassigned</p><p className="text-3xl font-bold text-[#EA4335]">{unassignedCount}</p></div>
-                <div className="bg-red-50 p-2 rounded-lg"><AlertCircle className="w-5 h-5 text-[#EA4335]" /></div>
-              </div>
+                  <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#4285F4] flex justify-between items-center">
+                    <div><p className="text-xs font-semibold text-gray-500 mb-1">Total Students</p><p className="text-3xl font-bold text-[#122244]">{students.length}</p></div>
+                    <div className="bg-blue-50 p-2 rounded-lg"><Users className="w-5 h-5 text-[#4285F4]" /></div>
+                  </div>
+                  <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#d4af37] flex justify-between items-center">
+                    <div><p className="text-xs font-semibold text-gray-500 mb-1">Total Groups</p><p className="text-3xl font-bold text-[#122244]">{groups.length}</p></div>
+                    <div className="bg-yellow-50 p-2 rounded-lg"><Archive className="w-5 h-5 text-[#d4af37]" /></div>
+                  </div>
+                  <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#34A853] flex justify-between items-center">
+                    <div><p className="text-xs font-semibold text-gray-500 mb-1">Leaders Assigned</p><p className="text-3xl font-bold text-[#122244]">{groups.length}</p></div>
+                    <div className="bg-green-50 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5 text-[#34A853]" /></div>
+                  </div>
+                  <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm border-l-4 border-l-[#EA4335] flex justify-between items-center">
+                    <div><p className="text-xs font-semibold text-gray-500 mb-1">Students Unassigned</p><p className="text-3xl font-bold text-[#EA4335]">{unassignedCount}</p></div>
+                    <div className="bg-red-50 p-2 rounded-lg"><AlertCircle className="w-5 h-5 text-[#EA4335]" /></div>
+                  </div>
                 </>
               )}
             </div>
@@ -856,7 +745,7 @@ Return ONLY a valid JSON object:
             {/* Groups Grid */}
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({length: sectionGroupCountMap[activeSection] ?? 3}).map((_, i) => (
+                {Array.from({ length: sectionGroupCountMap[activeSection] ?? 3 }).map((_, i) => (
                   <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[450px] overflow-hidden">
                     {/* Card header */}
                     <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -874,7 +763,7 @@ Return ONLY a valid JSON object:
                     </div>
                     {/* Members list */}
                     <div className="p-4 flex-1 space-y-2">
-                      {Array.from({length: 4}).map((_, j) => (
+                      {Array.from({ length: 4 }).map((_, j) => (
                         <div key={j} className="flex items-center gap-2">
                           <Skeleton circle width={28} height={28} />
                           <Skeleton width={100} height={12} />
@@ -897,9 +786,9 @@ Return ONLY a valid JSON object:
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGroups.map((group) => {
-                  const totalMembers = group.memberIds.length + 1; 
-                  const originalIndex = groups.findIndex(g => g.id === group.id) + 1; 
-                  
+                  const totalMembers = group.memberIds.length + 1;
+                  const originalIndex = groups.findIndex(g => g.id === group.id) + 1;
+
                   let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
                   if (group.status === 'Pending Review') { statusBadgeColor = "bg-yellow-100 text-yellow-700"; statusDotColor = "bg-yellow-500"; }
                   if (group.status === 'Approved Proposal') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
@@ -911,7 +800,7 @@ Return ONLY a valid JSON object:
                         <h3 className="font-bold text-[#122244] text-base">Group {originalIndex}</h3>
                         <div className="flex items-center gap-2">
                           <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
-                          
+
                           <div className="relative">
                             <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
                               <MoreVertical className="w-4 h-4" />
@@ -925,11 +814,11 @@ Return ONLY a valid JSON object:
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="p-5 flex-1 flex flex-col overflow-hidden">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Business Name</p>
                         <p className={`text-lg font-bold mb-3 truncate ${group.title === 'Pending Business Name' ? 'text-gray-400 italic' : 'text-gray-900'}`}>{group.title}</p>
-                        
+
                         <div className="mb-6">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
@@ -944,7 +833,7 @@ Return ONLY a valid JSON object:
                             <p className="text-sm font-bold text-gray-900">{group.leaderName}</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                           {group.memberIds.length === 0 ? (
                             <p className="text-xs text-gray-400 italic mt-2">No members assigned yet.</p>
@@ -959,21 +848,21 @@ Return ONLY a valid JSON object:
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="p-4 border-t border-gray-100 bg-white rounded-b-xl mt-auto">
                         {group.status === 'Drafting' && (
                           <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">View Group Info</button>
                         )}
                         {group.status === 'Pending Review' && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> Review Proposals</button>
+                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> Review Proposals</button>
                         )}
                         {group.status === 'Approved Proposal' && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> View Approved Status</button>
+                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View Approved Status</button>
                         )}
                         {group.status === 'Active Business' && (
                           <div className="flex flex-col gap-2 w-full">
-                            <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4"/> View Active Business</button>
-                            <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4"/> View All Proposals</button>
+                            <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4" /> View Active Business</button>
+                            <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View All Proposals</button>
                           </div>
                         )}
                       </div>
@@ -1037,12 +926,12 @@ Return ONLY a valid JSON object:
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="font-bold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${idx + 1}`}</h3>
                               {isPending && <span className="px-2.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Pending</span>}
-                              {isApproved && <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Approved</span>}
-                              {isRejected && <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><X className="w-3 h-3"/> Rejected</span>}
-                              {isRevision && <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><Edit2 className="w-3 h-3"/> Needs Revision</span>}
+                              {isApproved && <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</span>}
+                              {isRejected && <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><X className="w-3 h-3" /> Rejected</span>}
+                              {isRevision && <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><Edit2 className="w-3 h-3" /> Needs Revision</span>}
                             </div>
                             <p className="text-sm text-gray-500 mb-1">{proposal.businessName} • {proposal.businessType}</p>
-                            <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3"/> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+                            <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleOpenProposalModal(proposal)} className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 transition-colors">Open</button>
@@ -1098,189 +987,189 @@ Return ONLY a valid JSON object:
         {/* VIEW 3: ACTIVE BUSINESS (Read-Only Dashboard for Adviser)                                         */}
         {/* ------------------------------------------------------------------------------------------------- */}
         {activeView === 'active-business' && selectedGroup && activeProposal && (
-            <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm transition-all"><ChevronLeft className="w-4 h-4" /> Back</button>
-                        <span className="px-3 py-1 bg-blue-50 text-[#4285F4] text-xs font-bold rounded-md uppercase tracking-wider">GROUP {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
-                    </div>
-                    <button onClick={() => setShowFeedbackModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all">
-                        <MessageCircle className="w-4 h-4"/> Give Feedback
-                    </button>
-                </div>
+          <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm transition-all"><ChevronLeft className="w-4 h-4" /> Back</button>
+                <span className="px-3 py-1 bg-blue-50 text-[#4285F4] text-xs font-bold rounded-md uppercase tracking-wider">GROUP {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
+              </div>
+              <button onClick={() => setShowFeedbackModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all">
+                <MessageCircle className="w-4 h-4" /> Give Feedback
+              </button>
+            </div>
 
-                {/* Banner Header */}
-                <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-8 text-white relative border border-gray-800">
-                    <div className="flex items-center gap-6 w-full">
-                        <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
-                            {getInitials(activeProposal.businessName)}
+            {/* Banner Header */}
+            <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-8 text-white relative border border-gray-800">
+              <div className="flex items-center gap-6 w-full">
+                <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
+                  {getInitials(activeProposal.businessName)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL</span>
+                    <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3" /> SECTION: {selectedGroup.section}</span>
+                  </div>
+                  <h1 className="text-4xl font-extrabold mb-1 tracking-tight">{activeProposal.businessName}</h1>
+                  <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
+              {['Profile', 'Financial', 'AI'].map(tab => (
+                <button key={tab} onClick={() => setActiveBusinessTab(tab as any)}
+                  className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeBusinessTab === tab ? "border-[#122244] text-[#122244]" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
+                  {tab === 'Profile' ? 'Business Profile' : tab === 'Financial' ? 'Financial Data' : 'AI Feasibility Analysis'}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content & Roster Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+
+                {/* TAB: BUSINESS PROFILE */}
+                {activeBusinessTab === 'Profile' && (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                      <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100"><FileText className="w-5 h-5 text-blue-500" /></div>
+                      <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
+                      <div className="flex-1 pr-6">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Capital</p>
+                        <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
+                      </div>
+                      <div className="flex-1 pl-6">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Business Type</p>
+                        <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p></div>
+                      <div className="h-px bg-gray-100 my-4"></div>
+                      <div><p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p><p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p></div>
+                      <div><p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB: FINANCIAL DATA */}
+                {activeBusinessTab === 'Financial' && renderFinancialData()}
+
+                {/* TAB: AI ANALYSIS */}
+                {activeBusinessTab === 'AI' && (
+                  <div className="space-y-6">
+                    {!activeProposal.aiAnalysis ? (
+                      <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
+                        <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p>No AI analysis has been run for this business yet.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm flex items-center justify-between">
+                          <div>
+                            <h3 className="text-xl font-extrabold text-[#122244] mb-1 flex items-center gap-2"><Zap className="w-5 h-5 text-[#c9a654]" /> AI Feasibility Verdict</h3>
+                            <p className="text-sm text-gray-500">{activeProposal.aiAnalysis.explanations?.feasibility || "Evaluation completed."}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-5xl font-extrabold ...`}>
+                              {(activeProposal.aiAnalysis.score || 0) / 10}
+                            </div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Score / 10</p>
+                          </div>
                         </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
+                            const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
+                            const rawVal = activeProposal.aiAnalysis.metrics?.[key] || 0;
+                            const displayVal = rawVal > 10 ? rawVal / 10 : rawVal; // Convert 90 to 9
+                            const barWidth = rawVal > 10 ? rawVal : rawVal * 10; // Ensure 90%
+                            const desc = activeProposal.aiAnalysis.explanations?.[key];
+                            return (
+                              <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
+                                <p className="text-2xl font-bold text-[#122244] mb-2">{displayVal}/10</p>
+                                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+                                  <div className="bg-[#122244] h-1.5 rounded-full transition-all duration-500" style={{ width: `${barWidth}%` }}></div>
+                                </div>
+                                <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                          <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
+                          <div className="space-y-3">
+                            {activeProposal.aiAnalysis.insights?.map((insight: any, i: number) => (
+                              <div key={i} className={`p-4 rounded-lg border ${insight.type === 'positive' ? 'bg-green-50 border-green-200 text-green-800' : insight.type === 'warning' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                <p className="font-bold text-sm mb-1">{insight.title}</p>
+                                <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* PROJECT ROSTER CARD (Right Side) */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sticky top-24">
+                  <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">Project Roster</h3>
+                  <p className="text-xs text-gray-500 mb-6">{selectedGroup.memberIds.length + 1} Members Total</p>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(userName)}</div>
                         <div>
-                            <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> APPROVED BUSINESS PROPOSAL</span>
-                                <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3"/> SECTION: {selectedGroup.section}</span>
-                            </div>
-                            <h1 className="text-4xl font-extrabold mb-1 tracking-tight">{activeProposal.businessName}</h1>
-                            <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                          <p className="font-bold text-[#122244] text-sm">Prof. {userName.split(" ").pop()}</p>
+                          <p className="text-[10px] text-blue-600">Faculty</p>
                         </div>
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
-                    {['Profile', 'Financial', 'AI'].map(tab => (
-                        <button key={tab} onClick={() => setActiveBusinessTab(tab as any)}
-                            className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeBusinessTab === tab ? "border-[#122244] text-[#122244]" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
-                            {tab === 'Profile' ? 'Business Profile' : tab === 'Financial' ? 'Financial Data' : 'AI Feasibility Analysis'}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab Content & Roster Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        
-                        {/* TAB: BUSINESS PROFILE */}
-                        {activeBusinessTab === 'Profile' && (
-                            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-                                    <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100"><FileText className="w-5 h-5 text-blue-500" /></div>
-                                    <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
-                                </div>
-                                <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
-                                    <div className="flex-1 pr-6">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Capital</p>
-                                        <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
-                                    </div>
-                                    <div className="flex-1 pl-6">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Business Type</p>
-                                        <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-6">
-                                    <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p></div>
-                                    <div className="h-px bg-gray-100 my-4"></div>
-                                    <div><p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p><p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p></div>
-                                    <div><p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p></div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TAB: FINANCIAL DATA */}
-                        {activeBusinessTab === 'Financial' && renderFinancialData()}
-
-                        {/* TAB: AI ANALYSIS */}
-                        {activeBusinessTab === 'AI' && (
-                            <div className="space-y-6">
-                                {!activeProposal.aiAnalysis ? (
-                                    <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
-                                        <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                        <p>No AI analysis has been run for this business yet.</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm flex items-center justify-between">
-                                            <div>
-                                                <h3 className="text-xl font-extrabold text-[#122244] mb-1 flex items-center gap-2"><Zap className="w-5 h-5 text-[#c9a654]" /> AI Feasibility Verdict</h3>
-                                                <p className="text-sm text-gray-500">{activeProposal.aiAnalysis.explanations?.feasibility || "Evaluation completed."}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className={`text-5xl font-extrabold ...`}>
-  {(activeProposal.aiAnalysis.score || 0) / 10}
-</div>
-<p className="text-[10px] font-bold text-gray-400 uppercase">Score / 10</p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
-        const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
-        const rawVal = activeProposal.aiAnalysis.metrics?.[key] || 0;
-        const displayVal = rawVal > 10 ? rawVal / 10 : rawVal; // Convert 90 to 9
-        const barWidth = rawVal > 10 ? rawVal : rawVal * 10; // Ensure 90%
-        const desc = activeProposal.aiAnalysis.explanations?.[key];
-        return (
-            <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
-                <p className="text-2xl font-bold text-[#122244] mb-2">{displayVal}/10</p>
-                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
-                    <div className="bg-[#122244] h-1.5 rounded-full transition-all duration-500" style={{ width: `${barWidth}%` }}></div>
-                </div>
-                <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
-            </div>
-        )
-    })}
-</div>
-
-                                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                                            <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
-                                            <div className="space-y-3">
-                                                {activeProposal.aiAnalysis.insights?.map((insight: any, i: number) => (
-                                                    <div key={i} className={`p-4 rounded-lg border ${insight.type === 'positive' ? 'bg-green-50 border-green-200 text-green-800' : insight.type === 'warning' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-                                                        <p className="font-bold text-sm mb-1">{insight.title}</p>
-                                                        <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                      </div>
+                      <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
                     </div>
 
-                    {/* PROJECT ROSTER CARD (Right Side) */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sticky top-24">
-                            <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">Project Roster</h3>
-                            <p className="text-xs text-gray-500 mb-6">{selectedGroup.memberIds.length + 1} Members Total</p>
-                            
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(userName)}</div>
-                                        <div>
-                                            <p className="font-bold text-[#122244] text-sm">Prof. {userName.split(" ").pop()}</p>
-                                            <p className="text-[10px] text-blue-600">Faculty</p>
-                                        </div>
-                                    </div>
-                                    <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-2">
-                                    <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(selectedGroup.leaderName)}</div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-bold text-gray-900">{selectedGroup.leaderName}</p>
-                                            <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
-                                        </div>
-                                        <p className="text-[10px] text-gray-500">{students.find(s => s.id === selectedGroup.leaderId)?.studentId || 'ID Unknown'}</p>
-                                    </div>
-                                </div>
-
-                                {selectedGroup.memberIds.map(memberId => {
-                                    const member = students.find(s => s.id === memberId);
-                                    if (!member) return null;
-                                    return (
-                                        <div key={memberId} className="flex items-center gap-3 p-2">
-                                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(`${member.firstName} ${member.lastName}`)}</div>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-900">{member.firstName} {member.lastName}</p>
-                                                <p className="text-[10px] text-gray-500">{member.studentId}</p>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                    <div className="flex items-center gap-3 p-2">
+                      <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(selectedGroup.leaderName)}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-gray-900">{selectedGroup.leaderName}</p>
+                          <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
                         </div>
+                        <p className="text-[10px] text-gray-500">{students.find(s => s.id === selectedGroup.leaderId)?.studentId || 'ID Unknown'}</p>
+                      </div>
                     </div>
+
+                    {selectedGroup.memberIds.map(memberId => {
+                      const member = students.find(s => s.id === memberId);
+                      if (!member) return null;
+                      return (
+                        <div key={memberId} className="flex items-center gap-3 p-2">
+                          <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">{getInitials(`${member.firstName} ${member.lastName}`)}</div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{member.firstName} {member.lastName}</p>
+                            <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
+              </div>
             </div>
+          </div>
         )}
 
       </main>
@@ -1303,23 +1192,23 @@ Return ONLY a valid JSON object:
                   <div className="flex flex-wrap items-center gap-3 mb-1.5">
                     <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
                     {viewingProposal.status === 'Pending' && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}
-                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Approved</span>}
-                    {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5"/> Rejected</span>}
-                    {viewingProposal.status === 'Revision' && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><Edit2 className="w-3.5 h-3.5"/> Needs Revision</span>}
+                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>}
+                    {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Rejected</span>}
+                    {viewingProposal.status === 'Revision' && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><Edit2 className="w-3.5 h-3.5" /> Needs Revision</span>}
                   </div>
-                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5"/> Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
                 </div>
               </div>
               <button onClick={() => setViewingProposal(null)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50"><X className="w-6 h-6" /></button>
             </div>
-            
+
             {/* Modal Body - Split Layout */}
             <div className="flex-1 overflow-hidden bg-gray-50/50 flex flex-col lg:flex-row rounded-b-[1.5rem]">
-              
+
               {/* LEFT COLUMN: Proposal Details */}
               <div className="w-full lg:w-[55%] xl:w-[60%] h-full overflow-y-auto custom-scrollbar border-r border-gray-200/80 bg-gray-50/30">
                 <div className="p-6 md:p-10 space-y-10">
-                  
+
                   {/* Adviser Feedback Banner */}
                   {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
                     <div className="p-6 rounded-2xl border border-blue-200/60 bg-blue-50/40 flex flex-col gap-4 shadow-sm">
@@ -1344,7 +1233,7 @@ Return ONLY a valid JSON object:
                   {/* BUSINESS OVERVIEW */}
                   <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
                     <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
-                      <div className="p-2 bg-blue-100/50 rounded-lg"><FileText className="w-4 h-4 text-blue-600"/></div>
+                      <div className="p-2 bg-blue-100/50 rounded-lg"><FileText className="w-4 h-4 text-blue-600" /></div>
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Business Overview</h3>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1370,7 +1259,7 @@ Return ONLY a valid JSON object:
                   {/* MISSION & VISION */}
                   <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
                     <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
-                      <div className="p-2 bg-purple-100/50 rounded-lg"><Star className="w-4 h-4 text-purple-600 fill-current"/></div>
+                      <div className="p-2 bg-purple-100/50 rounded-lg"><Star className="w-4 h-4 text-purple-600 fill-current" /></div>
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Mission & Vision</h3>
                     </div>
                     <div className="p-6 space-y-6">
@@ -1388,7 +1277,7 @@ Return ONLY a valid JSON object:
                   {/* PRODUCT & PRICING */}
                   <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
                     <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
-                      <div className="p-2 bg-emerald-100/50 rounded-lg"><DollarSign className="w-4 h-4 text-emerald-600"/></div>
+                      <div className="p-2 bg-emerald-100/50 rounded-lg"><DollarSign className="w-4 h-4 text-emerald-600" /></div>
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Product & Pricing</h3>
                     </div>
                     <div className="p-6 space-y-6">
@@ -1406,7 +1295,7 @@ Return ONLY a valid JSON object:
                   {/* PLACE & PROMOTION */}
                   <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
                     <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
-                      <div className="p-2 bg-orange-100/50 rounded-lg"><Target className="w-4 h-4 text-orange-600"/></div>
+                      <div className="p-2 bg-orange-100/50 rounded-lg"><Target className="w-4 h-4 text-orange-600" /></div>
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Place & Promotion</h3>
                     </div>
                     <div className="p-6 space-y-6">
@@ -1425,22 +1314,22 @@ Return ONLY a valid JSON object:
 
               {/* RIGHT COLUMN: AI Analysis & Feedback */}
               <div className="w-full lg:w-[45%] xl:w-[40%] h-full bg-[#fcfcfd] flex flex-col relative z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.03)]">
-                
+
                 {/* AI Analysis Scrollable Area */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                   <div className="p-6 md:p-8">
                     <div className="flex items-center justify-between mb-8">
-                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
-                         <div className="p-1.5 bg-yellow-100/50 rounded-md"><Sparkles className="w-4 h-4 text-[#c9a654]" /></div>
-                         AI Feasibility Analysis
-                       </h3>
-                       {modalAiResult && !isAiAnalyzing && (
-                          <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
-                            <RefreshCw className="w-3 h-3" /> Re-analyze
-                          </button>
-                       )}
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
+                        <div className="p-1.5 bg-yellow-100/50 rounded-md"><Sparkles className="w-4 h-4 text-[#c9a654]" /></div>
+                        AI Feasibility Analysis
+                      </h3>
+                      {modalAiResult && !isAiAnalyzing && (
+                        <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+                          <RefreshCw className="w-3 h-3" /> Re-analyze
+                        </button>
+                      )}
                     </div>
-                    
+
                     {isAiAnalyzing ? (
                       <div className="flex flex-col items-center justify-center py-20 space-y-6 text-center">
                         <div className="relative w-20 h-20">
@@ -1460,85 +1349,52 @@ Return ONLY a valid JSON object:
                         </div>
                         <h4 className="text-lg font-extrabold text-[#122244] mb-2">No Analysis Yet</h4>
                         <p className="text-sm text-gray-500 mb-8 max-w-[240px]">Run an AI evaluation to get scores, insights, and a draft feedback.</p>
-                        <button 
-                          onClick={() => handleAIAnalysis(viewingProposal)} 
+                        <button
+                          onClick={() => handleAIAnalysis(viewingProposal)}
                           className="px-8 py-3.5 bg-[#122244] text-white font-extrabold text-sm rounded-xl hover:bg-[#0a142e] transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 transform hover:-translate-y-0.5">
                           <Sparkles className="w-4 h-4" /> Analyze with AI
                         </button>
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        
-                        {/* Score Card */}
-                        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-6 relative overflow-hidden">
-                          <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-gray-50 to-transparent rounded-full opacity-50 pointer-events-none"></div>
-                          <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
-                            <svg className="w-24 h-24 transform -rotate-90">
-                              <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-50" />
-                              <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" 
-                                strokeDasharray={263.89} 
-                                strokeDashoffset={263.89 - (263.89 * modalAiResult.score) / 100}
-                                className={`transition-all duration-1000 ease-out ${modalAiResult.score >= 70 ? 'text-green-500' : modalAiResult.score >= 45 ? 'text-amber-500' : 'text-red-500'}`} />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center flex-col">
-                              <span className="text-2xl font-black text-[#122244]">{modalAiResult.score}</span>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Business Proposal Feasibility</p>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`px-2.5 py-1 text-[10px] font-black rounded-md uppercase tracking-wider ${
-                                modalAiResult.status === 'FEASIBLE' ? 'bg-green-100 text-green-800 border border-green-200' : 
-                                modalAiResult.status === 'NEEDS_ADJUSTMENT' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
-                                'bg-red-100 text-red-800 border border-red-200'}`}>
-                                {modalAiResult.status.replace('_', ' ')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Sub Metrics */}
-                        <div className="grid grid-cols-2 gap-4">
-  {Object.entries(modalAiResult.metrics || {}).map(([key, val]: [string, any]) => {
-    const displayVal = val > 10 ? val / 10 : val;
-    const barWidth = val > 10 ? val : val * 10;
-    return (
-      <div key={key} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex justify-between items-end mb-3">
-          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{key}</span>
-          <span className="text-sm font-black text-[#122244]">{displayVal}/10</span>
-        </div>
-        <div className="w-full bg-gray-100 rounded-full h-1.5">
-          <div 
-            className={`h-1.5 rounded-full transition-all duration-500 ${val >= 70 || val >= 7 ? 'bg-green-500' : val >= 40 || val >= 4 ? 'bg-amber-500' : 'bg-red-500'}`} 
-            style={{ width: `${barWidth}%` }}
-          ></div>
-        </div>
-      </div>
-    );
-  })}
-</div>
 
                         {/* Strengths & Weaknesses */}
                         <div className="space-y-4">
                           <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-sm">
-                            <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600"/> Key Strengths</h4>
-                            <ul className="space-y-2.5">
-                              {modalAiResult.strengths?.map((s: string, i: number) => (
-                                <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5"><span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4"/></span> <span>{s}</span></li>
-                              ))}
-                            </ul>
+                            <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600" /> Key Strengths</h4>
+                            {modalAiResult.strengths && modalAiResult.strengths.length > 0 ? (
+                              <ul className="space-y-2.5">
+                                {modalAiResult.strengths.map((s: any, i: number) => {
+                                  const text = typeof s === 'string' ? s : (s?.title && s?.description ? `${s.title}: ${s.description}` : s?.description || s?.title || '');
+                                  return (
+                                    <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5">
+                                      <span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4" /></span>
+                                      <span>{text}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <p className="text-base text-green-900 leading-relaxed font-medium">No key strengths identified for this proposal.</p>
+                            )}
                           </div>
                           <div className={`${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'bg-amber-50/50 border-amber-200/60' : 'bg-green-50/50 border-green-200/60'} border rounded-xl p-5 shadow-sm`}>
                             <h4 className={`text-xs font-extrabold flex items-center gap-2 mb-3 ${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'text-amber-800' : 'text-green-800'}`}>
-                              {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? <TrendingDown className="w-4 h-4 text-amber-600"/> : <CheckCircle2 className="w-4 h-4 text-green-600"/>} 
+                              {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? <TrendingDown className="w-4 h-4 text-amber-600" /> : <CheckCircle2 className="w-4 h-4 text-green-600" />}
                               Areas of Concern
                             </h4>
                             {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? (
                               <ul className="space-y-2.5">
-                                {modalAiResult.weaknesses.map((w: string, i: number) => (
-                                  <li key={i} className="text-base text-amber-900 leading-relaxed flex items-start gap-2.5"><span className="text-amber-500 mt-1 flex-shrink-0"><AlertCircle className="w-4 h-4"/></span> <span>{w}</span></li>
-                                ))}
+                                {modalAiResult.weaknesses.map((w: any, i: number) => {
+                                  const text = typeof w === 'string' ? w : (w?.title && w?.description ? `${w.title}: ${w.description}` : w?.description || w?.title || '');
+                                  return (
+                                    <li key={i} className="text-base text-amber-900 leading-relaxed flex items-start gap-2.5">
+                                      <span className="text-amber-500 mt-1 flex-shrink-0"><AlertCircle className="w-4 h-4" /></span>
+                                      <span>{text}</span>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             ) : (
                               <p className="text-base text-green-900 leading-relaxed font-medium">There are no major areas of concern. This is an excellent and highly commendable proposal.</p>
@@ -1550,7 +1406,7 @@ Return ONLY a valid JSON object:
                         {modalAiResult.realityCheck && (
                           <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-5 shadow-sm">
                             <h4 className="text-xs font-extrabold text-red-800 flex items-center gap-2 mb-3">
-                              <AlertCircle className="w-4 h-4 text-red-600"/> Reality Check
+                              <AlertCircle className="w-4 h-4 text-red-600" /> Reality Check
                             </h4>
                             <p className="text-base text-red-900 leading-relaxed font-medium italic">
                               "{modalAiResult.realityCheck}"
@@ -1560,14 +1416,17 @@ Return ONLY a valid JSON object:
 
                         {/* Recommendations */}
                         <div className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm">
-                          <h4 className="text-xs font-extrabold text-[#122244] flex items-center gap-2 mb-4"><Lightbulb className="w-4 h-4 text-[#c9a654]"/> Actionable Recommendations</h4>
+                          <h4 className="text-xs font-extrabold text-[#122244] flex items-center gap-2 mb-4"><Lightbulb className="w-4 h-4 text-[#c9a654]" /> Actionable Recommendations</h4>
                           <ul className="space-y-3">
-                            {modalAiResult.recommendations?.map((r: string, i: number) => (
-                              <li key={i} className="text-base text-gray-700 leading-relaxed flex items-start gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                                <span className="bg-[#122244] text-white font-bold rounded-md w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs mt-0.5 shadow-sm">{i+1}</span>
-                                <span>{r}</span>
-                              </li>
-                            ))}
+                            {modalAiResult.recommendations?.map((r: any, i: number) => {
+                              const text = typeof r === 'string' ? r : (r?.title && r?.description ? `${r.title}: ${r.description}` : r?.description || r?.title || '');
+                              return (
+                                <li key={i} className="text-base text-gray-700 leading-relaxed flex items-start gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                  <span className="bg-[#122244] text-white font-bold rounded-md w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs mt-0.5 shadow-sm">{i + 1}</span>
+                                  <span>{text}</span>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       </div>
@@ -1583,36 +1442,36 @@ Return ONLY a valid JSON object:
                         <MessageCircle className="w-4.5 h-4.5 text-[#c9a654]" /> Feedback & Decision
                       </h3>
                       {modalAiResult && modalAiResult.draftFeedback && (
-                        <button 
+                        <button
                           onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
                           className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm w-full xl:w-auto">
                           <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
                         </button>
                       )}
                     </div>
-                    
+
                     <textarea
                       value={feedbackInput}
                       onChange={(e) => setFeedbackInput(e.target.value)}
                       placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
                       className="w-full p-5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-40 text-base bg-gray-50/50 text-gray-900 placeholder-gray-400 mb-6 transition-all shadow-inner"
                     />
-                    
+
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <button 
-                        onClick={() => handleProposalAction(viewingProposal, 'Reject')} 
+                      <button
+                        onClick={() => handleProposalAction(viewingProposal, 'Reject')}
                         disabled={isSaving}
                         className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
                         <X className="w-5 h-5" /> Reject Proposal
                       </button>
-                      <button 
-                        onClick={() => handleProposalAction(viewingProposal, 'Revision')} 
+                      <button
+                        onClick={() => handleProposalAction(viewingProposal, 'Revision')}
                         disabled={isSaving}
                         className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
                         <Edit2 className="w-5 h-5" /> Needs Revision
                       </button>
-                      <button 
-                        onClick={() => handleProposalAction(viewingProposal, 'Approve')} 
+                      <button
+                        onClick={() => handleProposalAction(viewingProposal, 'Approve')}
                         disabled={isSaving}
                         className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
@@ -1622,9 +1481,9 @@ Return ONLY a valid JSON object:
                   </div>
                 ) : (
                   <div className="border-t border-gray-200 bg-white p-6 md:p-8 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
-                     <button onClick={() => setViewingProposal(null)} className="py-3 px-8 bg-gray-100 text-[#122244] font-extrabold text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-sm w-full xl:w-auto">
-                       Close Proposal
-                     </button>
+                    <button onClick={() => setViewingProposal(null)} className="py-3 px-8 bg-gray-100 text-[#122244] font-extrabold text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-sm w-full xl:w-auto">
+                      Close Proposal
+                    </button>
                   </div>
                 )}
               </div>
@@ -1641,14 +1500,14 @@ Return ONLY a valid JSON object:
                 <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
                 <p className="text-sm text-gray-500 mt-1">Step 1: Select a team leader for this new group.</p>
               </div>
-              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 border-b border-gray-100 bg-gray-50/50">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search unassigned students..." 
+                <input
+                  type="text"
+                  placeholder="Search unassigned students..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
@@ -1672,12 +1531,12 @@ Return ONLY a valid JSON object:
                           <p className="text-xs text-gray-500">{student.studentId}</p>
                         </div>
                       </div>
-                      <input 
-                        type="radio" 
-                        name="leaderSelection" 
-                        value={student.id} 
-                        checked={isSelected} 
-                        onChange={() => setSelectedLeaderId(student.id)} 
+                      <input
+                        type="radio"
+                        name="leaderSelection"
+                        value={student.id}
+                        checked={isSelected}
+                        onChange={() => setSelectedLeaderId(student.id)}
                         className="w-4 h-4 text-[#c9a654] focus:ring-[#c9a654]"
                       />
                     </label>
@@ -1686,14 +1545,14 @@ Return ONLY a valid JSON object:
               )}
             </div>
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => {setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button 
+              <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
+              <button
                 onClick={() => {
                   setShowCreateLeaderModal(false);
                   setShowCreateMembersModal(true);
                   setSearchTerm("");
-                }} 
-                disabled={!selectedLeaderId} 
+                }}
+                disabled={!selectedLeaderId}
                 className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50"
               >
                 Next: Select Members
@@ -1712,25 +1571,25 @@ Return ONLY a valid JSON object:
                 <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
                 <p className="text-sm text-gray-500 mt-1">Step 2: Select members to join this group.</p>
               </div>
-              <button onClick={() => {setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]);}} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => { setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="bg-purple-50 border-b border-purple-100 p-4 flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  {getInitials(students.find(s => s.id === selectedLeaderId)?.firstName + " " + students.find(s => s.id === selectedLeaderId)?.lastName)}
-               </div>
-               <div>
-                  <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
-                  <p className="text-sm font-bold text-[#122244]">{students.find(s => s.id === selectedLeaderId)?.firstName} {students.find(s => s.id === selectedLeaderId)?.lastName}</p>
-               </div>
+              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                {getInitials(students.find(s => s.id === selectedLeaderId)?.firstName + " " + students.find(s => s.id === selectedLeaderId)?.lastName)}
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
+                <p className="text-sm font-bold text-[#122244]">{students.find(s => s.id === selectedLeaderId)?.firstName} {students.find(s => s.id === selectedLeaderId)?.lastName}</p>
+              </div>
             </div>
 
             <div className="p-4 border-b border-gray-100 bg-gray-50/50">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search unassigned students..." 
+                <input
+                  type="text"
+                  placeholder="Search unassigned students..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
@@ -1768,10 +1627,10 @@ Return ONLY a valid JSON object:
             <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
               <p className="text-xs text-gray-500"><span className="font-bold text-[#122244]">{selectedMemberIds.length}</span> selected</p>
               <div className="flex gap-2">
-                  <button onClick={() => {setShowCreateMembersModal(false); setShowCreateLeaderModal(true);}} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
-                  <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
-                  </button>
+                <button onClick={() => { setShowCreateMembersModal(false); setShowCreateLeaderModal(true); }} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
+                <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
+                </button>
               </div>
             </div>
           </div>
@@ -1781,51 +1640,51 @@ Return ONLY a valid JSON object:
       {/* NEW MODAL: Feedback History & Submission */}
       {showFeedbackModal && activeProposal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                    <h2 className="text-lg font-extrabold text-[#122244] flex items-center gap-2"><MessageCircle className="w-5 h-5 text-[#c9a654]" /> Feedback History</h2>
-                    <button onClick={() => setShowFeedbackModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-white">
-                    {!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0 ? (
-                        <div className="py-12 flex flex-col items-center justify-center text-center">
-                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3"><MessageCircle className="w-5 h-5 text-gray-400" /></div>
-                            <h3 className="font-bold text-[#122244]">No Feedback Yet</h3>
-                            <p className="text-sm text-gray-500 mt-1">Start by giving your first piece of feedback below.</p>
-                        </div>
-                    ) : (
-                        activeProposal.feedbackHistory.map(item => (
-                            <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
-                                    </div>
-                                    <span className="text-xs text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                </div>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                <div className="p-6 border-t border-gray-100 bg-[#122244] rounded-b-2xl">
-                    <label className="text-[10px] font-bold text-gray-300 uppercase tracking-widest block mb-3">Provide feedback or advice below. This will be shared with the group.</label>
-                    <textarea
-                        value={feedbackInput}
-                        onChange={(e) => setFeedbackInput(e.target.value)}
-                        placeholder="Type your feedback here..."
-                        className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm mb-4 bg-[#1a2f55] text-white placeholder-gray-400"
-                    />
-                    <div className="flex justify-end gap-3">
-                        <button onClick={() => setShowFeedbackModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
-                        <button onClick={handleSubmitFeedback} disabled={!feedbackInput.trim() || isSaving} className="flex items-center gap-2 px-6 py-2.5 bg-[#c9a654] text-white text-sm font-bold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50 transition-colors">
-                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Submit Feedback
-                        </button>
-                    </div>
-                </div>
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <h2 className="text-lg font-extrabold text-[#122244] flex items-center gap-2"><MessageCircle className="w-5 h-5 text-[#c9a654]" /> Feedback History</h2>
+              <button onClick={() => setShowFeedbackModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-white">
+              {!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3"><MessageCircle className="w-5 h-5 text-gray-400" /></div>
+                  <h3 className="font-bold text-[#122244]">No Feedback Yet</h3>
+                  <p className="text-sm text-gray-500 mt-1">Start by giving your first piece of feedback below.</p>
+                </div>
+              ) : (
+                activeProposal.feedbackHistory.map(item => (
+                  <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                      </div>
+                      <span className="text-xs text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-[#122244] rounded-b-2xl">
+              <label className="text-[10px] font-bold text-gray-300 uppercase tracking-widest block mb-3">Provide feedback or advice below. This will be shared with the group.</label>
+              <textarea
+                value={feedbackInput}
+                onChange={(e) => setFeedbackInput(e.target.value)}
+                placeholder="Type your feedback here..."
+                className="w-full p-4 border border-[#1a2f55] rounded-lg outline-none focus:ring-2 focus:ring-[#c9a654]/50 resize-none h-24 text-sm mb-4 bg-[#1a2f55] text-white placeholder-gray-400"
+              />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowFeedbackModal(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
+                <button onClick={handleSubmitFeedback} disabled={!feedbackInput.trim() || isSaving} className="flex items-center gap-2 px-6 py-2.5 bg-[#c9a654] text-white text-sm font-bold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50 transition-colors">
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Submit Feedback
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1840,17 +1699,17 @@ Return ONLY a valid JSON object:
                 </div>
                 <h2 className="text-xl font-bold text-[#122244]">Run Auto-Group?</h2>
               </div>
-              <button onClick={() => setShowAutoGroupConfirm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => setShowAutoGroupConfirm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="text-sm font-bold text-gray-700 block mb-2">Min. Members</label>
-                  <input type="number" value={minMembers} onChange={e=>setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                  <input type="number" value={minMembers} onChange={e => setMinMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
                 </div>
                 <div className="flex-1">
                   <label className="text-sm font-bold text-gray-700 block mb-2">Max. Members</label>
-                  <input type="number" value={maxMembers} onChange={e=>setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
+                  <input type="number" value={maxMembers} onChange={e => setMaxMembers(Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#122244]" />
                 </div>
               </div>
               <p className="text-gray-600 text-sm leading-relaxed">
@@ -1876,7 +1735,7 @@ Return ONLY a valid JSON object:
                 </div>
                 <h2 className="text-xl font-bold text-[#122244]">Already Assigned</h2>
               </div>
-              <button onClick={() => setShowAllAssignedModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => setShowAllAssignedModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6">
               <p className="text-gray-600 text-sm leading-relaxed">
@@ -1899,14 +1758,14 @@ Return ONLY a valid JSON object:
                 <h2 className="text-xl font-bold text-[#122244]">All Students - {activeSection}</h2>
                 <p className="text-sm text-gray-500 mt-1">Complete class roster for this section.</p>
               </div>
-              <button onClick={() => setShowAllStudentsModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => setShowAllStudentsModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 border-b border-gray-100">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search students by name or ID..." 
+                <input
+                  type="text"
+                  placeholder="Search students by name or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
@@ -1956,9 +1815,9 @@ Return ONLY a valid JSON object:
                 <h2 className="text-xl font-bold text-[#122244]">Change Team Leader</h2>
                 <p className="text-sm text-gray-500 mt-1">Select a new leader from the group's members or unassigned students.</p>
               </div>
-              <button onClick={() => { setShowChangeLeaderModal(false); setGroupToChangeLeader(null); setNewLeaderId(""); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => { setShowChangeLeaderModal(false); setGroupToChangeLeader(null); setNewLeaderId(""); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Current Members</p>
               {groupToChangeLeader.memberIds.map(memberId => {
@@ -2013,7 +1872,7 @@ Return ONLY a valid JSON object:
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-start">
               <div><h2 className="text-xl font-bold text-[#122244]">Delete Group?</h2></div>
-              <button onClick={() => { setShowDeleteConfirm(false); setGroupToDelete(null); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <button onClick={() => { setShowDeleteConfirm(false); setGroupToDelete(null); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
               <button onClick={() => { setShowDeleteConfirm(false); setGroupToDelete(null); }} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
