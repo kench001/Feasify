@@ -252,7 +252,8 @@ const AI_Analysis: React.FC = () => {
 
     try {
       // 1. Call your local backend instead of the external Gemini API
-      const response = await fetch("http://localhost:10000/api/analyze", {
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      const response = await fetch(`${backendUrl}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
