@@ -254,7 +254,8 @@ const AdviserDashboard: React.FC = () => {
 
     try {
       // 1. Call your local backend (The RAG System) instead of the external API
-      const response = await fetch("http://localhost:10000/api/analyze-proposal", {
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
