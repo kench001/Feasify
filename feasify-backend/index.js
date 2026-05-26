@@ -262,6 +262,7 @@ INSTRUCTIONS:
 - Evaluate Category 3 on target demographic mapping and promotion.
 - Evaluate Category 4 on Mission, Vision, and product identity cohesion.
 - Scores must be integers. Ensure Category 1 scores represent the qualitative alignment rather than penalizing for missing numerical sheets.
+- Keep the 'draftFeedback' extremely short, concise, specific, and direct. Do not include greetings (like "Dear Students"), introductions, formal letter structures, or closing signatures (like "Sincerely, ..."). Just output the specific, actionable feedback directly.
 
 Your response must be a single stringified JSON object matching this structure:
 {
@@ -283,7 +284,7 @@ Your response must be a single stringified JSON object matching this structure:
     { "type": "info", "title": "Recommendation", "description": "Clear step-by-step instruction to improve the qualitative concept" }
   ],
   "realityCheck": "A direct, realistic statement matching high-level capital of PHP ${totalCapital} with the described location type.",
-  "draftFeedback": "A professional academic feedback letter detailing scores and qualitative improvements."
+  "draftFeedback": "A short, concise, and highly specific feedback statement focusing strictly on key issues and exact improvements needed. No letter format, no greetings, and no sign-offs."
 }
 `;
 
