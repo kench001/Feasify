@@ -1363,17 +1363,21 @@ const AdviserDashboard: React.FC = () => {
                         <div className="space-y-4">
                           <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-sm">
                             <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600" /> Key Strengths</h4>
-                            <ul className="space-y-2.5">
-                              {modalAiResult.strengths?.map((s: any, i: number) => {
-                                const text = typeof s === 'string' ? s : (s?.title && s?.description ? `${s.title}: ${s.description}` : s?.description || s?.title || '');
-                                return (
-                                  <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5">
-                                    <span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4" /></span>
-                                    <span>{text}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                            {modalAiResult.strengths && modalAiResult.strengths.length > 0 ? (
+                              <ul className="space-y-2.5">
+                                {modalAiResult.strengths.map((s: any, i: number) => {
+                                  const text = typeof s === 'string' ? s : (s?.title && s?.description ? `${s.title}: ${s.description}` : s?.description || s?.title || '');
+                                  return (
+                                    <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5">
+                                      <span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4" /></span>
+                                      <span>{text}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <p className="text-base text-green-900 leading-relaxed font-medium">No key strengths identified for this proposal.</p>
+                            )}
                           </div>
                           <div className={`${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'bg-amber-50/50 border-amber-200/60' : 'bg-green-50/50 border-green-200/60'} border rounded-xl p-5 shadow-sm`}>
                             <h4 className={`text-xs font-extrabold flex items-center gap-2 mb-3 ${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'text-amber-800' : 'text-green-800'}`}>
