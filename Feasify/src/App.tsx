@@ -1,0 +1,81 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+// Import your modules
+import Auth from "./Auth";
+import Dashboard from "./Dashboard";
+import Projects from "./Projects";
+import Financial_input from "./Financial_input";
+import AI_Analysis from "./AI_Analysis";
+import Reports from "./Reports";
+import Messages from "./Messages";
+import Profile from "./Profile";
+import SettingsPage from "./Settings";
+import ChairpersonSettings from "./ChairpersonSettings";
+import Notifications from "./Notifications";
+import ChairpersonNotifications from "./ChairpersonNotifications";
+import AdviserNotifications from "./AdviserNotifications";
+import ChairpersonModule from "./ChairpersonModule";
+import ChairpersonFeasib from "./ChairpersonFeasib";
+import AdviserDashboard from "./AdviserDashboard";
+import AdviserSettings from "./AdviserSettings";
+import AdviserProfile from "./AdviserProfile";
+import ChairpersonProfile from "./ChairpersonProfile";
+
+function App() {
+  return (
+    <SkeletonTheme baseColor="#e8ecf0" highlightColor="#f4f6f8">
+    <Router>
+      <Routes>
+        {/* This is the starting page (Login/Signup) */}
+        <Route path="/" element={<Auth />} />
+
+        {/* This is the Dashboard page users see after signing in */}
+        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Projects module */}
+        <Route path="/projects" element={<Projects />} />
+
+        {/* Financial Input module */}
+        <Route path="/financial-input" element={<Financial_input />} />
+
+        {/* AI Analysis module */}
+        <Route path="/ai-analysis" element={<AI_Analysis />} />
+
+        {/* Reports module */}
+        <Route path="/reports" element={<Reports />} />
+
+        {/* Messages module */}
+        <Route path="/messages" element={<Messages />} />
+
+        {/* Profile module */}
+        <Route path="/profile" element={<Profile />} />
+
+        {/* Settings module */}
+        <Route path="/settings" element={<SettingsPage />} />
+        
+        {/* Chairperson Settings module */}
+        <Route path="/admin/chairpersonsettings" element={<ChairpersonSettings />} />
+        
+        <Route path="/notifications" element={<Notifications />} />
+
+        {/* Admin Modules */}
+        <Route path="/admin/users" element={<ChairpersonModule />} />
+        <Route path="/admin/projects" element={<ChairpersonFeasib />} /> {/* <-- Add this route */}
+        <Route path="/admin/chairpersonnotification" element={<ChairpersonNotifications />} />
+
+        {/* Adviser Modules */}
+        <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
+        <Route path="/adviser/profile" element={<AdviserProfile />} />
+        <Route path="/adviser/settings" element={<AdviserSettings />} />
+        <Route path="/adviser/notifications" element={<AdviserNotifications />} />
+        
+        {/* Chairperson Profile */}
+        <Route path="/admin/profile" element={<ChairpersonProfile />} />
+      </Routes>
+    </Router>
+    </SkeletonTheme>
+  );
+}
+
+export default App;
