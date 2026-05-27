@@ -263,8 +263,18 @@ const Financial_input: React.FC = () => {
     if (!selectedProjectId) return;
     setIsSaving(true);
     try {
+      const computedFixedCosts = dataToSave.opexList && dataToSave.opexList.length > 0
+        ? dataToSave.opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+        : (Number(dataToSave.fixedCosts) || 0);
+
+      const payload = {
+        ...dataToSave,
+        fixedCosts: String(computedFixedCosts),
+        updatedAt: serverTimestamp()
+      };
+
       await updateDoc(doc(db, "proposals", selectedProjectId), {
-        financialData: { ...dataToSave, updatedAt: serverTimestamp() },
+        financialData: payload,
       });
       setSaveStatus("All changes saved");
     } catch (e) {

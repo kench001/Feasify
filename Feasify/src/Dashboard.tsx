@@ -266,7 +266,9 @@ const Dashboard: React.FC = () => {
       const sp = Number(p.financialData.sellingPrice) || 0;
       const ms = Number(p.financialData.monthlySales) || 0;
       const vc = Number(p.financialData.variableCost) || 0;
-      const fc = Number(p.financialData.fixedCosts) || 0;
+      const fc = p.financialData.opexList && p.financialData.opexList.length > 0
+        ? p.financialData.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+        : (Number(p.financialData.fixedCosts) || 0);
       const cap = Number(p.financialData.startupCapital) || 0;
 
       const monthlyRev = sp * ms;
@@ -310,11 +312,11 @@ const Dashboard: React.FC = () => {
   const getInitials = (name: string) =>
     name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "U";
 
   return (
@@ -467,7 +469,7 @@ const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {isLoadingStats ? (
-                Array.from({length: 4}).map((_, i) => (
+                Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-start mb-4">
                       <Skeleton width={36} height={36} borderRadius={8} />
@@ -549,7 +551,7 @@ const Dashboard: React.FC = () => {
 
               <div className="divide-y divide-gray-50">
                 {isLoadingStats ? (
-                  Array.from({length: parseInt(sessionStorage.getItem('dashboardProjectCount') || '3', 10) || 3}).map((_, i) => (
+                  Array.from({ length: parseInt(sessionStorage.getItem('dashboardProjectCount') || '3', 10) || 3 }).map((_, i) => (
                     <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="space-y-1">
