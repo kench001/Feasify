@@ -129,6 +129,212 @@ const initialProposalState: ProposalData = {
   otherDetails: "",
   status: "Draft",
 };
+
+const SCHOOL_BUSINESSES = [
+  "bibimburp",
+  "glam n walk",
+  "maria ada's",
+  "maria ada’s",
+  "agro integro insurance",
+  "juan dream partnership",
+  "mr. cabbage",
+  "empinoy",
+  "copying and printing express"
+];
+
+const WELL_KNOWN_BUSINESSES = [
+  "mcdonald's",
+  "jollibee",
+  "kfc",
+  "burger king",
+  "chowking",
+  "mang inasal",
+  "wendy's",
+  "subway",
+  "pizza hut",
+  "domino's pizza",
+  "taco bell",
+  "starbucks",
+  "shakey's",
+  "max's restaurant",
+  "kuya j restaurant",
+  "cabalen",
+  "mesa",
+  "gerry's grill",
+  "the aristocrat restaurant",
+  "denny's",
+  "ihop",
+  "tgi fridays",
+  "applebee's",
+  "buffalo wild wings",
+  "popeyes",
+  "dunkin'",
+  "kenny rogers roasters",
+  "greenwich",
+  "army navy",
+  "tokyo tokyo",
+  "bonchon",
+  "panda express",
+  "five guys",
+  "shake shack",
+  "little caesars",
+  "carl's jr.",
+  "jack in the box",
+  "sbarro",
+  "tim hortons",
+  "classic savory",
+  "conti's",
+  "sambo kojin",
+  "vikings",
+  "tong yang",
+  "cabalen plus",
+  "pancake house",
+  "yellow cab pizza",
+  "mama lou's",
+  "banapple",
+  "romantic baboy",
+  "sizzlin' steak",
+  "kamayan",
+  "racks",
+  "cafe adriatico",
+  "nike",
+  "adidas",
+  "uniqlo",
+  "zara",
+  "h&m",
+  "penshoppe",
+  "bench",
+  "forever 21",
+  "levi's",
+  "guess",
+  "lacoste",
+  "calvin klein",
+  "tommy hilfiger",
+  "balenciaga",
+  "louis vuitton",
+  "gucci",
+  "prada",
+  "chanel",
+  "burberry",
+  "mango",
+  "under armour",
+  "puma",
+  "new balance",
+  "converse",
+  "vans",
+  "superdry",
+  "cotton on",
+  "american eagle",
+  "gap",
+  "old navy",
+  "abercrombie & fitch",
+  "hollister",
+  "pull&bear",
+  "bershka",
+  "stradivarius",
+  "shein",
+  "urban revivo",
+  "regatta",
+  "oxygen",
+  "forme",
+  "memo",
+  "jag",
+  "giordano",
+  "marks & spencer",
+  "banana republic",
+  "chatime",
+  "gong cha",
+  "coco fresh tea & juice",
+  "macao imperial tea",
+  "tiger sugar",
+  "serenitea",
+  "infinitea",
+  "happy lemon",
+  "dakasi",
+  "cha tuk chak",
+  "yi fang",
+  "baa baa thai tea",
+  "the alley",
+  "quickly",
+  "black scoop cafe",
+  "the coffee bean & tea leaf",
+  "bo's coffee",
+  "pickup coffee",
+  "seattle's best coffee",
+  "ucc coffee",
+  "cbtl",
+  "figaro coffee",
+  "coffee project",
+  "cafe mary grace",
+  "arabica",
+  "nespresso",
+  "krispy kreme"
+];
+
+const validateBusinessName = (name: string): string => {
+  if (!name) return "";
+  const normalizedInput = name.trim().toLowerCase();
+  
+  if (SCHOOL_BUSINESSES.includes(normalizedInput)) {
+    return "This name is already registered as a school business project.";
+  }
+  
+  if (WELL_KNOWN_BUSINESSES.includes(normalizedInput)) {
+    return "This name is copyrighted by an established brand.";
+  }
+  
+  return "";
+};
+
+const COPYRIGHTED_TAGLINES = [
+  "i'm lovin' it", "bida ang saya", "it's finger lickin' good", "have it your way",
+  "lauriat lang sapat na", "paborito ng bayan", "where's the beef?", "eat fresh",
+  "no one outpizzas the hut", "oh yes we did", "live más", "inspire and nurture the human spirit",
+  "fun, family, pizza", "the house that fried chicken built", "sarap ng pinoy",
+  "eat all you can, kapampangan style", "savor filipino", "inihaw sarap", "taste of tradition",
+  "america's diner is always open", "come hungry. leave happy.", "in here, it's always friday",
+  "eatin' good in the neighborhood", "wings. beer. sports.", "love that chicken",
+  "america runs on dunkin'", "deliciously healthy", "masarap kahit walang okasyon",
+  "burger + burrito", "the no. 1 japanese fast food", "crunch out loud", "american chinese kitchen",
+  "burgers and fries", "stand for something good", "pizza! pizza!", "feed your happy",
+  "crave better", "the original new york pizza", "always fresh", "sarap chinese cooking",
+  "baked fresh daily", "premier japanese & korean yakiniku", "the luxury buffet",
+  "shabu-shabu and grill", "modern filipino buffet", "the house that pancakes built",
+  "new york's finest", "home kitchen", "baked goodness", "unlimited korean bbq",
+  "the steak experience", "feast the filipino way", "best baby back ribs", "a manila classic",
+  "just do it", "impossible is nothing", "made for all", "love your curves",
+  "fashion and quality at the best price", "get hooked", "love local", "live. love. fashion.",
+  "quality never goes out of style", "young, sexy, adventurous", "life is a beautiful sport",
+  "between love and madness lies obsession", "classic american cool", "master of reinvention",
+  "the art of travel", "quality is remembered long after price is forgotten", "thinking fashion",
+  "in order to be irreplaceable, one must always be different", "british luxury", "fashion for everyone",
+  "protect this house", "forever faster", "fearlessly independent", "shoes are boring. wear sneakers.",
+  "off the wall", "premium goods", "loved by everyone", "live your life", "modern american optimism",
+  "fashion for the family", "casual luxury", "california dreaming", "young fashion",
+  "fashion for young people", "the fashion company", "wear your wonderful", "play fashion",
+  "great casual wear", "style up", "fashion for every woman", "work wear reinvented",
+  "born to be blue", "world without strangers", "quality worth every penny", "accessible luxury",
+  "good tea, good time", "tea up your mood", "fresh tea, fresh happiness", "the taste of authentic macau tea",
+  "famous for brown sugar boba", "tea-riffic!", "infinite happiness in every sip",
+  "drink tea and be happy", "freshly brewed happiness", "authentic thai milk tea",
+  "taste taiwan tradition", "your thai tea fix", "it's time for tea", "quickly, freshly made",
+  "desserts. coffee. happiness.", "simply the best", "coffee originated here",
+  "premium coffee, surprisingly affordable", "better coffee for everyone", "the coffee professionals",
+  "born and brewed in southern california", "coffee done right", "coffee + comfort",
+  "home of ensaymada", "see the world through coffee", "what else?", "share the joy"
+];
+
+const validateTagline = (tagline: string): string => {
+  if (!tagline) return "";
+  // We remove special quotes/punctuation for a safer match just in case they type it slightly differently
+  const normalizedInput = tagline.trim().toLowerCase().replace(/[‘’]/g, "'");
+  
+  if (COPYRIGHTED_TAGLINES.includes(normalizedInput)) {
+    return "This tagline is copyrighted by an established brand.";
+  }
+  return "";
+};
+
 const formatDateTime = (timestamp: any) => {
   if (!timestamp) return "";
   try {
@@ -164,6 +370,9 @@ const Projects: React.FC = () => {
   const [_isMember, setIsMember] = useState(false);
   const [_hasJoined, setHasJoined] = useState(false);
   const [_isLoading, setIsLoading] = useState(true);
+
+  const [nameError, setNameError] = useState("");
+  const [taglineError, setTaglineError] = useState("");
 
   const [_leaderData, setLeaderData] = useState<any>(null);
   const [groupMembersData, setGroupMembersData] = useState<any[]>([]);
@@ -411,6 +620,8 @@ const Projects: React.FC = () => {
     // Don't auto-save if business name and type are both empty (avoiding empty drafts)
     if (!dataToSave.businessName && !dataToSave.businessType) return;
 
+    if (validateBusinessName(dataToSave.businessName) || validateTagline(dataToSave.tagline)) return;
+
     setIsSaving(true);
     setSaveStatus("Saving...");
     try {
@@ -474,7 +685,24 @@ const Projects: React.FC = () => {
         setTimeout(() => setShowToast(false), 4000);
         return;
       }
+      const copyrightError = validateBusinessName(currentProposal.businessName);
+      if (copyrightError) {
+        setToastTitle("Copyright Issue");
+        setToastMessage(copyrightError);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
     }
+
+    const taglineErr = validateTagline(currentProposal.tagline);
+      if (taglineErr) {
+        setToastTitle("Copyright Issue");
+        setToastMessage(taglineErr);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
 
     setIsSaving(true);
     try {
@@ -598,6 +826,24 @@ const Projects: React.FC = () => {
     if (missingFields.length > 0) {
       setToastTitle("Required Fields");
       setToastMessage("Please fill in all required fields.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const copyrightError = validateBusinessName(editBasicData.businessName);
+    if (copyrightError) {
+      setToastTitle("Copyright Issue");
+      setToastMessage("Please choose a different business name before updating.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const taglineErr = validateTagline(editBasicData.tagline);
+    if (taglineErr) {
+      setToastTitle("Copyright Issue");
+      setToastMessage("Please choose a different tagline before updating.");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4000);
       return;
@@ -1324,19 +1570,31 @@ const Projects: React.FC = () => {
                           Business Name <span className="text-red-500">*</span>
                         </label>
                         <input
-                          disabled={!isEditingMode}
-                          type="text"
-                          value={currentProposal.businessName}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              businessName: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          placeholder="e.g. Eggdesal"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        />
+  disabled={!isEditingMode}
+  type="text"
+  value={currentProposal.businessName}
+  onChange={(e) => {
+    const newName = e.target.value;
+    setCurrentProposal({
+      ...currentProposal,
+      businessName: newName,
+    });
+    // Check name on change
+    setNameError(validateBusinessName(newName));
+  }}
+  onBlur={() => {
+    if (!validateBusinessName(currentProposal.businessName)) {
+      handleAutoSave();
+    }
+  }}
+  placeholder="e.g. Eggdesal"
+  className={`w-full px-4 py-3 bg-gray-50 border ${nameError ? 'border-red-500 focus:border-red-500' : 'border-gray-200'} rounded-lg outline-none text-sm font-medium`}
+/>
+{nameError && (
+  <p className="text-red-500 text-[10px] font-bold mt-1.5 flex items-center gap-1 uppercase tracking-wider">
+    <AlertCircle className="w-3 h-3" /> {nameError}
+  </p>
+)}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -1362,18 +1620,29 @@ const Projects: React.FC = () => {
                           Tagline <span className="text-red-500">*</span>
                         </label>
                         <input
-                          disabled={!isEditingMode}
-                          type="text"
-                          value={currentProposal.tagline}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              tagline: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        />
+  disabled={!isEditingMode}
+  type="text"
+  value={currentProposal.tagline}
+  onChange={(e) => {
+    const newTagline = e.target.value;
+    setCurrentProposal({
+      ...currentProposal,
+      tagline: newTagline,
+    });
+    setTaglineError(validateTagline(newTagline));
+  }}
+  onBlur={() => {
+    if (!validateTagline(currentProposal.tagline)) {
+      handleAutoSave();
+    }
+  }}
+  className={`w-full px-4 py-3 bg-gray-50 border ${taglineError ? 'border-red-500 focus:border-red-500' : 'border-gray-200'} rounded-lg outline-none text-sm font-medium`}
+/>
+{taglineError && (
+  <p className="text-red-500 text-[10px] font-bold mt-1.5 flex items-center gap-1 uppercase tracking-wider">
+    <AlertCircle className="w-3 h-3" /> {taglineError}
+  </p>
+)}
                       </div>
                     </div>
                     <div>
@@ -2110,16 +2379,23 @@ const Projects: React.FC = () => {
                     Business Name <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    value={editBasicData.businessName}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        businessName: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  />
+  type="text"
+  value={editBasicData.businessName}
+  onChange={(e) => {
+    const newName = e.target.value;
+    setEditBasicData({
+      ...editBasicData,
+      businessName: newName,
+    });
+    setNameError(validateBusinessName(newName));
+  }}
+  className={`w-full px-4 py-2 bg-gray-50 border ${nameError ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm font-medium`}
+/>
+{nameError && (
+  <p className="text-red-500 text-[10px] font-bold mt-1 flex items-center gap-1">
+    <AlertCircle className="w-3 h-3" /> {nameError}
+  </p>
+)}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
@@ -2189,16 +2465,23 @@ const Projects: React.FC = () => {
                     Tagline <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    value={editBasicData.tagline}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        tagline: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  />
+  type="text"
+  value={editBasicData.tagline}
+  onChange={(e) => {
+    const newTagline = e.target.value;
+    setEditBasicData({
+      ...editBasicData,
+      tagline: newTagline,
+    });
+    setTaglineError(validateTagline(newTagline));
+  }}
+  className={`w-full px-4 py-2 bg-gray-50 border ${taglineError ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm font-medium`}
+/>
+{taglineError && (
+  <p className="text-red-500 text-[10px] font-bold mt-1 flex items-center gap-1">
+    <AlertCircle className="w-3 h-3" /> {taglineError}
+  </p>
+)}
                 </div>
               </div>
 
