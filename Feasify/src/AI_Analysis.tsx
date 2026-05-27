@@ -89,6 +89,9 @@ const AI_Analysis: React.FC = () => {
   const [aiScores, setAiScores] = useState<any>({});
   const [aiScoreExplanations, setAiScoreExplanations] = useState<any>({});
   const [insights, setInsights] = useState<InsightItem[]>([]);
+  const [performanceGrade, setPerformanceGrade] = useState("");
+  const [performanceStatus, setPerformanceStatus] = useState("");
+  const [performanceRecommendation, setPerformanceRecommendation] = useState("");
 
   // Pro Forma Financial Statement States
   const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
@@ -165,6 +168,11 @@ const AI_Analysis: React.FC = () => {
           .map((doc) => ({
             id: doc.id,
             name: doc.data().businessName || "Untitled Proposal",
+            businessName: doc.data().businessName || "Untitled Proposal",
+            businessType: doc.data().businessType || "",
+            totalCapital: doc.data().totalCapital || "0",
+            priceRanges: doc.data().priceRanges || "",
+            proposedLocation: doc.data().proposedLocation || "",
             financialData: doc.data().financialData || null,
             aiAnalysis: doc.data().aiAnalysis || null,
           }));
@@ -206,6 +214,9 @@ const AI_Analysis: React.FC = () => {
       if (proj.aiAnalysis && !location.state?.runAnalysis) {
         setFeasibilityScore(proj.aiAnalysis.score || 0);
         setFeasibilityStatus(proj.aiAnalysis.status || "PENDING");
+        setPerformanceGrade(proj.aiAnalysis.performanceGrade || "");
+        setPerformanceStatus(proj.aiAnalysis.performanceStatus || "");
+        setPerformanceRecommendation(proj.aiAnalysis.performanceRecommendation || "");
         setMetrics(
           proj.aiAnalysis.metrics || {
             feasibility: 0,
@@ -223,6 +234,9 @@ const AI_Analysis: React.FC = () => {
       } else if (!location.state?.runAnalysis) {
         setFeasibilityScore(0);
         setFeasibilityStatus("PENDING");
+        setPerformanceGrade("");
+        setPerformanceStatus("");
+        setPerformanceRecommendation("");
         setInsights([]);
         setExplanations({});
         setImprovementTips({});
@@ -263,7 +277,8 @@ const AI_Analysis: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || `Server responded with ${response.status}`);
       }
 
       const aiResult = await response.json();
@@ -285,6 +300,9 @@ const AI_Analysis: React.FC = () => {
       // 4. Update Local State to reflect the AI's audited results
       setFeasibilityScore(aiResult.score);
       setFeasibilityStatus(aiResult.status);
+      setPerformanceGrade(aiResult.performanceGrade || "");
+      setPerformanceStatus(aiResult.performanceStatus || "");
+      setPerformanceRecommendation(aiResult.performanceRecommendation || "");
       setMetrics({
         feasibility: aiResult.score,
         financial: aiResult.metrics.financial,
@@ -299,9 +317,9 @@ const AI_Analysis: React.FC = () => {
       if (aiResult.aiScores) setAiScores(aiResult.aiScores);
       if (aiResult.aiScoreExplanations) setAiScoreExplanations(aiResult.aiScoreExplanations);
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("❌ AI Analysis Error:", e);
-      alert("The AI Auditor was unable to analyze your project. Please ensure the backend server is running.");
+      alert(`The AI Auditor was unable to analyze your project. Details: ${e.message}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -318,7 +336,9 @@ const AI_Analysis: React.FC = () => {
     const safeSellingPrice = Number(financials.sellingPrice) || 0;
     const safeMonthlySales = Number(financials.monthlySales) || 0;
     const safeVariableCost = Number(financials.variableCost) || 0;
-    const safeFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeFixedCosts = financials.opexList && financials.opexList.length > 0
+      ? financials.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+      : (Number(financials.fixedCosts) || 0);
     const safeOperatingDays = Number(financials.operatingDays) || 300;
 
     const calculatedStartupCapital = financials.equipmentList && financials.equipmentList.length > 0
@@ -595,7 +615,7 @@ const AI_Analysis: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col items-center md:items-start">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 mb-2 flex-wrap justify-center sm:justify-start">
                       <h2 className="text-2xl font-extrabold text-[#122244]">
                         Feasibility Verdict
                       </h2>
@@ -604,11 +624,27 @@ const AI_Analysis: React.FC = () => {
                       >
                         {feasibilityStatus?.replace("_", " ")}
                       </span>
+                      {performanceGrade && (
+                        <span className="inline-block px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold rounded-full">
+                          Grade: {performanceGrade}
+                        </span>
+                      )}
+                      {performanceStatus && (
+                        <span className="inline-block px-3 py-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-extrabold rounded-full">
+                          {performanceStatus}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-600 text-sm leading-relaxed">
+                    <p className="text-gray-600 text-sm leading-relaxed mb-2">
                       {explanations.feasibility ||
                         "Calculated based on current inputs."}
                     </p>
+                    {performanceRecommendation && (
+                      <div className="mt-2 p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 w-full text-left">
+                        <span className="font-bold text-gray-700 block mb-1">Recommendation:</span>
+                        {performanceRecommendation}
+                      </div>
+                    )}
                     {improvementTips.feasibility && (
                       <div
                         className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
