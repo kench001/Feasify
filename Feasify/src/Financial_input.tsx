@@ -35,7 +35,10 @@ import {
   Info,
   Plus,
   Trash2,
+  Download,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const Financial_input: React.FC = () => {
   const navigate = useNavigate();
@@ -302,6 +305,122 @@ const Financial_input: React.FC = () => {
     navigate("/");
   };
 
+ // --- UPDATED PDF EXPORT FUNCTION ---
+  const handleExportPDF = () => {
+    if (!selectedProjectId) {
+      alert("Please select an approved project first.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const projectName = projects.find((p) => p.id === selectedProjectId)?.name || "Untitled Project";
+
+   // Application Branding Palette Colors (Explicitly typed as tuples for TypeScript)
+    const primaryNavy: [number, number, number] = [18, 34, 68];  // #122244
+    const accentGold: [number, number, number] = [201, 166, 84];  // #c9a654
+    const textGray: [number, number, number] = [80, 80, 80];
+    // --- 1. TITLE & HEADER BLOCK ---
+    doc.setFontSize(22);
+    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
+    doc.text("Financial Feasibility Report", 14, 20);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(accentGold[0], accentGold[1], accentGold[2]);
+    doc.text(`Project Workspace: ${projectName}`, 14, 28);
+    
+    // Decorative divider line
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, 32, 196, 32);
+
+    // --- 2. SALES & PRICING CONFIGURATION (Image 2 Data) ---
+    doc.setFontSize(12);
+    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
+    doc.text("1. Sales & Pricing Parameters", 14, 42);
+
+    doc.setFontSize(10);
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text(`Selling Price: Php ${safeSellingPrice.toLocaleString()}`, 16, 50);
+    doc.text(`Monthly Sales / Unit Volume: ${safeMonthlySales.toLocaleString()} units`, 16, 56);
+    doc.text(`Cost of Goods Sold (COGS) / Unit: Php ${safeVariableCost.toLocaleString()}`, 16, 62);
+    
+    // Column 2 inside Section 1
+    doc.text(`Operating Days / Year: ${safeOperatingDays} days`, 110, 50);
+    doc.text(`Gross Profit Margin: ${grossProfitMargin.toFixed(1)}%`, 110, 56);
+    doc.text(`Break-Even Point: ${breakEvenUnits} units`, 110, 62);
+
+    // --- 3. MONTHLY SNAPSHOT ---
+    doc.setFontSize(12);
+    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
+    doc.text("2. Monthly Performance Snapshot", 14, 74);
+
+    doc.setFontSize(10);
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text(`Monthly Gross Revenue: Php ${monthlyRevenue.toLocaleString()}`, 16, 82);
+    doc.text(`Monthly Operating Expenses: Php ${(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}`, 16, 88);
+    doc.text(`Net Monthly Operating Profit: Php ${netMonthlyProfit.toLocaleString()}`, 16, 94);
+
+    // --- 4. FISCAL SUMMARY & ADJUSTED ANNUAL METRICS (Image 3 & 4 Data) ---
+    doc.setFontSize(12);
+    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
+    doc.text("3. Annual Projections & BMBE Tax Framework Summary", 14, 106);
+
+    doc.setFontSize(10);
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text(`Est. Annual Revenue (at ${safeOperatingDays} days): Php ${annualRevenue.toLocaleString()}`, 16, 114);
+    doc.text(`Annual Net Profit (Before Tax): Php ${annualNetProfitPreTax.toLocaleString()}`, 16, 120);
+    doc.text(`Estimated Annual Business Tax: Php ${taxResult.amount.toLocaleString()}`, 16, 126);
+    doc.text(`Taxation Framework Status: ${taxResult.note}`, 16, 132);
+
+    // Column 2 inside Section 3 & 4
+    doc.text(`Net Annual Profit (After Tax): Php ${annualNetProfitAfterTax.toLocaleString()}`, 110, 114);
+    doc.text(`Payback Period Metric: ${paybackVal} months`, 110, 120);
+    doc.text(`Adjusted Annual ROI: ${estimatedAnnualROI}%`, 110, 126);
+
+    let currentY = 142;
+
+    // --- 5. DETAILED OPERATING EXPENSES (OpEx Table) ---
+    if (financials.opexList && financials.opexList.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Operating Expense Description', 'Monthly Allocation Amount (Php)']],
+        body: financials.opexList.map(item => [item.name || "General Fixed Cost", item.amount.toLocaleString()]),
+        foot: [['Total Operating Fixed Costs (OpEx)', safeFixedCosts.toLocaleString()]],
+        theme: 'striped',
+        headStyles: { fillColor: accentGold },
+        footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+    }
+
+    // --- 6. STARTUP CAPITAL EQUIPMENT LOG ---
+    if (financials.equipmentList && financials.equipmentList.length > 0) {
+      // Avoid table layout collision near page break line boundary
+      if (currentY > 220) {
+        doc.addPage();
+        currentY = 20;
+      }
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Startup Asset / Equipment Item', 'Qty', 'Unit Acquisition Price (Php)', 'Total Line Cost (Php)']],
+        body: financials.equipmentList.map(item => [
+          item.name || "Asset Unit", 
+          item.quantity.toString(), 
+          item.unitPrice.toLocaleString(), 
+          item.total.toLocaleString()
+        ]),
+        foot: [['Total Startup Capital Requirements', '', '', calculatedStartupCapital.toLocaleString()]],
+        theme: 'striped',
+        headStyles: { fillColor: primaryNavy },
+        footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      });
+    }
+
+    // Export execution file generator
+    const safeFileName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    doc.save(`${safeFileName}_feasibility_summary.pdf`);
+  };
   const getInitials = (name: string) =>
     name
       ? name
@@ -459,6 +578,14 @@ const Financial_input: React.FC = () => {
                 {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />}{" "}
                 {saveStatus}
               </span>
+              <button
+                onClick={handleExportPDF}
+                disabled={!selectedProjectId}
+                className="flex items-center gap-2 ml-4 bg-white border-2 border-[#c9a654] text-[#c9a654] hover:bg-[#c9a654] hover:text-white px-5 py-2 rounded-lg font-bold text-sm shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export Financials to PDF"
+              >
+                <Download size={16} /> Export PDF
+              </button>
               <button
                 onClick={() =>
                   navigate("/ai-analysis", {

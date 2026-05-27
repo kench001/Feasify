@@ -9,7 +9,7 @@ import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
-  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell
+  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, ChevronUp, ChevronDown
 } from "lucide-react";
 
 interface StudentData {
@@ -118,6 +118,7 @@ const AdviserDashboard: React.FC = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
 
   // AI Analysis State
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
@@ -240,6 +241,7 @@ const AdviserDashboard: React.FC = () => {
   const handleOpenProposalModal = (proposal: ProposalData) => {
     setViewingProposal(proposal);
     setFeedbackInput("");
+    setIsFeedbackExpanded(true);
     if (proposal.aiAnalysis) {
       setModalAiResult(proposal.aiAnalysis);
     } else {
@@ -1436,48 +1438,64 @@ const AdviserDashboard: React.FC = () => {
 
                 {/* ADVISER FEEDBACK SECTION (Sticky Bottom) */}
                 {viewingProposal.status === 'Pending' ? (
-                  <div className="border-t border-gray-200 bg-white p-6 md:p-8 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-5">
-                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                        <MessageCircle className="w-4.5 h-4.5 text-[#c9a654]" /> Feedback & Decision
-                      </h3>
+                  <div className={`border-t border-gray-200 bg-white ${isFeedbackExpanded ? 'p-6 md:p-8' : 'px-6 py-4 md:px-8'} shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem] transition-all duration-300`}>
+                    <div className={`flex flex-col xl:flex-row xl:items-center justify-between gap-3 ${isFeedbackExpanded ? 'mb-5' : 'mb-0'}`}>
+                      {/* Clickable Header */}
+                      <div 
+                        onClick={() => setIsFeedbackExpanded(!isFeedbackExpanded)}
+                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
+                      >
+                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                          <MessageCircle className="w-4.5 h-4.5 text-[#c9a654]" /> Feedback & Decision
+                        </h3>
+                        {isFeedbackExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronUp className="w-4 h-4 text-gray-400" />}
+                      </div>
+
                       {modalAiResult && modalAiResult.draftFeedback && (
                         <button
-                          onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
+                          onClick={() => {
+                            setFeedbackInput(modalAiResult.draftFeedback);
+                            setIsFeedbackExpanded(true); // Auto-expand if they click the AI draft
+                          }}
                           className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm w-full xl:w-auto">
                           <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
                         </button>
                       )}
                     </div>
 
-                    <textarea
-                      value={feedbackInput}
-                      onChange={(e) => setFeedbackInput(e.target.value)}
-                      placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
-                      className="w-full p-5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-40 text-base bg-gray-50/50 text-gray-900 placeholder-gray-400 mb-6 transition-all shadow-inner"
-                    />
+                    {/* Foldable Content Area */}
+                    {isFeedbackExpanded && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                        <textarea
+                          value={feedbackInput}
+                          onChange={(e) => setFeedbackInput(e.target.value)}
+                          placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
+                          className="w-full p-5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-40 text-base bg-gray-50/50 text-gray-900 placeholder-gray-400 mb-6 transition-all shadow-inner"
+                        />
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Reject')}
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
-                        <X className="w-5 h-5" /> Reject Proposal
-                      </button>
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Revision')}
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
-                        <Edit2 className="w-5 h-5" /> Needs Revision
-                      </button>
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Approve')}
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                        Approve Proposal
-                      </button>
-                    </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={() => handleProposalAction(viewingProposal, 'Reject')}
+                            disabled={isSaving}
+                            className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
+                            <X className="w-5 h-5" /> Reject Proposal
+                          </button>
+                          <button
+                            onClick={() => handleProposalAction(viewingProposal, 'Revision')}
+                            disabled={isSaving}
+                            className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
+                            <Edit2 className="w-5 h-5" /> Needs Revision
+                          </button>
+                          <button
+                            onClick={() => handleProposalAction(viewingProposal, 'Approve')}
+                            disabled={isSaving}
+                            className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                            Approve Proposal
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="border-t border-gray-200 bg-white p-6 md:p-8 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
