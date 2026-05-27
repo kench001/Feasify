@@ -108,5 +108,245 @@
             "pricing": "₱45.00 (fruit) up to ₱99.00 (Pinoy ulam flavors)",
             "promotional_strategy": "Daily/weekly social media ads, direct customer contact via SMS, physical product sampling, custom monthly marketing themes."
         }
+    ],
+    "financial_input_examples": [
+        {
+            "business_name": "The Dory House Co. (Dory-Yaki)",
+            "sales_and_pricing": {
+                "selling_price": 50.00,
+                "monthly_sales_unit": 4160,
+                "cogs_per_unit": 14.77
+            },
+            "capital_and_operations": {
+                "operating_days_year": 312,
+                "is_capital_borrowed": false,
+                "total_capital": 900000.00,
+                "startup_capital_equipment": [
+                    {
+                        "item_name": "Leasehold Improvements",
+                        "qty": 1,
+                        "unit_price": 200092.72,
+                        "total": 200092.72
+                    },
+                    {
+                        "item_name": "Furniture & Fixtures",
+                        "qty": 1,
+                        "unit_price": 90950.80,
+                        "total": 90950.80
+                    },
+                    {
+                        "item_name": "Kitchen Equipment",
+                        "qty": 1,
+                        "unit_price": 79119.44,
+                        "total": 79119.44
+                    },
+                    {
+                        "item_name": "Store Equipment",
+                        "qty": 1,
+                        "unit_price": 63952.60,
+                        "total": 63952.60
+                    },
+                    {
+                        "item_name": "Office Equipment",
+                        "qty": 1,
+                        "unit_price": 34899.00,
+                        "total": 34899.00
+                    },
+                    {
+                        "item_name": "Kitchen & Store Tools",
+                        "qty": 1,
+                        "unit_price": 29252.76,
+                        "total": 29252.76
+                    },
+                    {
+                        "item_name": "Initial Permits & Licenses",
+                        "qty": 1,
+                        "unit_price": 21756.32,
+                        "total": 21756.32
+                    },
+                    {
+                        "item_name": "Initial Raw Materials & Supplies",
+                        "qty": 1,
+                        "unit_price": 40102.54,
+                        "total": 40102.54
+                    },
+                    {
+                        "item_name": "Cash / Working Capital Reserve (residual)",
+                        "qty": 1,
+                        "unit_price": 340626.34,
+                        "total": 340626.34
+                    }
+                ]
+            },
+            "monthly_cost_opex": {
+                "total_opex": 111919.73,
+                "expenses": [
+                    {
+                        "expense_name": "Salaries & Wages (Store Personnel + Manager)",
+                        "amount": 68285.00
+                    },
+                    {
+                        "expense_name": "Rent Expense (Total space lease)",
+                        "amount": 10000.00
+                    },
+                    {
+                        "expense_name": "Utilities (Electricity, Water, Wi-Fi)",
+                        "amount": 6000.00
+                    },
+                    {
+                        "expense_name": "Employee Benefits",
+                        "amount": 8899.42
+                    },
+                    {
+                        "expense_name": "Training & Seminar Expense",
+                        "amount": 15108.49
+                    },
+                    {
+                        "expense_name": "Repairs & Maintenance",
+                        "amount": 1333.33
+                    },
+                    {
+                        "expense_name": "Permits & Licenses Expense",
+                        "amount": 1925.53
+                    },
+                    {
+                        "expense_name": "Advertising & Promotion",
+                        "amount": 367.96
+                    }
+                ]
+            }
+        },
+        {
+            "business_name": "Empinoy",
+            "sales_and_pricing": {
+                "selling_price": 73.44,
+                "monthly_sales_unit": 10200,
+                "cogs_per_unit": 36.27
+            },
+            "capital_and_operations": {
+                "operating_days_year": 365,
+                "is_capital_borrowed": false,
+                "total_capital": 216000.00,
+                "startup_capital_equipment": [
+                    {
+                        "item_name": "Renovation Cost (Leasehold Improvements)",
+                        "qty": 1,
+                        "unit_price": 120732.00,
+                        "total": 120732.00
+                    },
+                    {
+                        "item_name": "Initial Raw Materials",
+                        "qty": 1,
+                        "unit_price": 49342.00,
+                        "total": 49342.00
+                    },
+                    {
+                        "item_name": "Kitchen Equipment",
+                        "qty": 1,
+                        "unit_price": 14949.50,
+                        "total": 14949.50
+                    },
+                    {
+                        "item_name": "Permits and Licenses",
+                        "qty": 1,
+                        "unit_price": 9409.50,
+                        "total": 9409.50
+                    },
+                    {
+                        "item_name": "Start-Up/Pre-Operating Utilities Reserve",
+                        "qty": 1,
+                        "unit_price": 8400.00,
+                        "total": 8400.00
+                    },
+                    {
+                        "item_name": "Start-Up Operating/Initial Supplies",
+                        "qty": 1,
+                        "unit_price": 4536.75,
+                        "total": 4536.75
+                    },
+                    {
+                        "item_name": "Furniture and Fixtures",
+                        "qty": 1,
+                        "unit_price": 2508.25,
+                        "total": 2508.25
+                    },
+                    {
+                        "item_name": "Office Tools and Equipment",
+                        "qty": 1,
+                        "unit_price": 2016.50,
+                        "total": 2016.50
+                    },
+                    {
+                        "item_name": "Utilities Tools and Equipment",
+                        "qty": 1,
+                        "unit_price": 1549.75,
+                        "total": 1549.75
+                    },
+                    {
+                        "item_name": "Kitchen Tools",
+                        "qty": 1,
+                        "unit_price": 1376.25,
+                        "total": 1376.25
+                    },
+                    {
+                        "item_name": "Pre-Operating Expense",
+                        "qty": 1,
+                        "unit_price": 200.00,
+                        "total": 200.00
+                    },
+                    {
+                        "item_name": "Cash/Working Capital Reserve (residual)",
+                        "qty": 1,
+                        "unit_price": 979.50,
+                        "total": 979.50
+                    }
+                ]
+            },
+            "monthly_cost_opex": {
+                "total_opex": 283243.40,
+                "expenses": [
+                    {
+                        "expense_name": "Salaries and Wages",
+                        "amount": 207561.60
+                    },
+                    {
+                        "expense_name": "Monthly Rent",
+                        "amount": 10000.00
+                    },
+                    {
+                        "expense_name": "Employee Benefits (SSS, PhilHealth, Pag-IBIG)",
+                        "amount": 53583.20
+                    },
+                    {
+                        "expense_name": "Utilities Expense",
+                        "amount": 5040.00
+                    },
+                    {
+                        "expense_name": "Supplies Expense",
+                        "amount": 2005.80
+                    },
+                    {
+                        "expense_name": "Licensing & Permits Expense",
+                        "amount": 1882.00
+                    },
+                    {
+                        "expense_name": "Advertising/Marketing Expense",
+                        "amount": 1088.00
+                    },
+                    {
+                        "expense_name": "Withholding Tax Expense",
+                        "amount": 842.80
+                    },
+                    {
+                        "expense_name": "Repair and Maintenance",
+                        "amount": 200.00
+                    },
+                    {
+                        "expense_name": "Miscellaneous Expense",
+                        "amount": 40.00
+                    }
+                ]
+            }
+        }
     ]
 }
