@@ -1,0 +1,83 @@
+[2026-05-27T06:09:34.479Z] AI Analysis Error:
+Request: {
+  "projectId": "test-id",
+  "financialData": {
+    "sellingPrice": 10,
+    "variableCost": 5,
+    "monthlySales": 100,
+    "startupCapital": 10000,
+    "fixedCosts": 500,
+    "cashReserve": 1000
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
+Please retry in 24.229291081s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"24s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:183:22
+
+[2026-05-27T07:10:56.698Z] AI Analysis Error:
+Request: {
+  "projectId": "UjvmUobLBrTEs4a1zpsI",
+  "financialData": {
+    "sellingPrice": "45",
+    "monthlySales": "6000",
+    "variableCost": "15",
+    "fixedCosts": "",
+    "startupCapital": "450,000",
+    "competitorCount": 6,
+    "marketDemand": "Medium",
+    "operatingDays": "360",
+    "equipmentList": [
+      {
+        "total": 120000,
+        "id": "1779860881497",
+        "quantity": 1,
+        "unitPrice": 120000,
+        "name": "commercial oven"
+      },
+      {
+        "unitPrice": 100000,
+        "name": "renovations and permits",
+        "quantity": 1,
+        "id": "1779865588476",
+        "total": 100000
+      }
+    ],
+    "opexList": [
+      {
+        "amount": 25000,
+        "id": "1779861033500",
+        "name": "Stall Rent"
+      },
+      {
+        "name": "staff payroll",
+        "id": "1779861045025",
+        "amount": 35000
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1779865839,
+      "nanoseconds": 908000000
+    }
+  },
+  "proposalData": {
+    "businessName": "Kape't Pandesal Express",
+    "businessType": "Food & Beverage",
+    "totalCapital": "450,000",
+    "priceRanges": "Combo Meals ranging from ₱45.00 (1 Barako Coffee + 3 Traditional Pandesal) to ₱75.00 (1 Barako Coffee + 2 Premium Stuffed Pandesal). Average unit COGS is ₱18.50 for the ₱45.00 combo (58% Gross Margin).",
+    "proposedLocation": "Unit G-4, Ground Floor, Pasay Rotonda Commuter Terminal Hub, Pasay City (High foot-traffic transit point). Rent is ₱25,000/month."
+  }
+}
+Error: SyntaxError: Expected double-quoted property name in JSON at position 1715 (line 14 column 3)
+    at JSON.parse (<anonymous>)
+    at cleanAndParseJSON (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:74:15)
+    at C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:309:16
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
