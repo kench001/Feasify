@@ -336,7 +336,9 @@ const AI_Analysis: React.FC = () => {
     const safeSellingPrice = Number(financials.sellingPrice) || 0;
     const safeMonthlySales = Number(financials.monthlySales) || 0;
     const safeVariableCost = Number(financials.variableCost) || 0;
-    const safeFixedCosts = Number(financials.fixedCosts) || 0;
+    const safeFixedCosts = financials.opexList && financials.opexList.length > 0
+      ? financials.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+      : (Number(financials.fixedCosts) || 0);
     const safeOperatingDays = Number(financials.operatingDays) || 300;
 
     const calculatedStartupCapital = financials.equipmentList && financials.equipmentList.length > 0

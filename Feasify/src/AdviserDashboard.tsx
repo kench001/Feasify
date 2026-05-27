@@ -534,7 +534,9 @@ const AdviserDashboard: React.FC = () => {
     const safeSellingPrice = Number(fin.sellingPrice) || 0;
     const safeMonthlySales = Number(fin.monthlySales) || 0;
     const safeVariableCost = Number(fin.variableCost) || 0;
-    const safeFixedCosts = Number(fin.fixedCosts) || 0;
+    const safeFixedCosts = fin.opexList && fin.opexList.length > 0
+      ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+      : (Number(fin.fixedCosts) || 0);
     const safeStartupCapital = Number(fin.startupCapital) || Number(activeProposal.totalCapital) || 0;
 
     const monthlyRevenue = safeSellingPrice * safeMonthlySales;
