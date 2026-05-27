@@ -131,6 +131,8 @@ const Financial_input: React.FC = () => {
       ? Math.ceil(safeFixedCosts / (safeSellingPrice - safeVariableCost))
       : "N/A";
 
+  const [showExportModal, setShowExportModal] = useState(false);
+
   useEffect(() => {
     const handleClickOutside = () => setIsProjectMenuOpen(false);
     document.addEventListener("click", handleClickOutside);
@@ -315,7 +317,74 @@ const Financial_input: React.FC = () => {
     navigate("/");
   };
 
- // --- UPDATED PDF EXPORT FUNCTION ---
+ // --- EXPORT: CSV FUNCTION ---
+  const handleExportCSV = () => {
+    if (!selectedProjectId) {
+      alert("Please select an approved project first.");
+      return;
+    }
+
+    const projectName = projects.find((p) => p.id === selectedProjectId)?.name || "Untitled Project";
+    
+    // Build CSV Content block by block
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `Project:,${projectName}\n\n`;
+
+    // 1. Performance Snapshot
+    csvContent += "Summary Performance Snapshot,Value\n";
+    csvContent += `Monthly Revenue,${monthlyRevenue}\n`;
+    csvContent += `Monthly Expenses,${totalMonthlyVariableCosts + safeFixedCosts}\n`;
+    csvContent += `Break-Even Point (units),${breakEvenUnits}\n`;
+    csvContent += `Gross Margin (%),${grossProfitMargin.toFixed(1)}\n`;
+    csvContent += `Net Monthly Profit,${netMonthlyProfit}\n\n`;
+
+    // 2. Sales & Pricing
+    csvContent += "Sales & Pricing Parameters,Value\n";
+    csvContent += `Selling Price,${safeSellingPrice}\n`;
+    csvContent += `Monthly Sales / Unit,${safeMonthlySales}\n`;
+    csvContent += `COGS / Unit,${safeVariableCost}\n\n`;
+
+    // 3. Capital & Operations
+    csvContent += "Capital & Operations,Qty,Unit Price,Total\n";
+    csvContent += `Operating Days / Year,${safeOperatingDays},,\n`;
+    csvContent += `Total Startup Capital,${calculatedStartupCapital},,\n`;
+    if (financials.equipmentList && financials.equipmentList.length > 0) {
+      financials.equipmentList.forEach(item => {
+        csvContent += `${item.name},${item.quantity},${item.unitPrice},${item.total}\n`;
+      });
+    }
+    csvContent += "\n";
+
+    // 4. Operating Expenses
+    csvContent += "Operating Expense Description,Monthly Allocation Amount\n";
+    if (financials.opexList && financials.opexList.length > 0) {
+      financials.opexList.forEach(item => {
+        csvContent += `${item.name},${item.amount}\n`;
+      });
+    }
+    csvContent += `Total Operating Fixed Costs,${safeFixedCosts}\n\n`;
+
+    // 5. Annual Projections & BMBE
+    csvContent += "Annual Projections & BMBE Tax Framework,Value\n";
+    csvContent += `Est. Annual Revenue,${annualRevenue}\n`;
+    csvContent += `Annual Net Profit (Before Tax),${annualNetProfitPreTax}\n`;
+    csvContent += `Estimated Annual Business Tax,${taxResult.amount}\n`;
+    csvContent += `Net Annual Profit (After Tax),${annualNetProfitAfterTax}\n`;
+    csvContent += `Payback Period (months),${paybackVal}\n`;
+    csvContent += `Adjusted Annual ROI (%),${estimatedAnnualROI}\n`;
+
+    // Trigger Download
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_financials.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowExportModal(false);
+  };
+
+  // --- EXPORT: PDF FUNCTION (ALL TABLES) ---
   const handleExportPDF = () => {
     if (!selectedProjectId) {
       alert("Please select an approved project first.");
@@ -325,111 +394,121 @@ const Financial_input: React.FC = () => {
     const doc = new jsPDF();
     const projectName = projects.find((p) => p.id === selectedProjectId)?.name || "Untitled Project";
 
-   // Application Branding Palette Colors (Explicitly typed as tuples for TypeScript)
-    const primaryNavy: [number, number, number] = [18, 34, 68];  // #122244
-    const accentGold: [number, number, number] = [201, 166, 84];  // #c9a654
-    const textGray: [number, number, number] = [80, 80, 80];
-    // --- 1. TITLE & HEADER BLOCK ---
-    doc.setFontSize(22);
+    // Application Branding Palette Colors
+    const primaryNavy: [number, number, number] = [18, 34, 68];
+    const accentGold: [number, number, number] = [201, 166, 84];
+
+    // Document Title
+    doc.setFontSize(20);
     doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
-    doc.text("Financial Feasibility Report", 14, 20);
-    
-    doc.setFontSize(13);
+    doc.text("Financial Projections", 14, 20);
+    doc.setFontSize(12);
     doc.setTextColor(accentGold[0], accentGold[1], accentGold[2]);
-    doc.text(`Project Workspace: ${projectName}`, 14, 28);
-    
-    // Decorative divider line
-    doc.setDrawColor(220, 220, 220);
-    doc.line(14, 32, 196, 32);
+    doc.text(`Project: ${projectName}`, 14, 28);
 
-    // --- 2. SALES & PRICING CONFIGURATION (Image 2 Data) ---
-    doc.setFontSize(12);
-    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
-    doc.text("1. Sales & Pricing Parameters", 14, 42);
+    let currentY = 35;
 
-    doc.setFontSize(10);
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.text(`Selling Price: Php ${safeSellingPrice.toLocaleString()}`, 16, 50);
-    doc.text(`Monthly Sales / Unit Volume: ${safeMonthlySales.toLocaleString()} units`, 16, 56);
-    doc.text(`Cost of Goods Sold (COGS) / Unit: Php ${safeVariableCost.toLocaleString()}`, 16, 62);
-    
-    // Column 2 inside Section 1
-    doc.text(`Operating Days / Year: ${safeOperatingDays} days`, 110, 50);
-    doc.text(`Gross Profit Margin: ${grossProfitMargin.toFixed(1)}%`, 110, 56);
-    doc.text(`Break-Even Point: ${breakEvenUnits} units`, 110, 62);
+    // SECTION 1: Summary Performance Snapshot
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Summary Performance Snapshot', 'Amount / Value']],
+      body: [
+        ['Monthly Revenue', `Php ${monthlyRevenue.toLocaleString()}`],
+        ['Monthly Expenses', `Php ${(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}`],
+        ['Break-Even Point', `${breakEvenUnits} units`],
+        ['Gross Margin', `${grossProfitMargin.toFixed(1)}%`],
+        ['Net Monthly Profit', `Php ${netMonthlyProfit.toLocaleString()}`]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: primaryNavy, fontStyle: 'bold' },
+      styles: { fontSize: 10 }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // --- 3. MONTHLY SNAPSHOT ---
-    doc.setFontSize(12);
-    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
-    doc.text("2. Monthly Performance Snapshot", 14, 74);
+    // SECTION 2: Sales & Pricing Parameters
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Sales & Pricing Parameters', 'Configured Value']],
+      body: [
+        ['Selling Price', `Php ${safeSellingPrice.toLocaleString()}`],
+        ['Monthly Sales / Unit', `${safeMonthlySales.toLocaleString()} units`],
+        ['Cost of Goods Sold (COGS) / Unit', `Php ${safeVariableCost.toLocaleString()}`]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: primaryNavy, fontStyle: 'bold' },
+      styles: { fontSize: 10 }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    doc.setFontSize(10);
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.text(`Monthly Gross Revenue: Php ${monthlyRevenue.toLocaleString()}`, 16, 82);
-    doc.text(`Monthly Operating Expenses: Php ${(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}`, 16, 88);
-    doc.text(`Net Monthly Operating Profit: Php ${netMonthlyProfit.toLocaleString()}`, 16, 94);
-
-    // --- 4. FISCAL SUMMARY & ADJUSTED ANNUAL METRICS (Image 3 & 4 Data) ---
-    doc.setFontSize(12);
-    doc.setTextColor(primaryNavy[0], primaryNavy[1], primaryNavy[2]);
-    doc.text("3. Annual Projections & BMBE Tax Framework Summary", 14, 106);
-
-    doc.setFontSize(10);
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.text(`Est. Annual Revenue (at ${safeOperatingDays} days): Php ${annualRevenue.toLocaleString()}`, 16, 114);
-    doc.text(`Annual Net Profit (Before Tax): Php ${annualNetProfitPreTax.toLocaleString()}`, 16, 120);
-    doc.text(`Estimated Annual Business Tax: Php ${taxResult.amount.toLocaleString()}`, 16, 126);
-    doc.text(`Taxation Framework Status: ${taxResult.note}`, 16, 132);
-
-    // Column 2 inside Section 3 & 4
-    doc.text(`Net Annual Profit (After Tax): Php ${annualNetProfitAfterTax.toLocaleString()}`, 110, 114);
-    doc.text(`Payback Period Metric: ${paybackVal} months`, 110, 120);
-    doc.text(`Adjusted Annual ROI: ${estimatedAnnualROI}%`, 110, 126);
-
-    let currentY = 142;
-
-    // --- 5. DETAILED OPERATING EXPENSES (OpEx Table) ---
-    if (financials.opexList && financials.opexList.length > 0) {
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Operating Expense Description', 'Monthly Allocation Amount (Php)']],
-        body: financials.opexList.map(item => [item.name || "General Fixed Cost", item.amount.toLocaleString()]),
-        foot: [['Total Operating Fixed Costs (OpEx)', safeFixedCosts.toLocaleString()]],
-        theme: 'striped',
-        headStyles: { fillColor: accentGold },
-        footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
-        margin: { left: 14, right: 14 }
-      });
-      currentY = (doc as any).lastAutoTable.finalY + 12;
-    }
-
-    // --- 6. STARTUP CAPITAL EQUIPMENT LOG ---
-    if (financials.equipmentList && financials.equipmentList.length > 0) {
-      // Avoid table layout collision near page break line boundary
-      if (currentY > 220) {
-        doc.addPage();
-        currentY = 20;
-      }
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Startup Asset / Equipment Item', 'Qty', 'Unit Acquisition Price (Php)', 'Total Line Cost (Php)']],
-        body: financials.equipmentList.map(item => [
+    // SECTION 3: Capital & Operations
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Startup Asset / Equipment Item', 'Qty', 'Unit Price (Php)', 'Total Line Cost (Php)']],
+      body: [
+        ...financials.equipmentList.map(item => [
           item.name || "Asset Unit", 
           item.quantity.toString(), 
           item.unitPrice.toLocaleString(), 
           item.total.toLocaleString()
         ]),
-        foot: [['Total Startup Capital Requirements', '', '', calculatedStartupCapital.toLocaleString()]],
-        theme: 'striped',
-        headStyles: { fillColor: primaryNavy },
-        footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
-        margin: { left: 14, right: 14 }
-      });
+        ['Operating Days / Year', '', '', `${safeOperatingDays} days`]
+      ],
+      foot: [['Total Startup Capital Requirements', '', '', `Php ${calculatedStartupCapital.toLocaleString()}`]],
+      theme: 'striped',
+      headStyles: { fillColor: primaryNavy, fontStyle: 'bold' },
+      footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
+      styles: { fontSize: 10 }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    // Page Break handling if getting too low
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 20;
     }
 
-    // Export execution file generator
+    // SECTION 4: Operating Expenses
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Operating Expense Description', 'Monthly Allocation Amount (Php)']],
+      body: financials.opexList && financials.opexList.length > 0 
+        ? financials.opexList.map(item => [item.name || "General Fixed Cost", item.amount.toLocaleString()])
+        : [['General Fixed Costs', safeFixedCosts.toLocaleString()]],
+      foot: [['Total Operating Fixed Costs (OpEx)', `Php ${safeFixedCosts.toLocaleString()}`]],
+      theme: 'striped',
+      headStyles: { fillColor: accentGold, fontStyle: 'bold' },
+      footStyles: { fillColor: [245, 245, 245], textColor: primaryNavy, fontStyle: 'bold' },
+      styles: { fontSize: 10 }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    // Page Break handling
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    // SECTION 5: Annual Projections & BMBE Tax Framework
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Annual Projections & BMBE Tax Framework', 'Amount / Value']],
+      body: [
+        [`Est. Annual Revenue (at ${safeOperatingDays} days)`, `Php ${annualRevenue.toLocaleString()}`],
+        ['Annual Net Profit (Before Tax)', `Php ${annualNetProfitPreTax.toLocaleString()}`],
+        ['Estimated Annual Business Tax', `Php ${taxResult.amount.toLocaleString()}`],
+        ['Taxation Framework Status', taxResult.note],
+        ['Net Annual Profit (After Tax)', `Php ${annualNetProfitAfterTax.toLocaleString()}`],
+        ['Payback Period Metric', `${paybackVal} months`],
+        ['Adjusted Annual ROI', `${estimatedAnnualROI}%`]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: primaryNavy, fontStyle: 'bold' },
+      styles: { fontSize: 10 }
+    });
+
     const safeFileName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    doc.save(`${safeFileName}_feasibility_summary.pdf`);
+    doc.save(`${safeFileName}_feasibility_report.pdf`);
+    setShowExportModal(false);
   };
   const getInitials = (name: string) =>
     name
@@ -588,13 +667,13 @@ const Financial_input: React.FC = () => {
                 {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />}{" "}
                 {saveStatus}
               </span>
-              <button
-                onClick={handleExportPDF}
+             <button
+                onClick={() => setShowExportModal(true)}
                 disabled={!selectedProjectId}
                 className="flex items-center gap-2 ml-4 bg-white border-2 border-[#c9a654] text-[#c9a654] hover:bg-[#c9a654] hover:text-white px-5 py-2 rounded-lg font-bold text-sm shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Export Financials to PDF"
+                title="Export Financial Data"
               >
-                <Download size={16} /> Export PDF
+                <Download size={16} /> Export File
               </button>
               <button
                 onClick={() =>
@@ -1384,6 +1463,45 @@ const Financial_input: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* EXPORT MODAL */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowExportModal(false)}
+          />
+          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl relative text-[#122244]">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 mx-auto mb-4">
+              <Download className="w-6 h-6 text-[#c9a654]" />
+            </div>
+            <h3 className="text-xl font-black text-center mb-2">Export Data</h3>
+            <p className="text-sm text-gray-500 mb-6 text-center">
+              Choose a format to export the financial inputs for this workspace.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleExportPDF}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#122244] hover:bg-[#1a305e] text-white text-sm font-bold shadow-md transition-all"
+              >
+                Export as PDF Document
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#c9a654] hover:bg-[#b59545] text-white text-sm font-bold shadow-md transition-all"
+              >
+                Export as CSV Spreadsheet
+              </button>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="w-full mt-2 px-5 py-2.5 rounded-lg text-sm font-bold text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* LOGOUT CONFIRM */}
       {showLogoutConfirm && (

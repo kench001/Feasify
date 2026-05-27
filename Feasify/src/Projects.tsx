@@ -1268,22 +1268,56 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Type <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          disabled={!isEditingMode}
-                          value={currentProposal.businessType}
-                          onChange={(e) => {
-                            const newValue = e.target.value;
-                            const updatedProposal = { ...currentProposal, businessType: newValue };
-                            setCurrentProposal(updatedProposal);
-                            handleAutoSave(updatedProposal);
-                          }}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        >
-                          <option value="">Select category...</option>
-                          <option>Food & Beverage</option>
-                          <option>Retail</option>
-                          <option>Services</option>
-                        </select>
+                        {!["", "Product", "Food", "Services"].includes(currentProposal.businessType) ? (
+                          <div className="flex gap-2">
+                            <input
+                              disabled={!isEditingMode}
+                              type="text"
+                              placeholder="Please specify business type..."
+                              value={currentProposal.businessType === "Others (Please specify)" ? "" : currentProposal.businessType}
+                              onChange={(e) => {
+                                const newValue = e.target.value;
+                                const updatedProposal = { ...currentProposal, businessType: newValue };
+                                setCurrentProposal(updatedProposal);
+                                handleAutoSave(updatedProposal);
+                              }}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                              autoFocus
+                            />
+                            {isEditingMode && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedProposal = { ...currentProposal, businessType: "" };
+                                  setCurrentProposal(updatedProposal);
+                                  handleAutoSave(updatedProposal);
+                                }}
+                                className="px-3 py-2 text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg bg-gray-50 transition-colors flex items-center justify-center"
+                                title="Clear and select from list"
+                              >
+                                <X size={16} />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <select
+                            disabled={!isEditingMode}
+                            value={currentProposal.businessType}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              const updatedProposal = { ...currentProposal, businessType: newValue };
+                              setCurrentProposal(updatedProposal);
+                              handleAutoSave(updatedProposal);
+                            }}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          >
+                            <option value="">Select category...</option>
+                            <option value="Product">Product</option>
+                            <option value="Food">Food</option>
+                            <option value="Services">Services</option>
+                            <option value="Others (Please specify)">Others (Please specify)</option>
+                          </select>
+                        )}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -2091,20 +2125,48 @@ const Projects: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                     Business Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={editBasicData.businessType}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        businessType: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  >
-                    <option>Food & Beverage</option>
-                    <option>Retail</option>
-                    <option>Services</option>
-                  </select>
+                  {!["", "Product", "Food", "Services"].includes(editBasicData.businessType) ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Please specify business type..."
+                        value={editBasicData.businessType === "Others (Please specify)" ? "" : editBasicData.businessType}
+                        onChange={(e) =>
+                          setEditBasicData({
+                            ...editBasicData,
+                            businessType: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditBasicData({ ...editBasicData, businessType: "" })}
+                        className="px-3 py-2 text-gray-400 hover:text-red-500 border rounded-lg bg-gray-50 transition-colors flex items-center justify-center"
+                        title="Clear and select from list"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={editBasicData.businessType}
+                      onChange={(e) =>
+                        setEditBasicData({
+                          ...editBasicData,
+                          businessType: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                    >
+                      <option value="">Select category...</option>
+                      <option value="Product">Product</option>
+                      <option value="Food">Food</option>
+                      <option value="Services">Services</option>
+                      <option value="Others (Please specify)">Others (Please specify)</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
