@@ -1195,8 +1195,7 @@ const AdviserDashboard: React.FC = () => {
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-1.5">
                     <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
-                    {viewingProposal.status === 'Pending' && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}
-                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>}
+                    {['Pending', 'Pending Review'].includes(viewingProposal.status) && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>}
                     {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Rejected</span>}
                     {viewingProposal.status === 'Revision' && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><Edit2 className="w-3.5 h-3.5" /> Needs Revision</span>}
                   </div>
@@ -1439,7 +1438,7 @@ const AdviserDashboard: React.FC = () => {
                 </div>
 
                 {/* ADVISER FEEDBACK SECTION (Sticky Bottom) */}
-                {viewingProposal.status === 'Pending' ? (
+                {viewingProposal.status !== 'Approved' ? (
                   <div className={`border-t border-gray-200 bg-white ${isFeedbackExpanded ? 'p-6 md:p-8' : 'px-6 py-4 md:px-8'} shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem] transition-all duration-300`}>
                     <div className={`flex flex-col xl:flex-row xl:items-center justify-between gap-3 ${isFeedbackExpanded ? 'mb-5' : 'mb-0'}`}>
                       {/* Clickable Header */}
