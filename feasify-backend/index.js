@@ -63,25 +63,23 @@ const getKnowledgeBase = () => {
 // Robust helper to strip potential markdown code backticks returned by LLMs and handle trailing commas
 const cleanAndParseJSON = (rawText) => {
   let cleaned = rawText.trim();
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith("```")) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.slice(0, -3);
-  }
+  // Remove markdown code blocks
+  cleaned = cleaned.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "");
   cleaned = cleaned.trim();
+
   try {
     return JSON.parse(cleaned);
-  } catch (initialError) {
-    console.warn("⚠️ JSON.parse failed initially, attempting to clean trailing commas:", initialError.message);
+  } catch (e) {
+    console.warn("Standard parse failed, attempting regex repair...");
     try {
-      // Remove trailing commas before closing braces/brackets
-      const repaired = cleaned.replace(/,\s*([\]}])/g, '$1');
-      return JSON.parse(repaired);
+      // 1. Fix unquoted keys (common AI mistake)
+      let fixed = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+      // 2. Remove trailing commas
+      fixed = fixed.replace(/,\s*([\]}])/g, '$1');
+      return JSON.parse(fixed);
     } catch (repairError) {
-      throw initialError;
+      console.error("Critical Parse Error. Raw AI Output was:", rawText);
+      throw new Error("The AI provided an invalid data format. Please try again.");
     }
   }
 };

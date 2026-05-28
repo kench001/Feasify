@@ -261,69 +261,54 @@ const AI_Analysis: React.FC = () => {
   }, [location.state, projects, selectedProjectId, navigate]);
 
   const executeAnalysis = async (data: any, pId: string) => {
-    if (!pId) return;
-    setIsAnalyzing(true);
+  if (!pId) return;
+  setIsAnalyzing(true);
 
-    try {
-      // 1. Call your local backend instead of the external Gemini API
-      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
-      const response = await fetch(`${backendUrl}/api/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: pId,
-          financialData: data, // Sends all financial inputs to the backend
-        }),
-      });
+  try {
+    const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+    const response = await fetch(`${backendUrl}/api/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: pId, financialData: data }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || `Server responded with ${response.status}`);
+    // CRITICAL: Check if response is OK before calling .json()
+    if (!response.ok) {
+      const text = await response.text(); // Get raw text to see if it's HTML
+      if (text.includes("<!DOCTYPE html>")) {
+        throw new Error("Server is still waking up or returned an error page. Please wait 10 seconds and try again.");
       }
-
-      const aiResult = await response.json();
-
-      // 2. Format Insights to include IDs (for React keys)
-      const generatedInsights = aiResult.insights.map(
-        (i: any, idx: number) => ({ ...i, id: `ai-${idx}` })
-      );
-
-      // 3. Save the AI's verdict back to Firebase so it persists in Reports
-      await updateDoc(doc(db, "proposals", pId), {
-        aiAnalysis: {
-          ...aiResult,
-          insights: generatedInsights,
-          lastRun: new Date().toISOString()
-        }
-      });
-
-      // 4. Update Local State to reflect the AI's audited results
-      setFeasibilityScore(aiResult.score);
-      setFeasibilityStatus(aiResult.status);
-      setPerformanceGrade(aiResult.performanceGrade || "");
-      setPerformanceStatus(aiResult.performanceStatus || "");
-      setPerformanceRecommendation(aiResult.performanceRecommendation || "");
-      setMetrics({
-        feasibility: aiResult.score,
-        financial: aiResult.metrics.financial,
-        risk: aiResult.metrics.risk,
-        market: aiResult.metrics.market,
-      });
-      setExplanations(aiResult.explanations || {}); // If AI provides them
-      setImprovementTips(aiResult.improvementTips || {});
-      setInsights(generatedInsights);
-
-      // Optional: Handle AI detailed scores if your backend provides them
-      if (aiResult.aiScores) setAiScores(aiResult.aiScores);
-      if (aiResult.aiScoreExplanations) setAiScoreExplanations(aiResult.aiScoreExplanations);
-
-    } catch (e: any) {
-      console.error("❌ AI Analysis Error:", e);
-      alert(`The AI Auditor was unable to analyze your project. Details: ${e.message}`);
-    } finally {
-      setIsAnalyzing(false);
+      throw new Error(text || `Server Error (${response.status})`);
     }
-  };
+
+    const aiResult = await response.json();
+    
+    // ... (Your existing code to save to Firebase and update state) ...
+    const generatedInsights = aiResult.insights.map((i: any, idx: number) => ({ ...i, id: `ai-${idx}` }));
+
+    await updateDoc(doc(db, "proposals", pId), {
+      aiAnalysis: { ...aiResult, insights: generatedInsights, lastRun: new Date().toISOString() }
+    });
+
+    setFeasibilityScore(aiResult.score);
+    setFeasibilityStatus(aiResult.status);
+    setPerformanceGrade(aiResult.performanceGrade || "");
+    setPerformanceStatus(aiResult.performanceStatus || "");
+    setPerformanceRecommendation(aiResult.performanceRecommendation || "");
+    setMetrics({
+      feasibility: aiResult.score,
+      financial: aiResult.metrics.financial,
+      risk: aiResult.metrics.risk,
+      market: aiResult.metrics.market,
+    });
+    setInsights(generatedInsights);
+  } catch (e: any) {
+    console.error("❌ AI Analysis Error:", e);
+    alert(`Error: ${e.message}`);
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
 
   // Calculate 5-Year Pro Forma Financial Statement
   const generateProFormaData = () => {
