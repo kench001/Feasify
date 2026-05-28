@@ -335,6 +335,14 @@ const validateTagline = (tagline: string): string => {
   return "";
 };
 
+const validateTotalCapital = (capital: string): string => {
+  if (!capital) return "";
+  const numValue = Number(capital);
+  if (isNaN(numValue)) return "Please enter a valid number.";
+  if (numValue < 0) return "Total capital cannot be negative.";
+  return "";
+};
+
 const formatDateTime = (timestamp: any) => {
   if (!timestamp) return "";
   try {
@@ -373,6 +381,7 @@ const Projects: React.FC = () => {
 
   const [nameError, setNameError] = useState("");
   const [taglineError, setTaglineError] = useState("");
+  const [totalCapitalError, setTotalCapitalError] = useState("");
 
   const [_leaderData, setLeaderData] = useState<any>(null);
   const [groupMembersData, setGroupMembersData] = useState<any[]>([]);
@@ -704,6 +713,15 @@ const Projects: React.FC = () => {
         return;
       }
 
+    const capitalErr = validateTotalCapital(currentProposal.totalCapital);
+    if (capitalErr) {
+      setToastTitle("Invalid Total Capital");
+      setToastMessage(capitalErr);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const proposalData = {
@@ -844,6 +862,15 @@ const Projects: React.FC = () => {
     if (taglineErr) {
       setToastTitle("Copyright Issue");
       setToastMessage("Please choose a different tagline before updating.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const capitalErr = validateTotalCapital(editBasicData.totalCapital);
+    if (capitalErr) {
+      setToastTitle("Invalid Total Capital");
+      setToastMessage(capitalErr);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4000);
       return;
@@ -1604,16 +1631,27 @@ const Projects: React.FC = () => {
                           disabled={!isEditingMode}
                           type="text"
                           value={currentProposal.totalCapital}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const newValue = e.target.value;
                             setCurrentProposal({
                               ...currentProposal,
-                              totalCapital: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
+                              totalCapital: newValue,
+                            });
+                            setTotalCapitalError(validateTotalCapital(newValue));
+                          }}
+                          onBlur={() => {
+                            if (!validateTotalCapital(currentProposal.totalCapital)) {
+                              handleAutoSave();
+                            }
+                          }}
                           placeholder="₱ 0.00"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 border ${totalCapitalError ? 'border-red-500 focus:border-red-500' : 'border-gray-200'} rounded-lg outline-none text-sm font-medium`}
                         />
+                        {totalCapitalError && (
+                          <p className="text-red-500 text-[10px] font-bold mt-1.5 flex items-center gap-1 uppercase tracking-wider">
+                            <AlertCircle className="w-3 h-3" /> {totalCapitalError}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -2451,14 +2489,21 @@ const Projects: React.FC = () => {
                   <input
                     type="text"
                     value={editBasicData.totalCapital}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newValue = e.target.value;
                       setEditBasicData({
                         ...editBasicData,
-                        totalCapital: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
+                        totalCapital: newValue,
+                      });
+                      setTotalCapitalError(validateTotalCapital(newValue));
+                    }}
+                    className={`w-full px-4 py-2 bg-gray-50 border ${totalCapitalError ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm font-medium`}
                   />
+                  {totalCapitalError && (
+                    <p className="text-red-500 text-[10px] font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {totalCapitalError}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
