@@ -121,6 +121,7 @@ const AdviserDashboard: React.FC = () => {
 
   // AI Analysis State
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   const [modalAiResult, setModalAiResult] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -247,14 +248,17 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
-  // --- AI ANALYSIS FUNCTION ---
   const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
     setIsAiAnalyzing(true);
+    setAiAnalysisError(null);
 
     try {
-      // 1. Call your local backend (The RAG System) instead of the external API
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
       const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -273,7 +277,9 @@ const AdviserDashboard: React.FC = () => {
           promotionalStrategy: proposal.promotionalStrategy,
           financialData: proposal.financialData || {},
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
@@ -293,9 +299,9 @@ const AdviserDashboard: React.FC = () => {
       const finalResult = {
         ...aiResult,
         // Mapping the RAG 'insights' to the 'strengths/weaknesses' format the Adviser UI expects
-        strengths: aiResult.insights?.filter((i: any) => i.type === 'positive').map(formatInsightItem) || [],
-        weaknesses: aiResult.insights?.filter((i: any) => i.type === 'warning').map(formatInsightItem) || [],
-        recommendations: aiResult.insights?.filter((i: any) => i.type === 'info').map(formatInsightItem) || [],
+        strengths: (aiResult.insights || []).filter((i: any) => i.type === 'positive').map(formatInsightItem),
+        weaknesses: (aiResult.insights || []).filter((i: any) => i.type === 'warning').map(formatInsightItem),
+        recommendations: (aiResult.insights || []).filter((i: any) => i.type === 'info').map(formatInsightItem),
         lastRun: new Date().toISOString(),
       };
 
@@ -316,9 +322,9 @@ const AdviserDashboard: React.FC = () => {
       setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
       setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("❌ RAG AI Analysis failed:", e);
-      alert("The AI Auditor was unable to analyze this proposal. Please ensure the backend server is running and the proposal is registered in the knowledge base.");
+      setAiAnalysisError(e.message || "Failed to analyze proposal. Server may be down.");
     } finally {
       setIsAiAnalyzing(false);
     }
@@ -1344,6 +1350,19 @@ const AdviserDashboard: React.FC = () => {
                           <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">Our AI is analyzing the proposal against market standards...</p>
                         </div>
                       </div>
+                    ) : aiAnalysisError ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-red-200/70 rounded-[1.5rem] p-8 bg-red-50/50">
+                        <div className="w-20 h-20 bg-red-100/80 rounded-full flex items-center justify-center mb-5 border border-red-200/50">
+                          <AlertCircle className="w-10 h-10 text-red-500" />
+                        </div>
+                        <h4 className="text-lg font-extrabold text-[#122244] mb-2">Analysis Failed</h4>
+                        <p className="text-sm text-red-600 mb-8 max-w-[280px]">{aiAnalysisError}</p>
+                        <button
+                          onClick={() => handleAIAnalysis(viewingProposal)}
+                          className="px-8 py-3.5 bg-red-600 text-white font-extrabold text-sm rounded-xl hover:bg-red-700 transition-all shadow-lg flex items-center gap-2.5">
+                          <RefreshCw className="w-4 h-4" /> Try Again
+                        </button>
+                      </div>
                     ) : !modalAiResult ? (
                       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-200/70 rounded-[1.5rem] p-8 bg-white/50">
                         <div className="w-20 h-20 bg-blue-50/80 rounded-full flex items-center justify-center mb-5 border border-blue-100/50">
@@ -1359,6 +1378,14 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {modalAiResult._fallback && (
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                            <p className="text-sm text-yellow-700 font-medium">
+                              ⚡ AI is temporarily unavailable. Results below are placeholder fallbacks.
+                            </p>
+                          </div>
+                        )}
 
 
                         {/* Strengths & Weaknesses */}

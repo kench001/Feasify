@@ -6,8 +6,22 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
+
+// Rate limiting configurations
+const analyzeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: "Too many requests, please try again after a minute." }
+});
+
+const proposalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: "Too many requests, please try again after a minute." }
+});
 
 // Middlewares
 app.use(cors());
@@ -60,6 +74,43 @@ const getKnowledgeBase = () => {
   }
 };
 
+// Retry wrapper with exponential backoff + jitter for Gemini API calls
+async function callGeminiWithRetry(model, prompt, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
+
+      const result = await model.generateContent(prompt, {
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      // Guard against safety blocks
+      const candidate = result.response.candidates?.[0];
+      if (!candidate || !candidate.content) {
+        const reason = candidate?.finishReason || "UNKNOWN";
+        throw new Error(`Gemini blocked response. Reason: ${reason}`);
+      }
+
+      return result;
+    } catch (error) {
+      const isRetryable = error.message?.includes("429") ||
+                          error.message?.includes("503") ||
+                          error.message?.includes("Resource Exhausted") ||
+                          error.name === "AbortError";
+
+      if (isRetryable && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.warn(`⚠️ Retry ${attempt + 1}/${maxRetries} after ${Math.round(delay)}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 // Robust helper to strip potential markdown code backticks returned by LLMs and handle trailing commas
 const cleanAndParseJSON = (rawText) => {
   let cleaned = rawText.trim();
@@ -72,15 +123,30 @@ const cleanAndParseJSON = (rawText) => {
     cleaned = cleaned.slice(0, -3);
   }
   cleaned = cleaned.trim();
+  
+  // Further cleanup: remove non-printable characters
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+
   try {
     return JSON.parse(cleaned);
   } catch (initialError) {
     console.warn("⚠️ JSON.parse failed initially, attempting to clean trailing commas:", initialError.message);
     try {
       // Remove trailing commas before closing braces/brackets
-      const repaired = cleaned.replace(/,\s*([\]}])/g, '$1');
+      let repaired = cleaned.replace(/,\s*([\]}])/g, '$1');
+      // Sometimes models use single quotes
+      repaired = repaired.replace(/'/g, '"');
       return JSON.parse(repaired);
     } catch (repairError) {
+      // Last resort: extract JSON via regex if there's text surrounding it
+      try {
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+         // ignore
+      }
       throw initialError;
     }
   }
@@ -155,6 +221,7 @@ app.post(
     "/api/financial-analysis",
     "/api/ai/analyze-financials"
   ],
+  analyzeLimiter,
   async (req, res) => {
     try {
       // Support both nested object structure or top-level fields
@@ -353,7 +420,7 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         }
       });
 
-      const result = await model.generateContent(prompt);
+      const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
       const parsedResponse = cleanAndParseJSON(textResponse);
       
@@ -375,7 +442,79 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
       } catch (logErr) {
         console.error("Failed writing to error.log:", logErr);
       }
-      res.status(500).json({ error: "Analysis process failed internally.", details: error.message });
+
+      // Fallback mechanism to ensure no crash
+      const financials = req.body.financialData || req.body.financials || req.body;
+      const sellingPrice = Number(financials.sellingPrice) || 0;
+      const variableCost = Number(financials.variableCost) || 0; 
+      const monthlySales = Number(financials.monthlySales) || 0;
+      const operatingDays = Number(financials.operatingDays) || 300;
+      const isCapitalBorrowed = financials.isCapitalBorrowed || false;
+      const interestRate = Number(financials.interestRate) || 0;
+      const equipmentList = financials.equipmentList || [];
+      const equipmentTotal = equipmentList.reduce(
+        (sum, item) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
+        0
+      );
+      const declaredCapital = Number(financials.startupCapital) || 0;
+      const safeStartupCapital = equipmentList.length > 0 ? equipmentTotal : declaredCapital;
+      const opexList = financials.opexList || [];
+      const monthlyOpex = opexList.length > 0
+        ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+        : (Number(financials.fixedCosts) || 0);
+      const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
+      const monthlyRevenue = sellingPrice * monthlySales;
+      const totalMonthlyVariableCosts = variableCost * monthlySales;
+      const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
+      const annualRevenue = (monthlyRevenue / 30) * operatingDays;
+      const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
+      const annualNetProfitPreTax = annualRevenue - annualExpenses;
+      const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
+      const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+      let status = "FEASIBLE";
+      let score = 85;
+      if (sellingPrice - variableCost <= 0) {
+        status = "NOT_FEASIBLE";
+        score = 15;
+      } else if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
+        status = "NOT_FEASIBLE";
+        score = 30;
+      } else {
+        const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
+        status = "FEASIBLE";
+        score = Math.min(100, Math.max(70, Math.round(75 + marginRatio * 10)));
+      }
+      const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
+      const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
+      const marketScore = monthlySales > 0 ? 80 : 50;
+
+      const kb = getKnowledgeBase();
+      const performanceInfo = kb ? mapScoreToPerformanceMatrix(score, kb.evaluation_framework.performance_matrix) : {
+        performanceGrade: "N/A", performanceStatus: "N/A", performanceRecommendation: "N/A"
+      };
+
+      res.json({
+        score,
+        status,
+        performanceGrade: performanceInfo.performanceGrade,
+        performanceStatus: performanceInfo.performanceStatus,
+        performanceRecommendation: performanceInfo.performanceRecommendation,
+        metrics: { financial: financialScore, risk: riskScore, market: marketScore },
+        explanations: {
+          feasibility: `Score: ${score}/100. ${status === "FEASIBLE" ? "Business shows positive margins." : "Business shows negative margins — review costs."}`,
+          financial: "AI narrative temporarily unavailable. Scores are computed from your financial data.",
+          risk: "AI narrative temporarily unavailable.",
+          market: "AI narrative temporarily unavailable."
+        },
+        insights: [
+          { type: status === "FEASIBLE" ? "positive" : "warning", title: "Automated Verdict", description: `Feasibility score: ${score}/100 (${status}).` }
+        ],
+        improvementTips: {},
+        aiScores: { financial: financialScore, operational: riskScore, market: marketScore },
+        aiScoreExplanations: {},
+        _fallback: true
+      });
     }
   }
 );
@@ -388,6 +527,7 @@ app.post(
     "/api/ai/evaluate-proposal",
     "/api/ai/analyze-proposal"
   ],
+  proposalLimiter,
   async (req, res) => {
     try {
       const payload = req.body;
@@ -487,7 +627,7 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         }
       });
 
-      const result = await model.generateContent(prompt);
+      const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
       res.json(cleanAndParseJSON(textResponse));
 
@@ -502,7 +642,23 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
       } catch (logErr) {
         console.error("Failed writing to error.log:", logErr);
       }
-      res.status(500).json({ error: "Evaluation process failed internally.", details: error.message });
+      // Fallback response for Adviser
+      res.json({
+        score: 75,
+        metrics: { financial: 75, risk: 75, market: 75 },
+        explanations: {
+          feasibility: "AI temporarily unavailable. Manual review required.",
+          financial: "AI temporarily unavailable.",
+          risk: "AI temporarily unavailable.",
+          market: "AI temporarily unavailable."
+        },
+        insights: [
+          { type: "warning", title: "AI Unavailable", description: "The AI service is currently unavailable. Please review this proposal manually." }
+        ],
+        realityCheck: "N/A",
+        draftFeedback: "The AI service is currently unavailable. Please provide manual feedback.",
+        _fallback: true
+      });
     }
   }
 );

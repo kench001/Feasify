@@ -54,6 +54,8 @@ const AI_Analysis: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
 
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -263,18 +265,25 @@ const AI_Analysis: React.FC = () => {
   const executeAnalysis = async (data: any, pId: string) => {
     if (!pId) return;
     setIsAnalyzing(true);
+    setAnalysisError(null);
+    setIsFallback(false);
 
     try {
-      // 1. Call your local backend instead of the external Gemini API
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
       const response = await fetch(`${backendUrl}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: pId,
-          financialData: data, // Sends all financial inputs to the backend
+          financialData: data,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -284,7 +293,7 @@ const AI_Analysis: React.FC = () => {
       const aiResult = await response.json();
 
       // 2. Format Insights to include IDs (for React keys)
-      const generatedInsights = aiResult.insights.map(
+      const generatedInsights = (aiResult.insights || []).map(
         (i: any, idx: number) => ({ ...i, id: `ai-${idx}` })
       );
 
@@ -316,10 +325,12 @@ const AI_Analysis: React.FC = () => {
       // Optional: Handle AI detailed scores if your backend provides them
       if (aiResult.aiScores) setAiScores(aiResult.aiScores);
       if (aiResult.aiScoreExplanations) setAiScoreExplanations(aiResult.aiScoreExplanations);
+      
+      setIsFallback(aiResult._fallback === true);
 
     } catch (e: any) {
       console.error("❌ AI Analysis Error:", e);
-      alert(`The AI Auditor was unable to analyze your project. Details: ${e.message}`);
+      setAnalysisError(e.message || "Analysis failed. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -581,6 +592,31 @@ const AI_Analysis: React.FC = () => {
                 <RotateCcw className="w-4 h-4" /> Re-analyze
               </button>
             </div>
+
+            {analysisError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-red-700 font-bold">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>Analysis Failed</span>
+                </div>
+                <p className="text-sm text-red-600">{analysisError}</p>
+                <button 
+                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  className="self-start px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm rounded-lg transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {isFallback && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                <p className="text-sm text-yellow-700 font-medium">
+                  ⚡ AI narratives are temporarily unavailable. Scores shown are computed from your financial data.
+                </p>
+              </div>
+            )}
 
             <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
