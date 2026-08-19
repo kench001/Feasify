@@ -55,14 +55,16 @@ const Reports: React.FC = () => {
       const groupSnap = await getDocs(groupQ);
 
       let userGroupId = "";
+      let activeProposalId = "";
       groupSnap.forEach((doc) => {
         const data = doc.data();
         if (data.leaderId === uid || (data.memberIds && data.memberIds.includes(uid))) {
           userGroupId = doc.id;
+          activeProposalId = data.activeProposalId || "";
         }
       });
 
-      if (userGroupId) {
+      if (userGroupId && activeProposalId) {
         const propQ = query(collection(db, "proposals"), where("groupId", "==", userGroupId));
         const propSnap = await getDocs(propQ);
 
@@ -76,24 +78,22 @@ const Reports: React.FC = () => {
             parentGroupId: userGroupId,
           }));
 
-        setProjects(approvedProjects);
-
-        if (approvedProjects.length > 0) {
-          const savedProjectId = sessionStorage.getItem("lastSelectedProjectId");
-          const state = location.state as any;
-          const targetId = state?.projectId || savedProjectId || approvedProjects[0].id;
-
-          if (targetId && approvedProjects.some((p) => p.id === targetId)) {
-            handleProjectSelect(targetId);
-          } else {
-            handleProjectSelect(approvedProjects[0].id);
-          }
+        const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
+        if (activeProp) {
+          setProjects([activeProp]);
+          handleProjectSelect(activeProp.id);
+        } else {
+          setProjects([]);
+          setSelectedProjectId("");
         }
       } else {
         setProjects([]);
+        setSelectedProjectId("");
       }
     } catch (error) {
       console.error("Failed to load group:", error);
+      setProjects([]);
+      setSelectedProjectId("");
     } finally {
       setIsLoading(false);
     }
@@ -281,11 +281,26 @@ const Reports: React.FC = () => {
               <div className="w-8 h-8 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-gray-500 font-medium text-sm">Loading reports...</p>
             </div>
-          ) : !selectedProject ? (
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-20 flex flex-col items-center justify-center text-center print:hidden">
-              <FileText className="w-12 h-12 text-gray-300 mb-4" />
-              <h3 className="text-xl font-bold text-[#122244]">No Project Selected</h3>
-              <p className="text-gray-500 mt-2">Open a workspace to view its associated reports.</p>
+          ) : !selectedProject || projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12 max-w-2xl mx-auto my-8 print:hidden">
+              <div className="w-20 h-20 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+                <Folder className="w-10 h-10" />
+              </div>
+              <span className="px-3 py-1 bg-amber-100 text-[#b59545] text-xs font-black rounded-full uppercase tracking-wider mb-3">
+                Active Business Required
+              </span>
+              <h2 className="text-2xl font-extrabold text-[#122244] mb-3">
+                No Active Business Setup
+              </h2>
+              <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+                Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock Feasibility Reports.
+              </p>
+              <button
+                onClick={() => navigate("/projects")}
+                className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
+              >
+                <Folder className="w-4 h-4 text-[#c9a654]" /> Go to Business Proposals
+              </button>
             </div>
           ) : !selectedProject.aiAnalysis ? (
             <div className="bg-white rounded-xl border border-dashed border-gray-300 py-20 flex flex-col items-center justify-center text-center print:hidden">

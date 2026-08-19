@@ -43,8 +43,17 @@ import {
   DollarSign,
   AlertCircle,
   Save,
+  Loader2,
+  ChevronDown,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
+import {
+  fetchCopyrightDB,
+  checkBusinessName,
+  checkTagline,
+  checkTotalCapital,
+  type CopyrightDB,
+} from "./services/copyrightService";
 
 interface ExpandingTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   minRows?: number;
@@ -64,6 +73,102 @@ const ExpandingTextarea: React.FC<ExpandingTextareaProps & { rows?: number }> = 
     />
   );
 };
+
+interface DropdownOption {
+  value: string;
+  label: string;
+}
+
+const CustomDropdown: React.FC<{
+  value: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}> = ({
+  value,
+  options,
+  onChange,
+  placeholder = "Select category...",
+  disabled = false,
+  className = "",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className={`relative w-full ${className}`} ref={dropdownRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 border ${
+          isOpen
+            ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
+            : "border-gray-200 hover:border-gray-300"
+        } rounded-lg text-sm font-medium transition-all text-[#122244] text-left outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100/70`}
+      >
+        <span className={selectedOption && selectedOption.value ? "text-[#122244] font-medium" : "text-gray-400"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-[#c9a654]" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
+          {options.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <div
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
+                  isSelected
+                    ? "bg-amber-50/80 text-[#c9a654] font-bold"
+                    : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
+                }`}
+              >
+                <span>{option.label}</span>
+                {isSelected && <Check className="w-4 h-4 text-[#c9a654]" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const businessTypeDropdownOptions: DropdownOption[] = [
+  { value: "", label: "Select category..." },
+  { value: "Food & Beverage", label: "Food & Beverage" },
+  { value: "Services", label: "Services" },
+  { value: "Other", label: "Other (Please specify)" },
+];
 
 interface GroupData {
   id: string;
@@ -196,6 +301,15 @@ const Projects: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+
+  const [copyrightDB, setCopyrightDB] = useState<CopyrightDB | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchCopyrightDB().then((dbData) => {
+      setCopyrightDB(dbData);
+    });
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -411,6 +525,11 @@ const Projects: React.FC = () => {
     // Don't auto-save if business name and type are both empty (avoiding empty drafts)
     if (!dataToSave.businessName && !dataToSave.businessType) return;
 
+    // Don't auto-save invalid data (negative capital or copyrighted name/tagline)
+    if (checkTotalCapital(dataToSave.totalCapital).isNegative) return;
+    if (checkBusinessName(dataToSave.businessName, copyrightDB || undefined).isCopyrighted) return;
+    if (checkTagline(dataToSave.tagline, copyrightDB || undefined).isCopyrighted) return;
+
     setIsSaving(true);
     setSaveStatus("Saving...");
     try {
@@ -446,6 +565,34 @@ const Projects: React.FC = () => {
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) return;
 
+    // Capital & Copyright Validation
+    const capitalVal = checkTotalCapital(currentProposal.totalCapital);
+    if (capitalVal.isNegative) {
+      setToastTitle("Invalid Capital Amount");
+      setToastMessage(capitalVal.errorMessage || "Total capital cannot be negative.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const nameVal = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+    if (nameVal.isCopyrighted) {
+      setToastTitle("Copyright Warning");
+      setToastMessage(nameVal.errorMessage || "Business name matches a copyrighted name.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const taglineVal = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+    if (taglineVal.isCopyrighted) {
+      setToastTitle("Copyright Warning");
+      setToastMessage(taglineVal.errorMessage || "Tagline matches a copyrighted tagline.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
     // Validation for Pending status (Submit to Adviser)
     if (status === "Pending") {
       const requiredFields: (keyof ProposalData)[] = [
@@ -474,9 +621,12 @@ const Projects: React.FC = () => {
         setTimeout(() => setShowToast(false), 4000);
         return;
       }
+
+      setIsSubmitting(true);
+    } else {
+      setIsSaving(true);
     }
 
-    setIsSaving(true);
     try {
       const proposalData = {
         ...currentProposal,
@@ -513,6 +663,7 @@ const Projects: React.FC = () => {
       setTimeout(() => setShowToast(false), 4000);
     } finally {
       setIsSaving(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -574,6 +725,34 @@ const Projects: React.FC = () => {
 
   const handleUpdateBasicInfo = async () => {
     if (!userGroup || !userGroup.activeProposalId) return;
+
+    // Capital & Copyright Validation
+    const capitalVal = checkTotalCapital(editBasicData.totalCapital);
+    if (capitalVal.isNegative) {
+      setToastTitle("Invalid Capital Amount");
+      setToastMessage(capitalVal.errorMessage || "Total capital cannot be negative.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const nameVal = checkBusinessName(editBasicData.businessName, copyrightDB || undefined);
+    if (nameVal.isCopyrighted) {
+      setToastTitle("Copyright Warning");
+      setToastMessage(nameVal.errorMessage || "Business name matches a copyrighted name.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
+
+    const taglineVal = checkTagline(editBasicData.tagline, copyrightDB || undefined);
+    if (taglineVal.isCopyrighted) {
+      setToastTitle("Copyright Warning");
+      setToastMessage(taglineVal.errorMessage || "Tagline matches a copyrighted tagline.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
 
     // Validation
     const requiredFields: (keyof ProposalData)[] = [
@@ -1199,10 +1378,24 @@ const Projects: React.FC = () => {
                   {isEditingMode && (
                     <button
                       onClick={() => handleSaveProposal("Pending")}
-                      disabled={isSaving}
-                      className="flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md"
+                      disabled={
+                        isSubmitting ||
+                        checkBusinessName(currentProposal.businessName, copyrightDB || undefined).isCopyrighted ||
+                        checkTagline(currentProposal.tagline, copyrightDB || undefined).isCopyrighted ||
+                        checkTotalCapital(currentProposal.totalCapital).isNegative
+                      }
+                      className={`flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        isSubmitting ? "opacity-80 cursor-not-allowed" : ""
+                      }`}
                     >
-                      Submit to Adviser
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <span>Submitting to Adviser...</span>
+                        </>
+                      ) : (
+                        "Submit to Adviser"
+                      )}
                     </button>
                   )}
                 </div>
@@ -1268,78 +1461,147 @@ const Projects: React.FC = () => {
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Type <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <CustomDropdown
                           disabled={!isEditingMode}
-                          value={currentProposal.businessType}
-                          onChange={(e) => {
-                            const newValue = e.target.value;
+                          value={
+                            !currentProposal.businessType
+                              ? ""
+                              : ["Food & Beverage", "Services"].includes(currentProposal.businessType)
+                              ? currentProposal.businessType
+                              : "Other"
+                          }
+                          options={businessTypeDropdownOptions}
+                          onChange={(newValue) => {
                             const updatedProposal = { ...currentProposal, businessType: newValue };
                             setCurrentProposal(updatedProposal);
                             handleAutoSave(updatedProposal);
                           }}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        >
-                          <option value="">Select category...</option>
-                          <option>Food & Beverage</option>
-                          <option>Retail</option>
-                          <option>Services</option>
-                        </select>
+                        />
+                        {currentProposal.businessType &&
+                          !["Food & Beverage", "Services", ""].includes(currentProposal.businessType) && (
+                            <div className="mt-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                              <label className="text-[10px] font-bold text-[#c9a654] uppercase tracking-wider block mb-1">
+                                Please specify business type <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.businessType === "Other" ? "" : currentProposal.businessType}
+                                placeholder="e.g. Technology, Agriculture, Manufacturing..."
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updatedProposal = {
+                                    ...currentProposal,
+                                    businessType: val || "Other",
+                                  };
+                                  setCurrentProposal(updatedProposal);
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-4 py-2.5 bg-white border border-[#c9a654]/40 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 rounded-lg outline-none text-sm font-medium transition-all shadow-sm"
+                              />
+                            </div>
+                          )}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Business Name <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          disabled={!isEditingMode}
-                          type="text"
-                          value={currentProposal.businessName}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              businessName: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          placeholder="e.g. Eggdesal"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        />
+                        {(() => {
+                          const check = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.businessName}
+                                onChange={(e) =>
+                                  setCurrentProposal({
+                                    ...currentProposal,
+                                    businessName: e.target.value,
+                                  })
+                                }
+                                onBlur={() => handleAutoSave()}
+                                placeholder="e.g. Eggdesal"
+                                className={`w-full px-4 py-3 bg-gray-50 border ${
+                                  check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isCopyrighted && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Total Capital (₱) <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          disabled={!isEditingMode}
-                          type="text"
-                          value={currentProposal.totalCapital}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              totalCapital: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          placeholder="₱ 0.00"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        />
+                        {(() => {
+                          const check = checkTotalCapital(currentProposal.totalCapital);
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.totalCapital}
+                                onChange={(e) =>
+                                  setCurrentProposal({
+                                    ...currentProposal,
+                                    totalCapital: e.target.value,
+                                  })
+                                }
+                                onBlur={() => handleAutoSave()}
+                                placeholder="₱ 0.00"
+                                className={`w-full px-4 py-3 bg-gray-50 border ${
+                                  check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isNegative && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Tagline <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          disabled={!isEditingMode}
-                          type="text"
-                          value={currentProposal.tagline}
-                          onChange={(e) =>
-                            setCurrentProposal({
-                              ...currentProposal,
-                              tagline: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium"
-                        />
+                        {(() => {
+                          const check = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.tagline}
+                                onChange={(e) =>
+                                  setCurrentProposal({
+                                    ...currentProposal,
+                                    tagline: e.target.value,
+                                  })
+                                }
+                                onBlur={() => handleAutoSave()}
+                                className={`w-full px-4 py-3 bg-gray-50 border ${
+                                  check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isCopyrighted && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div>
@@ -2075,68 +2337,135 @@ const Projects: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                     Business Name <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={editBasicData.businessName}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        businessName: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  />
+                  {(() => {
+                    const check = checkBusinessName(editBasicData.businessName, copyrightDB || undefined);
+                    return (
+                      <>
+                        <input
+                          type="text"
+                          value={editBasicData.businessName}
+                          onChange={(e) =>
+                            setEditBasicData({
+                              ...editBasicData,
+                              businessName: e.target.value,
+                            })
+                          }
+                          className={`w-full px-4 py-2 bg-gray-50 border ${
+                            check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                          } rounded-lg text-sm font-medium transition-colors`}
+                        />
+                        {check.isCopyrighted && (
+                          <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>{check.errorMessage}</span>
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                     Business Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={editBasicData.businessType}
-                    onChange={(e) =>
+                  <CustomDropdown
+                    value={
+                      !editBasicData.businessType
+                        ? ""
+                        : ["Food & Beverage", "Services"].includes(editBasicData.businessType)
+                        ? editBasicData.businessType
+                        : "Other"
+                    }
+                    options={businessTypeDropdownOptions}
+                    onChange={(newValue) =>
                       setEditBasicData({
                         ...editBasicData,
-                        businessType: e.target.value,
+                        businessType: newValue,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  >
-                    <option>Food & Beverage</option>
-                    <option>Retail</option>
-                    <option>Services</option>
-                  </select>
+                  />
+                  {editBasicData.businessType &&
+                    !["Food & Beverage", "Services", ""].includes(editBasicData.businessType) && (
+                      <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-[10px] font-bold text-[#c9a654] uppercase tracking-wider block mb-1">
+                          Please specify business type <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={editBasicData.businessType === "Other" ? "" : editBasicData.businessType}
+                          placeholder="e.g. Technology, Agriculture, Manufacturing..."
+                          onChange={(e) =>
+                            setEditBasicData({
+                              ...editBasicData,
+                              businessType: e.target.value || "Other",
+                            })
+                          }
+                          className="w-full px-4 py-2 bg-white border border-[#c9a654]/40 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 rounded-lg text-sm font-medium transition-all shadow-sm outline-none"
+                        />
+                      </div>
+                    )}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                     Total Capital <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={editBasicData.totalCapital}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        totalCapital: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  />
+                  {(() => {
+                    const check = checkTotalCapital(editBasicData.totalCapital);
+                    return (
+                      <>
+                        <input
+                          type="text"
+                          value={editBasicData.totalCapital}
+                          onChange={(e) =>
+                            setEditBasicData({
+                              ...editBasicData,
+                              totalCapital: e.target.value,
+                            })
+                          }
+                          className={`w-full px-4 py-2 bg-gray-50 border ${
+                            check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                          } rounded-lg text-sm font-medium transition-colors`}
+                        />
+                        {check.isNegative && (
+                          <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>{check.errorMessage}</span>
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
                     Tagline <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={editBasicData.tagline}
-                    onChange={(e) =>
-                      setEditBasicData({
-                        ...editBasicData,
-                        tagline: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm font-medium"
-                  />
+                  {(() => {
+                    const check = checkTagline(editBasicData.tagline, copyrightDB || undefined);
+                    return (
+                      <>
+                        <input
+                          type="text"
+                          value={editBasicData.tagline}
+                          onChange={(e) =>
+                            setEditBasicData({
+                              ...editBasicData,
+                              tagline: e.target.value,
+                            })
+                          }
+                          className={`w-full px-4 py-2 bg-gray-50 border ${
+                            check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                          } rounded-lg text-sm font-medium transition-colors`}
+                        />
+                        {check.isCopyrighted && (
+                          <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>{check.errorMessage}</span>
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 

@@ -20,12 +20,12 @@ import {
 } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemoPlaceholderKey123456789",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "feasify-demo.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "feasify-demo",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "feasify-demo.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789012:web:demo123456789012",
 };
 
 // --- PRIMARY APP (Used for normal app stuff) ---
@@ -34,8 +34,15 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // --- SECONDARY APP (Used ONLY for Admins to create users silently) ---
-const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-const secondaryAuth = getAuth(secondaryApp);
+let secondaryApp;
+let secondaryAuth;
+try {
+  secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+  secondaryAuth = getAuth(secondaryApp);
+} catch (e) {
+  secondaryApp = app;
+  secondaryAuth = auth;
+}
 
 // --- AUTHENTICATION FUNCTIONS ---
 

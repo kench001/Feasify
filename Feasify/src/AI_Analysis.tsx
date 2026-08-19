@@ -53,6 +53,7 @@ const AI_Analysis: React.FC = () => {
   const [userName, setUserName] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isFallback, setIsFallback] = useState(false);
@@ -103,15 +104,26 @@ const AI_Analysis: React.FC = () => {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        const snap = await getDoc(doc(db, "users", u.uid));
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          setUserName(
-            [data.firstName, data.lastName].filter(Boolean).join(" ") ||
-            u.displayName ||
-            "",
-          );
-          if (data.section) loadUserGroup(u.uid, data.section);
+        try {
+          const snap = await getDoc(doc(db, "users", u.uid));
+          if (snap.exists()) {
+            const data = snap.data() as any;
+            setUserName(
+              [data.firstName, data.lastName].filter(Boolean).join(" ") ||
+                u.displayName ||
+                "",
+            );
+            if (data.section) {
+              loadUserGroup(u.uid, data.section);
+            } else {
+              setIsLoading(false);
+            }
+          } else {
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error(err);
+          setIsLoading(false);
         }
       } else navigate("/");
     });
@@ -145,6 +157,7 @@ const AI_Analysis: React.FC = () => {
       );
       const groupSnap = await getDocs(groupQ);
       let userGroupId = "";
+      let activeProposalId = "";
       groupSnap.forEach((doc) => {
         const gData = doc.data();
         if (
@@ -152,10 +165,11 @@ const AI_Analysis: React.FC = () => {
           (gData.memberIds && gData.memberIds.includes(uid))
         ) {
           userGroupId = doc.id;
+          activeProposalId = gData.activeProposalId || "";
         }
       });
 
-      if (userGroupId) {
+      if (userGroupId && activeProposalId) {
         const propQ = query(
           collection(db, "proposals"),
           where("groupId", "==", userGroupId),
@@ -178,10 +192,24 @@ const AI_Analysis: React.FC = () => {
             financialData: doc.data().financialData || null,
             aiAnalysis: doc.data().aiAnalysis || null,
           }));
-        setProjects(approvedProjects);
+
+        const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
+        if (activeProp) {
+          setProjects([activeProp]);
+        } else {
+          setProjects([]);
+          setSelectedProjectId("");
+        }
+      } else {
+        setProjects([]);
+        setSelectedProjectId("");
       }
     } catch (error) {
       console.error("Load failed:", error);
+      setProjects([]);
+      setSelectedProjectId("");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -569,6 +597,32 @@ const AI_Analysis: React.FC = () => {
             <p className="text-gray-500 italic">
               Processing professional insights for {selectedProject?.name}...
             </p>
+          </div>
+        ) : isLoading ? (
+          <div className="flex flex-col items-center justify-center min-h-[50vh]">
+            <div className="w-10 h-10 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-medium text-sm">Loading project analysis...</p>
+          </div>
+        ) : projects.length === 0 || !selectedProjectId ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12 max-w-2xl mx-auto my-8">
+            <div className="w-20 h-20 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+              <Folder className="w-10 h-10" />
+            </div>
+            <span className="px-3 py-1 bg-amber-100 text-[#b59545] text-xs font-black rounded-full uppercase tracking-wider mb-3">
+              Active Business Required
+            </span>
+            <h2 className="text-2xl font-extrabold text-[#122244] mb-3">
+              No Active Business Setup
+            </h2>
+            <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+              Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock AI Feasibility Analysis.
+            </p>
+            <button
+              onClick={() => navigate("/projects")}
+              className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
+            >
+              <Folder className="w-4 h-4 text-[#c9a654]" /> Go to Business Proposals
+            </button>
           </div>
         ) : (
           <div className="p-6 md:p-8 max-w-7xl mx-auto">

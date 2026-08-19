@@ -74,6 +74,37 @@ const getKnowledgeBase = () => {
   }
 };
 
+// Helper to safely load local Copyright Database
+const getCopyrightDB = () => {
+  try {
+    const dataDir = path.join(__dirname, "data");
+    const filePath = path.join(dataDir, "copyright_db.json");
+
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      const template = {
+        school_businesses: [
+          "bibimburp", "glam n walk", "maria ada's", "maria ada’s",
+          "agro integro insurance", "juan dream partnership", "mr. cabbage",
+          "empinoy", "copying and printing express"
+        ],
+        well_known_businesses: ["mcdonald's", "jollibee", "kfc", "nike", "adidas", "apple", "google"],
+        copyrighted_taglines: ["i'm lovin' it", "bida ang saya", "just do it"]
+      };
+      fs.writeFileSync(filePath, JSON.stringify(template, null, 2), "utf-8");
+    }
+
+    const fileData = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(fileData);
+  } catch (error) {
+    console.error("Failed reading local copyright database:", error);
+    return { school_businesses: [], well_known_businesses: [], copyrighted_taglines: [] };
+  }
+};
+
 // Retry wrapper with exponential backoff + jitter for Gemini API calls
 async function callGeminiWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -207,6 +238,77 @@ if (kbTest && (!kbTest.evaluation_framework || kbTest.evaluation_framework.grade
   console.log("⚠️ WARNING: Your knowledge_base.json is empty or formatted incorrectly. Ensure you populated it in Step 2.");
 }
 console.log("======================================\n");
+
+// ==========================================
+// COPYRIGHT DATABASE REST ENDPOINTS
+// ==========================================
+
+// Endpoint to fetch full copyright database
+app.get(["/api/copyright-db", "/api/copyright/db"], (req, res) => {
+  const db = getCopyrightDB();
+  res.json(db);
+});
+
+// Endpoint to check business name or tagline against copyright DB
+app.post(["/api/copyright-check", "/api/copyright/check"], (req, res) => {
+  const { businessName, tagline } = req.body || {};
+  const db = getCopyrightDB();
+
+  const normalize = (str) =>
+    (str || "")
+      .toLowerCase()
+      .replace(/[’']/g, "")
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
+
+  const normName = normalize(businessName);
+  const normTagline = normalize(tagline);
+
+  let isNameCopyrighted = false;
+  let nameSource = "";
+  let matchedName = "";
+
+  if (normName) {
+    const schoolMatch = db.school_businesses.find(
+      (b) => normalize(b) === normName
+    );
+    if (schoolMatch) {
+      isNameCopyrighted = true;
+      nameSource = "School Business";
+      matchedName = schoolMatch;
+    } else {
+      const wellKnownMatch = db.well_known_businesses.find(
+        (b) => normalize(b) === normName
+      );
+      if (wellKnownMatch) {
+        isNameCopyrighted = true;
+        nameSource = "Well-Known Brand";
+        matchedName = wellKnownMatch;
+      }
+    }
+  }
+
+  let isTaglineCopyrighted = false;
+  let matchedTagline = "";
+
+  if (normTagline) {
+    const taglineMatch = db.copyrighted_taglines.find(
+      (t) => normalize(t) === normTagline
+    );
+    if (taglineMatch) {
+      isTaglineCopyrighted = true;
+      matchedTagline = taglineMatch;
+    }
+  }
+
+  res.json({
+    isNameCopyrighted,
+    nameSource,
+    matchedName,
+    isTaglineCopyrighted,
+    matchedTagline,
+  });
+});
 
 // ==========================================
 // AI REST API ENDPOINTS
