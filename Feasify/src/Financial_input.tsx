@@ -605,6 +605,152 @@ const Financial_input: React.FC = () => {
     }
   };
 
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    const updated = {
+      ...financials,
+      [name]: value,
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleAddEquipment = () => {
+    const newEquipment = {
+      id: Date.now().toString(),
+      name: "",
+      quantity: 1,
+      unitPrice: 0,
+      total: 0,
+    };
+    const updatedList = [...(financials.equipmentList || []), newEquipment];
+    const totalCapEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.total || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      equipmentList: updatedList,
+      startupCapital: String(totalCapEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleEquipmentChange = (
+    id: string,
+    field: "name" | "quantity" | "unitPrice",
+    value: string
+  ) => {
+    const updatedList = (financials.equipmentList || []).map((eq) => {
+      if (eq.id === id) {
+        const updatedItem = {
+          ...eq,
+          [field]: field === "name" ? value : Number(value) || 0,
+        };
+        updatedItem.total =
+          (Number(updatedItem.quantity) || 0) *
+          (Number(updatedItem.unitPrice) || 0);
+        return updatedItem;
+      }
+      return eq;
+    });
+    const totalCapEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.total || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      equipmentList: updatedList,
+      startupCapital: String(totalCapEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleRemoveEquipment = (id: string) => {
+    const updatedList = (financials.equipmentList || []).filter(
+      (eq) => eq.id !== id
+    );
+    const totalCapEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.total || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      equipmentList: updatedList,
+      startupCapital: String(totalCapEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleAddOpex = () => {
+    const newOpex = {
+      id: Date.now().toString(),
+      name: "",
+      amount: 0,
+    };
+    const updatedList = [...(financials.opexList || []), newOpex];
+    const totalOpEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      opexList: updatedList,
+      fixedCosts: String(totalOpEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleOpexChange = (
+    id: string,
+    field: "name" | "amount",
+    value: string
+  ) => {
+    const updatedList = (financials.opexList || []).map((op) => {
+      if (op.id === id) {
+        return {
+          ...op,
+          [field]: field === "name" ? value : Number(value) || 0,
+        };
+      }
+      return op;
+    });
+    const totalOpEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      opexList: updatedList,
+      fixedCosts: String(totalOpEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
+  const handleRemoveOpex = (id: string) => {
+    const updatedList = (financials.opexList || []).filter(
+      (op) => op.id !== id
+    );
+    const totalOpEx = updatedList.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+    const updated = {
+      ...financials,
+      opexList: updatedList,
+      fixedCosts: String(totalOpEx),
+    };
+    setFinancials(updated);
+    handleAutoSave(updated);
+  };
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
