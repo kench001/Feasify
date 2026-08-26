@@ -9,7 +9,8 @@ import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
-  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell
+  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
+  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck
 } from "lucide-react";
 
 interface StudentData {
@@ -117,7 +118,9 @@ const AdviserDashboard: React.FC = () => {
   const [viewingProposal, setViewingProposal] = useState<ProposalData | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackInput, setFeedbackInput] = useState("");
+  const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "balance-sheet" | "ratios">("operations");
 
   // AI Analysis State
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
@@ -241,6 +244,7 @@ const AdviserDashboard: React.FC = () => {
   const handleOpenProposalModal = (proposal: ProposalData) => {
     setViewingProposal(proposal);
     setFeedbackInput("");
+    setIsFeedbackExpanded(false);
     if (proposal.aiAnalysis) {
       setModalAiResult(proposal.aiAnalysis);
     } else {
@@ -539,70 +543,497 @@ const AdviserDashboard: React.FC = () => {
     const fin = activeProposal.financialData;
     const safeSellingPrice = Number(fin.sellingPrice) || 0;
     const safeMonthlySales = Number(fin.monthlySales) || 0;
-    const safeVariableCost = Number(fin.variableCost) || 0;
+    const safeVariableCost = Number(fin.variableCost) || Number(fin.unitCost) || (Number(fin.productionCost) && Number(fin.quantityYield) ? (Number(fin.productionCost) / Number(fin.quantityYield)) : 0);
     const safeFixedCosts = fin.opexList && fin.opexList.length > 0
       ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
       : (Number(fin.fixedCosts) || 0);
     const safeStartupCapital = Number(fin.startupCapital) || Number(activeProposal.totalCapital) || 0;
 
+    // Sources of Financing
+    const safeCashInvested = Number(fin.cashInvested) || (safeStartupCapital * 0.7);
+    const safePropertyInvested = Number(fin.propertyInvested) || (safeStartupCapital * 0.3);
+    const totalInitialCapital = safeCashInvested + safePropertyInvested;
+
+    // Pre-Operating Start-up Costs
+    const safeRentAdvance = Number(fin.rentAdvance) || 0;
+    const safeTrainings = Number(fin.trainings) || 0;
+    const safeAdvertising = Number(fin.advertising) || 0;
+    const safeSalariesInitial = Number(fin.salariesInitial) || 0;
+    const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital;
+
+    // Monthly & Annual Operations
     const monthlyRevenue = safeSellingPrice * safeMonthlySales;
     const annualRevenue = monthlyRevenue * 12;
     const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
-    const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts;
+    const annualCOGS = totalMonthlyVariableCosts * 12;
+    const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
+    const monthlyInterest = fin.isCapitalBorrowed && fin.interestRate ? (safeStartupCapital * (Number(fin.interestRate) / 100)) / 12 : 0;
+    const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
     const annualNetProfit = netMonthlyProfit * 12;
 
-    const paybackVal = netMonthlyProfit > 0 ? (safeStartupCapital / netMonthlyProfit).toFixed(1) : "∞";
-    const rawROI = safeStartupCapital > 0 ? (annualNetProfit / safeStartupCapital) * 100 : 0;
+    // Philippine BMBE 3% Flat Business Tax Framework
+    const taxableSales = Math.max(0, annualRevenue);
+    const annualTax = taxableSales * 0.03;
+    const annualNetProfitAfterTax = annualNetProfit - annualTax;
+
+    // Payback Period in Years, Months, and Days
+    const monthlyCashInflow = annualNetProfitAfterTax > 0 ? (annualNetProfitAfterTax / 12) : 0;
+    let paybackYears = 0;
+    let paybackMonths = 0;
+    let paybackDays = 0;
+    if (monthlyCashInflow > 0 && safeStartupCapital > 0) {
+      const totalMonths = safeStartupCapital / monthlyCashInflow;
+      paybackYears = Math.floor(totalMonths / 12);
+      paybackMonths = Math.floor(totalMonths % 12);
+      paybackDays = Math.round((totalMonths % 1) * 30);
+    }
+    const rawROI = safeStartupCapital > 0 ? (annualNetProfitAfterTax / safeStartupCapital) * 100 : 0;
     const estimatedAnnualROI = isNaN(rawROI) ? "0.0" : rawROI.toFixed(1);
     const contributionMargin = safeSellingPrice - safeVariableCost;
     const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
 
+    // Balance Sheet (Statement of Financial Position)
+    const rawMaterialInventory = totalMonthlyVariableCosts * 0.15;
+    const grossPPE = safeStartupCapital > 0 ? safeStartupCapital : (totalInitialCapital * 0.6);
+    const annualDepreciation = grossPPE * 0.10;
+    const totalNonCurrentAssets = Math.max(0, grossPPE - annualDepreciation);
+    const safeAccountsPayable = totalMonthlyVariableCosts * 0.05;
+    const safeUtilitiesPayable = safeFixedCosts * 0.08;
+    const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable;
+    const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : (safeStartupCapital + safeFixedCosts);
+    const endingOwnerEquity = initialEquity + annualNetProfitAfterTax;
+    const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
+    const totalCurrentAssets = Math.max(0, totalLiabilitiesAndEquity - totalNonCurrentAssets);
+    const residualCash = Math.max(0, totalCurrentAssets - rawMaterialInventory);
+    const cashOnHand = residualCash * 0.15;
+    const cashInBank = residualCash * 0.85;
+    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
+
+    // Ratios
+    const currentRatio = totalCurrentLiabilities > 0 ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) : "N/A";
+    const avgInventory = rawMaterialInventory > 0 ? rawMaterialInventory : 1;
+    const numTurnover = avgInventory > 0 ? annualCOGS / avgInventory : 0;
+    const inventoryTurnover = numTurnover > 0 ? numTurnover.toFixed(1) : "0.0";
+    const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
+    const currentAssetTurnover = totalCurrentAssets > 0 ? (annualRevenue / totalCurrentAssets).toFixed(2) : "0.0";
+
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm border border-gray-100">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Revenue</span>
-            <p className="text-2xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-5 shadow-sm border border-gray-100">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Monthly Expenses</span>
-            <p className="text-2xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm border border-gray-100">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Break-Even</span>
-            <p className="text-2xl font-black text-[#122244]">{breakEvenUnits} <span className="text-xs text-gray-400">units</span></p>
-          </div>
-          <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Net Profit/mo</span>
-            <p className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
-          </div>
+        {/* SUB-TABS NAVIGATION */}
+        <div className="flex bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setAdviserFinTab("operations")}
+            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "operations" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-[#c9a654]" /> Operational Projections
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdviserFinTab("balance-sheet")}
+            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "balance-sheet" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+          >
+            <Scale className="w-3.5 h-3.5 text-blue-600" /> Balance Sheet (Financial Position)
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdviserFinTab("ratios")}
+            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "ratios" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+          >
+            <Activity className="w-3.5 h-3.5 text-emerald-600" /> Financial Ratios & Viability
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
-            <h4 className="text-sm font-bold text-[#122244] mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-[#c9a654]" /> Student Inputs</h4>
-            <div className="space-y-4">
-              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Selling Price</span><span className="font-bold">₱{safeSellingPrice.toLocaleString()}</span></div>
-              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Est. Monthly Sales</span><span className="font-bold">{safeMonthlySales.toLocaleString()} units</span></div>
-              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Variable Cost/Unit</span><span className="font-bold">₱{safeVariableCost.toLocaleString()}</span></div>
-              <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-sm text-gray-500">Fixed Costs/Mo</span><span className="font-bold">₱{safeFixedCosts.toLocaleString()}</span></div>
-              <div className="flex justify-between pb-2"><span className="text-sm text-gray-500">Startup Capital</span><span className="font-bold text-blue-600">₱{safeStartupCapital.toLocaleString()}</span></div>
+        {/* TAB 1: OPERATIONAL PROJECTIONS & COSTING */}
+        {adviserFinTab === "operations" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-4 shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Revenue</span>
+                <p className="text-xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Expenses</span>
+                <p className="text-xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Break-Even Point</span>
+                <p className="text-xl font-black text-[#122244]">{breakEvenUnits} <span className="text-[10px] text-gray-400 font-normal">units</span></p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-4 shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Gross Margin</span>
+                <p className="text-xl font-black text-purple-700">{grossProfitMargin.toFixed(1)}%</p>
+              </div>
+              <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Net Profit / Mo</span>
+                <p className={`text-xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
+              </div>
             </div>
-          </div>
 
-          <div className="bg-[#122244] text-white rounded-xl p-6 shadow-md">
-            <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#c9a654]" /> Quick Metrics</h4>
-            <div className="space-y-4">
-              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Revenue</span><span className="font-bold text-green-400">₱{annualRevenue.toLocaleString()}</span></div>
-              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Annual Net Profit</span><span className="font-bold">₱{annualNetProfit.toLocaleString()}</span></div>
-              <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-sm text-gray-400">Payback Period</span><span className="font-bold text-[#c9a654]">{paybackVal} {paybackVal !== "∞" ? "months" : ""}</span></div>
-              <div className="flex justify-between pb-2"><span className="text-sm text-gray-400">Est. Annual ROI</span><span className="font-bold text-xl">{estimatedAnnualROI}%</span></div>
+            {/* Costing & OpEx Grids */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Unit Economics & Pricing */}
+              <div className="bg-white rounded-xl border border-gray-200/80 p-6 shadow-sm space-y-4">
+                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#c9a654]" /> Unit Costing & Pricing Strategy
+                </h4>
+                <div className="space-y-3 text-xs">
+                  {fin.productionCost && fin.quantityYield && (
+                    <div className="flex justify-between border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Batch Cost & Quantity Yield:</span>
+                      <span className="font-bold text-gray-900">₱{Number(fin.productionCost).toLocaleString()} / {fin.quantityYield} pcs</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Unit Cost (COGS):</span>
+                    <span className="font-extrabold text-[#122244]">₱{safeVariableCost.toFixed(2)}</span>
+                  </div>
+                  {fin.markupPercentage && (
+                    <div className="flex justify-between border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Proposed Mark-up:</span>
+                      <span className="font-bold text-[#c9a654]">+{fin.markupPercentage}% (₱{Number(fin.markupAmount || 0).toFixed(2)})</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Selling Price to Customers:</span>
+                    <span className="font-black text-green-700">₱{safeSellingPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Estimated Monthly Sales:</span>
+                    <span className="font-bold text-gray-900">{safeMonthlySales.toLocaleString()} units/mo</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Monthly Operating Expenses (OpEx):</span>
+                    <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span className="text-gray-500">Startup Capital:</span>
+                    <span className="font-bold text-blue-600">₱{safeStartupCapital.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sources of Financing & Start-up Costs */}
+              <div className="bg-white rounded-xl border border-gray-200/80 p-6 shadow-sm space-y-4">
+                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#c9a654]" /> Sources of Financing & Project Cost
+                </h4>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Cash Invested:</span>
+                    <span className="font-bold text-gray-900">₱{safeCashInvested.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Property / Non-Cash Invested:</span>
+                    <span className="font-bold text-gray-900">₱{safePropertyInvested.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2 font-bold text-sm bg-gray-50 p-2 rounded">
+                    <span className="text-[#122244]">Total Initial Capital:</span>
+                    <span className="text-green-700">₱{totalInitialCapital.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Advance Rent & Deposit:</span>
+                    <span className="font-medium text-gray-700">₱{safeRentAdvance.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Trainings & Pre-Op Marketing:</span>
+                    <span className="font-medium text-gray-700">₱{(safeTrainings + safeAdvertising).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-bold text-xs">
+                    <span className="text-[#122244]">Total Project Launch Cost:</span>
+                    <span className="text-blue-700">₱{totalProjectCost.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* OpEx and Equipment Tables */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* OpEx Breakdown */}
+              <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-sm space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider">Itemized Operating Expenses</h4>
+                  <span className="text-xs font-bold text-red-600">Total: ₱{safeFixedCosts.toLocaleString()}/mo</span>
+                </div>
+                {fin.opexList && fin.opexList.length > 0 ? (
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                    {fin.opexList.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-xs bg-gray-50 px-3 py-1.5 rounded border border-gray-100">
+                        <span className="text-gray-700">{item.name || "Expense Item"}</span>
+                        <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">No itemized OpEx provided. Default fixed overhead applied.</p>
+                )}
+              </div>
+
+              {/* CapEx Equipment Breakdown */}
+              <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-sm space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider">Machinery & Equipment (CapEx)</h4>
+                  <span className="text-xs font-bold text-[#122244]">
+                    Total: ₱{(fin.equipmentList && fin.equipmentList.length > 0 ? fin.equipmentList.reduce((s: number, e: any) => s + (Number(e.total) || 0), 0) : safeStartupCapital).toLocaleString()}
+                  </span>
+                </div>
+                {fin.equipmentList && fin.equipmentList.length > 0 ? (
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                    {fin.equipmentList.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-xs bg-gray-50 px-3 py-1.5 rounded border border-gray-100">
+                        <span className="text-gray-700">{item.name || "Equipment"} <span className="text-gray-400">({item.quantity || 1}x)</span></span>
+                        <span className="font-semibold text-gray-900">₱{Number(item.total || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">No itemized equipment list provided.</p>
+                )}
+              </div>
+            </div>
+
+            {/* BMBE Tax & Loan Banner */}
+            <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-[#122244]">Philippine BMBE Framework (RA 9178)</p>
+                  <p className="text-gray-600">3% Flat Tax on Annual Gross Revenue: <strong>₱{annualTax.toLocaleString()}</strong></p>
+                </div>
+              </div>
+              {fin.isCapitalBorrowed && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px]">
+                  Borrowed Loan: {fin.interestRate}% Interest/yr
+                </span>
+              )}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* TAB 2: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
+        {adviserFinTab === "balance-sheet" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Balance Verified Badge */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <p className="font-extrabold text-emerald-900 text-sm">Balanced Statement of Financial Position</p>
+                  <p className="text-xs text-emerald-700">Assets = Liabilities + Owner's Equity (Verified Double-Entry Standard)</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-emerald-600 text-white font-black text-xs rounded-lg uppercase tracking-wider">
+                Balanced ✓
+              </span>
+            </div>
+
+            {/* Two-Column Balance Sheet */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ASSETS */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
+                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
+                  <span>ASSETS (What Business Owns)</span>
+                  <span className="text-green-600">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </h4>
+                
+                <div className="space-y-3 text-xs">
+                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Assets (Liquid)</p>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Cash on Hand (15% Cash Drawer):</span>
+                    <span className="font-bold text-gray-900">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Cash in Bank (85% Bank Account):</span>
+                    <span className="font-bold text-gray-900">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Merchandise & Raw Materials Inventory:</span>
+                    <span className="font-bold text-gray-900">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
+                    <span className="text-gray-700">Total Current Assets:</span>
+                    <span className="text-[#122244]">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Non-Current Assets (Long-Term)</p>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Property, Plant & Equipment (Gross):</span>
+                    <span className="font-bold text-gray-900">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
+                    <span>Less: Accumulated Depreciation (10%/yr):</span>
+                    <span className="font-bold">-₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
+                    <span className="text-gray-700">Total Non-Current Assets (Net PPE):</span>
+                    <span className="text-[#122244]">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
+                    <span>TOTAL ASSETS:</span>
+                    <span className="text-green-400">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIABILITIES & OWNER'S EQUITY */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
+                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
+                  <span>LIABILITIES & OWNER'S EQUITY</span>
+                  <span className="text-blue-600">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </h4>
+
+                <div className="space-y-3 text-xs">
+                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Liabilities (Short-Term Obligations)</p>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Accounts Payable (Suppliers Owed):</span>
+                    <span className="font-bold text-gray-900">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Utilities & Operational Payable:</span>
+                    <span className="font-bold text-gray-900">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
+                    <span className="text-gray-700">Total Current Liabilities:</span>
+                    <span className="text-red-600">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Owner's Equity (Net Worth)</p>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Initial Capital Contributed:</span>
+                    <span className="font-bold text-gray-900">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-50">
+                    <span className="text-gray-600">Add: Retained Net Income (After Tax):</span>
+                    <span className="font-bold text-emerald-600">₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
+                    <span className="text-gray-700">Ending Owner's Capital:</span>
+                    <span className="text-[#122244]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
+                    <span>TOTAL LIABILITIES & EQUITY:</span>
+                    <span className="text-blue-400">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: FINANCIAL RATIOS & FEASIBILITY HEALTH */}
+        {adviserFinTab === "ratios" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* 4 Main KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Payback Period */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Payback Period</span>
+                  <p className="text-lg font-black text-[#122244] leading-snug">
+                    {paybackYears > 0 && `${paybackYears}y `}
+                    {paybackMonths}m {paybackDays}d
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
+                  Time required to recover ₱{safeStartupCapital.toLocaleString()} initial investment.
+                </p>
+              </div>
+
+              {/* Current Ratio */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Ratio</span>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded">
+                      {Number(currentRatio) >= 1.5 ? "Healthy" : "Adequate"}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-emerald-700">{currentRatio}x</p>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
+                  Current Assets / Current Liabilities (Short-term debt safety).
+                </p>
+              </div>
+
+              {/* Inventory Turnover */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Inventory Turnover</span>
+                  <p className="text-2xl font-black text-[#122244]">{inventoryTurnover} <span className="text-xs text-gray-400 font-normal">times/yr</span></p>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
+                  COGS / Average Inventory (Stock movement velocity).
+                </p>
+              </div>
+
+              {/* Average Age of Inventory */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Average Inventory Age</span>
+                  <p className="text-2xl font-black text-amber-700">{avgAgeOfInventory} <span className="text-xs text-gray-400 font-normal">days</span></p>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
+                  360 Days / Inventory Turnover (Shelf storage duration).
+                </p>
+              </div>
+            </div>
+
+            {/* Profitability & Asset Turnover Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-[#c9a654]" /> Profitability & Return Ratios
+                </h4>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Gross Profit Margin:</span>
+                    <span className="font-bold text-gray-900">{grossProfitMargin.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Net Profit Margin (After Tax):</span>
+                    <span className="font-bold text-emerald-700">
+                      {annualRevenue > 0 ? ((annualNetProfitAfterTax / annualRevenue) * 100).toFixed(1) : "0.0"}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-500">Annual ROI (% on Startup Capital):</span>
+                    <span className="font-extrabold text-blue-700">{estimatedAnnualROI}%</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span className="text-gray-500">Current Asset Turnover (Sales / Assets):</span>
+                    <span className="font-bold text-gray-900">{currentAssetTurnover}x</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-md space-y-4">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Faculty Evaluation & Defense Checklist
+                </h4>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <span><strong>Break-Even Feasibility:</strong> Target sales of {safeMonthlySales.toLocaleString()} units surpass break-even ({breakEvenUnits} units).</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <span><strong>Liquidity Status:</strong> Current ratio of {currentRatio}x verifies capacity to service short-term supplier payables.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <span><strong>Balance Sheet Integrity:</strong> Assets match Liabilities and Ending Equity with 10% PPE depreciation.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
   // FIXED Metrics Calculations: Guaranteed to never be negative by filtering actual students.
   const assignedIds = new Set<string>();
@@ -1039,14 +1470,18 @@ const AdviserDashboard: React.FC = () => {
 
                 {/* TAB: BUSINESS PROFILE */}
                 {activeBusinessTab === 'Profile' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                       <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100"><FileText className="w-5 h-5 text-blue-500" /></div>
-                      <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
+                      <div>
+                        <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
+                        <p className="text-xs text-gray-400">Comprehensive business profile and feasibility parameters</p>
+                      </div>
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
+
+                    <div className="bg-gray-50 rounded-xl p-6 flex divide-x divide-gray-200 text-center border border-gray-100">
                       <div className="flex-1 pr-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Capital</p>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Initial Capital</p>
                         <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
                       </div>
                       <div className="flex-1 pl-6">
@@ -1054,6 +1489,42 @@ const AdviserDashboard: React.FC = () => {
                         <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
                       </div>
                     </div>
+
+                    {/* Unit Costing & Pricing Strategy Banner */}
+                    {activeProposal.financialData && (
+                      <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-5 space-y-3">
+                        <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                          <Package className="w-4 h-4 text-[#c9a654]" /> Proposed Unit Economics & Markup Strategy
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                            <span className="font-extrabold text-[#122244]">
+                              ₱{Number(activeProposal.financialData.unitCost || activeProposal.financialData.variableCost || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Proposed Markup</span>
+                            <span className="font-bold text-[#c9a654]">
+                              +{activeProposal.financialData.markupPercentage || '0'}%
+                            </span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Selling Price</span>
+                            <span className="font-black text-green-700">
+                              ₱{Number(activeProposal.financialData.sellingPrice || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Monthly Sales Target</span>
+                            <span className="font-bold text-gray-900">
+                              {Number(activeProposal.financialData.monthlySales || 0).toLocaleString()} units
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-6">
                       <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p></div>
                       <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p></div>
@@ -1064,6 +1535,43 @@ const AdviserDashboard: React.FC = () => {
                       <div><p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p></div>
                       <div><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p><p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p></div>
                       <div><p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p></div>
+
+                      {/* Equipment List (if any) */}
+                      {activeProposal.financialData?.equipmentList && activeProposal.financialData.equipmentList.length > 0 && (
+                        <div className="pt-2">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Itemized Equipment & Machinery (CapEx)</p>
+                          <div className="border border-gray-100 rounded-xl overflow-hidden">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-gray-400 font-bold">
+                                <tr>
+                                  <th className="p-2.5">Equipment Name</th>
+                                  <th className="p-2.5 text-center w-16">Qty</th>
+                                  <th className="p-2.5 text-right w-24">Unit Price</th>
+                                  <th className="p-2.5 text-right w-28">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {activeProposal.financialData.equipmentList.map((eq: any, idx: number) => (
+                                  <tr key={idx}>
+                                    <td className="p-2.5 text-gray-800 font-medium">{eq.name || '-'}</td>
+                                    <td className="p-2.5 text-center text-gray-600">{eq.quantity || 1}</td>
+                                    <td className="p-2.5 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
+                                    <td className="p-2.5 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Other Details */}
+                      {activeProposal.otherDetails && (
+                        <div className="pt-2">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Other Details & Notes</p>
+                          <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">{activeProposal.otherDetails}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1317,6 +1825,204 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
                   </section>
+
+                  {/* FINANCIAL PROPOSAL & COSTING (FEASIBILITY INPUTS) */}
+                  <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                    <div className="px-6 py-4 border-b border-gray-50 bg-gradient-to-r from-amber-50/60 to-blue-50/40 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-100 text-[#c9a654] rounded-lg">
+                          <Calculator className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">
+                            Financial Proposal & Unit Costing
+                          </h3>
+                          <p className="text-[11px] text-gray-500 font-medium">
+                            Unit economics, markup strategy, and operational feasibility
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-amber-100 text-[#b59545] text-[10px] font-black rounded-lg uppercase tracking-wider">
+                        Feasibility Inputs
+                      </span>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {(() => {
+                        const fin = viewingProposal.financialData || {};
+                        const safeSellingPrice = Number(fin.sellingPrice) || 0;
+                        const safeMonthlySales = Number(fin.monthlySales) || 0;
+                        const safeUnitCost = Number(fin.unitCost) || Number(fin.variableCost) || (Number(fin.productionCost) && Number(fin.quantityYield) ? Number(fin.productionCost) / Number(fin.quantityYield) : 0);
+                        const safeFixedCosts = fin.opexList && fin.opexList.length > 0
+                          ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+                          : (Number(fin.fixedCosts) || 0);
+                        const safeStartupCapital = Number(fin.startupCapital) || Number(viewingProposal.totalCapital) || 0;
+
+                        const monthlyRevenue = safeSellingPrice * safeMonthlySales;
+                        const totalMonthlyVariableCosts = safeUnitCost * safeMonthlySales;
+                        const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
+                        const monthlyInterest = fin.isCapitalBorrowed && fin.interestRate ? (safeStartupCapital * (Number(fin.interestRate) / 100)) / 12 : 0;
+                        const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
+                        const contributionMargin = safeSellingPrice - safeUnitCost;
+                        const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
+
+                        return (
+                          <>
+                            {/* KPI Banner */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Unit Cost (COGS)</span>
+                                <span className="text-sm font-black text-[#122244]">₱{safeUnitCost.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Selling Price</span>
+                                <span className="text-sm font-black text-green-700">₱{safeSellingPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Rev</span>
+                                <span className="text-sm font-black text-blue-700">₱{monthlyRevenue.toLocaleString()}</span>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Gross Margin</span>
+                                <span className="text-sm font-black text-purple-700">{grossProfitMargin.toFixed(1)}%</span>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Est. Net Profit</span>
+                                <span className={`text-sm font-black ${netMonthlyProfit >= 0 ? 'text-[#c9a654]' : 'text-red-500'}`}>
+                                  ₱{netMonthlyProfit.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Break-Even</span>
+                                <span className="text-sm font-black text-amber-700">{breakEvenUnits} units</span>
+                              </div>
+                            </div>
+
+                            {/* Detailed Breakdown Grids */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                              {/* Step 1 & 2: Costing & Pricing */}
+                              <div className="space-y-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
+                                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                                  <Package className="w-3.5 h-3.5 text-[#c9a654]" /> Unit Costing & Markup Strategy
+                                </h4>
+                                <div className="space-y-2.5 text-xs">
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Batch Production Cost:</span>
+                                    <span className="font-bold text-gray-900">₱{Number(fin.productionCost || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Quantity Yield per Batch:</span>
+                                    <span className="font-bold text-gray-900">{fin.quantityYield || '0'} pcs/batch</span>
+                                  </div>
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Unit Cost (COGS):</span>
+                                    <span className="font-extrabold text-[#122244]">₱{safeUnitCost.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Proposed Markup:</span>
+                                    <span className="font-bold text-[#c9a654]">+{fin.markupPercentage || '0'}% (₱{Number(fin.markupAmount || 0).toFixed(2)})</span>
+                                  </div>
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Computed Base Price:</span>
+                                    <span className="font-bold text-gray-700">₱{Number(fin.computedSellingPrice || 0).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between pt-1 font-bold text-sm">
+                                    <span className="text-green-800">Target Selling Price:</span>
+                                    <span className="font-black text-green-700">₱{safeSellingPrice.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Step 3: Sales Volume & Operating Expenses */}
+                              <div className="space-y-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
+                                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                                  <TrendingUp className="w-3.5 h-3.5 text-[#c9a654]" /> Sales Volume & Operating Expenses
+                                </h4>
+                                <div className="space-y-2.5 text-xs">
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Monthly Target Sales:</span>
+                                    <span className="font-bold text-gray-900">{safeMonthlySales.toLocaleString()} units/mo</span>
+                                  </div>
+                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
+                                    <span className="text-gray-500">Total Monthly OpEx:</span>
+                                    <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
+                                  </div>
+                                  {fin.opexList && fin.opexList.length > 0 && (
+                                    <div className="space-y-1.5 pt-1">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">OpEx Breakdown:</span>
+                                      <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                        {fin.opexList.map((item: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between text-[11px] bg-white px-2.5 py-1 rounded border border-gray-100">
+                                            <span className="text-gray-700">{item.name || 'Expense'}</span>
+                                            <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {fin.isCapitalBorrowed && (
+                                    <div className="flex justify-between pt-1 border-t border-gray-200/60 text-[11px] text-amber-800 bg-amber-50 p-2 rounded">
+                                      <span>Borrowed Capital Loan:</span>
+                                      <span className="font-bold">{fin.interestRate}% Interest/yr</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Equipment / CapEx Table */}
+                            {fin.equipmentList && fin.equipmentList.length > 0 && (
+                              <div className="space-y-2 pt-2">
+                                <div className="flex justify-between items-center">
+                                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Itemized Equipment & Machinery (CapEx)
+                                  </label>
+                                  <span className="text-xs font-extrabold text-[#122244]">
+                                    Total: ₱{fin.equipmentList.reduce((sum: number, eq: any) => sum + (Number(eq.total) || 0), 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                  <table className="w-full text-left text-xs border-collapse">
+                                    <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-gray-400 font-bold">
+                                      <tr>
+                                        <th className="p-2.5">Item Name</th>
+                                        <th className="p-2.5 w-16 text-center">Qty</th>
+                                        <th className="p-2.5 w-24">Unit Price</th>
+                                        <th className="p-2.5 w-28 text-right">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                      {fin.equipmentList.map((eq: any, idx: number) => (
+                                        <tr key={idx} className="hover:bg-gray-50/50">
+                                          <td className="p-2.5 font-medium text-gray-800">{eq.name || '-'}</td>
+                                          <td className="p-2.5 text-center text-gray-600">{eq.quantity || 1}</td>
+                                          <td className="p-2.5 text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
+                                          <td className="p-2.5 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </section>
+
+                  {/* OTHER DETAILS */}
+                  {viewingProposal.otherDetails && (
+                    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                      <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+                        <div className="p-2 bg-gray-100 rounded-lg"><Info className="w-4 h-4 text-gray-600" /></div>
+                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Other Details & Notes</h3>
+                      </div>
+                      <div className="p-6">
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.otherDetails}</div>
+                      </div>
+                    </section>
+                  )}
                 </div>
               </div>
 
@@ -1463,53 +2169,97 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ADVISER FEEDBACK SECTION (Sticky Bottom) */}
+                {/* ADVISER FEEDBACK SECTION (Sticky Bottom & Foldable) */}
                 {viewingProposal.status === 'Pending' ? (
-                  <div className="border-t border-gray-200 bg-white p-6 md:p-8 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-5">
-                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                        <MessageCircle className="w-4.5 h-4.5 text-[#c9a654]" /> Feedback & Decision
-                      </h3>
-                      {modalAiResult && modalAiResult.draftFeedback && (
+                  <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
+                    {/* Collapsible Header */}
+                    <div 
+                      onClick={() => setIsFeedbackExpanded(!isFeedbackExpanded)}
+                      className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity mb-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4 text-[#c9a654]" />
+                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest">
+                          Feedback & Decision
+                        </h3>
+                        {feedbackInput.trim() && !isFeedbackExpanded && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
+                            Draft Attached
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {modalAiResult && modalAiResult.draftFeedback && !isFeedbackExpanded && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFeedbackInput(modalAiResult.draftFeedback);
+                              setIsFeedbackExpanded(true);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[11px] font-bold border border-blue-200/60 shadow-sm"
+                          >
+                            <Sparkles className="w-3 h-3" /> Use AI Draft
+                          </button>
+                        )}
                         <button
-                          onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm w-full xl:w-auto">
-                          <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
+                          type="button"
+                          className="text-gray-400 hover:text-gray-600 p-1 rounded-md"
+                        >
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFeedbackExpanded ? "rotate-180" : ""}`} />
                         </button>
-                      )}
+                      </div>
                     </div>
 
-                    <textarea
-                      value={feedbackInput}
-                      onChange={(e) => setFeedbackInput(e.target.value)}
-                      placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
-                      className="w-full p-5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-40 text-base bg-gray-50/50 text-gray-900 placeholder-gray-400 mb-6 transition-all shadow-inner"
-                    />
+                    {/* Foldable Textarea Container */}
+                    {isFeedbackExpanded && (
+                      <div className="space-y-3 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        {modalAiResult && modalAiResult.draftFeedback && (
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
+                            </button>
+                          </div>
+                        )}
+                        <textarea
+                          value={feedbackInput}
+                          onChange={(e) => setFeedbackInput(e.target.value)}
+                          placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
+                          className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-32 text-sm bg-gray-50/50 text-gray-900 placeholder-gray-400 transition-all shadow-inner"
+                        />
+                      </div>
+                    )}
 
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Action Decision Buttons (Always Visible) */}
+                    <div className="flex flex-col sm:flex-row gap-2.5">
                       <button
                         onClick={() => handleProposalAction(viewingProposal, 'Reject')}
                         disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-red-600 border-2 border-red-100 font-extrabold text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2">
-                        <X className="w-5 h-5" /> Reject Proposal
+                        className="flex-1 py-3 bg-white text-red-600 border-2 border-red-100 font-extrabold text-xs sm:text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                        <X className="w-4 h-4" /> Reject Proposal
                       </button>
                       <button
                         onClick={() => handleProposalAction(viewingProposal, 'Revision')}
                         disabled={isSaving}
-                        className="w-full py-3.5 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-2">
-                        <Edit2 className="w-5 h-5" /> Needs Revision
+                        className="flex-1 py-3 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-xs sm:text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                        <Edit2 className="w-4 h-4" /> Needs Revision
                       </button>
                       <button
                         onClick={() => handleProposalAction(viewingProposal, 'Approve')}
                         disabled={isSaving}
-                        className="w-full py-3.5 bg-[#c9a654] text-white font-extrabold text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        className="flex-1 py-3 bg-[#c9a654] text-white font-extrabold text-xs sm:text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1.5 active:scale-95">
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                         Approve Proposal
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="border-t border-gray-200 bg-white p-6 md:p-8 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
+                  <div className="border-t border-gray-200 bg-white p-4 md:p-6 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
                     <button onClick={() => setViewingProposal(null)} className="py-3 px-8 bg-gray-100 text-[#122244] font-extrabold text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-sm w-full xl:w-auto">
                       Close Proposal
                     </button>
