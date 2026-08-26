@@ -10,7 +10,7 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck
+  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3
 } from "lucide-react";
 
 interface StudentData {
@@ -536,7 +536,7 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
-  // Financial Calculations for Read-Only Display
+  // Financial Calculations for Read-Only Display (100% Synchronized with Financial_input.tsx)
   const renderFinancialData = () => {
     if (!activeProposal?.financialData) return <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">No financial data has been input yet.</div>;
 
@@ -548,35 +548,71 @@ const AdviserDashboard: React.FC = () => {
       ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
       : (Number(fin.fixedCosts) || 0);
     const safeStartupCapital = Number(fin.startupCapital) || Number(activeProposal.totalCapital) || 0;
+    const safeOperatingDays = Number(fin.operatingDays) || 300;
 
-    // Sources of Financing
-    const safeCashInvested = Number(fin.cashInvested) || (safeStartupCapital * 0.7);
-    const safePropertyInvested = Number(fin.propertyInvested) || (safeStartupCapital * 0.3);
-    const totalInitialCapital = safeCashInvested + safePropertyInvested;
-
-    // Pre-Operating Start-up Costs
-    const safeRentAdvance = Number(fin.rentAdvance) || 0;
-    const safeTrainings = Number(fin.trainings) || 0;
-    const safeAdvertising = Number(fin.advertising) || 0;
-    const safeSalariesInitial = Number(fin.salariesInitial) || 0;
-    const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital;
-
-    // Monthly & Annual Operations
     const monthlyRevenue = safeSellingPrice * safeMonthlySales;
-    const annualRevenue = monthlyRevenue * 12;
     const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
-    const annualCOGS = totalMonthlyVariableCosts * 12;
     const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
     const monthlyInterest = fin.isCapitalBorrowed && fin.interestRate ? (safeStartupCapital * (Number(fin.interestRate) / 100)) / 12 : 0;
     const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
-    const annualNetProfit = netMonthlyProfit * 12;
 
-    // Philippine BMBE 3% Flat Business Tax Framework
-    const taxableSales = Math.max(0, annualRevenue);
-    const annualTax = taxableSales * 0.03;
-    const annualNetProfitAfterTax = annualNetProfit - annualTax;
+    const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const annualExpenses = ((totalMonthlyVariableCosts + safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
+    const annualNetProfitPreTax = annualRevenue - annualExpenses;
 
-    // Payback Period in Years, Months, and Days
+    const annualTax = annualRevenue * 0.03;
+    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - annualTax;
+
+    // Sources of Financing
+    const safeCashInvested = Number(fin.cashInvested) || (safeStartupCapital > 0 ? safeStartupCapital : 0);
+    const safePropertyInvested = Number(fin.propertyInvested) || 0;
+    const totalInitialCapital = safeCashInvested + safePropertyInvested;
+
+    // Pre-Operating Start-up Costs
+    const safeRentAdvance = Number(fin.rentAdvance) || Number(fin.rentAdvanceDeposit) || 0;
+    const safeTrainings = Number(fin.trainings) || Number(fin.trainingsPrograms) || 0;
+    const safeAdvertising = Number(fin.advertising) || Number(fin.advertisingExpense) || 0;
+    const safeSalariesInitial = Number(fin.salariesInitial) || Number(fin.salariesExpenseInitial) || 0;
+    const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital;
+
+    // Section 4: Current Assets
+    const operatingCashBuffer = Math.max(0, netMonthlyProfit * 12);
+    const totalLiquidCash = safeCashInvested + operatingCashBuffer;
+    const cashOnHand = totalLiquidCash * 0.15; // 15% allocation
+    const cashInBank = totalLiquidCash * 0.85; // 85% allocation
+    const rawMaterialInventory = totalMonthlyVariableCosts * 0.15; // 15% ending inventory buffer
+    const totalCurrentAssets = cashOnHand + cashInBank + rawMaterialInventory;
+
+    // Non-Current Assets: Equipment/Machinery net of 10% straight-line annual depreciation
+    const grossPPE = safeStartupCapital + safePropertyInvested;
+    const annualDepreciation = grossPPE * 0.10;
+    const ppeNet = Math.max(0, grossPPE - annualDepreciation);
+    const totalNonCurrentAssets = ppeNet;
+    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
+
+    // Current Liabilities
+    const safeAccountsPayable = Number(fin.accountsPayable) || (totalMonthlyVariableCosts * 0.20);
+    const safeUtilitiesPayable = Number(fin.utilitiesPayable) || (safeFixedCosts * 0.15);
+    const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable;
+
+    // Owner's Equity
+    const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : safeStartupCapital;
+    const endingOwnerEquity = totalAssets - totalCurrentLiabilities;
+    const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
+
+    // Automated Financial Ratios
+    const currentRatio = totalCurrentLiabilities > 0 
+      ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) 
+      : (totalCurrentAssets > 0 ? "99.9" : "0.0");
+    const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
+    const avgInventory = rawMaterialInventory > 0 ? rawMaterialInventory : 1;
+    const inventoryTurnover = avgInventory > 0 ? (annualCOGS / avgInventory).toFixed(1) : "0.0";
+    const numTurnover = Number(inventoryTurnover) || 0;
+    const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
+    const currentAssetTurnover = totalCurrentAssets > 0 
+      ? (annualRevenue / totalCurrentAssets).toFixed(2) 
+      : "0.0";
+
     const monthlyCashInflow = annualNetProfitAfterTax > 0 ? (annualNetProfitAfterTax / 12) : 0;
     let paybackYears = 0;
     let paybackMonths = 0;
@@ -591,31 +627,6 @@ const AdviserDashboard: React.FC = () => {
     const estimatedAnnualROI = isNaN(rawROI) ? "0.0" : rawROI.toFixed(1);
     const contributionMargin = safeSellingPrice - safeVariableCost;
     const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
-
-    // Balance Sheet (Statement of Financial Position)
-    const rawMaterialInventory = totalMonthlyVariableCosts * 0.15;
-    const grossPPE = safeStartupCapital > 0 ? safeStartupCapital : (totalInitialCapital * 0.6);
-    const annualDepreciation = grossPPE * 0.10;
-    const totalNonCurrentAssets = Math.max(0, grossPPE - annualDepreciation);
-    const safeAccountsPayable = totalMonthlyVariableCosts * 0.05;
-    const safeUtilitiesPayable = safeFixedCosts * 0.08;
-    const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable;
-    const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : (safeStartupCapital + safeFixedCosts);
-    const endingOwnerEquity = initialEquity + annualNetProfitAfterTax;
-    const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
-    const totalCurrentAssets = Math.max(0, totalLiabilitiesAndEquity - totalNonCurrentAssets);
-    const residualCash = Math.max(0, totalCurrentAssets - rawMaterialInventory);
-    const cashOnHand = residualCash * 0.15;
-    const cashInBank = residualCash * 0.85;
-    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
-
-    // Ratios
-    const currentRatio = totalCurrentLiabilities > 0 ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) : "N/A";
-    const avgInventory = rawMaterialInventory > 0 ? rawMaterialInventory : 1;
-    const numTurnover = avgInventory > 0 ? annualCOGS / avgInventory : 0;
-    const inventoryTurnover = numTurnover > 0 ? numTurnover.toFixed(1) : "0.0";
-    const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
-    const currentAssetTurnover = totalCurrentAssets > 0 ? (annualRevenue / totalCurrentAssets).toFixed(2) : "0.0";
 
     return (
       <div className="space-y-6">
