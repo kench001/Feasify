@@ -506,7 +506,19 @@ const Projects: React.FC = () => {
         where("groupId", "==", groupId),
       );
       const snap = await getDocs(q);
-      const fetchedProposals = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ProposalData);
+      const fetchedProposals = snap.docs.map((d) => {
+        const data = d.data();
+        if (!data.originalProposalFinancials && data.financialData) {
+          updateDoc(doc(db, "proposals", d.id), {
+            originalProposalFinancials: data.financialData
+          }).catch(console.error);
+        }
+        return {
+          id: d.id,
+          ...data,
+          originalProposalFinancials: data.originalProposalFinancials || data.financialData || null
+        } as ProposalData;
+      });
       setProposals(fetchedProposals);
       sessionStorage.setItem('projectsProposalCount', fetchedProposals.length.toString());
       return fetchedProposals;
@@ -723,6 +735,7 @@ const Projects: React.FC = () => {
         ...currentProposal,
         groupId: userGroup.id,
         status,
+        originalProposalFinancials: currentProposal.originalProposalFinancials || currentProposal.financialData || null,
       };
       if (currentProposal.id) {
         await updateDoc(doc(db, "proposals", currentProposal.id), {
@@ -2583,40 +2596,140 @@ const Projects: React.FC = () => {
                         </p>
                       </div>
 
-                      {activeBusiness.financialData && (
-                        <div>
-                          <div className="h-px bg-gray-100 my-4"></div>
-                          <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                            <Calculator className="w-3.5 h-3.5" /> Proposed Unit Economics & Projections
-                          </p>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                            <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                              <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                              <span className="font-extrabold text-[#122244] text-sm">
-                                ₱{Number(activeBusiness.financialData.unitCost || activeBusiness.financialData.variableCost || 0).toFixed(2)}
+                      {(() => {
+                        const proposalFin = activeBusiness.originalProposalFinancials || activeBusiness.financialData;
+                        if (!proposalFin) return null;
+
+                        const safeUnitCost = Number(proposalFin.unitCost) || Number(proposalFin.variableCost) || (Number(proposalFin.productionCost) && Number(proposalFin.quantityYield) ? Number(proposalFin.productionCost) / Number(proposalFin.quantityYield) : 0);
+                        const safeSellingPrice = Number(proposalFin.sellingPrice) || 0;
+                        const safeMonthlySales = Number(proposalFin.monthlySales) || 0;
+                        const safeFixedCosts = proposalFin.opexList && proposalFin.opexList.length > 0
+                          ? proposalFin.opexList.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+                          : (Number(proposalFin.fixedCosts) || 0);
+                        const monthlyRev = safeSellingPrice * safeMonthlySales;
+                        const grossMargin = monthlyRev > 0 ? ((monthlyRev - (safeUnitCost * safeMonthlySales)) / monthlyRev) * 100 : 0;
+
+                        return (
+                          <div className="space-y-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
+                                <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
+                              </p>
+                              <span className="text-[9px] font-black uppercase bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                                Proposal Record
                               </span>
                             </div>
-                            <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
-                              <span className="text-[9px] text-[#b59545] font-bold uppercase block">Target Price</span>
-                              <span className="font-extrabold text-[#c9a654] text-sm">
-                                ₱{Number(activeBusiness.financialData.sellingPrice || 0).toFixed(2)}
-                              </span>
+
+                            {/* KPI Banner */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                <span className="font-extrabold text-[#122244] text-sm">₱{safeUnitCost.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
+                                <span className="text-[9px] text-[#b59545] font-bold uppercase block">Proposed Price</span>
+                                <span className="font-extrabold text-[#c9a654] text-sm">₱{safeSellingPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Monthly Sales</span>
+                                <span className="font-extrabold text-[#122244] text-sm">{safeMonthlySales.toLocaleString()} pcs</span>
+                              </div>
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Est. Revenue</span>
+                                <span className="font-extrabold text-green-700 text-sm">₱{monthlyRev.toLocaleString()}</span>
+                              </div>
                             </div>
-                            <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                              <span className="text-[9px] text-gray-400 font-bold uppercase block">Monthly Sales</span>
-                              <span className="font-extrabold text-[#122244] text-sm">
-                                {activeBusiness.financialData.monthlySales || "0"} pcs
-                              </span>
+
+                            {/* Detailed Grid: Costing & OpEx */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                              <div className="space-y-2">
+                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Unit Costing & Markup Strategy</span>
+                                {proposalFin.productionCost && proposalFin.quantityYield && (
+                                  <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                    <span className="text-gray-500">Batch Cost / Yield:</span>
+                                    <span className="font-semibold text-gray-900">₱{Number(proposalFin.productionCost).toLocaleString()} / {proposalFin.quantityYield} pcs</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Proposed Markup:</span>
+                                  <span className="font-bold text-[#c9a654]">+{proposalFin.markupPercentage || '0'}%</span>
+                                </div>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Gross Margin:</span>
+                                  <span className="font-bold text-purple-700">{grossMargin.toFixed(1)}%</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Volume & Fixed Costs</span>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Total Fixed OpEx:</span>
+                                  <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
+                                </div>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Operating Schedule:</span>
+                                  <span className="font-semibold text-gray-900">{proposalFin.operatingDays || '300'} days/yr</span>
+                                </div>
+                                {proposalFin.isCapitalBorrowed && (
+                                  <div className="flex justify-between border-b border-gray-200/50 pb-1 text-amber-800">
+                                    <span>Loan Interest:</span>
+                                    <span className="font-bold">{proposalFin.interestRate}% Interest/yr</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                              <span className="text-[9px] text-gray-400 font-bold uppercase block">Est. Revenue</span>
-                              <span className="font-extrabold text-green-700 text-sm">
-                                ₱{(Number(activeBusiness.financialData.sellingPrice || 0) * Number(activeBusiness.financialData.monthlySales || 0)).toLocaleString()}
-                              </span>
-                            </div>
+
+                            {/* Itemized OpEx List (if present) */}
+                            {proposalFin.opexList && proposalFin.opexList.length > 0 && (
+                              <div className="space-y-1.5">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Submitted Operating Expenses</span>
+                                <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                  {proposalFin.opexList.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-xs bg-white px-3 py-1 rounded border border-gray-100">
+                                      <span className="text-gray-700">{item.name || 'Expense Item'}</span>
+                                      <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Equipment CapEx (if present) */}
+                            {proposalFin.equipmentList && proposalFin.equipmentList.length > 0 && (
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Submitted Machinery & Equipment</span>
+                                  <span className="text-xs font-bold text-[#122244]">
+                                    Total: ₱{proposalFin.equipmentList.reduce((s: number, e: any) => s + (Number(e.total) || 0), 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
+                                      <tr>
+                                        <th className="p-2">Item Name</th>
+                                        <th className="p-2 text-center w-12">Qty</th>
+                                        <th className="p-2 text-right w-20">Unit Price</th>
+                                        <th className="p-2 text-right w-24">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                      {proposalFin.equipmentList.map((eq: any, idx: number) => (
+                                        <tr key={idx}>
+                                          <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
+                                          <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
+                                          <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
+                                          <td className="p-2 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -120,7 +120,7 @@ const AdviserDashboard: React.FC = () => {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "balance-sheet" | "ratios">("operations");
+  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "balance-sheet">("operations");
 
   // AI Analysis State
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
@@ -198,7 +198,19 @@ const AdviserDashboard: React.FC = () => {
     try {
       const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
       const snap = await getDocs(q);
-      const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProposalData));
+      const fetched = snap.docs.map(d => {
+        const data = d.data();
+        if (!data.originalProposalFinancials && data.financialData) {
+          updateDoc(doc(db, "proposals", d.id), {
+            originalProposalFinancials: data.financialData
+          }).catch(console.error);
+        }
+        return {
+          id: d.id,
+          ...data,
+          originalProposalFinancials: data.originalProposalFinancials || data.financialData || null
+        } as ProposalData;
+      });
       fetched.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       setGroupProposals(fetched);
     } catch (error) { console.error("Error fetching proposals:", error); }
@@ -487,6 +499,9 @@ const AdviserDashboard: React.FC = () => {
       let newGroupStatus = selectedGroup.status;
       if (action === 'Approve') {
         newGroupStatus = 'Approved Proposal';
+        if (proposal.financialData && !proposal.originalProposalFinancials) {
+          updatePayload.originalProposalFinancials = proposal.financialData;
+        }
       } else if (action === 'Reject') {
         const otherPending = groupProposals.filter(p => p.id !== proposal.id && p.status === 'Pending');
         if (otherPending.length === 0 && selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
@@ -565,8 +580,7 @@ const AdviserDashboard: React.FC = () => {
 
     // Sources of Financing
     const safeCashInvested = Number(fin.cashInvested) || (safeStartupCapital > 0 ? safeStartupCapital : 0);
-    const safePropertyInvested = Number(fin.propertyInvested) || 0;
-    const totalInitialCapital = safeCashInvested + safePropertyInvested;
+    const totalInitialCapital = safeCashInvested;
 
     // Pre-Operating Start-up Costs
     const safeRentAdvance = Number(fin.rentAdvance) || Number(fin.rentAdvanceDeposit) || 0;
@@ -584,7 +598,7 @@ const AdviserDashboard: React.FC = () => {
     const totalCurrentAssets = cashOnHand + cashInBank + rawMaterialInventory;
 
     // Non-Current Assets: Equipment/Machinery net of 10% straight-line annual depreciation
-    const grossPPE = safeStartupCapital + safePropertyInvested;
+    const grossPPE = safeStartupCapital;
     const annualDepreciation = grossPPE * 0.10;
     const ppeNet = Math.max(0, grossPPE - annualDepreciation);
     const totalNonCurrentAssets = ppeNet;
@@ -645,13 +659,6 @@ const AdviserDashboard: React.FC = () => {
             className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "balance-sheet" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
           >
             <Scale className="w-3.5 h-3.5 text-blue-600" /> Balance Sheet (Financial Position)
-          </button>
-          <button
-            type="button"
-            onClick={() => setAdviserFinTab("ratios")}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "ratios" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-          >
-            <Activity className="w-3.5 h-3.5 text-emerald-600" /> Financial Ratios & Viability
           </button>
         </div>
 
@@ -734,10 +741,6 @@ const AdviserDashboard: React.FC = () => {
                   <div className="flex justify-between border-b border-gray-100 pb-2">
                     <span className="text-gray-500">Cash Invested:</span>
                     <span className="font-bold text-gray-900">₱{safeCashInvested.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-500">Property / Non-Cash Invested:</span>
-                    <span className="font-bold text-gray-900">₱{safePropertyInvested.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-100 pb-2 font-bold text-sm bg-gray-50 p-2 rounded">
                     <span className="text-[#122244]">Total Initial Capital:</span>
@@ -898,11 +901,11 @@ const AdviserDashboard: React.FC = () => {
                 <div className="space-y-3 text-xs">
                   <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Liabilities (Short-Term Obligations)</p>
                   <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Accounts Payable (Suppliers Owed):</span>
+                    <span className="text-gray-600">Accounts Payable (20% of COGS):</span>
                     <span className="font-bold text-gray-900">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Utilities & Operational Payable:</span>
+                    <span className="text-gray-600">Utilities & OpEx Payable (15% of OpEx):</span>
                     <span className="font-bold text-gray-900">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
@@ -929,115 +932,6 @@ const AdviserDashboard: React.FC = () => {
                     <span className="text-blue-400">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: FINANCIAL RATIOS & FEASIBILITY HEALTH */}
-        {adviserFinTab === "ratios" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* 4 Main KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Payback Period */}
-              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Payback Period</span>
-                  <p className="text-lg font-black text-[#122244] leading-snug">
-                    {paybackYears > 0 && `${paybackYears}y `}
-                    {paybackMonths}m {paybackDays}d
-                  </p>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
-                  Time required to recover ₱{safeStartupCapital.toLocaleString()} initial investment.
-                </p>
-              </div>
-
-              {/* Current Ratio */}
-              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Ratio</span>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded">
-                      {Number(currentRatio) >= 1.5 ? "Healthy" : "Adequate"}
-                    </span>
-                  </div>
-                  <p className="text-2xl font-black text-emerald-700">{currentRatio}x</p>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
-                  Current Assets / Current Liabilities (Short-term debt safety).
-                </p>
-              </div>
-
-              {/* Inventory Turnover */}
-              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Inventory Turnover</span>
-                  <p className="text-2xl font-black text-[#122244]">{inventoryTurnover} <span className="text-xs text-gray-400 font-normal">times/yr</span></p>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
-                  COGS / Average Inventory (Stock movement velocity).
-                </p>
-              </div>
-
-              {/* Average Age of Inventory */}
-              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Average Inventory Age</span>
-                  <p className="text-2xl font-black text-amber-700">{avgAgeOfInventory} <span className="text-xs text-gray-400 font-normal">days</span></p>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-3 pt-2 border-t border-gray-100">
-                  360 Days / Inventory Turnover (Shelf storage duration).
-                </p>
-              </div>
-            </div>
-
-            {/* Profitability & Asset Turnover Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-[#c9a654]" /> Profitability & Return Ratios
-                </h4>
-                <div className="space-y-3 text-xs">
-                  <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-500">Gross Profit Margin:</span>
-                    <span className="font-bold text-gray-900">{grossProfitMargin.toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-500">Net Profit Margin (After Tax):</span>
-                    <span className="font-bold text-emerald-700">
-                      {annualRevenue > 0 ? ((annualNetProfitAfterTax / annualRevenue) * 100).toFixed(1) : "0.0"}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-500">Annual ROI (% on Startup Capital):</span>
-                    <span className="font-extrabold text-blue-700">{estimatedAnnualROI}%</span>
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <span className="text-gray-500">Current Asset Turnover (Sales / Assets):</span>
-                    <span className="font-bold text-gray-900">{currentAssetTurnover}x</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-md space-y-4">
-                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Faculty Evaluation & Defense Checklist
-                </h4>
-                <ul className="space-y-2.5 text-xs text-gray-300">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span><strong>Break-Even Feasibility:</strong> Target sales of {safeMonthlySales.toLocaleString()} units surpass break-even ({breakEvenUnits} units).</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span><strong>Liquidity Status:</strong> Current ratio of {currentRatio}x verifies capacity to service short-term supplier payables.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span><strong>Balance Sheet Integrity:</strong> Assets match Liabilities and Ending Equity with 10% PPE depreciation.</span>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
@@ -1443,9 +1337,6 @@ const AdviserDashboard: React.FC = () => {
                 <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm transition-all"><ChevronLeft className="w-4 h-4" /> Back</button>
                 <span className="px-3 py-1 bg-blue-50 text-[#4285F4] text-xs font-bold rounded-md uppercase tracking-wider">GROUP {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
               </div>
-              <button onClick={() => setShowFeedbackModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all">
-                <MessageCircle className="w-4 h-4" /> Give Feedback
-              </button>
             </div>
 
             {/* Banner Header */}
@@ -1486,7 +1377,7 @@ const AdviserDashboard: React.FC = () => {
                       <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100"><FileText className="w-5 h-5 text-blue-500" /></div>
                       <div>
                         <h3 className="text-xl font-extrabold text-[#122244]">Complete Project Overview</h3>
-                        <p className="text-xs text-gray-400">Comprehensive business profile and feasibility parameters</p>
+                        <p className="text-xs text-gray-400">Approved Business Charter & Profile</p>
                       </div>
                     </div>
 
@@ -1501,80 +1392,177 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Unit Costing & Pricing Strategy Banner */}
-                    {activeProposal.financialData && (
-                      <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-5 space-y-3">
-                        <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-2">
-                          <Package className="w-4 h-4 text-[#c9a654]" /> Proposed Unit Economics & Markup Strategy
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                            <span className="font-extrabold text-[#122244]">
-                              ₱{Number(activeProposal.financialData.unitCost || activeProposal.financialData.variableCost || 0).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Proposed Markup</span>
-                            <span className="font-bold text-[#c9a654]">
-                              +{activeProposal.financialData.markupPercentage || '0'}%
-                            </span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Selling Price</span>
-                            <span className="font-black text-green-700">
-                              ₱{Number(activeProposal.financialData.sellingPrice || 0).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded-lg border border-amber-100">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase block">Monthly Sales Target</span>
-                            <span className="font-bold text-gray-900">
-                              {Number(activeProposal.financialData.monthlySales || 0).toLocaleString()} units
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="space-y-6">
-                      <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p><p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p></div>
-                      <div className="h-px bg-gray-100 my-4"></div>
-                      <div><p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p><p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p></div>
-                      <div><p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p><p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p></div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p>
+                        <p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p>
+                      </div>
 
-                      {/* Equipment List (if any) */}
-                      {activeProposal.financialData?.equipmentList && activeProposal.financialData.equipmentList.length > 0 && (
-                        <div className="pt-2">
-                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Itemized Equipment & Machinery (CapEx)</p>
-                          <div className="border border-gray-100 rounded-xl overflow-hidden">
-                            <table className="w-full text-left text-xs">
-                              <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-gray-400 font-bold">
-                                <tr>
-                                  <th className="p-2.5">Equipment Name</th>
-                                  <th className="p-2.5 text-center w-16">Qty</th>
-                                  <th className="p-2.5 text-right w-24">Unit Price</th>
-                                  <th className="p-2.5 text-right w-28">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-50">
-                                {activeProposal.financialData.equipmentList.map((eq: any, idx: number) => (
-                                  <tr key={idx}>
-                                    <td className="p-2.5 text-gray-800 font-medium">{eq.name || '-'}</td>
-                                    <td className="p-2.5 text-center text-gray-600">{eq.quantity || 1}</td>
-                                    <td className="p-2.5 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
-                                    <td className="p-2.5 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                      <div className="h-px bg-gray-100 my-4"></div>
+
+                      <div>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p>
+                        <p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p>
+                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p>
+                      </div>
+
+                      {(() => {
+                        const proposalFin = activeProposal.originalProposalFinancials || activeProposal.financialData;
+                        if (!proposalFin) return null;
+
+                        const safeUnitCost = Number(proposalFin.unitCost) || Number(proposalFin.variableCost) || (Number(proposalFin.productionCost) && Number(proposalFin.quantityYield) ? Number(proposalFin.productionCost) / Number(proposalFin.quantityYield) : 0);
+                        const safeSellingPrice = Number(proposalFin.sellingPrice) || 0;
+                        const safeMonthlySales = Number(proposalFin.monthlySales) || 0;
+                        const safeFixedCosts = proposalFin.opexList && proposalFin.opexList.length > 0
+                          ? proposalFin.opexList.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+                          : (Number(proposalFin.fixedCosts) || 0);
+                        const monthlyRev = safeSellingPrice * safeMonthlySales;
+                        const grossMargin = monthlyRev > 0 ? ((monthlyRev - (safeUnitCost * safeMonthlySales)) / monthlyRev) * 100 : 0;
+
+                        return (
+                          <div className="space-y-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
+                                <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
+                              </p>
+                              <span className="text-[9px] font-black uppercase bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                                Proposal Record
+                              </span>
+                            </div>
+
+                            {/* KPI Banner */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                <span className="font-extrabold text-[#122244] text-sm">₱{safeUnitCost.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
+                                <span className="text-[9px] text-[#b59545] font-bold uppercase block">Proposed Price</span>
+                                <span className="font-extrabold text-[#c9a654] text-sm">₱{safeSellingPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Monthly Sales</span>
+                                <span className="font-extrabold text-[#122244] text-sm">{safeMonthlySales.toLocaleString()} pcs</span>
+                              </div>
+                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Est. Revenue</span>
+                                <span className="font-extrabold text-green-700 text-sm">₱{monthlyRev.toLocaleString()}</span>
+                              </div>
+                            </div>
+
+                            {/* Detailed Grid: Costing & OpEx */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                              <div className="space-y-2">
+                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Unit Costing & Markup Strategy</span>
+                                {proposalFin.productionCost && proposalFin.quantityYield && (
+                                  <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                    <span className="text-gray-500">Batch Cost / Yield:</span>
+                                    <span className="font-semibold text-gray-900">₱{Number(proposalFin.productionCost).toLocaleString()} / {proposalFin.quantityYield} pcs</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Proposed Markup:</span>
+                                  <span className="font-bold text-[#c9a654]">+{proposalFin.markupPercentage || '0'}%</span>
+                                </div>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Gross Margin:</span>
+                                  <span className="font-bold text-purple-700">{grossMargin.toFixed(1)}%</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Volume & Fixed Costs</span>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Total Fixed OpEx:</span>
+                                  <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
+                                </div>
+                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
+                                  <span className="text-gray-500">Operating Schedule:</span>
+                                  <span className="font-semibold text-gray-900">{proposalFin.operatingDays || '300'} days/yr</span>
+                                </div>
+                                {proposalFin.isCapitalBorrowed && (
+                                  <div className="flex justify-between border-b border-gray-200/50 pb-1 text-amber-800">
+                                    <span>Loan Interest:</span>
+                                    <span className="font-bold">{proposalFin.interestRate}% Interest/yr</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Itemized OpEx List (if present) */}
+                            {proposalFin.opexList && proposalFin.opexList.length > 0 && (
+                              <div className="space-y-1.5">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Submitted Operating Expenses</span>
+                                <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                  {proposalFin.opexList.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-xs bg-white px-3 py-1 rounded border border-gray-100">
+                                      <span className="text-gray-700">{item.name || 'Expense Item'}</span>
+                                      <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Equipment CapEx (if present) */}
+                            {proposalFin.equipmentList && proposalFin.equipmentList.length > 0 && (
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Submitted Machinery & Equipment</span>
+                                  <span className="text-xs font-bold text-[#122244]">
+                                    Total: ₱{proposalFin.equipmentList.reduce((s: number, e: any) => s + (Number(e.total) || 0), 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
+                                      <tr>
+                                        <th className="p-2">Item Name</th>
+                                        <th className="p-2 text-center w-12">Qty</th>
+                                        <th className="p-2 text-right w-20">Unit Price</th>
+                                        <th className="p-2 text-right w-24">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                      {proposalFin.equipmentList.map((eq: any, idx: number) => (
+                                        <tr key={idx}>
+                                          <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
+                                          <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
+                                          <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
+                                          <td className="p-2 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Other Details */}
                       {activeProposal.otherDetails && (
@@ -1650,9 +1638,10 @@ const AdviserDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* PROJECT ROSTER CARD (Right Side) */}
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sticky top-24">
+              {/* RIGHT SIDE: ROSTER + ADVISER BULLETIN BOARD */}
+              <div className="lg:col-span-1 space-y-6">
+                {/* PROJECT ROSTER CARD */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                   <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">Project Roster</h3>
                   <p className="text-xs text-gray-500 mb-6">{selectedGroup.memberIds.length + 1} Members Total</p>
 
@@ -1692,6 +1681,76 @@ const AdviserDashboard: React.FC = () => {
                         </div>
                       )
                     })}
+                  </div>
+                </div>
+
+                {/* ADVISER BULLETIN / FEEDBACK BOARD */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4 text-[#c9a654]" /> Advisory Bulletin Board
+                    </h3>
+                    <span className="text-[10px] font-black text-gray-400 uppercase">
+                      {activeProposal.feedbackHistory?.length || 0} Notes
+                    </span>
+                  </div>
+
+                  {/* Bulletin Feed (Scrollable history) */}
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                    {(!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0) ? (
+                      <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-400 italic">
+                        No feedback posted on the bulletin board yet. Write a note below to advise this group.
+                      </div>
+                    ) : (
+                      activeProposal.feedbackHistory.slice().reverse().map((item: any, idx: number) => (
+                        <div key={item.id || idx} className="p-3.5 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-1.5 shadow-sm">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-[#122244] flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-[#c9a654]"></span>
+                              {item.authorName || `Prof. ${userName.split(" ").pop()}`}
+                            </span>
+                            <span className="text-gray-400">
+                              {item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-[#c9a654]/40">
+                            {item.text}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Inline Composer */}
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                      Post Advisory Note
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={feedbackInput}
+                      onChange={(e) => setFeedbackInput(e.target.value)}
+                      placeholder="Type guidance, required changes, or feedback for the students..."
+                      className="w-full text-xs p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none resize-none transition-all placeholder:text-gray-400"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                          handleSubmitFeedback();
+                        }
+                      }}
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] text-gray-400 italic">Press Ctrl + Enter to send</span>
+                      <button
+                        type="button"
+                        onClick={handleSubmitFeedback}
+                        disabled={isSaving || !feedbackInput.trim()}
+                        className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {isSaving ? "Posting..." : "Post Feedback"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
