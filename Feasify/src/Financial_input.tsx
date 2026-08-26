@@ -563,71 +563,62 @@ const Financial_input: React.FC = () => {
             alt="FeasiFy"
           />
         </div>
-        <nav className="flex-1 p-4 space-y-8 mt-4">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-              Main Menu
-            </p>
-            <div className="space-y-1">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <LayoutDashboard className="w-4 h-4" /> Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/projects")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Folder className="w-4 h-4" /> Business Proposal
-              </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                <FileEdit className="w-4 h-4" /> Financial Input
-              </button>
-              <button
-                onClick={() => navigate("/ai-analysis")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Zap className="w-4 h-4" /> AI Feasibility Analysis
-              </button>
-              <button
-                onClick={() => navigate("/reports")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <BarChart3 className="w-4 h-4" /> Reports
-              </button>
-              <button
-                onClick={() => navigate("/messages")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <MessageCircle className="w-4 h-4" /> Message
-              </button>
-            </div>
+        <nav className="flex-1 p-4 space-y-4 mt-2">
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <LayoutDashboard className="w-4 h-4" /> Dashboard
+            </button>
+            <button
+              onClick={() => navigate("/projects")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Folder className="w-4 h-4" /> Business Proposal
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+              <FileEdit className="w-4 h-4" /> Financial Input
+            </button>
+            <button
+              onClick={() => navigate("/ai-analysis")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Zap className="w-4 h-4" /> AI Feasibility Analysis
+            </button>
+            <button
+              onClick={() => navigate("/reports")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <BarChart3 className="w-4 h-4" /> Reports
+            </button>
+            <button
+              onClick={() => navigate("/messages")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <MessageCircle className="w-4 h-4" /> Message
+            </button>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-              Account
-            </p>
-            <div className="space-y-1">
-              <button
-                onClick={() => navigate("/profile")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <User className="w-4 h-4" /> Profile
-              </button>
-              <button
-                onClick={() => navigate("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Settings className="w-4 h-4" /> Settings
-              </button>
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <ShieldAlert className="w-4 h-4" /> Logout
-              </button>
-            </div>
+
+          <div className="pt-4 border-t border-white/10 space-y-1">
+            <button
+              onClick={() => navigate("/profile")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <User className="w-4 h-4" /> Profile
+            </button>
+            <button
+              onClick={() => navigate("/settings")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Settings className="w-4 h-4" /> Settings
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <ShieldAlert className="w-4 h-4" /> Logout
+            </button>
           </div>
         </nav>
         <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
@@ -700,21 +691,37 @@ const Financial_input: React.FC = () => {
           </div>
         ) : (
           <div className="p-8 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
-            <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23]">
-                Financial Projections
-              </h1>
-              <p className="text-sm text-gray-500 mt-1 italic font-medium">
-                Parameters auto-sync from proposal.
-              </p>
+          {/* BUSINESS WORKSPACE HERO BANNER */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-[#122244] text-[#c9a654] rounded-2xl flex items-center justify-center font-extrabold text-2xl shadow-inner border border-gray-100 flex-shrink-0">
+                {getInitials(activeProjName)}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-green-200 flex items-center gap-1">
+                    <CheckCircle2 size={12} className="text-green-600" /> Active Business Workspace
+                  </span>
+                  <span className="text-xs text-gray-400 font-medium">•</span>
+                  <span className="text-xs text-gray-500 font-bold">
+                    Initial Capital: <span className="text-green-700 font-extrabold">₱{Number(projects.find(p => p.id === selectedProjectId)?.proposalCapital || 0).toLocaleString()}</span>
+                  </span>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">
+                  {activeProjName}
+                </h1>
+                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                  Live operational financial inputs & dynamic statement simulations
+                </p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2.5 items-center">
+
+            {/* ACTION BUTTONS & AUTOSAVE STATUS */}
+            <div className="flex flex-wrap gap-2.5 items-center w-full md:w-auto justify-end pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
               <span
-                className={`text-xs font-bold flex items-center gap-1 mr-2 ${isSaving ? "text-gray-400 animate-pulse" : "text-green-600"}`}
+                className={`text-xs font-bold flex items-center gap-1.5 mr-2 ${isSaving ? "text-amber-600 animate-pulse" : "text-green-600"}`}
               >
-                {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />}{" "}
+                {isSaving ? <Save size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 {saveStatus}
               </span>
 
@@ -722,63 +729,23 @@ const Financial_input: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowExportModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#122244] rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#122244] rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95"
                 title="Export Financial Report as Excel/CSV or PDF"
               >
                 <Download size={14} className="text-[#c9a654]" /> Export File
               </button>
 
               <button
+                type="button"
                 onClick={() =>
                   navigate("/ai-analysis", {
                     state: { projectId: selectedProjectId, runAnalysis: true },
                   })
                 }
-                className="flex items-center gap-1.5 bg-[#c9a654] hover:bg-[#b59545] text-white px-5 py-2.5 rounded-lg font-bold text-xs shadow-md transition-all active:scale-95"
+                className="flex items-center gap-1.5 bg-[#c9a654] hover:bg-[#b59545] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
               >
                 <Zap size={14} fill="currentColor" /> Run Analysis
               </button>
-            </div>
-          </div>
-
-          {/* PROJECT SELECTOR */}
-          <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <label className="text-xs font-bold text-gray-400 uppercase block mb-3">
-              Approved Project Workspace
-            </label>
-            <div className="relative w-full md:w-1/2 z-30">
-              <div
-                className={`w-full px-4 py-3.5 bg-gray-50 border rounded-lg flex items-center justify-between text-sm font-bold text-[#122244] cursor-pointer ${isProjectMenuOpen ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white" : "hover:bg-gray-100"}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsProjectMenuOpen(!isProjectMenuOpen);
-                }}
-              >
-                {selectedProjectId
-                  ? projects.find((p) => p.id === selectedProjectId)?.name
-                  : "Select Project..."}
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform ${isProjectMenuOpen ? "rotate-180" : ""}`}
-                />
-              </div>
-              {isProjectMenuOpen && (
-                <div className="absolute left-0 top-full w-full bg-white border shadow-xl rounded-xl py-2 z-50">
-                  {projects.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        handleProjectSelect(p.id);
-                        setIsProjectMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-5 py-3 text-sm transition-colors ${selectedProjectId === p.id ? "bg-blue-50 font-extrabold text-[#122244]" : "hover:bg-gray-50"}`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 

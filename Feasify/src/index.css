@@ -1,1 +1,104 @@
 @import "tailwindcss";
+
+/* ========================================================================= */
+/* GLOBAL CUSTOM SCROLLBAR - BRAND GOLD (#c9a654) WITH TRANSPARENT TRACK   */
+/* ========================================================================= */
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c9a654 transparent;
+}
+
+/* Chrome, Edge, Safari WebKit Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c9a654;
+  border-radius: 9999px;
+  transition: background 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b59545;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Scrollbar Stepper Buttons (Arrows) */
+::-webkit-scrollbar-button {
+  display: block;
+  height: 6px;
+  width: 6px;
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  border-width: 0 3.5px 5px 3.5px;
+  border-color: transparent transparent #c9a654 transparent;
+  border-style: solid;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+  border-color: transparent transparent #b59545 transparent;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  border-width: 5px 3.5px 0 3.5px;
+  border-color: #c9a654 transparent transparent transparent;
+  border-style: solid;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+  border-color: #b59545 transparent transparent transparent;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  border-width: 3.5px 5px 3.5px 0;
+  border-color: transparent #c9a654 transparent transparent;
+  border-style: solid;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
+  border-color: transparent #b59545 transparent transparent;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+  border-width: 3.5px 0 3.5px 5px;
+  border-color: transparent transparent transparent #c9a654;
+  border-style: solid;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
+  border-color: transparent transparent transparent #b59545;
+}
+
+/* Custom Scrollbar Utility Classes */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c9a654;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #b59545;
+}

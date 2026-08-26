@@ -19,6 +19,8 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
+import { getStorage } from "firebase/storage";
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemoPlaceholderKey123456789",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "feasify-demo.firebaseapp.com",
@@ -32,6 +34,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // --- SECONDARY APP (Used ONLY for Admins to create users silently) ---
 let secondaryApp;
@@ -153,4 +156,4 @@ export async function updateGroupStatus(groupId: string, statusData: any) {
   await updateDoc(groupRef, statusData);
 }
 
-export { auth, db };
+export { auth, db, storage };

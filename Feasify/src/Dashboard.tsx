@@ -27,10 +27,12 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  CheckCircle,
-  X,
   Sidebar as SidebarIcon,
   Bell,
+  TrendingUp,
+  Package,
+  Scale,
+  Sparkles,
 } from "lucide-react";
 
 interface Project {
@@ -262,27 +264,30 @@ const Dashboard: React.FC = () => {
   let totalROI = 0;
   let roiCount = 0;
   projects.forEach((p) => {
-    if (p.financialData && p.financialData.startupCapital > 0) {
-      const sp = Number(p.financialData.sellingPrice) || 0;
-      const ms = Number(p.financialData.monthlySales) || 0;
-      const vc = Number(p.financialData.variableCost) || 0;
-      const fc = p.financialData.opexList && p.financialData.opexList.length > 0
-        ? p.financialData.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
-        : (Number(p.financialData.fixedCosts) || 0);
-      const cap = Number(p.financialData.startupCapital) || 0;
+    const fin = p.financialData;
+    if (fin) {
+      const sp = Number(fin.sellingPrice) || 0;
+      const ms = Number(fin.monthlySales) || 0;
+      const vc = Number(fin.variableCost) || 0;
+      const fc = fin.opexList && fin.opexList.length > 0
+        ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+        : (Number(fin.fixedCosts) || 0);
+      const cap = Number(fin.cashInvested) || Number(fin.startupCapital) || 0;
 
-      const monthlyRev = sp * ms;
-      const monthlyVarCost = vc * ms;
-      const netMonthly = monthlyRev - monthlyVarCost - fc;
-
-      const roi = ((netMonthly * 12) / cap) * 100;
-      if (!isNaN(roi)) {
-        totalROI += roi;
-        roiCount++;
+      if (cap >= 1000 && sp > 0 && ms > 0) {
+        const monthlyRev = sp * ms;
+        const monthlyVarCost = vc * ms;
+        const netMonthly = monthlyRev - monthlyVarCost - fc;
+        const annualNet = netMonthly * 12;
+        const roi = (annualNet / cap) * 100;
+        if (!isNaN(roi) && isFinite(roi) && roi >= -100 && roi <= 1000) {
+          totalROI += roi;
+          roiCount++;
+        }
       }
     }
   });
-  const avgROI = roiCount > 0 ? (totalROI / roiCount).toFixed(1) : "0";
+  const avgROI = roiCount > 0 ? (totalROI / roiCount).toFixed(1) : "0.0";
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -341,72 +346,62 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          <nav className="flex-1 p-4 space-y-8 mt-4">
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-                Main Menu
-              </p>
-              <div className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                  <LayoutDashboard className="w-4 h-4" /> Dashboard
-                </button>
-                <button
-                  onClick={() => navigate("/projects")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <Folder className="w-4 h-4" /> Business Proposal
-                </button>
-                <button
-                  onClick={() => navigate("/financial-input")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <FileEdit className="w-4 h-4" /> Financial Input
-                </button>
-                <button
-                  onClick={() => navigate("/ai-analysis")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <Zap className="w-4 h-4" /> AI Feasibility Analysis
-                </button>
-                <button
-                  onClick={() => navigate("/reports")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <BarChart3 className="w-4 h-4" /> Reports
-                </button>
-                <button
-                  onClick={() => navigate("/messages")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <MessageCircle className="w-4 h-4" /> Message
-                </button>
-              </div>
+          <nav className="flex-1 p-4 space-y-4 mt-2">
+            <div className="space-y-1">
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+                <LayoutDashboard className="w-4 h-4" /> Dashboard
+              </button>
+              <button
+                onClick={() => navigate("/projects")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Folder className="w-4 h-4" /> Business Proposal
+              </button>
+              <button
+                onClick={() => navigate("/financial-input")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <FileEdit className="w-4 h-4" /> Financial Input
+              </button>
+              <button
+                onClick={() => navigate("/ai-analysis")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Zap className="w-4 h-4" /> AI Feasibility Analysis
+              </button>
+              <button
+                onClick={() => navigate("/reports")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <BarChart3 className="w-4 h-4" /> Reports
+              </button>
+              <button
+                onClick={() => navigate("/messages")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" /> Message
+              </button>
             </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-                Account
-              </p>
-              <div className="space-y-1">
-                <button
-                  onClick={() => navigate("/profile")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <User className="w-4 h-4" /> Profile
-                </button>
-                <button
-                  onClick={() => navigate("/settings")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <Settings className="w-4 h-4" /> Settings
-                </button>
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <ShieldAlert className="w-4 h-4" /> Logout
-                </button>
-              </div>
+            <div className="pt-4 border-t border-white/10 space-y-1">
+              <button
+                onClick={() => navigate("/profile")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <User className="w-4 h-4" /> Profile
+              </button>
+              <button
+                onClick={() => navigate("/settings")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Settings className="w-4 h-4" /> Settings
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <ShieldAlert className="w-4 h-4" /> Logout
+              </button>
             </div>
           </nav>
 
@@ -467,17 +462,18 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
 
+            {/* KPI STATS ROW (NAVY BLUE THEME) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {isLoadingStats ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                  <div key={i} className="bg-[#122244] p-6 rounded-2xl border border-white/10 shadow-lg">
                     <div className="flex justify-between items-start mb-4">
-                      <Skeleton width={36} height={36} borderRadius={8} />
-                      <Skeleton width={16} height={16} />
+                      <Skeleton width={36} height={36} borderRadius={12} baseColor="#1a2f55" highlightColor="#243f70" />
+                      <Skeleton width={16} height={16} baseColor="#1a2f55" highlightColor="#243f70" />
                     </div>
-                    <Skeleton width={80} height={36} className="mb-1" />
-                    <Skeleton width={100} height={16} className="mb-1" />
-                    <Skeleton width={140} height={12} />
+                    <Skeleton width={80} height={36} className="mb-1" baseColor="#1a2f55" highlightColor="#243f70" />
+                    <Skeleton width={100} height={16} className="mb-1" baseColor="#1a2f55" highlightColor="#243f70" />
+                    <Skeleton width={140} height={12} baseColor="#1a2f55" highlightColor="#243f70" />
                   </div>
                 ))
               ) : (
@@ -485,50 +481,53 @@ const Dashboard: React.FC = () => {
                   {
                     label: "Total Approved",
                     value: totalApproved.toString(),
-                    sub: "Businesses in focus",
+                    sub: "Active businesses in focus",
                     icon: Folder,
-                    filterVal: "All Status",
+                    badge: "bg-blue-500/20 text-blue-300 border border-blue-400/30",
                   },
                   {
-                    label: "Feasible",
-                    value: feasibleProjects.toString(),
-                    sub: `${feasiblePercentage}% success rate`,
+                    label: "Feasibility Status",
+                    value: feasibleProjects > 0 ? `${feasibleProjects} Feasible` : "Under Study",
+                    sub: totalApproved > 0 ? `${feasiblePercentage}% passing rate` : "Awaiting analysis",
                     icon: CheckCircle2,
-                    filterVal: "Feasible",
+                    badge: "bg-green-500/20 text-green-300 border border-green-400/30",
                   },
                   {
                     label: "In Progress",
                     value: inProgressProjects.toString(),
-                    sub: "Awaiting final analysis",
+                    sub: "Simulations in progress",
                     icon: Clock,
-                    filterVal: "In Progress",
+                    badge: "bg-amber-500/20 text-amber-300 border border-amber-400/30",
                   },
                   {
-                    label: "Avg. ROI",
+                    label: "Avg. Estimated ROI",
                     value: `${avgROI}%`,
-                    sub: "Across all projects",
-                    icon: BarChart3,
-                    filterVal: "All Status",
+                    sub: "Annual return on capital",
+                    icon: TrendingUp,
+                    badge: "bg-[#c9a654]/20 text-[#e6c778] border border-[#c9a654]/30",
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
                     onClick={() => navigate("/projects")}
-                    className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                    className="bg-[#122244] p-6 rounded-2xl border border-white/10 shadow-lg hover:shadow-2xl hover:border-[#c9a654]/50 transition-all group cursor-pointer relative overflow-hidden"
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#c9a654]/10 transition-colors">
-                        <stat.icon className="w-5 h-5 text-gray-400 group-hover:text-[#c9a654]" />
+                    {/* Subtle glow background */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-[#c9a654]/10 transition-colors"></div>
+
+                    <div className="flex justify-between items-start mb-3 relative z-10">
+                      <div className={`p-2.5 rounded-xl ${stat.badge} transition-transform group-hover:scale-110 duration-200`}>
+                        <stat.icon className="w-5 h-5" />
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#c9a654]" />
+                      <ArrowUpRight className="w-4 h-4 text-white/40 group-hover:text-[#c9a654] transition-colors" />
                     </div>
-                    <p className="text-3xl font-bold text-[#122244]">
+                    <p className="text-2xl md:text-3xl font-extrabold text-white tracking-tight relative z-10">
                       {stat.value}
                     </p>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1 mb-1">
+                    <p className="text-[11px] font-bold text-gray-300 uppercase tracking-wider mt-1 mb-0.5 relative z-10">
                       {stat.label}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-medium">
+                    <p className="text-[10px] text-gray-400 font-medium relative z-10">
                       {stat.sub}
                     </p>
                   </div>
@@ -536,90 +535,195 @@ const Dashboard: React.FC = () => {
               )}
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                <h3 className="font-bold text-[#122244] text-lg">
-                  Approved Projects List
-                </h3>
+            {/* APPROVED BUSINESS PROJECTS CARD */}
+            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden mb-8">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                  <h3 className="font-extrabold text-[#122244] text-lg tracking-tight">
+                    Active Business Workspace
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">
+                    Your approved venture and current financial feasibility status
+                  </p>
+                </div>
                 <button
-                  className="text-xs font-bold text-[#c9a654] hover:underline flex items-center gap-1"
+                  className="text-xs font-bold text-[#c9a654] hover:underline flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors"
                   onClick={() => navigate("/projects")}
                 >
-                  Go to workspace <ArrowRight className="w-3 h-3" />
+                  Manage Proposals <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-100">
                 {isLoadingStats ? (
-                  Array.from({ length: parseInt(sessionStorage.getItem('dashboardProjectCount') || '3', 10) || 3 }).map((_, i) => (
+                  Array.from({ length: 2 }).map((_, i) => (
                     <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
+                        <Skeleton width={48} height={48} borderRadius={16} />
                         <div className="space-y-1">
                           <Skeleton width={180} height={16} />
                           <Skeleton width={120} height={12} />
                         </div>
-                        <Skeleton width={60} height={20} borderRadius={999} />
                       </div>
-                      <div className="w-full md:w-48 flex items-center gap-3">
-                        <Skeleton className="flex-1" height={6} borderRadius={999} />
-                        <Skeleton width={30} height={12} />
+                      <div className="flex gap-2">
+                        <Skeleton width={100} height={36} borderRadius={8} />
+                        <Skeleton width={100} height={36} borderRadius={8} />
                       </div>
                     </div>
                   ))
                 ) : projects.length === 0 ? (
-                  <div className="p-8 flex flex-col items-center justify-center text-center">
-                    <p className="text-gray-500 text-sm mb-2">
-                      No approved proposals found.
+                  <div className="p-12 flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 text-gray-300">
+                      <Folder className="w-8 h-8" />
+                    </div>
+                    <h4 className="font-bold text-gray-800 text-base mb-1">No Active Project Found</h4>
+                    <p className="text-gray-400 text-xs max-w-sm mb-6 leading-relaxed">
+                      Submit your proposal and have it approved by your adviser to unlock your financial workspace.
                     </p>
                     <button
                       onClick={() => navigate("/projects")}
-                      className="text-[#c9a654] text-sm font-semibold hover:underline"
+                      className="px-5 py-2.5 bg-[#122244] hover:bg-[#1a2f55] text-white text-xs font-bold rounded-xl shadow-sm transition-all"
                     >
-                      Draft a proposal now
+                      Draft Proposal Now
                     </button>
                   </div>
                 ) : (
-                  projects.map((project) => (
-                    <div
-                      key={project.id}
-                      className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
-                      onClick={() =>
-                        navigate("/financial-input", {
-                          state: { projectId: project.id },
-                        })
-                      }
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-gray-900">
-                            {project.name}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                            {project.status === "Pending"
-                              ? "Group Container"
-                              : `Business Project • Created: ${project.date}`}
-                          </p>
+                  projects.map((project) => {
+                    const fin = project.financialData;
+                    const price = Number(fin?.sellingPrice) || 0;
+                    const volume = Number(fin?.monthlySales) || 0;
+                    const monthlySalesEst = price * volume;
+
+                    return (
+                      <div
+                        key={project.id}
+                        className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-gray-50/40 transition-colors"
+                      >
+                        {/* Project Identity */}
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-[#122244] text-[#c9a654] rounded-2xl flex items-center justify-center font-extrabold text-xl shadow-inner border border-gray-100 shrink-0">
+                            {getInitials(project.name)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h4 className="text-base font-extrabold text-[#122244]">
+                                {project.name}
+                              </h4>
+                              <span
+                                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${getStatusColor(project.status)}`}
+                              >
+                                {project.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400 font-medium">
+                              Approved Business Charter • Created: {project.date}
+                            </p>
+                          </div>
                         </div>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusColor(project.status)}`}
-                        >
-                          {project.status}
-                        </span>
-                      </div>
-                      <div className="w-full md:w-48 flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#c9a654] transition-all duration-1000"
-                            style={{ width: getEstimatedProgress(project) }}
-                          />
+
+                        {/* Financial Snapshot Badges */}
+                        <div className="flex flex-wrap items-center gap-4 text-xs">
+                          {price > 0 && (
+                            <div className="bg-gray-50 border border-gray-200/70 px-3.5 py-2 rounded-xl text-left">
+                              <span className="text-[9px] font-bold text-gray-400 uppercase block">Selling Price</span>
+                              <span className="font-extrabold text-[#122244]">₱{price.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {monthlySalesEst > 0 && (
+                            <div className="bg-green-50 border border-green-200/70 px-3.5 py-2 rounded-xl text-left">
+                              <span className="text-[9px] font-bold text-green-600 uppercase block">Est. Monthly Revenue</span>
+                              <span className="font-extrabold text-green-800">₱{monthlySalesEst.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {/* Quick Action Navigation */}
+                          <div className="flex items-center gap-2 pt-2 sm:pt-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate("/financial-input", {
+                                  state: { projectId: project.id },
+                                })
+                              }
+                              className="px-4 py-2 bg-white border border-gray-200 hover:border-[#c9a654] hover:bg-amber-50/50 text-[#122244] font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+                            >
+                              <Package className="w-3.5 h-3.5 text-[#c9a654]" /> Financials
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate("/ai-analysis", {
+                                  state: { projectId: project.id, runAnalysis: true },
+                                })
+                              }
+                              className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+                            >
+                              <Zap className="w-3.5 h-3.5 text-[#c9a654]" /> AI Analysis
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold text-gray-500">
-                          {getEstimatedProgress(project)}
-                        </span>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
+              </div>
+            </div>
+
+            {/* QUICK NAVIGATION TILES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                onClick={() => navigate("/projects")}
+                className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md hover:border-[#c9a654]/60 transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <Folder className="w-6 h-6" />
+                </div>
+                <h4 className="font-extrabold text-base text-[#122244] mb-1 group-hover:text-[#c9a654] transition-colors">
+                  Business Proposals
+                </h4>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Manage your business profile, view the approved charter, and review faculty adviser feedback.
+                </p>
+                <span className="text-xs font-bold text-blue-600 flex items-center gap-1">
+                  View Charter <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+
+              <div
+                onClick={() => navigate("/financial-input")}
+                className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md hover:border-[#c9a654]/60 transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-amber-50 text-[#c9a654] rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <Package className="w-6 h-6" />
+                </div>
+                <h4 className="font-extrabold text-base text-[#122244] mb-1 group-hover:text-[#c9a654] transition-colors">
+                  Financial Input & Balance Sheet
+                </h4>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Simulate selling prices, manage itemized OpEx and machinery, and inspect real-time balance sheets.
+                </p>
+                <span className="text-xs font-bold text-[#c9a654] flex items-center gap-1">
+                  Open Workspace <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+
+              <div
+                onClick={() => navigate("/ai-analysis")}
+                className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md hover:border-[#c9a654]/60 transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h4 className="font-extrabold text-base text-[#122244] mb-1 group-hover:text-[#c9a654] transition-colors">
+                  AI Feasibility Analysis
+                </h4>
+                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                  Generate comprehensive SWOT analysis, financial viability assessments, and market risks.
+                </p>
+                <span className="text-xs font-bold text-purple-600 flex items-center gap-1">
+                  Run AI Feasibility <ArrowRight className="w-3.5 h-3.5" />
+                </span>
               </div>
             </div>
           </div>

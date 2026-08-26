@@ -51,6 +51,8 @@ import {
   TrendingUp,
   Package,
   Info,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
@@ -182,6 +184,7 @@ interface GroupData {
   leaderName: string;
   title: string;
   companyName?: string;
+  companyLogo?: string;
   memberIds: string[];
   joinedMembers?: string[];
   section: string;
@@ -229,6 +232,7 @@ interface ProposalData {
   groupId: string;
   businessType: string;
   businessName: string;
+  businessLogo?: string;
   totalCapital: string;
   tagline: string;
   targetMarket: string;
@@ -250,6 +254,7 @@ const initialProposalState: ProposalData = {
   groupId: "",
   businessType: "",
   businessName: "",
+  businessLogo: "",
   totalCapital: "",
   tagline: "",
   targetMarket: "",
@@ -332,6 +337,11 @@ const Projects: React.FC = () => {
   >("All Proposals");
 
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [setupCompanyName, setSetupCompanyName] = useState("");
+  const [setupLogoFile, setSetupLogoFile] = useState<File | null>(null);
+  const [setupLogoPreview, setSetupLogoPreview] = useState("");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
   const [showEditBasicModal, setShowEditBasicModal] = useState(false);
@@ -417,6 +427,12 @@ const Projects: React.FC = () => {
         if (member && g.joinedMembers && g.joinedMembers.includes(uid))
           setHasJoined(true);
         
+        const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
+          ? g.companyName
+          : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
+        setSetupCompanyName(rawCompName);
+        setSetupLogoPreview(g.companyLogo || "");
+
         await fetchGroupDetails(g);
         const fetchedProposals = await fetchProposals(g.id);
 
@@ -560,20 +576,108 @@ const Projects: React.FC = () => {
     }
   };
 
+  const compressImage = (file: File, maxDim = 280, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve(dataUrl);
+          } else {
+            resolve(event.target?.result as string);
+          }
+        };
+        img.onerror = () => {
+          resolve(event.target?.result as string);
+        };
+      };
+      reader.onerror = () => resolve("");
+    });
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Image size should be less than 8MB.");
+      return;
+    }
+    setSetupLogoFile(file);
+    try {
+      const compressed = await compressImage(file);
+      setSetupLogoPreview(compressed);
+    } catch (err) {
+      console.error("Compression failed:", err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSetupLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleFinishTeamSetup = async () => {
     if (!userGroup) return;
+    setIsUploadingLogo(true);
     try {
+      let finalLogoUrl = setupLogoPreview;
+      if (setupLogoFile && !finalLogoUrl) {
+        finalLogoUrl = await compressImage(setupLogoFile);
+      }
+
+      const finalCompanyName = setupCompanyName.trim() || userGroup.title || "Feasibility Project";
+
       await updateDoc(doc(db, "groups", userGroup.id), {
+        companyName: finalCompanyName,
+        title: finalCompanyName,
+        companyLogo: finalLogoUrl || "",
         isSetup: true,
         status: "Drafting",
       });
+
       setUserGroup((prev) =>
-        prev ? { ...prev, isSetup: true, status: "Drafting" } : null,
+        prev
+          ? {
+              ...prev,
+              companyName: finalCompanyName,
+              title: finalCompanyName,
+              companyLogo: finalLogoUrl || "",
+              isSetup: true,
+              status: "Drafting",
+            }
+          : null,
       );
       setShowSetupModal(false);
       setActiveView("dashboard");
     } catch (error) {
       console.error(error);
+      alert("Failed to finish team setup. Please try again.");
+    } finally {
+      setIsUploadingLogo(false);
     }
   };
 
@@ -804,6 +908,8 @@ const Projects: React.FC = () => {
       await updateDoc(doc(db, "groups", userGroup.id), {
         status: "Active Business",
         activeProposalId: currentProposal.id,
+        businessName: currentProposal.businessName,
+        businessLogo: currentProposal.businessLogo || "",
         title: currentProposal.businessName,
       });
 
@@ -815,6 +921,8 @@ const Projects: React.FC = () => {
               ...prev,
               status: "Active Business",
               activeProposalId: currentProposal.id,
+              businessName: currentProposal.businessName,
+              businessLogo: currentProposal.businessLogo || "",
               title: currentProposal.businessName,
             }
           : null,
@@ -890,11 +998,14 @@ const Projects: React.FC = () => {
     try {
       await updateDoc(doc(db, "groups", userGroup.id), {
         title: editBasicData.businessName,
+        businessName: editBasicData.businessName,
+        businessLogo: editBasicData.businessLogo || "",
       });
 
       const proposalRef = doc(db, "proposals", userGroup.activeProposalId);
       await updateDoc(proposalRef, {
         businessName: editBasicData.businessName,
+        businessLogo: editBasicData.businessLogo || "",
         businessType: editBasicData.businessType,
         totalCapital: editBasicData.totalCapital,
         tagline: editBasicData.tagline,
@@ -909,7 +1020,12 @@ const Projects: React.FC = () => {
       });
 
       setUserGroup((prev) =>
-        prev ? { ...prev, title: editBasicData.businessName } : null,
+        prev ? {
+          ...prev,
+          title: editBasicData.businessName,
+          businessName: editBasicData.businessName,
+          businessLogo: editBasicData.businessLogo || "",
+        } : null,
       );
       setProposals((prev) =>
         prev.map((p) =>
@@ -950,71 +1066,62 @@ const Projects: React.FC = () => {
           className="w-70 h-20 object-contain"
         />
       </div>
-      <nav className="flex-1 p-4 space-y-8 mt-4">
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-            Main Menu
-          </p>
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-              <Folder className="w-4 h-4" /> Business Proposal
-            </button>
-            <button
-              onClick={() => navigate("/financial-input")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <FileEdit className="w-4 h-4" /> Financial Input
-            </button>
-            <button
-              onClick={() => navigate("/ai-analysis")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Zap className="w-4 h-4" /> AI Feasibility Analysis
-            </button>
-            <button
-              onClick={() => navigate("/reports")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <BarChart3 className="w-4 h-4" /> Reports
-            </button>
-            <button
-              onClick={() => navigate("/messages")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <MessageCircle className="w-4 h-4" /> Message
-            </button>
-          </div>
+      <nav className="flex-1 p-4 space-y-4 mt-2">
+        <div className="space-y-1">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <LayoutDashboard className="w-4 h-4" /> Dashboard
+          </button>
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+            <Folder className="w-4 h-4" /> Business Proposal
+          </button>
+          <button
+            onClick={() => navigate("/financial-input")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <FileEdit className="w-4 h-4" /> Financial Input
+          </button>
+          <button
+            onClick={() => navigate("/ai-analysis")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <Zap className="w-4 h-4" /> AI Feasibility Analysis
+          </button>
+          <button
+            onClick={() => navigate("/reports")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <BarChart3 className="w-4 h-4" /> Reports
+          </button>
+          <button
+            onClick={() => navigate("/messages")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <MessageCircle className="w-4 h-4" /> Message
+          </button>
         </div>
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-            Account
-          </p>
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate("/profile")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <User className="w-4 h-4" /> Profile
-            </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Settings className="w-4 h-4" /> Settings
-            </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <ShieldAlert className="w-4 h-4" /> Logout
-            </button>
-          </div>
+
+        <div className="pt-4 border-t border-white/10 space-y-1">
+          <button
+            onClick={() => navigate("/profile")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <User className="w-4 h-4" /> Profile
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <Settings className="w-4 h-4" /> Settings
+          </button>
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <ShieldAlert className="w-4 h-4" /> Logout
+          </button>
         </div>
       </nav>
       <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
@@ -1136,7 +1243,7 @@ const Projects: React.FC = () => {
           {activeView === "leader-setup" && (
             <div>
               <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                Business Proposal
+                Company Name
               </h1>
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center border-dashed">
                 <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6">
@@ -1146,7 +1253,15 @@ const Projects: React.FC = () => {
                   You're assigned as Group Leader!
                 </h2>
                 <button
-                  onClick={() => setShowSetupModal(true)}
+                  onClick={() => {
+                    const rawCompName = (userGroup?.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name")
+                      ? userGroup.companyName
+                      : (userGroup?.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project" ? userGroup.title : "");
+                    setSetupCompanyName(rawCompName);
+                    setSetupLogoPreview(userGroup?.companyLogo || "");
+                    setSetupLogoFile(null);
+                    setShowSetupModal(true);
+                  }}
                   className="flex items-center gap-2 px-6 py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all"
                 >
                   <Star className="w-4 h-4 fill-current" /> Set up team
@@ -1158,7 +1273,7 @@ const Projects: React.FC = () => {
           {activeView === "member-join" && (
             <div>
               <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                Business Proposal
+                Company Name
               </h1>
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center">
                 <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 border border-blue-100">
@@ -1177,184 +1292,224 @@ const Projects: React.FC = () => {
             </div>
           )}
 
-          {activeView === "dashboard" && userGroup && (
-            <div>
-              <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                Business Proposal
-              </h1>
-              <div className="bg-[#122244] rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-6 text-white relative">
-                <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner flex-shrink-0">
-                    <span className="text-2xl font-bold text-white tracking-widest">
-                      G{userGroup.id.slice(-1) || "1"}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest bg-[#4285F4] px-2 py-1 rounded">
-                        PROPOSAL PHASE
-                      </span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
-                        <User className="w-3 h-3" /> SECTION:{" "}
-                        {userGroup.section}
-                      </span>
+          {activeView === "dashboard" && userGroup && (() => {
+            const currentCompanyName = (userGroup.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name")
+              ? userGroup.companyName
+              : (userGroup.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project"
+                ? userGroup.title
+                : "Pending Company Name");
+
+            return (
+              <div>
+                <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
+                  Company Name
+                </h1>
+                <div className="bg-[#122244] rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-6 text-white relative">
+                  <div className="flex items-center gap-6 z-10 w-full md:w-auto">
+                    <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner flex-shrink-0 overflow-hidden">
+                      {userGroup.companyLogo ? (
+                        <img
+                          src={userGroup.companyLogo}
+                          alt="Company Logo"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl font-bold text-white tracking-widest">
+                          {getInitials(currentCompanyName)}
+                        </span>
+                      )}
                     </div>
-                    <h1 className="text-2xl font-bold mb-1">
-                      {userGroup.title}
-                    </h1>
-                    <p className="text-xs text-gray-400">
-                      + Adviser: Prof.{" "}
-                      {adviserData ? adviserData.lastName : "Cruz"}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowRosterModal(true)}
-                  className="mt-6 md:mt-0 flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 hover:bg-white/20 rounded-lg text-sm font-bold transition-all z-10"
-                >
-                  <Users className="w-4 h-4" /> {userGroup.memberIds.length + 1}{" "}
-                  Members{" "}
-                  <span className="text-[10px] uppercase ml-1">View Team</span>
-                </button>
-              </div>
-
-              {userGroup.status === "Active Business" && activeBusiness && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-green-700">
-                    <CheckCircle2 size={20} />
-                    <p className="text-sm font-bold">
-                      Currently Active:{" "}
-                      <span className="underline">
-                        {activeBusiness.businessName}
-                      </span>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveView("active-business")}
-                    className="text-xs font-black uppercase text-green-800 hover:underline"
-                  >
-                    View Active Details
-                  </button>
-                </div>
-              )}
-
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-[#122244]">
-                  Business Proposals
-                </h2>
-                <div className="relative group">
-                  <button
-                    onClick={() => {
-                      setCurrentProposal(initialProposalState);
-                      setIsEditingMode(true);
-                      setSaveStatus("All changes saved");
-                      setActiveView("form");
-                    }}
-                    disabled={!!activeBusiness}
-                    className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                      activeBusiness 
-                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
-                        : "bg-[#c9a654] text-white hover:bg-[#b59545]"
-                    }`}
-                  >
-                    + New Proposal
-                  </button>
-                  {activeBusiness && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                      Already has Approved Business
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex space-x-6 border-b border-gray-200 mb-6">
-                {[
-                  "All Proposals",
-                  "Drafts",
-                  "Pending",
-                  "Approved",
-                  "Rejected",
-                  "Revision"
-                ].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setDashboardTab(tab as any)}
-                    className={`pb-3 text-sm font-bold transition-colors border-b-2 ${dashboardTab === tab ? "border-[#4285F4] text-[#4285F4]" : "border-transparent text-gray-500 hover:text-gray-800"}`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {proposals.length === 0 ? (
-                <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-20 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
-                    <FileText className="w-8 h-8 text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-bold text-[#122244]">
-                    No proposals yet
-                  </h3>
-                </div>
-              ) : filteredProposals.length === 0 ? (
-                <p className="text-center text-gray-500 py-12">
-                  No proposals found for this filter.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {filteredProposals.map((proposal) => {
-                    let isApproved = proposal.status === "Approved";
-                    let isRejected = proposal.status === "Rejected";
-                    let isRevision = proposal.status === "Revision";
-
-                    return (
-                      <div
-                        key={proposal.id}
-                        className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
-                          isApproved ? "border-green-400" : 
-                          isRejected ? "border-red-300" : 
-                          isRevision ? "border-orange-300" : "border-gray-200"
-                        }`}
-                      >
-                        <div className="flex gap-4 items-center w-full sm:w-auto">
-                          <div
-                            className={`w-12 h-12 rounded-lg flex flex-shrink-0 items-center justify-center font-bold text-lg ${
-                              isApproved ? "bg-green-50 text-green-600" : 
-                              isRejected ? "bg-red-50 text-red-600" : 
-                              isRevision ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-500"
-                            }`}
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-[#4285F4] px-2 py-1 rounded">
+                          PROPOSAL PHASE
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                          <User className="w-3 h-3" /> SECTION:{" "}
+                          {userGroup.section}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold mb-1">
+                          {currentCompanyName}
+                        </h1>
+                        {isLeader && (
+                          <button
+                            onClick={() => {
+                              setSetupCompanyName(currentCompanyName !== "Pending Company Name" ? currentCompanyName : "");
+                              setSetupLogoPreview(userGroup.companyLogo || "");
+                              setSetupLogoFile(null);
+                              setShowSetupModal(true);
+                            }}
+                            className="p-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors"
+                            title="Edit Company Details"
                           >
-                            B#
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1 flex-wrap">
-                              <h3 className="font-bold text-[#122244] text-lg truncate max-w-[250px]">
-                                {proposal.businessName}
-                              </h3>
-                              <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                                proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
-                                proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
-                              </span>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        + Adviser: Prof.{" "}
+                        {adviserData ? adviserData.lastName : "Cruz"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowRosterModal(true)}
+                    className="mt-6 md:mt-0 flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 hover:bg-white/20 rounded-lg text-sm font-bold transition-all z-10"
+                  >
+                    <Users className="w-4 h-4" /> {userGroup.memberIds.length + 1}{" "}
+                    Members{" "}
+                    <span className="text-[10px] uppercase ml-1">View Team</span>
+                  </button>
+                </div>
+
+                {userGroup.status === "Active Business" && activeBusiness && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-green-700">
+                      <CheckCircle2 size={20} />
+                      <p className="text-sm font-bold">
+                        Currently Active:{" "}
+                        <span className="underline">
+                          {activeBusiness.businessName}
+                        </span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveView("active-business")}
+                      className="text-xs font-black uppercase text-green-800 hover:underline"
+                    >
+                      View Active Details
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-[#122244]">
+                    Business Proposals
+                  </h2>
+                  <div className="relative group">
+                    <button
+                      onClick={() => {
+                        setCurrentProposal(initialProposalState);
+                        setIsEditingMode(true);
+                        setSaveStatus("All changes saved");
+                        setActiveView("form");
+                      }}
+                      disabled={!!activeBusiness}
+                      className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
+                        activeBusiness 
+                          ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
+                          : "bg-[#c9a654] text-white hover:bg-[#b59545]"
+                      }`}
+                    >
+                      + New Proposal
+                    </button>
+                    {activeBusiness && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                        Already has Approved Business
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex space-x-6 border-b border-gray-200 mb-6">
+                  {[
+                    "All Proposals",
+                    "Drafts",
+                    "Pending",
+                    "Approved",
+                    "Rejected",
+                    "Revision"
+                  ].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setDashboardTab(tab as any)}
+                      className={`pb-3 text-sm font-bold transition-colors border-b-2 ${dashboardTab === tab ? "border-[#4285F4] text-[#4285F4]" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {proposals.length === 0 ? (
+                  <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-20 flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
+                      <FileText className="w-8 h-8 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-[#122244]">
+                      No proposals yet
+                    </h3>
+                  </div>
+                ) : filteredProposals.length === 0 ? (
+                  <p className="text-center text-gray-500 py-12">
+                    No proposals found for this filter.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredProposals.map((proposal) => {
+                      let isApproved = proposal.status === "Approved";
+                      let isRejected = proposal.status === "Rejected";
+                      let isRevision = proposal.status === "Revision";
+
+                      return (
+                        <div
+                          key={proposal.id}
+                          className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
+                            isApproved ? "border-green-400" : 
+                            isRejected ? "border-red-300" : 
+                            isRevision ? "border-orange-300" : "border-gray-200"
+                          }`}
+                        >
+                          <div className="flex gap-4 items-center w-full sm:w-auto">
+                            <div
+                              className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${
+                                proposal.businessLogo
+                                  ? "border-gray-200 bg-white"
+                                  : isApproved
+                                  ? "bg-green-50 border-green-200 text-green-600"
+                                  : isRejected
+                                  ? "bg-red-50 border-red-200 text-red-600"
+                                  : isRevision
+                                  ? "bg-orange-50 border-orange-200 text-orange-600"
+                                  : "bg-blue-50 border-blue-100 text-[#4285F4]"
+                              }`}
+                            >
+                              {proposal.businessLogo ? (
+                                <img src={proposal.businessLogo} alt="Logo" className="w-full h-full object-cover" />
+                              ) : (
+                                getInitials(proposal.businessName || proposal.businessType || "Draft")
+                              )}
                             </div>
-                            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest truncate">
-                              {proposal.businessType || "No Category"}
-                            </p>
-                            {/* ADDED: Timestamp Display */}
-                            {proposal.createdAt && (
-                              <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>
-                                  Submitted: {formatDateTime(proposal.createdAt)}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2.5 mb-1 flex-wrap">
+                                <h3 className="font-bold text-[#122244] text-base truncate max-w-[280px]">
+                                  {proposal.businessName || "Untitled Proposal"}
+                                </h3>
+                                <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                                  proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                  proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                  proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
+                                  proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
                                 </span>
                               </div>
-                            )}
+                              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider truncate">
+                                {proposal.businessType || "No Category Selected"}
+                              </p>
+                              {proposal.createdAt && (
+                                <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>
+                                    Submitted: {formatDateTime(proposal.createdAt)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                           {isApproved ? (
                             userGroup?.activeProposalId === proposal.id ? (
@@ -1456,7 +1611,8 @@ const Projects: React.FC = () => {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {activeView === "form" && (() => {
             const fin = currentProposal.financialData || {};
@@ -1659,7 +1815,7 @@ const Projects: React.FC = () => {
                                     })
                                   }
                                   onBlur={() => handleAutoSave()}
-                                  placeholder="e.g. Eggdesal"
+                                  placeholder="e.g. EggSarap"
                                   className={`w-full px-4 py-3 bg-gray-50 border ${
                                     check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
                                   } rounded-lg outline-none text-sm font-medium transition-colors`}
@@ -1673,6 +1829,62 @@ const Projects: React.FC = () => {
                               </>
                             );
                           })()}
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                            Business Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                          </label>
+                          <div className="flex items-center gap-3 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div className="w-12 h-12 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-2xs">
+                              {currentProposal.businessLogo ? (
+                                <>
+                                  <img src={currentProposal.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
+                                  {isEditingMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = { ...currentProposal, businessLogo: "" };
+                                        setCurrentProposal(updated);
+                                        handleAutoSave(updated);
+                                      }}
+                                      className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                      title="Remove Logo"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                              )}
+                            </div>
+                            {isEditingMode && (
+                              <div className="flex-1">
+                                <input
+                                  type="file"
+                                  id="business-logo-input"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const compressed = await compressImage(file);
+                                    const updated = { ...currentProposal, businessLogo: compressed };
+                                    setCurrentProposal(updated);
+                                    handleAutoSave(updated);
+                                  }}
+                                  className="hidden"
+                                />
+                                <label
+                                  htmlFor="business-logo-input"
+                                  className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-xs"
+                                >
+                                  <Upload className="w-3.5 h-3.5 text-[#c9a654]" />
+                                  {currentProposal.businessLogo ? "Change Logo" : "Upload Logo"}
+                                </label>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -2455,8 +2667,12 @@ const Projects: React.FC = () => {
 
               <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
                 <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654]">
-                    {getInitials(activeBusiness.businessName)}
+                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654] overflow-hidden">
+                    {activeBusiness.businessLogo ? (
+                      <img src={activeBusiness.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(activeBusiness.businessName)
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -2836,12 +3052,12 @@ const Projects: React.FC = () => {
       {/* SETUP MODAL */}
       {showSetupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
               <div className="w-full">
                 <h2 className="text-2xl font-extrabold">Team Setup</h2>
                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
-                  Review your assigned members
+                  Name your company, upload logo & review assigned members
                 </p>
               </div>
               <button
@@ -2852,42 +3068,116 @@ const Projects: React.FC = () => {
               </button>
             </div>
 
-            {/* Render Member List */}
-            <div className="p-6 overflow-y-auto space-y-4">
-              {groupMembersData.length > 0 ? (
-                groupMembersData.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
-                  >
-                    <div className="w-12 h-12 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                      {getInitials(`${member.firstName} ${member.lastName}`)}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
+              {/* Company Name */}
+              <div>
+                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                  Company Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={setupCompanyName}
+                  onChange={(e) => setSetupCompanyName(e.target.value)}
+                  placeholder="e.g., Fatui Harbingers, Nexus Enterprises..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all"
+                />
+              </div>
+
+              {/* Company Logo */}
+              <div>
+                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                  Company Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                </label>
+                <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-xs">
+                    {setupLogoPreview ? (
+                      <>
+                        <img src={setupLogoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => { setSetupLogoPreview(""); setSetupLogoFile(null); }}
+                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove Logo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="logo-file-input"
+                      accept="image/*"
+                      onChange={handleLogoFileChange}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="logo-file-input"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                    >
+                      <Upload className="w-4 h-4 text-[#c9a654]" />
+                      {setupLogoPreview ? "Change Logo" : "Upload Logo Image"}
+                    </label>
+                    <p className="text-[11px] text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Members Review */}
+              <div>
+                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-2">
+                  Assigned Team Members ({groupMembersData.length + 1})
+                </label>
+                <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                  {/* Leader */}
+                  <div className="flex items-center gap-3 p-3 border border-yellow-100 rounded-xl bg-yellow-50/40">
+                    <div className="w-9 h-9 bg-[#c9a654] rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                      {getInitials(userName)}
                     </div>
                     <div>
-                      <p className="font-bold text-[#122244] text-sm">
-                        {member.firstName} {member.lastName}
-                      </p>
-                      <p className="text-[10px] font-black uppercase text-green-600 tracking-tighter">
-                        Team Member
-                      </p>
+                      <p className="font-bold text-[#122244] text-sm">{userName}</p>
+                      <p className="text-[10px] font-black uppercase text-[#c9a654] tracking-wider">Team Leader</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-10">
-                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">
-                    No members found in this group.
-                  </p>
+                  {/* Members */}
+                  {groupMembersData.length > 0 ? (
+                    groupMembersData.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
+                      >
+                        <div className="w-9 h-9 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                          {getInitials(`${member.firstName} ${member.lastName}`)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#122244] text-sm">
+                            {member.firstName} {member.lastName}
+                          </p>
+                          <p className="text-[10px] font-black uppercase text-green-600 tracking-wider">
+                            Team Member
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-400 text-xs italic">No other members assigned yet.</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
-            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-2xl">
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
               <button
                 onClick={handleFinishTeamSetup}
-                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-lg shadow-md hover:bg-[#b59545] transition-all"
+                disabled={isUploadingLogo}
+                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
               >
+                {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 Finish Setup
               </button>
             </div>
@@ -3107,10 +3397,10 @@ const Projects: React.FC = () => {
                           }
                           className={`w-full px-4 py-2 bg-gray-50 border ${
                             check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg text-sm font-medium transition-colors`}
+                          } rounded-lg outline-none text-sm font-medium`}
                         />
                         {check.isCopyrighted && (
-                          <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
+                          <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-start gap-1">
                             <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                             <span>{check.errorMessage}</span>
                           </p>
@@ -3118,6 +3408,51 @@ const Projects: React.FC = () => {
                       </>
                     );
                   })()}
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                    Business Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                  </label>
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="w-10 h-10 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-2xs">
+                      {editBasicData.businessLogo ? (
+                        <>
+                          <img src={editBasicData.businessLogo} alt="Logo" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setEditBasicData({ ...editBasicData, businessLogo: "" })}
+                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove Logo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="file"
+                        id="edit-business-logo-input"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const compressed = await compressImage(file);
+                          setEditBasicData({ ...editBasicData, businessLogo: compressed });
+                        }}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="edit-business-logo-input"
+                        className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-xs"
+                      >
+                        <Upload className="w-3 h-3 text-[#c9a654]" />
+                        {editBasicData.businessLogo ? "Change" : "Upload"}
+                      </label>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">

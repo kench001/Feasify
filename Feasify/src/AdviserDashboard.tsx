@@ -19,6 +19,7 @@ interface StudentData {
   lastName: string;
   studentId: string;
   email: string;
+  section?: string;
 }
 
 interface GroupData {
@@ -26,6 +27,10 @@ interface GroupData {
   leaderId: string;
   leaderName: string;
   title: string;
+  companyName?: string;
+  companyLogo?: string;
+  businessName?: string;
+  businessLogo?: string;
   memberIds: string[];
   section: string;
   status?: 'Drafting' | 'Pending Review' | 'Approved Proposal' | 'Active Business';
@@ -45,6 +50,7 @@ interface ProposalData {
   groupId: string;
   businessType: string;
   businessName: string;
+  businessLogo?: string;
   totalCapital: string;
   tagline: string;
   targetMarket: string;
@@ -160,36 +166,131 @@ const AdviserDashboard: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
-  // Auto-select the first section when adviser sections load
+  // Auto-select "ALL" (My Sections) when adviser sections load
   useEffect(() => {
     if (adviserSections.length > 0 && !activeSection) {
-      // Check if a section is specified in the URL query params
       const sectionParam = searchParams.get("section");
-      const sectionToSelect = sectionParam || adviserSections[0];
+      const sectionToSelect = sectionParam || "ALL";
 
       setActiveSection(sectionToSelect);
-      const settings = sectionSettingsMap[sectionToSelect];
-      setMinMembers(settings?.minMembers ?? 8);
-      setMaxMembers(settings?.maxMembers ?? 10);
-      fetchSectionData(sectionToSelect);
+      if (sectionToSelect !== "ALL") {
+        const settings = sectionSettingsMap[sectionToSelect];
+        setMinMembers(settings?.minMembers ?? 8);
+        setMaxMembers(settings?.maxMembers ?? 10);
+      }
+      fetchSectionData(sectionToSelect, adviserSections);
     }
   }, [adviserSections, sectionSettingsMap, searchParams]);
 
-  const fetchSectionData = async (section: string) => {
+  const fetchSectionData = async (section: string, sectionsList = adviserSections) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
     setIsLoading(true);
     setSearchTerm("");
     setActiveView('dashboard');
     try {
-      const studentQ = query(collection(db, "users"), where("role", "==", "Student"), where("section", "==", section));
-      const studentSnap = await getDocs(studentQ);
-      setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData)));
+      if (section === "ALL") {
+        const activeList = sectionsList.length > 0 ? sectionsList : adviserSections;
+        if (activeList.length === 0) {
+          setStudents([]);
+          setGroups([]);
+          setIsLoading(false);
+          return;
+        }
 
-      const groupQ = query(collection(db, "groups"), where("section", "==", section));
-      const groupSnap = await getDocs(groupQ);
-      const fetchedGroups = groupSnap.docs.map(d => ({ id: d.id, ...d.data(), status: d.data().status || 'Drafting' } as GroupData));
-      setGroups(fetchedGroups);
-      setSectionGroupCountMap(prev => ({ ...prev, [section]: fetchedGroups.length }));
+        const studentQ = query(
+          collection(db, "users"),
+          where("role", "==", "Student"),
+          where("section", "in", activeList.slice(0, 30))
+        );
+        const studentSnap = await getDocs(studentQ);
+        setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData)));
+
+        const groupQ = query(
+          collection(db, "groups"),
+          where("section", "in", activeList.slice(0, 30))
+        );
+        const groupSnap = await getDocs(groupQ);
+        const groupIds = groupSnap.docs.map(d => d.id);
+        const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
+
+        if (groupIds.length > 0) {
+          try {
+            const propQ = query(
+              collection(db, "proposals"),
+              where("groupId", "in", groupIds.slice(0, 30))
+            );
+            const propSnap = await getDocs(propQ);
+            propSnap.docs.forEach(pd => {
+              const pdata = pd.data();
+              if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
+                proposalMap[pdata.groupId] = {
+                  businessName: pdata.businessName,
+                  businessLogo: pdata.businessLogo,
+                };
+              }
+            });
+          } catch (e) {
+            console.error("Error prefetching proposals:", e);
+          }
+        }
+
+        const fetchedGroups = groupSnap.docs.map(d => {
+          const gData = d.data();
+          const pInfo = proposalMap[d.id] || {};
+          return {
+            id: d.id,
+            ...gData,
+            businessName: gData.businessName || pInfo.businessName || "",
+            businessLogo: gData.businessLogo || pInfo.businessLogo || "",
+            status: gData.status || 'Drafting'
+          } as GroupData;
+        });
+        setGroups(fetchedGroups);
+      } else {
+        const studentQ = query(collection(db, "users"), where("role", "==", "Student"), where("section", "==", section));
+        const studentSnap = await getDocs(studentQ);
+        setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData)));
+
+        const groupQ = query(collection(db, "groups"), where("section", "==", section));
+        const groupSnap = await getDocs(groupQ);
+        const groupIds = groupSnap.docs.map(d => d.id);
+        const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
+
+        if (groupIds.length > 0) {
+          try {
+            const propQ = query(
+              collection(db, "proposals"),
+              where("groupId", "in", groupIds.slice(0, 30))
+            );
+            const propSnap = await getDocs(propQ);
+            propSnap.docs.forEach(pd => {
+              const pdata = pd.data();
+              if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
+                proposalMap[pdata.groupId] = {
+                  businessName: pdata.businessName,
+                  businessLogo: pdata.businessLogo,
+                };
+              }
+            });
+          } catch (e) {
+            console.error("Error prefetching proposals:", e);
+          }
+        }
+
+        const fetchedGroups = groupSnap.docs.map(d => {
+          const gData = d.data();
+          const pInfo = proposalMap[d.id] || {};
+          return {
+            id: d.id,
+            ...gData,
+            businessName: gData.businessName || pInfo.businessName || "",
+            businessLogo: gData.businessLogo || pInfo.businessLogo || "",
+            status: gData.status || 'Drafting'
+          } as GroupData;
+        });
+        setGroups(fetchedGroups);
+        setSectionGroupCountMap(prev => ({ ...prev, [section]: fetchedGroups.length }));
+      }
     } catch (error) { console.error("Error fetching data:", error); }
     finally { setIsLoading(false); }
   };
@@ -502,17 +603,42 @@ const AdviserDashboard: React.FC = () => {
         if (proposal.financialData && !proposal.originalProposalFinancials) {
           updatePayload.originalProposalFinancials = proposal.financialData;
         }
+        await updateDoc(doc(db, "groups", selectedGroup.id), {
+          status: newGroupStatus,
+          businessName: proposal.businessName,
+          businessLogo: proposal.businessLogo || "",
+          title: proposal.businessName,
+        });
+        setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {
+          ...g,
+          status: newGroupStatus,
+          businessName: proposal.businessName,
+          businessLogo: proposal.businessLogo || "",
+          title: proposal.businessName,
+        } : g));
+        setSelectedGroup(prev => prev ? {
+          ...prev,
+          status: newGroupStatus,
+          businessName: proposal.businessName,
+          businessLogo: proposal.businessLogo || "",
+          title: proposal.businessName,
+        } : null);
       } else if (action === 'Reject') {
         const otherPending = groupProposals.filter(p => p.id !== proposal.id && p.status === 'Pending');
         if (otherPending.length === 0 && selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
           newGroupStatus = 'Drafting';
         }
-      }
-
-      if (newGroupStatus !== selectedGroup.status) {
-        await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
-        setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
-        setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
+        if (newGroupStatus !== selectedGroup.status) {
+          await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
+          setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
+          setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
+        }
+      } else {
+        if (newGroupStatus !== selectedGroup.status) {
+          await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
+          setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
+          setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
+        }
       }
 
       await fetchGroupProposals(selectedGroup.id);
@@ -960,28 +1086,50 @@ const AdviserDashboard: React.FC = () => {
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-        <nav className="flex-1 p-4 space-y-8 mt-4">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">My Sections</button>
-              <div className="pl-4 pr-2 py-2 space-y-2">
-                {adviserSections.map((sectionName) => (
-                  <button key={sectionName} onClick={() => { setActiveSection(sectionName); const s = sectionSettingsMap[sectionName]; setMinMembers(s?.minMembers ?? 8); setMaxMembers(s?.maxMembers ?? 10); fetchSectionData(sectionName); }}
-                    className={`w-full text-left text-sm transition-colors ${activeSection === sectionName ? 'text-white font-medium' : 'text-gray-400 hover:text-white'}`}>
-                    {sectionName}
-                  </button>
-                ))}
-              </div>
+        <nav className="flex-1 p-4 space-y-4 mt-2">
+          <div className="space-y-1">
+            <button
+              onClick={() => {
+                setActiveSection("ALL");
+                fetchSectionData("ALL");
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
+                activeSection === "ALL"
+                  ? "bg-[#c9a654] text-white"
+                  : "bg-white/5 text-gray-300 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <span>My Sections</span>
+              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+                All
+              </span>
+            </button>
+            <div className="pl-4 pr-2 py-2 space-y-1.5">
+              {adviserSections.map((sectionName) => (
+                <button
+                  key={sectionName}
+                  onClick={() => {
+                    setActiveSection(sectionName);
+                    const s = sectionSettingsMap[sectionName];
+                    setMinMembers(s?.minMembers ?? 8);
+                    setMaxMembers(s?.maxMembers ?? 10);
+                    fetchSectionData(sectionName);
+                  }}
+                  className={`w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors ${
+                    activeSection === sectionName
+                      ? "text-[#c9a654] font-bold bg-white/10"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {sectionName}
+                </button>
+              ))}
             </div>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
-              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
-            </div>
+          <div className="pt-4 border-t border-white/10 space-y-1">
+            <button onClick={() => navigate("/adviser/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
+            <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+            <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
           </div>
         </nav>
         <div className="p-4 border-t border-white/10 bg-black/20">
@@ -1028,8 +1176,14 @@ const AdviserDashboard: React.FC = () => {
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 pb-6">
               <div>
-                <h1 className="text-3xl font-extrabold text-[#122244]">{activeSection}</h1>
-                <p className="text-sm text-gray-500 mt-1 italic">Manage feasibility groups and team leaders for this section.</p>
+                <h1 className="text-3xl font-extrabold text-[#122244]">
+                  {activeSection === "ALL" ? "My Sections" : activeSection}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1 italic">
+                  {activeSection === "ALL"
+                    ? "Manage all feasibility groups and team leaders across all your assigned sections."
+                    : `Manage feasibility groups and team leaders for section ${activeSection}.`}
+                </p>
               </div>
 
               {/* === REORDERED TOP BUTTONS === */}
@@ -1139,11 +1293,38 @@ const AdviserDashboard: React.FC = () => {
                   if (group.status === 'Active Business') { statusBadgeColor = "bg-blue-100 text-blue-700"; statusDotColor = "bg-blue-500"; }
 
                   return (
-                    <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[450px] hover:shadow-md transition-shadow">
-                      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
-                        <h3 className="font-bold text-[#122244] text-base">Group {originalIndex}</h3>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
+                    <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[470px] hover:shadow-md transition-shadow">
+                      {/* CARD HEADER: COMPANY NAME & LOGO */}
+                      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl gap-2">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {group.companyLogo ? (
+                              <img src={group.companyLogo} alt="Company Logo" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
+                                {getInitials(group.companyName || `G${originalIndex}`)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-extrabold text-[#122244] text-sm truncate" title={group.companyName || `Group ${originalIndex}`}>
+                              {group.companyName || `Group ${originalIndex}`}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.2 rounded">
+                                Group {originalIndex}
+                              </span>
+                              {activeSection === "ALL" && (
+                                <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-extrabold rounded uppercase tracking-wider">
+                                  {group.section}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
 
                           <div className="relative">
                             <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
@@ -1159,34 +1340,53 @@ const AdviserDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="p-5 flex-1 flex flex-col overflow-hidden">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Business Name</p>
-                        <p className={`text-lg font-bold mb-3 truncate ${group.title === 'Pending Business Name' ? 'text-gray-400 italic' : 'text-gray-900'}`}>{group.title}</p>
+                      {/* CARD BODY */}
+                      <div className="p-4 flex-1 flex flex-col overflow-hidden">
+                        {/* BUSINESS VENTURE CLARIFICATION CARD */}
+                        <div className="flex items-center gap-3 p-2.5 bg-gray-50/90 rounded-xl border border-gray-200/80 mb-3">
+                          <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 shadow-2xs flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {group.businessLogo ? (
+                              <img src={group.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-extrabold text-xs text-[#c9a654]">
+                                {getInitials(group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "BN"))}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
+                              Business Name
+                            </p>
+                            <p className={`text-xs font-bold truncate ${group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project") ? 'text-[#122244]' : 'text-gray-400 italic'}`} title={group.businessName || group.title || "Pending Business Proposal"}>
+                              {group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "Pending Business Proposal")}
+                            </p>
+                          </div>
+                        </div>
 
-                        <div className="mb-6">
+                        <div className="mb-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
                             {group.status === 'Pending Review' ? 'Proposal for Review' : group.status}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : group.status === 'Pending Review' ? 'bg-[#e74c3c]' : 'bg-[#2ecc71]'}`}>{getInitials(group.leaderName)}</div>
-                          <div>
-                            <p className="text-[9px] font-bold text-[#c9a654] uppercase tracking-widest leading-none mb-1">Team Leader</p>
-                            <p className="text-sm font-bold text-gray-900">{group.leaderName}</p>
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : group.status === 'Pending Review' ? 'bg-[#e74c3c]' : 'bg-[#2ecc71]'}`}>{getInitials(group.leaderName)}</div>
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-bold text-[#c9a654] uppercase tracking-widest leading-none mb-0.5">Team Leader</p>
+                            <p className="text-xs font-bold text-gray-900 truncate">{group.leaderName}</p>
                           </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
                           {group.memberIds.length === 0 ? (
-                            <p className="text-xs text-gray-400 italic mt-2">No members assigned yet.</p>
+                            <p className="text-xs text-gray-400 italic mt-1">No members assigned yet.</p>
                           ) : (
-                            <ul className="space-y-3">
+                            <ul className="space-y-1.5">
                               {group.memberIds.map(memberId => {
                                 const member = students.find(s => s.id === memberId);
                                 if (!member) return null;
-                                return <li key={memberId} className="text-sm text-gray-500 truncate">{member.firstName} {member.lastName}</li>;
+                                return <li key={memberId} className="text-xs text-gray-600 truncate flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>{member.firstName} {member.lastName}</li>;
                               })}
                             </ul>
                           )}

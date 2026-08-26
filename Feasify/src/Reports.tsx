@@ -209,26 +209,20 @@ const Reports: React.FC = () => {
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
 
-        <nav className="flex-1 p-4 space-y-8 mt-4">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><LayoutDashboard className="w-4 h-4" /> Dashboard</button>
-              <button onClick={() => navigate("/projects")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Folder className="w-4 h-4" /> Business Proposal</button>
-              <button onClick={() => navigate("/financial-input")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><FileEdit className="w-4 h-4" /> Financial Input</button>
-              <button onClick={() => navigate("/ai-analysis")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Zap className="w-4 h-4" /> AI Feasibility Analysis</button>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"><BarChart3 className="w-4 h-4" /> Reports</button>
-              <button onClick={() => navigate("/messages")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><MessageCircle className="w-4 h-4" /> Message</button>
-            </div>
+        <nav className="flex-1 p-4 space-y-4 mt-2">
+          <div className="space-y-1">
+            <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><LayoutDashboard className="w-4 h-4" /> Dashboard</button>
+            <button onClick={() => navigate("/projects")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Folder className="w-4 h-4" /> Business Proposal</button>
+            <button onClick={() => navigate("/financial-input")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><FileEdit className="w-4 h-4" /> Financial Input</button>
+            <button onClick={() => navigate("/ai-analysis")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Zap className="w-4 h-4" /> AI Feasibility Analysis</button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"><BarChart3 className="w-4 h-4" /> Reports</button>
+            <button onClick={() => navigate("/messages")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><MessageCircle className="w-4 h-4" /> Message</button>
           </div>
 
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><User className="w-4 h-4" /> Profile</button>
-              <button onClick={() => navigate("/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Settings className="w-4 h-4" /> Settings</button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
-            </div>
+          <div className="pt-4 border-t border-white/10 space-y-1">
+            <button onClick={() => navigate("/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><User className="w-4 h-4" /> Profile</button>
+            <button onClick={() => navigate("/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+            <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
           </div>
         </nav>
 
