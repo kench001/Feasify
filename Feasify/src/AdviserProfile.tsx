@@ -325,17 +325,17 @@ const AdviserProfile: React.FC = () => {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
               <button onClick={() => navigate("/adviser/dashboard")}className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold  text-gray-400 transition-all ">My Sections</button>
-              <div className="pl-4 pr-2 py-2 space-y-2">
+              <div className="pl-4 pr-2 py-2 space-y-1.5">
                 {adviserSections.map((sectionName) => (
                   <button
                     key={sectionName}
                     onClick={() => {
                       navigate(`/adviser/dashboard?section=${encodeURIComponent(sectionName)}`);
                     }}
-                    className={`w-full text-left text-sm transition-colors ${
+                    className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
                       activeSection === sectionName
-                        ? "text-gray-400 hover:text-white"
-                        : "text-gray-400 hover:text-white"
+                        ? "bg-[#c9a654] text-white font-bold shadow-sm"
+                        : "text-gray-400 hover:text-white hover:bg-white/5"
                     }`}
                   >
                     {sectionName}

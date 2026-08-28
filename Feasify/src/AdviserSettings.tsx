@@ -140,17 +140,17 @@ const AdviserSettings: React.FC = () => {
               <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-white hover:bg-white/10 transition-all">
                 My Sections
               </button>
-              <div className="pl-4 pr-2 py-2 space-y-2">
+              <div className="pl-4 pr-2 py-2 space-y-1.5">
                 {adviserSections.map((sectionName) => (
                   <button
                     key={sectionName}
                     onClick={() => {
                       navigate(`/adviser/dashboard?section=${encodeURIComponent(sectionName)}`);
                     }}
-                    className={`w-full text-left text-sm transition-colors ${
+                    className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
                       activeSection === sectionName
-                        ? "text-white font-medium"
-                        : "text-gray-400 hover:text-white"
+                        ? "bg-[#c9a654] text-white font-bold shadow-sm"
+                        : "text-gray-400 hover:text-white hover:bg-white/5"
                     }`}
                   >
                     {sectionName}

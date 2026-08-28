@@ -3,7 +3,7 @@ import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import emailjs from "@emailjs/browser";
 import {
@@ -122,16 +122,41 @@ const ChairpersonModule: React.FC = () => {
   }, [userForm.lastName, userForm.plvId, editingUserId]);
 
   useEffect(() => {
+    let unsubUsers: (() => void) | undefined;
+
     const unsub = onAuthStateChanged(auth, async (u) => {
+      if (unsubUsers) { unsubUsers(); unsubUsers = undefined; }
       if (!u || u.email !== "chairperson@gmail.com") {
         navigate("/"); 
       } else {
-        fetchAllUsers();
+        unsubUsers = setupUsersListener();
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsub();
+      if (unsubUsers) unsubUsers();
+    };
   }, [navigate]);
 
+  const setupUsersListener = (): (() => void) => {
+    setIsLoading(true);
+    const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
+      const users = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as UserData[];
+      setUsersList(users);
+      sessionStorage.setItem('adminUserCount', users.length.toString());
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Users listener error:", error);
+      setIsLoading(false);
+    });
+    return unsub;
+  };
+
+  // Keep fetchAllUsers as a manual refresh fallback
   const fetchAllUsers = async () => {
     setIsLoading(true);
     try {

@@ -3,7 +3,7 @@ import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, onSnapshot } from "firebase/firestore";
 import {
   Users,
   FileText,
@@ -46,20 +46,114 @@ const ChairpersonFeasib: React.FC = () => {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let unsubProjects: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      if (unsubProjects) { unsubProjects(); unsubProjects = undefined; }
       if (!u || u.email !== "chairperson@gmail.com") {
         navigate("/"); 
       } else {
-        fetchAllProjects();
+        unsubProjects = setupProjectsListener();
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsubAuth();
+      if (unsubProjects) unsubProjects();
+    };
   }, [navigate]);
 
+  const setupProjectsListener = (): (() => void) => {
+    setIsLoading(true);
+    let unsubProposals: (() => void) | undefined;
+
+    // Fetch adviser mapping once (advisers change rarely)
+    getDocs(query(collection(db, "users"), where("role", "==", "Adviser")))
+      .then(() => {}) // pre-warm, actual use is inside snapshot
+      .catch(console.error);
+
+    const buildProjectList = (groupDocs: any[], proposalsByGroup: Record<string, any>, adviserBySection: Record<string, string>) => {
+      const projList = groupDocs.map((gDoc: any) => {
+        const data = gDoc.data ? gDoc.data() : gDoc;
+        const id = gDoc.id;
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now());
+        const sectionKey = data.section || "";
+        const associatedProposal = proposalsByGroup[id];
+        return {
+          id,
+          name: data.title || "Pending Title...",
+          section: sectionKey || "Unknown Section",
+          leaderName: data.leaderName || "Unknown Leader",
+          adviserName: adviserBySection[sectionKey] || "Unassigned",
+          status: data.status || (data.isSetup ? "Feasible" : "Pending"),
+          aiStatus: associatedProposal?.aiAnalysis?.status || "PENDING",
+          category: data.category || data.section || "General",
+          memberCount: Array.isArray(data.memberIds) ? data.memberIds.length + 1 : 1,
+          date: createdAt.toLocaleDateString()
+        } as ProjectData;
+      });
+      sessionStorage.setItem('adminProjectCount', projList.length.toString());
+      setProjects(projList);
+      setIsLoading(false);
+    };
+
+    // Keep a shared reference to latest data for cross-listener rebuilds
+    let latestGroupDocs: any[] = [];
+    let latestAdviserBySection: Record<string, string> = {};
+    let latestProposalsByGroup: Record<string, any> = {};
+
+    // Listen for group changes (real-time)
+    const unsubGroups = onSnapshot(collection(db, "groups"), async (groupSnap) => {
+      latestGroupDocs = groupSnap.docs;
+
+      // Re-fetch adviser mapping on group changes (lightweight one-time)
+      try {
+        const advSnap = await getDocs(query(collection(db, "users"), where("role", "==", "Adviser")));
+        latestAdviserBySection = {};
+        advSnap.docs.forEach(d => {
+          const data = d.data() as any;
+          const adviserName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || data.email || "Adviser";
+          const sectionValue = data.section;
+          if (typeof sectionValue === "string") {
+            sectionValue.split(",").map((s: string) => s.trim()).filter(Boolean).forEach((section: string) => {
+              latestAdviserBySection[section] = adviserName;
+            });
+          } else if (Array.isArray(sectionValue)) {
+            sectionValue.forEach((section: string) => {
+              latestAdviserBySection[section] = adviserName;
+            });
+          }
+        });
+      } catch (e) { console.error(e); }
+
+      // Set up or refresh the proposals listener when group list changes
+      if (unsubProposals) { unsubProposals(); }
+      unsubProposals = onSnapshot(collection(db, "proposals"), (propSnap) => {
+        latestProposalsByGroup = {};
+        propSnap.docs.forEach(d => {
+          const data = d.data() as any;
+          if (data.groupId) {
+            latestProposalsByGroup[data.groupId] = data;
+          }
+        });
+        buildProjectList(latestGroupDocs, latestProposalsByGroup, latestAdviserBySection);
+      }, (err) => console.error("Proposals listener error:", err));
+
+    }, (err) => {
+      console.error("Groups listener error:", err);
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubGroups();
+      if (unsubProposals) unsubProposals();
+    };
+  };
+
+  // Keep fetchAllProjects as manual fallback
   const fetchAllProjects = async () => {
     setIsLoading(true);
     try {
-      // Fetch groups, advisers, AND proposals (to get the AI Analysis status)
       const [groupsSnapshot, adviserSnapshot, proposalsSnapshot] = await Promise.all([
         getDocs(collection(db, "groups")),
         getDocs(query(collection(db, "users"), where("role", "==", "Adviser"))),
@@ -82,7 +176,6 @@ const ChairpersonFeasib: React.FC = () => {
         }
       });
 
-      // Map proposals to groups to extract the AI Status
       const proposalsByGroup: Record<string, any> = {};
       proposalsSnapshot.docs.forEach(doc => {
         const data = doc.data() as any;

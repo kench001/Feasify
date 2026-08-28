@@ -47,6 +47,14 @@ import {
   FileText,
   X,
 } from "lucide-react";
+import {
+  normalizeProposalProducts,
+  computeProductMetrics,
+} from "./Projects";
+import type {
+  ProductCostingItem,
+  IngredientItem,
+} from "./Projects";
 
 const Financial_input: React.FC = () => {
   const navigate = useNavigate();
@@ -69,6 +77,7 @@ const Financial_input: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState("All changes saved");
 
   const [financials, setFinancials] = useState({
+    products: [] as ProductCostingItem[],
     sellingPrice: "",
     monthlySales: "",
     variableCost: "",
@@ -90,6 +99,8 @@ const Financial_input: React.FC = () => {
     interestRate: "",
   });
 
+  const activeProjName = projects.find((p) => p.id === selectedProjectId)?.name || "Active Business Projections";
+
   // --- PHILIPPINE BMBE TAX CALCULATION (RA 9178) ---
   const calculateBMBETax = (annualRevenue: number) => {
     const percentageTax = annualRevenue * 0.03;
@@ -102,13 +113,128 @@ const Financial_input: React.FC = () => {
     };
   };
 
+  // --- PRODUCT COSTING & NORMALIZATION ---
+  const normalizedProducts = normalizeProposalProducts({
+    products: financials.products,
+    sellingPrice: financials.sellingPrice,
+    monthlySales: financials.monthlySales,
+    variableCost: financials.variableCost,
+  }, activeProjName);
+
+  const handleAddProduct = () => {
+    const newProduct: ProductCostingItem = {
+      id: "prod-" + Date.now(),
+      name: "",
+      quantityYield: "",
+      ingredients: [],
+      markupPercentage: "100",
+      sellingPrice: "",
+    };
+    const updatedProducts = [...normalizedProducts, newProduct];
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
+  const handleRemoveProduct = (index: number) => {
+    if (normalizedProducts.length <= 1) return;
+    const updatedProducts = normalizedProducts.filter((_, i) => i !== index);
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
+  const handleUpdateProduct = (index: number, updates: Partial<ProductCostingItem>) => {
+    const updatedProducts = [...normalizedProducts];
+    updatedProducts[index] = { ...updatedProducts[index], ...updates };
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
+  const handleAddIngredient = (productIndex: number) => {
+    const updatedProducts = [...normalizedProducts];
+    const currentProd = updatedProducts[productIndex];
+    const newIng: IngredientItem = {
+      id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      name: "",
+      price: "",
+    };
+    updatedProducts[productIndex] = {
+      ...currentProd,
+      ingredients: [...(currentProd.ingredients || []), newIng],
+    };
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
+  const handleUpdateIngredient = (productIndex: number, ingredientIndex: number, updates: Partial<IngredientItem>) => {
+    const updatedProducts = [...normalizedProducts];
+    const currentProd = updatedProducts[productIndex];
+    const ings = [...(currentProd.ingredients || [])];
+    ings[ingredientIndex] = { ...ings[ingredientIndex], ...updates };
+    updatedProducts[productIndex] = {
+      ...currentProd,
+      ingredients: ings,
+    };
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
+  const handleRemoveIngredient = (productIndex: number, ingredientIndex: number) => {
+    const updatedProducts = [...normalizedProducts];
+    const currentProd = updatedProducts[productIndex];
+    const ings = (currentProd.ingredients || []).filter((_, i) => i !== ingredientIndex);
+    updatedProducts[productIndex] = {
+      ...currentProd,
+      ingredients: ings,
+    };
+    const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    handleAutoSave(newState);
+  };
+
   // --- CALCULATION ENGINE ---
-  const safeSellingPrice = Number(financials.sellingPrice) || 0;
-  const safeMonthlySales = Number(financials.monthlySales) || 0;
-  const safeVariableCost = Number(financials.variableCost) || 0;
+  const firstProd = normalizedProducts[0] || {
+    id: "prod-1",
+    name: "",
+    quantityYield: financials.monthlySales || "",
+    ingredients: [],
+    markupPercentage: "100",
+    sellingPrice: financials.sellingPrice || "",
+  };
+  const firstMetrics = computeProductMetrics(firstProd);
+
+  // Multi-product aggregate metrics
+  const totalMultiRevenue = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + m.revenue;
+  }, 0);
+  const totalMultiVariableCost = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + (m.unitCost * m.batchYield);
+  }, 0);
+  const totalMultiYield = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + m.batchYield;
+  }, 0);
+
+  const safeSellingPrice = normalizedProducts.length > 1 && totalMultiYield > 0
+    ? totalMultiRevenue / totalMultiYield
+    : (firstMetrics.sellingPrice > 0 ? firstMetrics.sellingPrice : (Number(financials.sellingPrice) || 0));
+
+  const safeMonthlySales = normalizedProducts.length > 1
+    ? totalMultiYield
+    : (firstMetrics.batchYield > 0 ? firstMetrics.batchYield : (Number(financials.monthlySales) || 0));
+
+  const safeVariableCost = normalizedProducts.length > 1 && totalMultiYield > 0
+    ? totalMultiVariableCost / totalMultiYield
+    : (firstMetrics.unitCost > 0 ? firstMetrics.unitCost : (Number(financials.variableCost) || 0));
   
   const calculatedOpex = financials.opexList && financials.opexList.length > 0
-    ? financials.opexList.reduce((sum, item) => sum + item.amount, 0)
+    ? financials.opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
     : (Number(financials.fixedCosts) || 0);
   const safeFixedCosts = calculatedOpex;
   
@@ -119,8 +245,8 @@ const Financial_input: React.FC = () => {
   
   const safeOperatingDays = Number(financials.operatingDays) || 300;
 
-  const monthlyRevenue = safeSellingPrice * safeMonthlySales;
-  const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+  const monthlyRevenue = normalizedProducts.length > 1 ? totalMultiRevenue : (safeSellingPrice * safeMonthlySales);
+  const totalMonthlyVariableCosts = normalizedProducts.length > 1 ? totalMultiVariableCost : (safeVariableCost * safeMonthlySales);
   const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
   
   const monthlyInterest = financials.isCapitalBorrowed ? (safeStartupCapital * (Number(financials.interestRate) / 100)) / 12 : 0;
@@ -219,8 +345,6 @@ const Financial_input: React.FC = () => {
     paybackMonths = Math.floor(totalMonths % 12);
     paybackDays = Math.round((totalMonths % 1) * 30);
   }
-
-  const activeProjName = projects.find((p) => p.id === selectedProjectId)?.name || "Active Business Projections";
 
   const handleExportCSV = () => {
     const dateStr = new Date().toLocaleDateString();
@@ -423,7 +547,10 @@ const Financial_input: React.FC = () => {
         return String(val);
       };
 
+      const loadedProducts = normalizeProposalProducts(selectedProj.financialData, selectedProj.name);
+
       setFinancials({
+        products: loadedProducts,
         sellingPrice: getVal(selectedProj.financialData.sellingPrice),
         monthlySales: getVal(selectedProj.financialData.monthlySales),
         variableCost: getVal(selectedProj.financialData.variableCost),
@@ -456,6 +583,7 @@ const Financial_input: React.FC = () => {
       };
 
       setFinancials({
+        products: normalizeProposalProducts(undefined, selectedProj.name),
         sellingPrice: "",
         monthlySales: "",
         variableCost: "",
@@ -487,8 +615,42 @@ const Financial_input: React.FC = () => {
         ? dataToSave.opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
         : (Number(dataToSave.fixedCosts) || 0);
 
+      const prods = dataToSave.products && dataToSave.products.length > 0
+        ? dataToSave.products
+        : normalizedProducts;
+
+      let syncSellingPrice = dataToSave.sellingPrice;
+      let syncMonthlySales = dataToSave.monthlySales;
+      let syncVariableCost = dataToSave.variableCost;
+      let syncProductionCost = "";
+      let syncMarkupPct = "";
+      let syncMarkupAmt = "";
+      let syncComputedBasePrice = "";
+
+      if (prods.length > 0) {
+        const firstP = prods[0];
+        const firstM = computeProductMetrics(firstP);
+        syncSellingPrice = String(firstP.sellingPrice || (firstM.computedBasePrice > 0 ? Number(firstM.computedBasePrice.toFixed(2)) : ""));
+        syncMonthlySales = String(firstP.quantityYield || "");
+        syncVariableCost = firstM.unitCost > 0 ? String(Number(firstM.unitCost.toFixed(2))) : "";
+        syncProductionCost = String(firstM.totalBatchCost);
+        syncMarkupPct = String(firstP.markupPercentage || "100");
+        syncMarkupAmt = firstM.markupAmount > 0 ? String(Number(firstM.markupAmount.toFixed(2))) : "";
+        syncComputedBasePrice = firstM.computedBasePrice > 0 ? String(Number(firstM.computedBasePrice.toFixed(2))) : "";
+      }
+
       const payload = {
         ...dataToSave,
+        products: prods,
+        sellingPrice: syncSellingPrice,
+        monthlySales: syncMonthlySales,
+        variableCost: syncVariableCost,
+        productionCost: syncProductionCost,
+        quantityYield: syncMonthlySales,
+        unitCost: syncVariableCost,
+        markupPercentage: syncMarkupPct,
+        markupAmount: syncMarkupAmt,
+        computedSellingPrice: syncComputedBasePrice,
         fixedCosts: String(computedFixedCosts),
         updatedAt: serverTimestamp()
       };
@@ -779,41 +941,44 @@ const Financial_input: React.FC = () => {
           {/* === TAB 1: OPERATIONAL INPUTS & COSTING === */}
           {activeModuleTab === "operations" && (
             <div className="space-y-8 animate-in fade-in duration-200">
-              {/* QUICK CARDS */}
+              {/* HERO METRIC CARDS (AS IS - 4TH IMAGE) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
+                {/* 1. Monthly Revenue */}
                 <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-6 shadow-sm text-center">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     Monthly Revenue
                   </span>
                   <p className="text-2xl font-black">
-                    ₱{monthlyRevenue.toLocaleString()}
+                    ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </p>
                   <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                     Price × Sales
-                    <p className="text-[9px] text-[#c9a654] mt-0.5">
-                      ₱{safeSellingPrice.toLocaleString()} ×{" "}
+                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                      ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
                       {safeMonthlySales.toLocaleString()}
                     </p>
                   </div>
                 </div>
 
+                {/* 2. Monthly Expenses */}
                 <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-6 shadow-sm text-center">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     Monthly Expenses
                   </span>
                   <p className="text-2xl font-black">
-                    ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}
+                    ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </p>
                   <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                     (COGS per Unit × Sales) + Fixed
-                    <p className="text-[9px] text-[#c9a654] mt-0.5">
-                      (₱{safeVariableCost.toLocaleString()} ×{" "}
+                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                      (₱{safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
                       {safeMonthlySales.toLocaleString()}) + ₱
                       {safeFixedCosts.toLocaleString()}
                     </p>
                   </div>
                 </div>
 
+                {/* 3. Break-Even Point */}
                 <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-6 shadow-sm text-center">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     Break-Even Point
@@ -824,14 +989,15 @@ const Financial_input: React.FC = () => {
                   </p>
                   <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                     Monthly OpEx / (Price - COGS)
-                    <p className="text-[9px] text-[#c9a654] mt-0.5">
+                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
                       ₱{safeFixedCosts.toLocaleString()} / (₱
-                      {safeSellingPrice.toLocaleString()} - ₱
-                      {safeVariableCost.toLocaleString()})
+                      {safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
+                      {safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })})
                     </p>
                   </div>
                 </div>
 
+                {/* 4. Gross Margin */}
                 <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-6 shadow-sm text-center">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     Gross Margin
@@ -841,14 +1007,15 @@ const Financial_input: React.FC = () => {
                   </p>
                   <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                     (Rev - COGS) / Rev
-                    <p className="text-[9px] text-[#c9a654] mt-0.5">
-                      (₱{monthlyRevenue.toLocaleString()} - ₱
-                      {totalMonthlyVariableCosts.toLocaleString()}) / ₱
-                      {monthlyRevenue.toLocaleString()}
+                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                      (₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
+                      {totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}) / ₱
+                      {monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
 
+                {/* 5. Net Profit / Month */}
                 <div
                   className={`bg-white rounded-xl border-l-4 p-6 shadow-sm text-center ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}
                 >
@@ -856,199 +1023,474 @@ const Financial_input: React.FC = () => {
                     Net Profit/mo
                   </span>
                   <p
-                    className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : ""}`}
+                    className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}
                   >
-                    ₱{netMonthlyProfit.toLocaleString()}
+                    ₱{netMonthlyProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </p>
                   <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                     Revenue - Expenses
-                    <p className="text-[9px] text-[#c9a654] mt-0.5">
-                      ₱{monthlyRevenue.toLocaleString()} - ₱
+                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                      ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
                       {(
                         totalMonthlyVariableCosts + safeFixedCosts
-                      ).toLocaleString()}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
+                      ).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* MAIN INPUT GRID */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-[#122244] items-start">
-                
-                {/* LEFT COLUMN: Sales, Pricing & OpEx */}
-                <div className="lg:col-span-4 flex flex-col gap-6">
-                  {/* Sales & Pricing */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
-                      <Package className="text-[#c9a654]" /> Sales & Pricing
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">
-                          Selling Price (₱)
-                        </label>
-                        <input
-                          type="number"
-                          value={financials.sellingPrice}
-                          placeholder="0"
-                          onChange={(e) =>
-                            setFinancials({
-                              ...financials,
-                              sellingPrice: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">
-                          Monthly Sales / UNIT
-                        </label>
-                        <input
-                          type="number"
-                          value={financials.monthlySales}
-                          placeholder="0"
-                          onChange={(e) =>
-                            setFinancials({
-                              ...financials,
-                              monthlySales: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">
-                          Cost of Goods (COGS) / Unit (₱)
-                        </label>
-                        <input
-                          type="number"
-                          value={financials.variableCost}
-                          placeholder="0"
-                          onChange={(e) =>
-                            setFinancials({
-                              ...financials,
-                              variableCost: e.target.value,
-                            })
-                          }
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
-                        />
-                      </div>
+              {/* === SECTION 1: PRODUCT COSTING & YIELD (SALES & PRICING ENGINE) === */}
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#122244] text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                      <Package size={16} className="text-[#c9a654]" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                        Product Costing, Sales & Pricing
+                      </h4>
+                      <p className="text-[11px] text-gray-400">
+                        Batch yield, raw material ingredients, mark-up percentage, and target selling price
+                      </p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleAddProduct}
+                    className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                  >
+                    <Plus size={14} /> Add Product
+                  </button>
+                </div>
 
-                  {/* Monthly Cost (OpEx) */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="flex justify-between items-center border-b pb-4">
-                      <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                        <TrendingUp className="text-[#c9a654]" /> Monthly Cost (OpEx)
-                      </h3>
-                      <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-blue-600 uppercase">Total:</span>
-                        <span className="text-sm font-black text-blue-800">₱{safeFixedCosts.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="overflow-x-auto rounded-xl border border-gray-200 max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
-                        <table className="w-full text-left border-collapse">
-                          <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm">
-                            <tr className="border-b border-gray-200 text-[10px] uppercase text-gray-500 tracking-wider">
-                              <th className="p-3 font-bold">Expense Name</th>
-                              <th className="p-3 font-bold w-28">Amount</th>
-                              <th className="p-3 font-bold w-10 text-center"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {financials.opexList && financials.opexList.map((item, index) => (
-                              <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                                <td className="p-2">
-                                  <input
-                                    type="text"
-                                    value={item.name}
-                                    placeholder="e.g. Electricity, Rent"
-                                    onChange={(e) => {
-                                      const newList = [...financials.opexList];
-                                      newList[index].name = e.target.value;
-                                      setFinancials({ ...financials, opexList: newList });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
-                                  />
-                                </td>
-                                <td className="p-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.amount === 0 ? "" : item.amount}
-                                    placeholder="0"
-                                    onChange={(e) => {
-                                      const newList = [...financials.opexList];
-                                      const amt = e.target.value === "" ? 0 : Number(e.target.value);
-                                      newList[index].amount = amt;
-                                      setFinancials({ ...financials, opexList: newList });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
-                                  />
-                                </td>
-                                <td className="p-2 text-center">
-                                  <button
-                                    onClick={() => {
-                                      const newList = financials.opexList.filter(i => i.id !== item.id);
-                                      const newState = { ...financials, opexList: newList };
-                                      setFinancials(newState);
-                                      handleAutoSave(newState);
-                                    }}
-                                    className="text-red-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {(!financials.opexList || financials.opexList.length === 0) && (
-                              <tr>
-                                <td colSpan={3} className="p-4 text-center text-xs text-gray-400 italic">
-                                  No expenses added yet.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const currentList = financials.opexList || [];
-                          const newItem = { id: Date.now().toString(), name: "", amount: 0 };
-                          setFinancials({ ...financials, opexList: [...currentList, newItem] });
-                        }}
-                        className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                {/* PRODUCTS LIST */}
+                <div className="space-y-6">
+                  {normalizedProducts.map((product, prodIdx) => {
+                    const metrics = computeProductMetrics(product);
+                    const ingredients = product.ingredients || [];
+
+                    return (
+                      <div
+                        key={product.id || prodIdx}
+                        className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-6 shadow-sm relative"
                       >
-                        <Plus size={14} /> Add Expense
-                      </button>
+                        {/* Product Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                          <div className="flex items-center gap-3 flex-1">
+                            <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
+                              Product #{prodIdx + 1}
+                            </span>
+                            <div className="flex-1 max-w-md">
+                              <input
+                                type="text"
+                                placeholder={`Product ${prodIdx + 1} Name`}
+                                value={product.name || ""}
+                                onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                              />
+                            </div>
+                          </div>
+                          {normalizedProducts.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProduct(prodIdx)}
+                              className="self-end sm:self-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors font-semibold"
+                            >
+                              <Trash2 size={13} /> Remove Product
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Product Yield & Ingredients Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                          {/* Yield Input & Calculation */}
+                          <div className="lg:col-span-4 space-y-4">
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                Monthly Target Sales / Batch Yield (Units) <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="number"
+                                placeholder="e.g. 300"
+                                value={product.quantityYield}
+                                onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                              />
+                              <p className="text-[9px] text-gray-400 mt-1 italic">
+                                Total finished units produced or sold per month
+                              </p>
+                            </div>
+
+                            {/* Total Batch Cost & Unit Cost Preview */}
+                            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2.5">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-500 font-medium">Total Batch Cost:</span>
+                                <span className="font-extrabold text-[#122244]">
+                                  ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
+                                <span className="text-gray-500 font-medium">Yield:</span>
+                                <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
+                                <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
+                                <span className="font-black text-[#122244] text-sm">
+                                  ₱{metrics.unitCost.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Ingredient List */}
+                          <div className="lg:col-span-8 space-y-3">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                Direct Production Costs / Ingredients
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleAddIngredient(prodIdx)}
+                                className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
+                              >
+                                <Plus size={12} /> Add Ingredient
+                              </button>
+                            </div>
+
+                            {ingredients.length === 0 ? (
+                              <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
+                                <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddIngredient(prodIdx)}
+                                  className="text-xs font-bold text-[#c9a654] hover:underline"
+                                >
+                                  + Add direct production materials / ingredients
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
+                                {ingredients.map((ing, ingIdx) => (
+                                  <div
+                                    key={ing.id || ingIdx}
+                                    className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
+                                  >
+                                    <input
+                                      type="text"
+                                      placeholder="Ingredient / Direct Material Name"
+                                      value={ing.name}
+                                      onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
+                                      onBlur={() => handleAutoSave()}
+                                      className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
+                                    />
+                                    <div className="w-32 relative">
+                                      <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
+                                      <input
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={ing.price !== undefined ? ing.price : ""}
+                                        onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        onBlur={() => handleAutoSave()}
+                                        className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
+                                      className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                      title="Remove ingredient"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mark-up Strategy & Target Selling Price */}
+                        <div className="pt-4 border-t border-gray-100 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                              <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                Mark-up Strategy & Target Selling Price
+                              </h5>
+                            </div>
+                            <div className="flex gap-1.5 items-center">
+                              <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                              {["50", "100", "120"].map((pct) => (
+                                <button
+                                  key={pct}
+                                  type="button"
+                                  onClick={() => {
+                                    const mPct = Number(pct);
+                                    const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                    handleUpdateProduct(prodIdx, {
+                                      markupPercentage: pct,
+                                      sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
+                                    });
+                                  }}
+                                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${
+                                    String(product.markupPercentage) === pct
+                                      ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {pct}%
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                Mark-up Percentage (%)
+                              </label>
+                              <input
+                                type="number"
+                                placeholder="e.g. 100"
+                                value={product.markupPercentage}
+                                onChange={(e) => {
+                                  const newPct = e.target.value;
+                                  const mPct = Number(newPct) || 0;
+                                  const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                  handleUpdateProduct(prodIdx, {
+                                    markupPercentage: newPct,
+                                    sellingPrice: compBase > 0 ? String(Math.round(compBase)) : (product.sellingPrice || "")
+                                  });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                              />
+                              <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
+                                <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/80 flex flex-col justify-center">
+                              <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
+                              <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
+                              <span className="text-[9px] text-gray-500">Unit Cost (₱{metrics.unitCost.toFixed(2)}) + Mark-up</span>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
+                              </label>
+                              <input
+                                type="number"
+                                placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
+                                value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
+                                onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
+                              />
+                              <p className="text-[9px] text-gray-400 mt-1 italic">
+                                Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
+                        <div className="pt-3 border-t border-gray-100">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                            Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[#122244]">
+                            {/* Unit Cost (COGS) */}
+                            <div className="bg-gray-50/90 p-3.5 rounded-xl border border-gray-200">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
+                              <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
+                              <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
+                            </div>
+
+                            {/* Target Price */}
+                            <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-200">
+                              <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
+                              <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
+                              <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{metrics.markupPct}% Mark-up</p>
+                            </div>
+
+                            {/* Revenue */}
+                            <div className="bg-green-50/40 p-3.5 rounded-xl border border-green-200">
+                              <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
+                              <p className="text-base font-black text-green-700 mt-0.5">
+                                ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-[9px] text-green-600 font-medium mt-0.5">Selling Price × Yield</p>
+                            </div>
+
+                            {/* Gross Profit */}
+                            <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200">
+                              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
+                              <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-[9px] text-purple-600 font-medium mt-0.5">Revenue - Batch Cost</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* === SECTION 2: MONTHLY OPERATING COSTS (OPEX) - ENLARGED === */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm">
+                      <TrendingUp className="text-[#c9a654]" size={18} />
                     </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                        Monthly Operating Expenses (OpEx)
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Fixed monthly overhead costs (Rent, Utilities, Marketing, Salaries buffer, Supplies)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-50/80 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
+                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Monthly OpEx:</span>
+                      <span className="text-base font-black text-blue-900">₱{safeFixedCosts.toLocaleString()}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentList = financials.opexList || [];
+                        const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                        const updatedList = [...currentList, newItem];
+                        const newState = { ...financials, opexList: updatedList };
+                        setFinancials(newState);
+                        handleAutoSave(newState);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all"
+                    >
+                      <Plus size={14} className="text-[#c9a654]" /> Add Expense
+                    </button>
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN: Capital, Startup Cost & Operations */}
-                <div className="lg:col-span-8 space-y-6 text-[#122244]">
-                  
-                  {/* SECTION 1: SOURCES OF FINANCING */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="flex justify-between items-center border-b pb-4">
+                <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase font-bold text-gray-500 tracking-wider">
+                      <tr>
+                        <th className="p-3.5 pl-5">Expense Description / Name</th>
+                        <th className="p-3.5 w-48 text-right">Monthly Amount (₱)</th>
+                        <th className="p-3.5 w-16 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {financials.opexList && financials.opexList.map((item, index) => (
+                        <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="p-3 pl-5">
+                            <input
+                              type="text"
+                              value={item.name}
+                              placeholder="e.g. Rent, Electricity, Internet, Supplies"
+                              onChange={(e) => {
+                                const newList = [...financials.opexList];
+                                newList[index].name = e.target.value;
+                                setFinancials({ ...financials, opexList: newList });
+                              }}
+                              onBlur={() => handleAutoSave()}
+                              className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none"
+                            />
+                          </td>
+                          <td className="p-3">
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.amount === 0 ? "" : item.amount}
+                                placeholder="0.00"
+                                onChange={(e) => {
+                                  const newList = [...financials.opexList];
+                                  const amt = e.target.value === "" ? 0 : Number(e.target.value);
+                                  newList[index].amount = amt;
+                                  setFinancials({ ...financials, opexList: newList });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none"
+                              />
+                            </div>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newList = financials.opexList.filter(i => i.id !== item.id);
+                                const newState = { ...financials, opexList: newList };
+                                setFinancials(newState);
+                                handleAutoSave(newState);
+                              }}
+                              className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Delete Expense"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!financials.opexList || financials.opexList.length === 0) && (
+                        <tr>
+                          <td colSpan={3} className="p-8 text-center text-xs text-gray-400 italic">
+                            No monthly operating expenses added yet. Click "+ Add Expense" above to start itemizing fixed costs.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentList = financials.opexList || [];
+                      const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                      const updatedList = [...currentList, newItem];
+                      const newState = { ...financials, opexList: updatedList };
+                      setFinancials(newState);
+                      handleAutoSave(newState);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                  >
+                    <Plus size={14} /> + Add Another Expense Item
+                  </button>
+                  <span className="text-xs text-gray-400 font-medium">
+                    Total Fixed OpEx: <strong className="text-[#122244]">₱{safeFixedCosts.toLocaleString()}/mo</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* === SECTION 3: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-[#122244]">
+                {/* LEFT: Initial Capital & Market Indicators */}
+                <div className="lg:col-span-5 space-y-6">
+                  {/* Initial Capital */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5">
+                    <div className="flex justify-between items-center border-b border-gray-100 pb-4">
                       <div>
                         <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                          <DollarSign className="text-[#c9a654]" /> Initial Capital & Sources of Financing
+                          <DollarSign className="text-[#c9a654]" /> Initial Capital Contributed
                         </h3>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Section 1: Direct cash and property contributions</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Direct cash contribution from owners/partners</p>
                       </div>
                       <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
-                        <span className="text-[10px] font-bold text-green-600 uppercase">Total Capital: </span>
-                        <span className="text-sm font-black text-green-800">₱{totalInitialCapital.toLocaleString()}</span>
+                        <span className="text-xs font-black text-green-800">₱{totalInitialCapital.toLocaleString()}</span>
                       </div>
                     </div>
 
@@ -1058,343 +1500,24 @@ const Financial_input: React.FC = () => {
                       </label>
                       <input
                         type="number"
-                        placeholder={String(safeStartupCapital)}
+                        placeholder="0"
                         value={financials.cashInvested}
                         onChange={(e) => setFinancials({ ...financials, cashInvested: e.target.value })}
                         onBlur={() => handleAutoSave()}
                         className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
                       />
-                      <p className="text-[9px] text-gray-400 mt-1 italic">Direct cash contribution from owners/partners into business accounts</p>
-                    </div>
-                  </div>
-
-                  {/* SECTION 2: START-UP PROJECT COSTS */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="flex justify-between items-center border-b pb-4">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                          <Layers className="text-[#c9a654]" /> Start-Up Project Cost Breakdown
-                        </h3>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Section 2: Pre-operating establishment expenses</p>
-                      </div>
-                      <div className="bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
-                        <span className="text-[10px] font-bold text-[#b59545] uppercase">Total Project Cost: </span>
-                        <span className="text-sm font-black text-[#c9a654]">₱{totalProjectCost.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                          Rent Advance & Deposit
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={financials.rentAdvanceDeposit}
-                          onChange={(e) => setFinancials({ ...financials, rentAdvanceDeposit: e.target.value })}
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                          Trainings & Programs
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={financials.trainingsPrograms}
-                          onChange={(e) => setFinancials({ ...financials, trainingsPrograms: e.target.value })}
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                          Advertising Expense
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={financials.advertisingExpense}
-                          onChange={(e) => setFinancials({ ...financials, advertisingExpense: e.target.value })}
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                          Initial Salaries Buffer
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={financials.salariesExpenseInitial}
-                          onChange={(e) => setFinancials({ ...financials, salariesExpenseInitial: e.target.value })}
-                          onBlur={() => handleAutoSave()}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* EQUIPMENT & ASSETS LIST */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="flex justify-between items-center border-b pb-4">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                          <Package className="text-[#c9a654]" /> Equipment & Store Tools (CapEx)
-                        </h3>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Capital equipment and store machinery</p>
-                      </div>
-                      <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-blue-600 uppercase">Equipment Total:</span>
-                        <span className="text-sm font-black text-blue-800">₱{calculatedEquipmentTotal.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="overflow-x-auto rounded-xl border border-gray-200 max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
-                        <table className="w-full text-left border-collapse">
-                          <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm">
-                            <tr className="border-b border-gray-200 text-[10px] uppercase text-gray-500 tracking-wider">
-                              <th className="p-3 font-bold">Item Name</th>
-                              <th className="p-3 font-bold w-20">Qty</th>
-                              <th className="p-3 font-bold w-28">Unit Price</th>
-                              <th className="p-3 font-bold w-28">Total</th>
-                              <th className="p-3 font-bold w-12 text-center"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {financials.equipmentList.map((item, index) => (
-                              <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                                <td className="p-2">
-                                  <input
-                                    type="text"
-                                    value={item.name}
-                                    placeholder="e.g. Machine"
-                                    onChange={(e) => {
-                                      const newList = [...financials.equipmentList];
-                                      newList[index].name = e.target.value;
-                                      setFinancials({ ...financials, equipmentList: newList });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
-                                  />
-                                </td>
-                                <td className="p-2">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={item.quantity}
-                                    onChange={(e) => {
-                                      const newList = [...financials.equipmentList];
-                                      const qty = Number(e.target.value) || 0;
-                                      newList[index].quantity = qty;
-                                      newList[index].total = qty * newList[index].unitPrice;
-                                      setFinancials({ ...financials, equipmentList: newList });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
-                                  />
-                                </td>
-                                <td className="p-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.unitPrice === 0 ? "" : item.unitPrice}
-                                    placeholder="0"
-                                    onChange={(e) => {
-                                      const newList = [...financials.equipmentList];
-                                      const price = e.target.value === "" ? 0 : Number(e.target.value);
-                                      newList[index].unitPrice = price;
-                                      newList[index].total = newList[index].quantity * price;
-                                      setFinancials({ ...financials, equipmentList: newList });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-2 py-1.5 bg-transparent border border-gray-200 rounded-md text-sm focus:bg-white focus:border-[#c9a654]"
-                                  />
-                                </td>
-                                <td className="p-2 text-sm font-bold text-gray-700">
-                                  ₱{item.total.toLocaleString()}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <button
-                                    onClick={() => {
-                                      const newList = financials.equipmentList.filter(i => i.id !== item.id);
-                                      const newState = { ...financials, equipmentList: newList };
-                                      setFinancials(newState);
-                                      handleAutoSave(newState);
-                                    }}
-                                    className="text-red-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newItem = { id: Date.now().toString(), name: "", quantity: 1, unitPrice: 0, total: 0 };
-                          setFinancials({ ...financials, equipmentList: [...financials.equipmentList, newItem] });
-                        }}
-                        className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
-                      >
-                        <Plus size={14} /> Add Item
-                      </button>
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Financing Options</h4>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newState = { ...financials, isCapitalBorrowed: !financials.isCapitalBorrowed };
-                            setFinancials(newState);
-                            handleAutoSave(newState);
-                          }}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${financials.isCapitalBorrowed ? 'bg-[#c9a654]' : 'bg-gray-200'}`}
-                        >
-                          <span
-                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${financials.isCapitalBorrowed ? 'translate-x-4' : 'translate-x-1'}`}
-                          />
-                        </button>
-                        <span className="text-sm font-medium text-gray-700">Is this capital borrowed?</span>
-                      </div>
-                      
-                      {financials.isCapitalBorrowed && (
-                        <div className="space-y-1 mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">
-                            Annual Interest Rate (%)
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={financials.interestRate}
-                              placeholder="0"
-                              onChange={(e) =>
-                                setFinancials({
-                                  ...financials,
-                                  interestRate: e.target.value,
-                                })
-                              }
-                              onBlur={() => handleAutoSave()}
-                              className="w-full px-4 py-2 bg-gray-50 border rounded-lg font-bold pr-8 focus:ring-2 focus:ring-[#c9a654]/20 outline-none transition-all"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
-                          </div>
-                          {monthlyInterest > 0 && (
-                            <p className="text-[10px] text-gray-500 italic mt-1">
-                              Subtracting ₱{monthlyInterest.toLocaleString()} monthly from Net Profit.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* FISCAL SUMMARY CARD */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between border-b pb-4">
-                      <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                        <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (BMBE Tax Framework)
-                      </h3>
-                      <button
-                        onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
-                        className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1 rounded-lg hover:bg-[#c9a654]/5 transition-all"
-                      >
-                        {showTaxBreakdown ? "Hide Details" : "View Computation"}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                      <div className="space-y-4 text-[#122244]">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                            Annual Net Profit (Before Tax)
-                          </label>
-                          <p className="text-2xl font-bold text-[#3d2c23]">
-                            ₱{annualNetProfitPreTax.toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                            Estimated Annual Business Tax
-                          </label>
-                          <p className="text-4xl font-black">
-                            ₱{taxResult.amount.toLocaleString()}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
-                            <Info size={14} className="text-green-600" />
-                            <span className="text-[11px] font-bold text-green-700">
-                              {taxResult.note}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {showTaxBreakdown ? (
-                        <div className="bg-[#122244] p-5 rounded-xl text-white shadow-xl border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
-                            <p className="text-[10px] font-black text-[#c9a654] uppercase tracking-widest">
-                              BMBE Computation
-                            </p>
-                            <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5">
-                              <button
-                                onClick={() => setTaxTab("math")}
-                                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "math" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
-                              >
-                                Math Breakdown
-                              </button>
-                              <button
-                                onClick={() => setTaxTab("log")}
-                                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "log" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
-                              >
-                                Tax Log
-                              </button>
-                            </div>
-                          </div>
-
-                          {taxTab === "math" ? (
-                            <div className="space-y-4 animate-in fade-in duration-300 text-xs">
-                              <p className="text-gray-300">
-                                ₱{annualRevenue.toLocaleString()} Annual Revenue × 3% Flat = <span className="text-green-400 font-bold">₱{taxResult.amount.toLocaleString()}</span>
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-2 text-xs">
-                              <p className="text-gray-300">Income Tax: <span className="text-green-400 font-bold">₱0 (BMBE Exempt)</span></p>
-                              <p className="text-gray-300">Percentage Tax: <span className="text-white font-bold">₱{taxResult.percentageTax.toLocaleString()}</span></p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
-                          <p className="text-xs text-gray-400 italic">
-                            Click "View Computation" to see the tax breakdown logic.
-                          </p>
-                        </div>
-                      )}
+                      <p className="text-[9px] text-gray-400 mt-1 italic">Recorded under Owner's Equity in the Balance Sheet</p>
                     </div>
                   </div>
 
                   {/* Market Indicators */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6 text-[#122244]">
-                    <h3 className="font-bold flex items-center gap-2 border-b pb-4 uppercase text-xs tracking-widest">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5 text-[#122244]">
+                    <h3 className="font-bold flex items-center gap-2 border-b border-gray-100 pb-4 uppercase text-xs tracking-widest">
                       <Target className="text-[#c9a654]" /> Market Indicators
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                      <div className="space-y-4 px-2">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
                           Competitor Count:{" "}
                           <span className="text-[#122244] font-black text-sm ml-1">
                             {financials.competitorCount}
@@ -1415,14 +1538,15 @@ const Financial_input: React.FC = () => {
                           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
                         />
                       </div>
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">
-                          Market Demand
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">
+                          Market Demand Level
                         </label>
                         <div className="flex bg-gray-100 p-1 rounded-xl">
                           {["Low", "Medium", "High"].map((level) => (
                             <button
                               key={level}
+                              type="button"
                               onClick={() => {
                                 const newState = {
                                   ...financials,
@@ -1431,7 +1555,7 @@ const Financial_input: React.FC = () => {
                                 setFinancials(newState);
                                 handleAutoSave(newState);
                               }}
-                              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
                                 financials.marketDemand === level
                                   ? "bg-white shadow-sm text-[#122244]"
                                   : "text-gray-400 hover:text-gray-600"
@@ -1441,6 +1565,102 @@ const Financial_input: React.FC = () => {
                             </button>
                           ))}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT: Fiscal Summary (BMBE Tax Framework) */}
+                <div className="lg:col-span-7">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 h-full flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                        <div>
+                          <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
+                            <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (BMBE Tax Framework)
+                          </h3>
+                          <p className="text-[11px] text-gray-400 mt-0.5">Republic Act No. 9178 BMBE Tax Exemptions</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
+                          className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1.5 rounded-lg hover:bg-[#c9a654]/5 transition-all"
+                        >
+                          {showTaxBreakdown ? "Hide Details" : "View Computation"}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center mt-5">
+                        <div className="space-y-4 text-[#122244]">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                              Annual Net Profit (Before Tax)
+                            </label>
+                            <p className="text-2xl font-black text-[#122244]">
+                              ₱{annualNetProfitPreTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                              Estimated Annual Business Tax (3%)
+                            </label>
+                            <p className="text-3xl font-black text-[#c9a654]">
+                              ₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
+                              <Info size={14} className="text-green-600" />
+                              <span className="text-[11px] font-bold text-green-700">
+                                {taxResult.note}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {showTaxBreakdown ? (
+                          <div className="bg-[#122244] p-5 rounded-xl text-white shadow-xl border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                              <p className="text-[10px] font-black text-[#c9a654] uppercase tracking-widest">
+                                BMBE Computation
+                              </p>
+                              <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5">
+                                <button
+                                  type="button"
+                                  onClick={() => setTaxTab("math")}
+                                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "math" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                                >
+                                  Math Breakdown
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTaxTab("log")}
+                                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "log" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                                >
+                                  Tax Log
+                                </button>
+                              </div>
+                            </div>
+
+                            {taxTab === "math" ? (
+                              <div className="space-y-3 animate-in fade-in duration-300 text-xs">
+                                <p className="text-gray-300">
+                                  ₱{annualRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })} Annual Revenue × 3% Flat Percentage Tax = <span className="text-green-400 font-bold">₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 text-xs">
+                                <p className="text-gray-300">Income Tax: <span className="text-green-400 font-bold">₱0 (BMBE Exempt)</span></p>
+                                <p className="text-gray-300">Percentage Tax: <span className="text-white font-bold">₱{taxResult.percentageTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
+                            <p className="text-xs text-gray-400 italic">
+                              Click "View Computation" to see the BMBE tax exemption logic.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

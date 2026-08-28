@@ -15,6 +15,7 @@ import {
   addDoc,
   serverTimestamp,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -53,6 +54,7 @@ import {
   Info,
   Upload,
   Image as ImageIcon,
+  ArrowUp,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
@@ -206,7 +208,37 @@ interface FeedbackItem {
   date: string;
 }
 
+export interface IngredientItem {
+  id: string;
+  name: string;
+  price: number | string;
+}
+
+export interface ProductCostingItem {
+  id: string;
+  name: string;
+  quantityYield: string;
+  ingredients: IngredientItem[];
+  markupPercentage: string;
+  sellingPrice?: string;
+  productionCost?: string;
+  unitCost?: string;
+}
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  quantity: number | string;
+  unitPrice: number | string;
+  total: number;
+}
+
 export interface FinancialProposalData {
+  products?: ProductCostingItem[];
+  equipmentList?: EquipmentItem[];
+  isCapitalBorrowed?: boolean;
+  interestRate?: string;
+  // Legacy fields for backward compatibility
   productionCost?: string;
   quantityYield?: string;
   unitCost?: string;
@@ -221,11 +253,72 @@ export interface FinancialProposalData {
   operatingDays?: string;
   competitorCount?: number;
   marketDemand?: string;
-  equipmentList?: { id: string; name: string; quantity: number; unitPrice: number; total: number }[];
   opexList?: { id: string; name: string; amount: number }[];
-  isCapitalBorrowed?: boolean;
-  interestRate?: string;
 }
+
+export const normalizeProposalProducts = (fin?: FinancialProposalData, fallbackName?: string): ProductCostingItem[] => {
+  if (fin?.products && fin.products.length > 0) {
+    return fin.products.map((p, idx) => ({
+      id: p.id || `prod-${idx + 1}`,
+      name: p.name !== undefined ? p.name : "",
+      quantityYield: p.quantityYield !== undefined ? String(p.quantityYield) : "",
+      ingredients: p.ingredients || [],
+      markupPercentage: p.markupPercentage !== undefined ? String(p.markupPercentage) : "100",
+      sellingPrice: p.sellingPrice !== undefined ? String(p.sellingPrice) : "",
+    }));
+  }
+  const pCost = Number(fin?.productionCost) || 0;
+  const qYield = fin?.quantityYield !== undefined ? String(fin.quantityYield) : "";
+  const sPrice = fin?.sellingPrice !== undefined ? String(fin.sellingPrice) : "";
+  const mPct = fin?.markupPercentage !== undefined ? String(fin.markupPercentage) : "100";
+  
+  return [{
+    id: "prod-1",
+    name: (fallbackName && fallbackName !== "Product 1") ? fallbackName : "",
+    quantityYield: qYield,
+    ingredients: pCost > 0 ? [{
+      id: "ing-1",
+      name: "Direct Production / Materials",
+      price: pCost,
+    }] : [],
+    markupPercentage: mPct,
+    sellingPrice: sPrice,
+  }];
+};
+
+export const computeProductMetrics = (product: ProductCostingItem) => {
+  const ingredients = product.ingredients || [];
+  const totalIngredientCost = ingredients.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  const totalBatchCost = totalIngredientCost > 0 
+    ? totalIngredientCost 
+    : (Number(product.productionCost) || 0);
+  
+  const batchYield = Number(product.quantityYield) || 0;
+  const unitCost = batchYield > 0 ? totalBatchCost / batchYield : 0;
+  
+  const markupPct = Number(product.markupPercentage) || 0;
+  const markupAmount = unitCost * (markupPct / 100);
+  const computedBasePrice = unitCost + markupAmount;
+  
+  const sellingPrice = (product.sellingPrice !== undefined && product.sellingPrice !== "" && !isNaN(Number(product.sellingPrice)))
+    ? Number(product.sellingPrice)
+    : (computedBasePrice > 0 ? Number(computedBasePrice.toFixed(2)) : 0);
+  
+  const revenue = sellingPrice * batchYield;
+  const grossProfit = revenue - totalBatchCost;
+  
+  return {
+    totalBatchCost,
+    batchYield,
+    unitCost,
+    markupPct,
+    markupAmount,
+    computedBasePrice,
+    sellingPrice,
+    revenue,
+    grossProfit,
+  };
+};
 
 interface ProposalData {
   id?: string;
@@ -267,22 +360,17 @@ const initialProposalState: ProposalData = {
   otherDetails: "",
   status: "Draft",
   financialData: {
-    productionCost: "",
-    quantityYield: "",
-    unitCost: "",
-    markupPercentage: "100",
-    markupAmount: "",
-    computedSellingPrice: "",
-    sellingPrice: "",
-    monthlySales: "",
-    variableCost: "",
-    fixedCosts: "",
-    startupCapital: "",
-    operatingDays: "300",
-    competitorCount: 0,
-    marketDemand: "Medium",
+    products: [
+      {
+        id: "prod-1",
+        name: "",
+        quantityYield: "",
+        ingredients: [],
+        markupPercentage: "100",
+        sellingPrice: "",
+      },
+    ],
     equipmentList: [],
-    opexList: [],
     isCapitalBorrowed: false,
     interestRate: "",
   },
@@ -361,6 +449,28 @@ const Projects: React.FC = () => {
   const [toastMessage, setToastMessage] = useState("");
 
   const [copyrightDB, setCopyrightDB] = useState<CopyrightDB | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 150 || document.documentElement.scrollTop > 150) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
+    document.body.scrollTo({ top: 0, behavior: "smooth" });
+    const mains = document.querySelectorAll("main");
+    mains.forEach((m) => m.scrollTo({ top: 0, behavior: "smooth" }));
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -370,7 +480,14 @@ const Projects: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let unsubGroup: (() => void) | undefined;
+    let unsubProposals: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      // Clean up previous listeners when auth state changes
+      if (unsubGroup) { unsubGroup(); unsubGroup = undefined; }
+      if (unsubProposals) { unsubProposals(); unsubProposals = undefined; }
+
       if (!u) {
         navigate("/");
         return;
@@ -382,7 +499,9 @@ const Projects: React.FC = () => {
           const data = userDoc.data();
           setUserName(`${data.firstName} ${data.lastName}`);
           if (data.section) {
-            fetchUserGroup(u.uid, data.section);
+            const listeners = setupGroupListener(u.uid, data.section);
+            unsubGroup = listeners.unsubGroup;
+            unsubProposals = listeners.unsubProposals;
           } else {
             setIsLoading(false);
             setActiveView("no-group");
@@ -394,9 +513,136 @@ const Projects: React.FC = () => {
         setActiveView("no-group");
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsubAuth();
+      if (unsubGroup) unsubGroup();
+      if (unsubProposals) unsubProposals();
+    };
   }, [navigate]);
 
+  // --- REAL-TIME LISTENER SETUP ---
+  // Returns unsubscribe functions for both the group and proposals listeners
+  const setupGroupListener = (uid: string, section: string): { unsubGroup: () => void; unsubProposals: () => void } => {
+    let activeProposalsUnsub: (() => void) | undefined;
+    let currentListenedGroupId: string | null = null;
+
+    const q = query(collection(db, "groups"), where("section", "==", section));
+
+    const groupUnsub = onSnapshot(q, async (querySnapshot) => {
+      let foundGroup: GroupData | null = null;
+      let leader = false;
+      let member = false;
+
+      querySnapshot.forEach((document) => {
+        const data = document.data() as GroupData;
+        if (data.leaderId === uid) {
+          foundGroup = { ...data, id: document.id };
+          leader = true;
+        } else if (data.memberIds && data.memberIds.includes(uid)) {
+          foundGroup = { ...data, id: document.id };
+          member = true;
+        }
+      });
+
+      if (!foundGroup) {
+        setIsLoading(false);
+        setActiveView("no-group");
+        if (activeProposalsUnsub) { activeProposalsUnsub(); activeProposalsUnsub = undefined; currentListenedGroupId = null; }
+        return;
+      }
+
+      const g = foundGroup as GroupData;
+      setUserGroup(g);
+      setIsLeader(leader);
+      setIsMember(member);
+      if (member && g.joinedMembers && g.joinedMembers.includes(uid))
+        setHasJoined(true);
+
+      const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
+        ? g.companyName
+        : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
+      setSetupCompanyName(rawCompName);
+      setSetupLogoPreview(g.companyLogo || "");
+
+      // --- VIEW TRANSITIONS: driven by GROUP state changes only ---
+      // This fires when the group document changes (isSetup, joinedMembers, activeProposalId).
+      // It does NOT fire when proposals change, so typing in a form never triggers a view reset.
+      if (leader && !g.isSetup) {
+        setActiveView("leader-setup");
+      } else if (member && (!g.joinedMembers || !g.joinedMembers.includes(uid))) {
+        setActiveView("member-join");
+      } else if (g.activeProposalId) {
+        sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
+        setActiveView("active-business");
+      } else {
+        // No special group state — only reset view if currently in a stale/invalid state.
+        // Preserve "dashboard" and any user-navigated position so open forms stay open.
+        setActiveView(prev => {
+          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || prev === "active-business") {
+            return "dashboard";
+          }
+          return prev; // Keep current view — user may be filling out a form
+        });
+      }
+
+      // --- PROPOSALS LISTENER: data-only, never touches activeView ---
+      // Only subscribe when the group ID actually changes to avoid re-firing on every group update.
+      if (g.id !== currentListenedGroupId) {
+        currentListenedGroupId = g.id;
+        if (activeProposalsUnsub) { activeProposalsUnsub(); }
+
+        // Fetch member details once when first attaching to this group
+        fetchGroupDetails(g).catch(console.error);
+
+        const propQ = query(collection(db, "proposals"), where("groupId", "==", g.id));
+        activeProposalsUnsub = onSnapshot(propQ, (propSnap) => {
+          const fetchedProposals: ProposalData[] = propSnap.docs.map((d) => {
+            const data = d.data();
+            if (!data.originalProposalFinancials && data.financialData) {
+              updateDoc(doc(db, "proposals", d.id), {
+                originalProposalFinancials: data.financialData
+              }).catch(console.error);
+            }
+            return {
+              id: d.id,
+              ...data,
+              originalProposalFinancials: data.originalProposalFinancials || data.financialData || null
+            } as ProposalData;
+          });
+
+          // DATA ONLY — never call setActiveView here.
+          // View transitions are handled entirely by the group listener above.
+          setProposals(fetchedProposals);
+          sessionStorage.setItem('projectsProposalCount', fetchedProposals.length.toString());
+          setIsLoading(false);
+        }, (err) => {
+          console.error("Proposals listener error:", err);
+          setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+
+    }, (err) => {
+      console.error("Group listener error:", err);
+      setIsLoading(false);
+      setActiveView("no-group");
+    });
+
+    return {
+      unsubGroup: () => {
+        groupUnsub();
+        if (activeProposalsUnsub) activeProposalsUnsub();
+      },
+      unsubProposals: () => {
+        if (activeProposalsUnsub) activeProposalsUnsub();
+      }
+    };
+  };
+
+
+  // Keep fetchUserGroup as a one-time helper for direct calls (e.g., after setup)
   const fetchUserGroup = async (uid: string, section: string) => {
     try {
       const q = query(
@@ -408,13 +654,13 @@ const Projects: React.FC = () => {
       let leader = false;
       let member = false;
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as GroupData;
+      querySnapshot.forEach((document) => {
+        const data = document.data() as GroupData;
         if (data.leaderId === uid) {
-          foundGroup = { ...data, id: doc.id };
+          foundGroup = { ...data, id: document.id };
           leader = true;
         } else if (data.memberIds && data.memberIds.includes(uid)) {
-          foundGroup = { ...data, id: doc.id };
+          foundGroup = { ...data, id: document.id };
           member = true;
         }
       });
@@ -685,33 +931,29 @@ const Projects: React.FC = () => {
     const existingFin = customProposal.financialData || {};
     const updatedFin: FinancialProposalData = { ...existingFin, ...fieldUpdates };
     
-    // Auto-calculate unitCost, markupAmount, computedSellingPrice if productionCost or quantityYield or markupPercentage changed
-    const pCost = Number(updatedFin.productionCost) || 0;
-    const qYield = Number(updatedFin.quantityYield) || 0;
-    const uCost = qYield > 0 ? Number((pCost / qYield).toFixed(2)) : (Number(updatedFin.unitCost) || Number(updatedFin.variableCost) || 0);
-    updatedFin.unitCost = uCost > 0 ? String(uCost) : (updatedFin.unitCost || "");
-    updatedFin.variableCost = uCost > 0 ? String(uCost) : (updatedFin.variableCost || "");
-
-    const mPct = Number(updatedFin.markupPercentage) || 0;
-    const mAmt = uCost * (mPct / 100);
-    updatedFin.markupAmount = mAmt > 0 ? String(Number(mAmt.toFixed(2))) : "";
-    
-    const compPrice = uCost + mAmt;
-    updatedFin.computedSellingPrice = compPrice > 0 ? String(Number(compPrice.toFixed(2))) : "";
-
-    // Sync calculated startup capital with totalCapital
-    let newTotalCapital = customProposal.totalCapital;
-    if (updatedFin.equipmentList && updatedFin.equipmentList.length > 0) {
-      const eqTotal = updatedFin.equipmentList.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-      updatedFin.startupCapital = String(eqTotal);
-      newTotalCapital = String(eqTotal);
-    } else if (updatedFin.startupCapital) {
-      newTotalCapital = updatedFin.startupCapital;
+    // Normalize and sync products
+    const products = normalizeProposalProducts(updatedFin, customProposal.businessName);
+    if (products.length > 0) {
+      const firstProduct = products[0];
+      const firstMetrics = computeProductMetrics(firstProduct);
+      updatedFin.products = products;
+      updatedFin.productionCost = String(firstMetrics.totalBatchCost);
+      updatedFin.quantityYield = String(firstProduct.quantityYield || "");
+      updatedFin.unitCost = firstMetrics.unitCost > 0 ? String(Number(firstMetrics.unitCost.toFixed(2))) : "";
+      updatedFin.variableCost = updatedFin.unitCost;
+      updatedFin.markupPercentage = String(firstProduct.markupPercentage || "100");
+      updatedFin.markupAmount = firstMetrics.markupAmount > 0 ? String(Number(firstMetrics.markupAmount.toFixed(2))) : "";
+      updatedFin.computedSellingPrice = firstMetrics.computedBasePrice > 0 ? String(Number(firstMetrics.computedBasePrice.toFixed(2))) : "";
+      updatedFin.sellingPrice = String(firstProduct.sellingPrice || "");
     }
 
-    if (updatedFin.opexList && updatedFin.opexList.length > 0) {
-      const opTotal = updatedFin.opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      updatedFin.fixedCosts = String(opTotal);
+    // Preserve user entered total capital
+    let newTotalCapital = customProposal.totalCapital;
+    if (fieldUpdates.startupCapital !== undefined) {
+      newTotalCapital = String(fieldUpdates.startupCapital);
+      updatedFin.startupCapital = newTotalCapital;
+    } else if (customProposal.totalCapital) {
+      updatedFin.startupCapital = customProposal.totalCapital;
     }
 
     const updatedProposal: ProposalData = {
@@ -722,6 +964,105 @@ const Projects: React.FC = () => {
 
     setCurrentProposal(updatedProposal);
     handleAutoSave(updatedProposal);
+  };
+
+  // Product costing handlers
+  const handleAddProduct = () => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const newProduct: ProductCostingItem = {
+      id: "prod-" + Date.now(),
+      name: "",
+      quantityYield: "",
+      ingredients: [],
+      markupPercentage: "100",
+      sellingPrice: "",
+    };
+    updateFinancialData({ products: [...products, newProduct] });
+  };
+
+  const handleRemoveProduct = (index: number) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    if (products.length <= 1) return;
+    const nextProducts = products.filter((_, i) => i !== index);
+    updateFinancialData({ products: nextProducts });
+  };
+
+  const handleUpdateProduct = (index: number, updates: Partial<ProductCostingItem>) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const nextProducts = [...products];
+    nextProducts[index] = { ...nextProducts[index], ...updates };
+    updateFinancialData({ products: nextProducts });
+  };
+
+  const handleAddIngredient = (productIndex: number) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const nextProducts = [...products];
+    const currentProd = nextProducts[productIndex];
+    const newIng: IngredientItem = {
+      id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      name: "",
+      price: "",
+    };
+    nextProducts[productIndex] = {
+      ...currentProd,
+      ingredients: [...(currentProd.ingredients || []), newIng],
+    };
+    updateFinancialData({ products: nextProducts });
+  };
+
+  const handleUpdateIngredient = (productIndex: number, ingredientIndex: number, updates: Partial<IngredientItem>) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const nextProducts = [...products];
+    const currentProd = nextProducts[productIndex];
+    const nextIngredients = [...(currentProd.ingredients || [])];
+    nextIngredients[ingredientIndex] = { ...nextIngredients[ingredientIndex], ...updates };
+    nextProducts[productIndex] = {
+      ...currentProd,
+      ingredients: nextIngredients,
+    };
+    updateFinancialData({ products: nextProducts });
+  };
+
+  const handleRemoveIngredient = (productIndex: number, ingredientIndex: number) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const nextProducts = [...products];
+    const currentProd = nextProducts[productIndex];
+    const nextIngredients = (currentProd.ingredients || []).filter((_, i) => i !== ingredientIndex);
+    nextProducts[productIndex] = {
+      ...currentProd,
+      ingredients: nextIngredients,
+    };
+    updateFinancialData({ products: nextProducts });
+  };
+
+  // Equipment (CapEx) handlers
+  const handleAddEquipmentItem = () => {
+    const eqList = currentProposal.financialData?.equipmentList || [];
+    const newItem: EquipmentItem = {
+      id: "eq-" + Date.now(),
+      name: "",
+      quantity: 1,
+      unitPrice: 0,
+      total: 0,
+    };
+    updateFinancialData({ equipmentList: [...eqList, newItem] });
+  };
+
+  const handleUpdateEquipmentItem = (index: number, updates: Partial<EquipmentItem>) => {
+    const eqList = currentProposal.financialData?.equipmentList || [];
+    const nextList = [...eqList];
+    const item = { ...nextList[index], ...updates };
+    const q = Number(item.quantity) || 0;
+    const p = Number(item.unitPrice) || 0;
+    item.total = q * p;
+    nextList[index] = item;
+    updateFinancialData({ equipmentList: nextList });
+  };
+
+  const handleRemoveEquipmentItem = (index: number) => {
+    const eqList = currentProposal.financialData?.equipmentList || [];
+    const nextList = eqList.filter((_, i) => i !== index);
+    updateFinancialData({ equipmentList: nextList });
   };
 
   const handleAutoSave = async (dataToSave = currentProposal) => {
@@ -1616,37 +1957,16 @@ const Projects: React.FC = () => {
 
           {activeView === "form" && (() => {
             const fin = currentProposal.financialData || {};
-            const finProdCost = Number(fin.productionCost) || 0;
-            const finYield = Number(fin.quantityYield) || 0;
-            const computedUnitCost = finYield > 0 ? (finProdCost / finYield) : (Number(fin.unitCost) || Number(fin.variableCost) || 0);
-            const finMarkupPct = Number(fin.markupPercentage) || 0;
-            const finMarkupAmount = computedUnitCost * (finMarkupPct / 100);
-            const computedBasePrice = computedUnitCost + finMarkupAmount;
-            const finalSellingPrice = fin.sellingPrice !== undefined && fin.sellingPrice !== "" ? Number(fin.sellingPrice) : (computedBasePrice > 0 ? Number(computedBasePrice.toFixed(2)) : 0);
-            const finMonthlySales = Number(fin.monthlySales) || 0;
-            
-            const finOpexList = fin.opexList || [];
-            const calculatedOpex = finOpexList.length > 0 
-              ? finOpexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-              : (Number(fin.fixedCosts) || 0);
-              
+            const productsList = normalizeProposalProducts(fin, currentProposal.businessName);
             const finEquipmentList = fin.equipmentList || [];
-            const calculatedEquipmentTotal = finEquipmentList.length > 0
-              ? finEquipmentList.reduce((sum, item) => sum + (Number(item.total) || 0), 0)
-              : (Number(fin.startupCapital) || Number(currentProposal.totalCapital) || 0);
+            const calculatedEquipmentTotal = finEquipmentList.reduce(
+              (sum, item) => sum + (Number(item.total) || ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))),
+              0
+            );
 
-            const monthlyRev = finalSellingPrice * finMonthlySales;
-            const monthlyCOGS = computedUnitCost * finMonthlySales;
-            const monthlyGrossProfit = monthlyRev - monthlyCOGS;
             const monthlyLoanInterest = fin.isCapitalBorrowed && Number(fin.interestRate) > 0 
               ? (calculatedEquipmentTotal * (Number(fin.interestRate) / 100)) / 12 
               : 0;
-            const monthlyExpenses = monthlyCOGS + calculatedOpex + monthlyLoanInterest;
-            const monthlyNetProfit = monthlyRev - monthlyExpenses;
-            const grossMargin = monthlyRev > 0 ? (monthlyGrossProfit / monthlyRev) * 100 : 0;
-            const breakEvenUnits = (finalSellingPrice - computedUnitCost) > 0 && calculatedOpex > 0
-              ? Math.ceil(calculatedOpex / (finalSellingPrice - computedUnitCost))
-              : "N/A";
 
             return (
               <div>
@@ -1897,13 +2217,35 @@ const Projects: React.FC = () => {
                                 <input
                                   disabled={!isEditingMode}
                                   type="text"
+                                  inputMode="decimal"
                                   value={currentProposal.totalCapital}
+                                  onKeyDown={(e) => {
+                                    if (
+                                      !/[0-9]/.test(e.key) &&
+                                      e.key !== "Backspace" &&
+                                      e.key !== "Delete" &&
+                                      e.key !== "Tab" &&
+                                      e.key !== "ArrowLeft" &&
+                                      e.key !== "ArrowRight" &&
+                                      e.key !== "Home" &&
+                                      e.key !== "End" &&
+                                      !(e.key === "." && !(currentProposal.totalCapital || "").includes(".")) &&
+                                      !e.ctrlKey &&
+                                      !e.metaKey
+                                    ) {
+                                      e.preventDefault();
+                                    }
+                                  }}
                                   onChange={(e) => {
-                                    const val = e.target.value;
+                                    let val = e.target.value.replace(/[^0-9.]/g, "");
+                                    const parts = val.split(".");
+                                    if (parts.length > 2) {
+                                      val = parts[0] + "." + parts.slice(1).join("");
+                                    }
                                     updateFinancialData({ startupCapital: val });
                                   }}
                                   onBlur={() => handleAutoSave()}
-                                  placeholder="₱ 0.00"
+                                  placeholder="0.00"
                                   className={`w-full px-4 py-3 bg-gray-50 border ${
                                     check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
                                   } rounded-lg outline-none text-sm font-medium transition-colors`}
@@ -2088,465 +2430,485 @@ const Projects: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* LIVE KPI SUMMARY CARDS */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-[#122244]">
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
-                          <p className="text-lg font-black text-[#122244] mt-0.5">₱{computedUnitCost.toFixed(2)}</p>
-                          <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
-                        </div>
-
-                        <div className="bg-white p-3.5 rounded-xl border border-amber-200 bg-amber-50/20 shadow-sm">
-                          <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
-                          <p className="text-lg font-black text-[#c9a654] mt-0.5">₱{finalSellingPrice.toFixed(2)}</p>
-                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{finMarkupPct}% Mark-up</p>
-                        </div>
-
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Monthly Rev</span>
-                          <p className="text-lg font-black text-green-700 mt-0.5">₱{monthlyRev.toLocaleString()}</p>
-                          <p className="text-[9px] text-gray-400 font-medium mt-0.5">{finMonthlySales} units/mo</p>
-                        </div>
-
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Gross Margin</span>
-                          <p className="text-lg font-black text-purple-700 mt-0.5">{grossMargin.toFixed(1)}%</p>
-                          <p className="text-[9px] text-gray-400 font-medium mt-0.5">Break-even: {breakEvenUnits} units</p>
-                        </div>
-
-                        <div className="col-span-2 sm:col-span-1 bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Est. Net Profit</span>
-                          <p className={`text-lg font-black mt-0.5 ${monthlyNetProfit >= 0 ? "text-green-600" : "text-red-500"}`}>
-                            ₱{monthlyNetProfit.toLocaleString()}
-                          </p>
-                          <p className="text-[9px] text-gray-400 font-medium mt-0.5">per month</p>
-                        </div>
-                      </div>
-
-                      {/* STEP 1 & 2: UNIT COSTING & MARKUP STRATEGY */}
-                      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-200 space-y-4 shadow-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
-                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                            Product Costing & Yield (Batch / Production Model)
-                          </h4>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Production / Batch Cost (₱)
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 485.70"
-                              value={fin.productionCost || ""}
-                              onChange={(e) => updateFinancialData({ productionCost: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none transition-colors"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">Total cost of raw ingredients/materials per batch</p>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Batch Quantity Yield (Units)
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 12"
-                              value={fin.quantityYield || ""}
-                              onChange={(e) => updateFinancialData({ quantityYield: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none transition-colors"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">Total finished items produced from this batch</p>
-                          </div>
-
-                          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200/80 flex flex-col justify-center">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase">Calculated Unit Cost (COGS)</span>
-                            <p className="text-xl font-black text-[#122244] mt-0.5">₱{computedUnitCost.toFixed(2)}</p>
-                            <span className="text-[9px] text-gray-400">Formula: Batch Cost / Yield</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* STEP 2: MARKUP STRATEGY & PSYCHOLOGICAL PRICING OVERRIDE */}
-                      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-200 space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
-                            <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                              Mark-up Strategy & Target Selling Price
+                      {/* TOTAL CAPITAL HERO CARD */}
+                      <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
+                        <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 bg-[#c9a654]/20 border border-[#c9a654]/40 text-[#f3d98b] text-[10px] font-black rounded-full uppercase tracking-wider">
+                                Proposal Total Capital
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-200">
+                              Total Capital Overview
                             </h4>
-                          </div>
-                          {isEditingMode && (
-                            <div className="flex gap-1.5 items-center">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                              {["50", "100", "120"].map((pct) => (
-                                <button
-                                  key={pct}
-                                  type="button"
-                                  onClick={() => {
-                                    const compP = computedUnitCost + (computedUnitCost * (Number(pct) / 100));
-                                    updateFinancialData({
-                                      markupPercentage: pct,
-                                      sellingPrice: compP > 0 ? String(Math.round(compP)) : ""
-                                    });
-                                  }}
-                                  className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${
-                                    fin.markupPercentage === pct 
-                                      ? "bg-[#c9a654] text-white border-[#c9a654]" 
-                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                  }`}
-                                >
-                                  {pct}%
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Mark-up Percentage (%)
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 100"
-                              value={fin.markupPercentage || ""}
-                              onChange={(e) => {
-                                const newPct = e.target.value;
-                                const compP = computedUnitCost + (computedUnitCost * (Number(newPct) / 100));
-                                updateFinancialData({ 
-                                  markupPercentage: newPct,
-                                  sellingPrice: compP > 0 ? String(Math.round(compP)) : (fin.sellingPrice || "")
-                                });
-                              }}
-                              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">
-                              Markup amount: ₱{finMarkupAmount.toFixed(2)}
+                            <p className="text-[11px] text-gray-300">
+                              Directly pulled from the Total Capital requirement inputted in the business proposal
                             </p>
                           </div>
-
-                          <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-center">
-                            <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
-                            <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{computedBasePrice.toFixed(2)}</p>
-                            <span className="text-[9px] text-gray-500">Unit Cost + Mark-up</span>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder={computedBasePrice > 0 ? String(Math.round(computedBasePrice)) : "0"}
-                              value={fin.sellingPrice !== undefined ? fin.sellingPrice : ""}
-                              onChange={(e) => updateFinancialData({ sellingPrice: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-white border-2 border-[#c9a654] rounded-lg text-sm font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none shadow-sm"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">
-                              Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
-                            </p>
+                          <div className="text-left sm:text-right bg-white/5 border border-white/10 px-5 py-3 rounded-xl backdrop-blur-sm">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200/80 block">
+                              Total Capital Amount
+                            </span>
+                            <span className="text-2xl sm:text-3xl font-black text-[#f3d98b] tracking-tight">
+                              ₱{(Number(String(currentProposal.totalCapital || "").replace(/,/g, "")) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* STEP 3: ESTIMATED SALES VOLUME & OPERATING EXPENSES (OPEX) */}
-                      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-200 space-y-4 shadow-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">3</span>
-                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                            Sales Volume & Monthly Operating Expenses (OpEx)
-                          </h4>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Estimated Monthly Sales Volume (Units)
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 300"
-                              value={fin.monthlySales || ""}
-                              onChange={(e) => updateFinancialData({ monthlySales: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">Projected monthly customer volume</p>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Operating Days / Year
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="300"
-                              value={fin.operatingDays || "300"}
-                              onChange={(e) => updateFinancialData({ operatingDays: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">Default is 300 days for school/business operations</p>
-                          </div>
-                        </div>
-
-                        {/* OPEX ITEMIZATION */}
-                        <div className="pt-2">
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                              Monthly Operating Expenses (Rent, Utilities, Staff)
-                            </label>
-                            {isEditingMode && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newOpex = [
-                                    ...(fin.opexList || []),
-                                    { id: Date.now().toString(), name: "", amount: 0 }
-                                  ];
-                                  updateFinancialData({ opexList: newOpex });
-                                }}
-                                className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2 py-0.5 rounded border border-amber-200/70"
-                              >
-                                <Plus size={12} /> Add Expense
-                              </button>
-                            )}
-                          </div>
-
-                          {finOpexList.length === 0 ? (
-                            <div className="p-4 bg-gray-50/60 rounded-lg border border-dashed border-gray-200 text-center">
-                              <p className="text-xs text-gray-400 italic">No itemized monthly expenses added.</p>
-                              {isEditingMode && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const presets = [
-                                      { id: Date.now().toString(), name: "Rent & Utilities", amount: 3000 },
-                                      { id: (Date.now() + 1).toString(), name: "Supplies & Packaging", amount: 1500 }
-                                    ];
-                                    updateFinancialData({ opexList: presets });
-                                  }}
-                                  className="mt-1.5 text-xs font-bold text-[#122244] underline hover:text-[#c9a654]"
-                                >
-                                  + Load common presets (Rent, Packaging)
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                              {finOpexList.map((item, idx) => (
-                                <div key={item.id || idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                  <input
-                                    disabled={!isEditingMode}
-                                    type="text"
-                                    placeholder="Expense Name (e.g. Rent)"
-                                    value={item.name}
-                                    onChange={(e) => {
-                                      const nextList = [...finOpexList];
-                                      nextList[idx] = { ...nextList[idx], name: e.target.value };
-                                      updateFinancialData({ opexList: nextList });
-                                    }}
-                                    className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
-                                  />
-                                  <div className="w-28 relative">
-                                    <span className="absolute left-2 top-1.5 text-xs text-gray-400">₱</span>
-                                    <input
-                                      disabled={!isEditingMode}
-                                      type="number"
-                                      placeholder="0"
-                                      value={item.amount || ""}
-                                      onChange={(e) => {
-                                        const nextList = [...finOpexList];
-                                        nextList[idx] = { ...nextList[idx], amount: Number(e.target.value) || 0 };
-                                        updateFinancialData({ opexList: nextList });
-                                      }}
-                                      className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
-                                    />
-                                  </div>
-                                  {isEditingMode && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const nextList = finOpexList.filter((_, i) => i !== idx);
-                                        updateFinancialData({ opexList: nextList });
-                                      }}
-                                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                                    >
-                                      <Trash2 size={13} />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-gray-100 px-1">
-                            <span className="text-xs font-bold text-gray-600">Total Fixed OpEx / Mo:</span>
-                            <span className="text-sm font-extrabold text-[#122244]">₱{calculatedOpex.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* STEP 4: STARTUP CAPITAL & EQUIPMENT (CAPEX) */}
-                      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-200 space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between">
+                      {/* SECTION 1: PRODUCT COSTING & YIELD (BATCH / PRODUCTION MODEL) */}
+                      <div className="space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">4</span>
+                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
                             <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                              Startup Equipment & Assets Breakdown (CapEx)
+                              Product Costing & Yield (Batch / Production Model)
                             </h4>
                           </div>
                           {isEditingMode && (
                             <button
                               type="button"
-                              onClick={() => {
-                                const newEq = [
-                                  ...(fin.equipmentList || []),
-                                  { id: Date.now().toString(), name: "", quantity: 1, unitPrice: 0, total: 0 }
-                                ];
-                                updateFinancialData({ equipmentList: newEq });
-                              }}
-                              className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2 py-0.5 rounded border border-amber-200/70"
+                              onClick={handleAddProduct}
+                              className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
                             >
-                              <Plus size={12} /> Add Item
+                              <Plus size={13} /> Add Product
                             </button>
                           )}
                         </div>
 
-                        {finEquipmentList.length === 0 ? (
-                          <div className="p-4 bg-gray-50/60 rounded-lg border border-gray-200">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Lump Sum Startup Capital (₱) <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 25000"
-                              value={fin.startupCapital || currentProposal.totalCapital || ""}
-                              onChange={(e) => updateFinancialData({ startupCapital: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:border-[#c9a654] outline-none"
-                            />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">
-                              Syncs automatically with Proposal Total Capital. You can itemize equipment above or enter a total here.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                            {finEquipmentList.map((item, idx) => (
-                              <div key={item.id || idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs">
-                                <div className="col-span-5">
-                                  <input
-                                    disabled={!isEditingMode}
-                                    type="text"
-                                    placeholder="Equipment / Asset Name"
-                                    value={item.name}
-                                    onChange={(e) => {
-                                      const nextList = [...finEquipmentList];
-                                      nextList[idx] = { ...nextList[idx], name: e.target.value };
-                                      updateFinancialData({ equipmentList: nextList });
-                                    }}
-                                    className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  <input
-                                    disabled={!isEditingMode}
-                                    type="number"
-                                    placeholder="Qty"
-                                    value={item.quantity || ""}
-                                    onChange={(e) => {
-                                      const nextList = [...finEquipmentList];
-                                      const q = Math.max(1, Number(e.target.value) || 1);
-                                      const p = nextList[idx].unitPrice || 0;
-                                      nextList[idx] = { ...nextList[idx], quantity: q, total: q * p };
-                                      updateFinancialData({ equipmentList: nextList });
-                                    }}
-                                    className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-center"
-                                  />
-                                </div>
-                                <div className="col-span-4">
-                                  <input
-                                    disabled={!isEditingMode}
-                                    type="number"
-                                    placeholder="Price"
-                                    value={item.unitPrice || ""}
-                                    onChange={(e) => {
-                                      const nextList = [...finEquipmentList];
-                                      const p = Number(e.target.value) || 0;
-                                      const q = nextList[idx].quantity || 1;
-                                      nextList[idx] = { ...nextList[idx], unitPrice: p, total: q * p };
-                                      updateFinancialData({ equipmentList: nextList });
-                                    }}
-                                    className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
-                                  />
-                                </div>
-                                <div className="col-span-1 text-right">
-                                  {isEditingMode && (
+                        {/* PRODUCTS LIST */}
+                        <div className="space-y-6">
+                          {productsList.map((product, prodIdx) => {
+                            const metrics = computeProductMetrics(product);
+                            const ingredients = product.ingredients || [];
+
+                            return (
+                              <div
+                                key={product.id || prodIdx}
+                                className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-5 shadow-sm relative"
+                              >
+                                {/* Product Header */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <span className="px-2.5 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
+                                      Product #{prodIdx + 1}
+                                    </span>
+                                    <div className="flex-1 max-w-md">
+                                      <input
+                                        disabled={!isEditingMode}
+                                        type="text"
+                                        placeholder={`Product ${prodIdx + 1}`}
+                                        value={product.name || ""}
+                                        onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
+                                        className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                      />
+                                    </div>
+                                  </div>
+                                  {isEditingMode && productsList.length > 1 && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        const nextList = finEquipmentList.filter((_, i) => i !== idx);
-                                        updateFinancialData({ equipmentList: nextList });
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-red-500 rounded"
+                                      onClick={() => handleRemoveProduct(prodIdx)}
+                                      className="self-end sm:self-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors font-semibold"
                                     >
-                                      <Trash2 size={13} />
+                                      <Trash2 size={13} /> Remove Product
                                     </button>
                                   )}
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
 
-                        <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-gray-100 px-1">
-                          <span className="text-xs font-bold text-gray-600">Total Calculated Capital:</span>
-                          <span className="text-sm font-extrabold text-[#122244]">₱{calculatedEquipmentTotal.toLocaleString()}</span>
+                                {/* Product Yield & Ingredients */}
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                                  {/* Yield Input & Calculation */}
+                                  <div className="lg:col-span-4 space-y-4">
+                                    <div>
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                        Batch Quantity Yield (Units) <span className="text-red-500">*</span>
+                                      </label>
+                                      <input
+                                        disabled={!isEditingMode}
+                                        type="number"
+                                        placeholder="e.g. 12"
+                                        value={product.quantityYield}
+                                        onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
+                                        className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                      />
+                                      <p className="text-[9px] text-gray-400 mt-1 italic">
+                                        Total finished items produced from this batch
+                                      </p>
+                                    </div>
+
+                                    {/* Total Batch Cost & Unit Cost Preview */}
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-500 font-medium">Total Batch Cost:</span>
+                                        <span className="font-extrabold text-[#122244]">
+                                          ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
+                                        <span className="text-gray-500 font-medium">Yield:</span>
+                                        <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
+                                        <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
+                                        <span className="font-black text-[#122244] text-sm">
+                                          ₱{metrics.unitCost.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Ingredient List */}
+                                  <div className="lg:col-span-8 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                        Ingredient List & Costs
+                                      </label>
+                                      {isEditingMode && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAddIngredient(prodIdx)}
+                                          className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
+                                        >
+                                          <Plus size={12} /> Add Ingredient
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {ingredients.length === 0 ? (
+                                      <div className="p-4 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
+                                        <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
+                                        {isEditingMode && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddIngredient(prodIdx)}
+                                            className="text-xs font-bold text-[#c9a654] hover:underline"
+                                          >
+                                            + Add your first ingredient
+                                          </button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        {ingredients.map((ing, ingIdx) => (
+                                          <div
+                                            key={ing.id || ingIdx}
+                                            className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
+                                          >
+                                            <input
+                                              disabled={!isEditingMode}
+                                              type="text"
+                                              placeholder="Ingredient Name (e.g. Flour, Spinach)"
+                                              value={ing.name}
+                                              onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
+                                              className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
+                                            />
+                                            <div className="w-28 relative">
+                                              <span className="absolute left-2 top-1.5 text-xs text-gray-400">₱</span>
+                                              <input
+                                                disabled={!isEditingMode}
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={ing.price !== undefined ? ing.price : ""}
+                                                onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
+                                                className="w-full pl-5 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
+                                              />
+                                            </div>
+                                            {isEditingMode && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
+                                                className="p-1 text-gray-400 hover:text-red-500 rounded"
+                                                title="Remove ingredient"
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* SECTION 2: MARK-UP STRATEGY & TARGET SELLING PRICE (PER PRODUCT) */}
+                                <div className="pt-4 border-t border-gray-100 space-y-3">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-4 h-4 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                                      <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                        Mark-up Strategy & Target Selling Price
+                                      </h5>
+                                    </div>
+                                    {isEditingMode && (
+                                      <div className="flex gap-1.5 items-center">
+                                        <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                                        {["50", "100", "120"].map((pct) => (
+                                          <button
+                                            key={pct}
+                                            type="button"
+                                            onClick={() => {
+                                              const mPct = Number(pct);
+                                              const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                              handleUpdateProduct(prodIdx, {
+                                                markupPercentage: pct,
+                                                sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
+                                              });
+                                            }}
+                                            className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${
+                                              String(product.markupPercentage) === pct
+                                                ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                                : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                            }`}
+                                          >
+                                            {pct}%
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                        Mark-up Percentage (%)
+                                      </label>
+                                      <input
+                                        disabled={!isEditingMode}
+                                        type="number"
+                                        placeholder="e.g. 100"
+                                        value={product.markupPercentage}
+                                        onChange={(e) => {
+                                          const newPct = e.target.value;
+                                          const mPct = Number(newPct) || 0;
+                                          const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                          handleUpdateProduct(prodIdx, {
+                                            markupPercentage: newPct,
+                                            sellingPrice: compBase > 0 ? String(Math.round(compBase)) : (product.sellingPrice || "")
+                                          });
+                                        }}
+                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                      />
+                                      <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
+                                        <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-center">
+                                      <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
+                                      <p className="text-lg font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
+                                      <span className="text-[9px] text-gray-500">Unit Cost + Mark-up</span>
+                                    </div>
+
+                                    <div>
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                        Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
+                                      </label>
+                                      <input
+                                        disabled={!isEditingMode}
+                                        type="number"
+                                        placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
+                                        value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
+                                        onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
+                                        className="w-full px-3 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
+                                      />
+                                      <p className="text-[9px] text-gray-400 mt-1 italic">
+                                        Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
+                                <div className="pt-3 border-t border-gray-100">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                                    Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
+                                  </span>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[#122244]">
+                                    {/* Unit Cost (COGS) */}
+                                    <div className="bg-gray-50/90 p-3 rounded-xl border border-gray-200">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
+                                      <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
+                                      <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
+                                    </div>
+
+                                    {/* Target Price */}
+                                    <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-200">
+                                      <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
+                                      <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
+                                      <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{metrics.markupPct}% Mark-up</p>
+                                    </div>
+
+                                    {/* Revenue */}
+                                    <div className="bg-green-50/40 p-3 rounded-xl border border-green-200">
+                                      <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
+                                      <p className="text-base font-black text-green-700 mt-0.5">
+                                        ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </p>
+                                      <p className="text-[9px] text-green-600 font-medium mt-0.5">Selling Price × Quantity</p>
+                                    </div>
+
+                                    {/* Gross Profit */}
+                                    <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200">
+                                      <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
+                                      <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                        ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </p>
+                                      <p className="text-[9px] text-purple-600 font-medium mt-0.5">Revenue - Total Cost</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      {/* STEP 5: FINANCING & CAPITAL SOURCE */}
-                      <div className="bg-white p-5 rounded-xl border border-gray-200 space-y-3 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-bold text-[#122244]">Is startup capital borrowed / loaned?</p>
-                            <p className="text-[10px] text-gray-500">Enable if the proposal relies on borrowed funds with interest</p>
+                      {/* SECTION 2: STARTUP EQUIPMENT & ASSETS BREAKDOWN (CAPEX) */}
+                      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-4 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                              Startup Equipment & Assets Breakdown (CapEx)
+                            </h4>
                           </div>
-                          <input
-                            disabled={!isEditingMode}
-                            type="checkbox"
-                            checked={fin.isCapitalBorrowed || false}
-                            onChange={(e) => updateFinancialData({ isCapitalBorrowed: e.target.checked })}
-                            className="w-4 h-4 accent-[#c9a654] cursor-pointer"
-                          />
                         </div>
 
-                        {fin.isCapitalBorrowed && (
-                          <div className="pt-2 border-t border-gray-100">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                              Annual Loan Interest Rate (%)
-                            </label>
+                        {/* CapEx Table */}
+                        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead className="bg-gray-50/80 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                              <tr>
+                                <th className="py-3 px-4 min-w-[200px]">Item / Asset name</th>
+                                <th className="py-3 px-3 w-28 text-center">QTY</th>
+                                <th className="py-3 px-3 w-36 text-right">UNIT PRICE</th>
+                                <th className="py-3 px-4 w-36 text-right">TOTAL</th>
+                                {isEditingMode && <th className="py-3 px-3 w-12 text-center"></th>}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {finEquipmentList.map((item, idx) => (
+                                <tr key={item.id || idx} className="hover:bg-gray-50/50 transition-colors">
+                                  <td className="p-3">
+                                    <input
+                                      disabled={!isEditingMode}
+                                      type="text"
+                                      placeholder="e.g. Machinery / Equipment / Tool"
+                                      value={item.name}
+                                      onChange={(e) => handleUpdateEquipmentItem(idx, { name: e.target.value })}
+                                      className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#122244] focus:border-[#c9a654] outline-none"
+                                    />
+                                  </td>
+                                  <td className="p-3">
+                                    <input
+                                      disabled={!isEditingMode}
+                                      type="number"
+                                      min="1"
+                                      placeholder="1"
+                                      value={item.quantity !== undefined ? item.quantity : ""}
+                                      onChange={(e) => handleUpdateEquipmentItem(idx, { quantity: e.target.value === "" ? "" : Number(e.target.value) })}
+                                      className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] text-center focus:border-[#c9a654] outline-none"
+                                    />
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="relative">
+                                      <span className="absolute left-2.5 top-1.5 text-xs text-gray-400">₱</span>
+                                      <input
+                                        disabled={!isEditingMode}
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={item.unitPrice !== undefined ? item.unitPrice : ""}
+                                        onChange={(e) => handleUpdateEquipmentItem(idx, { unitPrice: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] text-right focus:border-[#c9a654] outline-none"
+                                      />
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-right font-black text-xs text-[#122244]">
+                                    ₱{(Number(item.total) || ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  {isEditingMode && (
+                                    <td className="p-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveEquipmentItem(idx)}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                                        title="Delete item"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              ))}
+                              {finEquipmentList.length === 0 && (
+                                <tr>
+                                  <td colSpan={isEditingMode ? 5 : 4} className="py-8 text-center text-gray-400 text-xs italic">
+                                    No equipment or assets added yet. Click "+ Add Item" to itemize your startup capital.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          <div className="p-3.5 bg-gray-50/90 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                            {isEditingMode ? (
+                              <button
+                                type="button"
+                                onClick={handleAddEquipmentItem}
+                                className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/80 hover:bg-amber-100 transition-colors"
+                              >
+                                <Plus size={14} /> Add Item
+                              </button>
+                            ) : <div />}
+                            <div className="flex items-center gap-2 text-right">
+                              <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Total:</span>
+                              <span className="text-base font-black text-[#122244]">
+                                ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Financing Options */}
+                        <div className="bg-amber-50/40 p-4 rounded-xl border border-amber-200/70 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-[#122244]">Is startup capital borrowed / loaned?</p>
+                              <p className="text-[10px] text-gray-500">Enable if the proposal relies on borrowed funds with interest</p>
+                            </div>
                             <input
                               disabled={!isEditingMode}
-                              type="number"
-                              placeholder="e.g. 5 for 5%"
-                              value={fin.interestRate || ""}
-                              onChange={(e) => updateFinancialData({ interestRate: e.target.value })}
-                              className="w-full sm:w-1/2 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                              type="checkbox"
+                              checked={fin.isCapitalBorrowed || false}
+                              onChange={(e) => updateFinancialData({ isCapitalBorrowed: e.target.checked })}
+                              className="w-4 h-4 accent-[#c9a654] cursor-pointer rounded"
                             />
-                            <p className="text-[9px] text-gray-400 mt-1 italic">
-                              Monthly loan interest: ₱{monthlyLoanInterest.toLocaleString()}
-                            </p>
                           </div>
-                        )}
+
+                          {fin.isCapitalBorrowed && (
+                            <div className="pt-3 border-t border-amber-200/60 flex flex-col sm:flex-row sm:items-center gap-4">
+                              <div className="flex-1">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                  Annual Loan Interest Rate (%)
+                                </label>
+                                <input
+                                  disabled={!isEditingMode}
+                                  type="number"
+                                  placeholder="e.g. 5 for 5%"
+                                  value={fin.interestRate || ""}
+                                  onChange={(e) => updateFinancialData({ interestRate: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none"
+                                />
+                              </div>
+                              <div className="bg-white/80 px-4 py-2 rounded-lg border border-amber-200 text-xs">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase block">Monthly Loan Interest</span>
+                                <span className="font-extrabold text-[#122244]">₱{monthlyLoanInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </section>
 
@@ -2816,17 +3178,15 @@ const Projects: React.FC = () => {
                         const proposalFin = activeBusiness.originalProposalFinancials || activeBusiness.financialData;
                         if (!proposalFin) return null;
 
-                        const safeUnitCost = Number(proposalFin.unitCost) || Number(proposalFin.variableCost) || (Number(proposalFin.productionCost) && Number(proposalFin.quantityYield) ? Number(proposalFin.productionCost) / Number(proposalFin.quantityYield) : 0);
-                        const safeSellingPrice = Number(proposalFin.sellingPrice) || 0;
-                        const safeMonthlySales = Number(proposalFin.monthlySales) || 0;
-                        const safeFixedCosts = proposalFin.opexList && proposalFin.opexList.length > 0
-                          ? proposalFin.opexList.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
-                          : (Number(proposalFin.fixedCosts) || 0);
-                        const monthlyRev = safeSellingPrice * safeMonthlySales;
-                        const grossMargin = monthlyRev > 0 ? ((monthlyRev - (safeUnitCost * safeMonthlySales)) / monthlyRev) * 100 : 0;
+                        const products = normalizeProposalProducts(proposalFin, activeBusiness.businessName);
+                        const equipmentList = proposalFin.equipmentList || [];
+                        const calculatedEquipmentTotal = equipmentList.reduce(
+                          (s: number, e: any) => s + (Number(e.total) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
+                          0
+                        );
 
                         return (
-                          <div className="space-y-4 pt-4 border-t border-gray-100">
+                          <div className="space-y-6 pt-4 border-t border-gray-100">
                             <div className="flex items-center justify-between">
                               <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
                                 <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
@@ -2836,111 +3196,111 @@ const Projects: React.FC = () => {
                               </span>
                             </div>
 
-                            {/* KPI Banner */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                                <span className="font-extrabold text-[#122244] text-sm">₱{safeUnitCost.toFixed(2)}</span>
+                            {/* Products Breakdown */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                                <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Product Costing & Yield Profiles</span>
                               </div>
-                              <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
-                                <span className="text-[9px] text-[#b59545] font-bold uppercase block">Proposed Price</span>
-                                <span className="font-extrabold text-[#c9a654] text-sm">₱{safeSellingPrice.toFixed(2)}</span>
-                              </div>
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Monthly Sales</span>
-                                <span className="font-extrabold text-[#122244] text-sm">{safeMonthlySales.toLocaleString()} pcs</span>
-                              </div>
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Est. Revenue</span>
-                                <span className="font-extrabold text-green-700 text-sm">₱{monthlyRev.toLocaleString()}</span>
-                              </div>
-                            </div>
+                              {products.map((prod, pIdx) => {
+                                const metrics = computeProductMetrics(prod);
+                                const ingredients = prod.ingredients || [];
 
-                            {/* Detailed Grid: Costing & OpEx */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                              <div className="space-y-2">
-                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Unit Costing & Markup Strategy</span>
-                                {proposalFin.productionCost && proposalFin.quantityYield && (
-                                  <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                    <span className="text-gray-500">Batch Cost / Yield:</span>
-                                    <span className="font-semibold text-gray-900">₱{Number(proposalFin.productionCost).toLocaleString()} / {proposalFin.quantityYield} pcs</span>
-                                  </div>
-                                )}
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Proposed Markup:</span>
-                                  <span className="font-bold text-[#c9a654]">+{proposalFin.markupPercentage || '0'}%</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Gross Margin:</span>
-                                  <span className="font-bold text-purple-700">{grossMargin.toFixed(1)}%</span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Volume & Fixed Costs</span>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Total Fixed OpEx:</span>
-                                  <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Operating Schedule:</span>
-                                  <span className="font-semibold text-gray-900">{proposalFin.operatingDays || '300'} days/yr</span>
-                                </div>
-                                {proposalFin.isCapitalBorrowed && (
-                                  <div className="flex justify-between border-b border-gray-200/50 pb-1 text-amber-800">
-                                    <span>Loan Interest:</span>
-                                    <span className="font-bold">{proposalFin.interestRate}% Interest/yr</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Itemized OpEx List (if present) */}
-                            {proposalFin.opexList && proposalFin.opexList.length > 0 && (
-                              <div className="space-y-1.5">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Submitted Operating Expenses</span>
-                                <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                                  {proposalFin.opexList.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between text-xs bg-white px-3 py-1 rounded border border-gray-100">
-                                      <span className="text-gray-700">{item.name || 'Expense Item'}</span>
-                                      <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                                return (
+                                  <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
+                                    <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
+                                      <span className="font-extrabold text-sm text-[#122244]">
+                                        {prod.name || `Product #${pIdx + 1}`}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
+                                        Yield: {metrics.batchYield || 0} units
+                                      </span>
                                     </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+
+                                    {/* Per-Product Summary Cards */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                        <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
+                                      </div>
+                                      <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
+                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">Target Price</span>
+                                        <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
+                                      </div>
+                                      <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
+                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Revenue</span>
+                                        <span className="font-extrabold text-green-700 text-sm">
+                                          ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200">
+                                        <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                        <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                          ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Ingredients list if present */}
+                                    {ingredients.length > 0 && (
+                                      <div className="space-y-1.5 pt-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
+                                          {ingredients.map((ing, iIdx) => (
+                                            <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
+                                              <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
+                                              <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
 
                             {/* Equipment CapEx (if present) */}
-                            {proposalFin.equipmentList && proposalFin.equipmentList.length > 0 && (
-                              <div className="space-y-1.5">
+                            {equipmentList.length > 0 && (
+                              <div className="space-y-2 pt-2">
                                 <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Submitted Machinery & Equipment</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                                    <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Startup Equipment & Assets Breakdown (CapEx)</span>
+                                  </div>
                                   <span className="text-xs font-bold text-[#122244]">
-                                    Total: ₱{proposalFin.equipmentList.reduce((s: number, e: any) => s + (Number(e.total) || 0), 0).toLocaleString()}
+                                    Total: ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
                                   <table className="w-full text-left text-xs">
                                     <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
                                       <tr>
-                                        <th className="p-2">Item Name</th>
-                                        <th className="p-2 text-center w-12">Qty</th>
-                                        <th className="p-2 text-right w-20">Unit Price</th>
-                                        <th className="p-2 text-right w-24">Total</th>
+                                        <th className="p-2">Item / Asset name</th>
+                                        <th className="p-2 text-center w-12">QTY</th>
+                                        <th className="p-2 text-right w-20">UNIT PRICE</th>
+                                        <th className="p-2 text-right w-24">TOTAL</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                      {proposalFin.equipmentList.map((eq: any, idx: number) => (
+                                      {equipmentList.map((eq: any, idx: number) => (
                                         <tr key={idx}>
                                           <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
                                           <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
                                           <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
-                                          <td className="p-2 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                          <td className="p-2 text-right font-bold text-[#122244]">₱{(Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))).toLocaleString()}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 </div>
+                              </div>
+                            )}
+
+                            {proposalFin.isCapitalBorrowed && (
+                              <div className="flex justify-between items-center text-xs text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200/70">
+                                <span className="font-semibold">Startup Capital Loan Financing:</span>
+                                <span className="font-black">{proposalFin.interestRate || '0'}% Annual Interest Rate</span>
                               </div>
                             )}
                           </div>
@@ -3505,16 +3865,40 @@ const Projects: React.FC = () => {
                       <>
                         <input
                           type="text"
+                          inputMode="decimal"
                           value={editBasicData.totalCapital}
-                          onChange={(e) =>
+                          onKeyDown={(e) => {
+                            if (
+                              !/[0-9]/.test(e.key) &&
+                              e.key !== "Backspace" &&
+                              e.key !== "Delete" &&
+                              e.key !== "Tab" &&
+                              e.key !== "ArrowLeft" &&
+                              e.key !== "ArrowRight" &&
+                              e.key !== "Home" &&
+                              e.key !== "End" &&
+                              !(e.key === "." && !(editBasicData.totalCapital || "").includes(".")) &&
+                              !e.ctrlKey &&
+                              !e.metaKey
+                            ) {
+                              e.preventDefault();
+                            }
+                          }}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^0-9.]/g, "");
+                            const parts = val.split(".");
+                            if (parts.length > 2) {
+                              val = parts[0] + "." + parts.slice(1).join("");
+                            }
                             setEditBasicData({
                               ...editBasicData,
-                              totalCapital: e.target.value,
-                            })
-                          }
+                              totalCapital: val,
+                            });
+                          }}
+                          placeholder="0.00"
                           className={`w-full px-4 py-2 bg-gray-50 border ${
                             check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg text-sm font-medium transition-colors`}
+                          } rounded-lg text-sm font-medium transition-colors outline-none`}
                         />
                         {check.isNegative && (
                           <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
@@ -3739,6 +4123,18 @@ const Projects: React.FC = () => {
             <X className="w-5 h-5" />
           </button>
         </div>
+      )}
+      {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 p-3.5 bg-[#122244] hover:bg-[#1a3264] text-[#c9a654] hover:text-white rounded-full shadow-2xl border-2 border-[#c9a654]/40 hover:border-[#c9a654] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center group animate-in fade-in zoom-in-75 cursor-pointer"
+          title="Scroll to Top"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
+        </button>
       )}
     </div>
   );

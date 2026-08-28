@@ -4,14 +4,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import "react-loading-skeleton/dist/skeleton.css";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion, setDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp, writeBatch, updateDoc, deleteDoc, arrayUnion, setDoc, onSnapshot } from "firebase/firestore";
 import {
   User, Settings, ShieldAlert, Sidebar as SidebarIcon, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3
+  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp
 } from "lucide-react";
+import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
 
 interface StudentData {
   id: string;
@@ -160,11 +161,40 @@ const AdviserDashboard: React.FC = () => {
           }
 
           setAdviserSections(parsedSections);
+
+          // Live notification badge
+          const notifQ = query(
+            collection(db, "notifications"),
+            where("userId", "==", u.uid),
+            where("isRead", "==", false)
+          );
+          onSnapshot(notifQ, (snap) => {
+            setUnreadNotificationCount(snap.size);
+          }, (err) => console.error("Adviser notif badge error:", err));
         }
       } catch (error) { console.error(error); }
     });
     return () => unsub();
   }, [navigate]);
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const mainContainerRef = React.useRef<HTMLElement | null>(null);
+
+  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (e.currentTarget.scrollTop > 150) {
+      setShowScrollTop(true);
+    } else {
+      setShowScrollTop(false);
+    }
+  };
+
+  const scrollToTop = () => {
+    if (mainContainerRef.current) {
+      mainContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
 
   // Auto-select "ALL" (My Sections) when adviser sections load
   useEffect(() => {
@@ -178,106 +208,85 @@ const AdviserDashboard: React.FC = () => {
         setMinMembers(settings?.minMembers ?? 8);
         setMaxMembers(settings?.maxMembers ?? 10);
       }
-      fetchSectionData(sectionToSelect, adviserSections);
+      setupSectionListener(sectionToSelect, adviserSections);
     }
   }, [adviserSections, sectionSettingsMap, searchParams]);
 
-  const fetchSectionData = async (section: string, sectionsList = adviserSections) => {
+  // Ref to store the current section listener cleanup function
+  const sectionUnsubRef = React.useRef<(() => void) | undefined>(undefined);
+
+  const setupSectionListener = (section: string, sectionsList = adviserSections) => {
     if (!section || section === "Unassigned") { setIsLoading(false); return; }
+
+    // Clean up previous listener
+    if (sectionUnsubRef.current) {
+      sectionUnsubRef.current();
+      sectionUnsubRef.current = undefined;
+    }
+
     setIsLoading(true);
     setSearchTerm("");
     setActiveView('dashboard');
-    try {
-      if (section === "ALL") {
-        const activeList = sectionsList.length > 0 ? sectionsList : adviserSections;
-        if (activeList.length === 0) {
-          setStudents([]);
-          setGroups([]);
-          setIsLoading(false);
-          return;
-        }
 
-        const studentQ = query(
-          collection(db, "users"),
-          where("role", "==", "Student"),
-          where("section", "in", activeList.slice(0, 30))
-        );
-        const studentSnap = await getDocs(studentQ);
-        setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData)));
+    const activeList = section === "ALL"
+      ? (sectionsList.length > 0 ? sectionsList : adviserSections)
+      : [section];
 
-        const groupQ = query(
-          collection(db, "groups"),
-          where("section", "in", activeList.slice(0, 30))
-        );
-        const groupSnap = await getDocs(groupQ);
-        const groupIds = groupSnap.docs.map(d => d.id);
+    if (activeList.length === 0) {
+      setStudents([]);
+      setGroups([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch students (one-time — they change rarely)
+    const studentQuery = section === "ALL"
+      ? query(collection(db, "users"), where("role", "==", "Student"), where("section", "in", activeList.slice(0, 30)))
+      : query(collection(db, "users"), where("role", "==", "Student"), where("section", "==", section));
+
+    getDocs(studentQuery)
+      .then(snap => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData))))
+      .catch(console.error);
+
+    // Live listener for groups
+    const groupQuery = section === "ALL"
+      ? query(collection(db, "groups"), where("section", "in", activeList.slice(0, 30)))
+      : query(collection(db, "groups"), where("section", "==", section));
+
+    let unsubProposals: (() => void) | undefined;
+
+    const unsubGroups = onSnapshot(groupQuery, (groupSnap) => {
+      const groupDocs = groupSnap.docs;
+      const groupIds = groupDocs.map(d => d.id);
+
+      // Clean up old proposals listener, set up new one
+      if (unsubProposals) { unsubProposals(); }
+
+      if (groupIds.length === 0) {
+        setGroups([]);
+        setSectionGroupCountMap(prev => ({ ...prev, [section]: 0 }));
+        setIsLoading(false);
+        return;
+      }
+
+      const propQuery = query(
+        collection(db, "proposals"),
+        where("groupId", "in", groupIds.slice(0, 30))
+      );
+
+      unsubProposals = onSnapshot(propQuery, (propSnap) => {
         const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
-
-        if (groupIds.length > 0) {
-          try {
-            const propQ = query(
-              collection(db, "proposals"),
-              where("groupId", "in", groupIds.slice(0, 30))
-            );
-            const propSnap = await getDocs(propQ);
-            propSnap.docs.forEach(pd => {
-              const pdata = pd.data();
-              if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
-                proposalMap[pdata.groupId] = {
-                  businessName: pdata.businessName,
-                  businessLogo: pdata.businessLogo,
-                };
-              }
-            });
-          } catch (e) {
-            console.error("Error prefetching proposals:", e);
+        propSnap.docs.forEach(pd => {
+          const pdata = pd.data();
+          if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
+            proposalMap[pdata.groupId] = {
+              businessName: pdata.businessName,
+              businessLogo: pdata.businessLogo,
+            };
           }
-        }
-
-        const fetchedGroups = groupSnap.docs.map(d => {
-          const gData = d.data();
-          const pInfo = proposalMap[d.id] || {};
-          return {
-            id: d.id,
-            ...gData,
-            businessName: gData.businessName || pInfo.businessName || "",
-            businessLogo: gData.businessLogo || pInfo.businessLogo || "",
-            status: gData.status || 'Drafting'
-          } as GroupData;
         });
-        setGroups(fetchedGroups);
-      } else {
-        const studentQ = query(collection(db, "users"), where("role", "==", "Student"), where("section", "==", section));
-        const studentSnap = await getDocs(studentQ);
-        setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData)));
 
-        const groupQ = query(collection(db, "groups"), where("section", "==", section));
-        const groupSnap = await getDocs(groupQ);
-        const groupIds = groupSnap.docs.map(d => d.id);
-        const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
-
-        if (groupIds.length > 0) {
-          try {
-            const propQ = query(
-              collection(db, "proposals"),
-              where("groupId", "in", groupIds.slice(0, 30))
-            );
-            const propSnap = await getDocs(propQ);
-            propSnap.docs.forEach(pd => {
-              const pdata = pd.data();
-              if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
-                proposalMap[pdata.groupId] = {
-                  businessName: pdata.businessName,
-                  businessLogo: pdata.businessLogo,
-                };
-              }
-            });
-          } catch (e) {
-            console.error("Error prefetching proposals:", e);
-          }
-        }
-
-        const fetchedGroups = groupSnap.docs.map(d => {
+        const fetchedGroups = groupDocs.map(d => {
           const gData = d.data();
           const pInfo = proposalMap[d.id] || {};
           return {
@@ -290,15 +299,36 @@ const AdviserDashboard: React.FC = () => {
         });
         setGroups(fetchedGroups);
         setSectionGroupCountMap(prev => ({ ...prev, [section]: fetchedGroups.length }));
-      }
-    } catch (error) { console.error("Error fetching data:", error); }
-    finally { setIsLoading(false); }
+        setIsLoading(false);
+      }, (err) => {
+        console.error("Proposals listener error:", err);
+        setIsLoading(false);
+      });
+
+    }, (err) => {
+      console.error("Groups listener error:", err);
+      setIsLoading(false);
+    });
+
+    // Store cleanup function in ref
+    sectionUnsubRef.current = () => {
+      unsubGroups();
+      if (unsubProposals) unsubProposals();
+    };
   };
 
-  const fetchGroupProposals = async (groupId: string) => {
-    try {
-      const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
-      const snap = await getDocs(q);
+  // GroupProposals listener ref (for group-details view)
+  const groupProposalsUnsubRef = React.useRef<(() => void) | undefined>(undefined);
+
+  const fetchGroupProposals = (groupId: string) => {
+    // Clean up old listener
+    if (groupProposalsUnsubRef.current) {
+      groupProposalsUnsubRef.current();
+      groupProposalsUnsubRef.current = undefined;
+    }
+
+    const q = query(collection(db, "proposals"), where("groupId", "==", groupId));
+    const unsub = onSnapshot(q, (snap) => {
       const fetched = snap.docs.map(d => {
         const data = d.data();
         if (!data.originalProposalFinancials && data.financialData) {
@@ -314,7 +344,10 @@ const AdviserDashboard: React.FC = () => {
       });
       fetched.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       setGroupProposals(fetched);
-    } catch (error) { console.error("Error fetching proposals:", error); }
+    }, (error) => {
+      console.error("Group proposals listener error:", error);
+    });
+    groupProposalsUnsubRef.current = unsub;
   };
 
   const handleLogout = async () => {
@@ -497,50 +530,109 @@ const AdviserDashboard: React.FC = () => {
     } catch (error) { console.error("Failed to save section settings:", error); }
   };
 
-  const executeAutoGroup = async (currentGroupsList: GroupData[]) => {
+  const executeAutoGroup = async (_currentGroupsList: GroupData[]) => {
     setIsLoading(true);
     try {
       // Persist per-section settings before executing
       await saveSectionSettings();
 
+      // 1. Fetch fresh groups from Firestore for the target section(s)
+      const targetSections = activeSection === "ALL"
+        ? (adviserSections.length > 0 ? adviserSections : [activeSection])
+        : [activeSection];
+
+      const groupsQuery = activeSection === "ALL"
+        ? query(collection(db, "groups"), where("section", "in", targetSections.slice(0, 30)))
+        : query(collection(db, "groups"), where("section", "==", activeSection));
+      const freshGroupsSnap = await getDocs(groupsQuery);
+      const existingGroups = freshGroupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as GroupData));
+
+      // 2. Identify all students who already belong to ANY existing group (as leader or member)
       const assignedIds = new Set<string>();
-      currentGroupsList.forEach(g => { assignedIds.add(g.leaderId); g.memberIds.forEach(id => assignedIds.add(id)); });
+      existingGroups.forEach(g => {
+        if (g.leaderId) assignedIds.add(g.leaderId);
+        if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => { if (id) assignedIds.add(id); });
+        if (Array.isArray((g as any).joinedMembers)) (g as any).joinedMembers.forEach((id: string) => { if (id) assignedIds.add(id); });
+      });
+
+      // 3. Filter students to ONLY include those who do NOT have a group yet
       const unassignedStudents = students.filter(s => !assignedIds.has(s.id));
 
-      // TRIGGER CUSTOM MODAL IF NO UNASSIGNED STUDENTS
+      // 4. If no unassigned students exist, show modal and exit
       if (unassignedStudents.length === 0) {
-        setShowAutoGroupConfirm(false); // Close current confirmation
-        setShowAllAssignedModal(true);  // Open custom notification modal
+        setShowAutoGroupConfirm(false);
+        setShowAllAssignedModal(true);
         setIsLoading(false);
         return;
       }
 
-      const shuffled = [...unassignedStudents].sort(() => 0.5 - Math.random());
-      const batch = writeBatch(db);
-      let updatedGroups = [...currentGroupsList];
+      // 5. Group unassigned students by their section so no students are mixed across sections
+      const unassignedBySection: Record<string, StudentData[]> = {};
+      unassignedStudents.forEach(s => {
+        const sec = s.section || (activeSection !== "ALL" ? activeSection : "Unassigned");
+        if (!unassignedBySection[sec]) unassignedBySection[sec] = [];
+        unassignedBySection[sec].push(s);
+      });
 
-      for (let g of updatedGroups) {
-        while (g.memberIds.length < maxMembers - 1 && shuffled.length > 0) {
-          const student = shuffled.pop()!;
-          g.memberIds.push(student.id);
-          batch.update(doc(db, "groups", g.id), { memberIds: g.memberIds });
+      const batch = writeBatch(db);
+      const newGroupsToCreate: GroupData[] = [];
+
+      // 6. For each section, form NEW groups exclusively out of unassigned students
+      // Existing groups remain completely untouched!
+      for (const [sec, secStudents] of Object.entries(unassignedBySection)) {
+        const shuffled = [...secStudents].sort(() => 0.5 - Math.random());
+        const secSettings = sectionSettingsMap[sec];
+        const secMax = secSettings?.maxMembers ?? maxMembers;
+
+        const total = shuffled.length;
+        const numGroups = Math.max(1, Math.ceil(total / secMax));
+        const baseSize = Math.floor(total / numGroups);
+        const remainder = total % numGroups;
+
+        let currentIndex = 0;
+        for (let i = 0; i < numGroups; i++) {
+          const groupSize = baseSize + (i < remainder ? 1 : 0);
+          const chunk = shuffled.slice(currentIndex, currentIndex + groupSize);
+          currentIndex += groupSize;
+
+          if (chunk.length === 0) continue;
+
+          const leader = chunk[0];
+          const members = chunk.slice(1).map(s => s.id);
+
+          const newGroupRef = doc(collection(db, "groups"));
+          const newGroupPayload = {
+            section: sec,
+            leaderId: leader.id,
+            leaderName: `${leader.firstName} ${leader.lastName}`,
+            title: "Pending Business Name",
+            memberIds: members,
+            status: "Drafting",
+            createdAt: serverTimestamp(),
+          };
+
+          batch.set(newGroupRef, newGroupPayload);
+          newGroupsToCreate.push({
+            id: newGroupRef.id,
+            leaderId: leader.id,
+            leaderName: `${leader.firstName} ${leader.lastName}`,
+            title: "Pending Business Name",
+            memberIds: members,
+            status: "Drafting",
+            section: sec,
+          });
         }
       }
 
-      while (shuffled.length > 0) {
-        const leader = shuffled.pop()!;
-        const members: string[] = [];
-        while (members.length < maxMembers - 1 && shuffled.length > 0) { members.push(shuffled.pop()!.id); }
-        const newGroupRef = doc(collection(db, "groups"));
-        batch.set(newGroupRef, {
-          section: activeSection, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`,
-          title: "Pending Business Name", memberIds: members, status: 'Drafting', createdAt: serverTimestamp()
-        });
-        updatedGroups.push({ id: newGroupRef.id, leaderId: leader.id, leaderName: `${leader.firstName} ${leader.lastName}`, title: "Pending Business Name", memberIds: members, status: 'Drafting', section: activeSection });
-      }
-      await batch.commit(); setGroups(updatedGroups); setShowAutoGroupConfirm(false);
-    } catch (error) { console.error(error); alert("Failed to auto-group."); }
-    finally { setIsLoading(false); }
+      await batch.commit();
+      setGroups(prev => [...prev, ...newGroupsToCreate]);
+      setShowAutoGroupConfirm(false);
+    } catch (error) {
+      console.error("Failed to auto-group:", error);
+      alert("Failed to auto-group.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const executeChangeLeader = async () => {
@@ -1073,7 +1165,37 @@ const AdviserDashboard: React.FC = () => {
     if (Array.isArray(g.memberIds)) g.memberIds.forEach(id => assignedIds.add(id));
   });
 
-  const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm));
+  const sortSectionNames = (a: string, b: string) =>
+    (a || "").localeCompare(b || "", undefined, { numeric: true, sensitivity: "base" });
+
+  const groupStudentsBySection = (studentList: StudentData[]) => {
+    const map: Record<string, StudentData[]> = {};
+    studentList.forEach((s) => {
+      const sec = (s.section || "Unassigned").trim();
+      if (!map[sec]) map[sec] = [];
+      map[sec].push(s);
+    });
+    const sortedSectionKeys = Object.keys(map).sort(sortSectionNames);
+    sortedSectionKeys.forEach((sec) => {
+      map[sec].sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      );
+    });
+    return { map, sortedSectionKeys };
+  };
+
+  const groupCardsBySection = (groupsList: GroupData[]) => {
+    const map: Record<string, GroupData[]> = {};
+    groupsList.forEach((g) => {
+      const sec = (g.section || "Unassigned").trim();
+      if (!map[sec]) map[sec] = [];
+      map[sec].push(g);
+    });
+    const sortedSectionKeys = Object.keys(map).sort(sortSectionNames);
+    return { map, sortedSectionKeys };
+  };
+
+  const filteredStudents = students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm) || (s.section || "").toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredGroups = activeDashboardTab === 'All Groups' ? groups : groups.filter(g => g.status === activeDashboardTab);
 
   // This physically counts how many fetched students do not exist inside the assigned Set
@@ -1091,7 +1213,7 @@ const AdviserDashboard: React.FC = () => {
             <button
               onClick={() => {
                 setActiveSection("ALL");
-                fetchSectionData("ALL");
+                setupSectionListener("ALL");
               }}
               className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
                 activeSection === "ALL"
@@ -1113,11 +1235,11 @@ const AdviserDashboard: React.FC = () => {
                     const s = sectionSettingsMap[sectionName];
                     setMinMembers(s?.minMembers ?? 8);
                     setMaxMembers(s?.maxMembers ?? 10);
-                    fetchSectionData(sectionName);
+                    setupSectionListener(sectionName);
                   }}
-                  className={`w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors ${
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
                     activeSection === sectionName
-                      ? "text-[#c9a654] font-bold bg-white/10"
+                      ? "bg-[#c9a654] text-white font-bold shadow-sm"
                       : "text-gray-400 hover:text-white hover:bg-white/5"
                   }`}
                 >
@@ -1154,7 +1276,11 @@ const AdviserDashboard: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto overflow-x-hidden ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+      <main
+        ref={mainContainerRef}
+        onScroll={handleMainScroll}
+        className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto overflow-x-hidden ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}
+      >
         <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500 sticky top-0 z-10">
           <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <span className="mx-2">|</span>
@@ -1281,140 +1407,172 @@ const AdviserDashboard: React.FC = () => {
                 <Users className="w-12 h-12 text-gray-300 mb-3" />
                 <h3 className="text-lg font-bold text-gray-900">No Groups Found</h3>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGroups.map((group) => {
-                  const totalMembers = group.memberIds.length + 1;
-                  const originalIndex = groups.findIndex(g => g.id === group.id) + 1;
+            ) : (() => {
+              const renderGroupCard = (group: GroupData) => {
+                const totalMembers = group.memberIds.length + 1;
+                const originalIndex = groups.findIndex(g => g.id === group.id) + 1;
 
-                  let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
-                  if (group.status === 'Pending Review') { statusBadgeColor = "bg-yellow-100 text-yellow-700"; statusDotColor = "bg-yellow-500"; }
-                  if (group.status === 'Approved Proposal') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
-                  if (group.status === 'Active Business') { statusBadgeColor = "bg-blue-100 text-blue-700"; statusDotColor = "bg-blue-500"; }
+                let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
+                if (group.status === 'Pending Review') { statusBadgeColor = "bg-yellow-100 text-yellow-700"; statusDotColor = "bg-yellow-500"; }
+                if (group.status === 'Approved Proposal') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
+                if (group.status === 'Active Business') { statusBadgeColor = "bg-blue-100 text-blue-700"; statusDotColor = "bg-blue-500"; }
 
-                  return (
-                    <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[470px] hover:shadow-md transition-shadow">
-                      {/* CARD HEADER: COMPANY NAME & LOGO */}
-                      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl gap-2">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
-                            {group.companyLogo ? (
-                              <img src={group.companyLogo} alt="Company Logo" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
-                                {getInitials(group.companyName || `G${originalIndex}`)}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-extrabold text-[#122244] text-sm truncate" title={group.companyName || `Group ${originalIndex}`}>
-                              {group.companyName || `Group ${originalIndex}`}
-                            </h3>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.2 rounded">
-                                Group {originalIndex}
-                              </span>
-                              {activeSection === "ALL" && (
-                                <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-extrabold rounded uppercase tracking-wider">
-                                  {group.section}
-                                </span>
-                              )}
+                return (
+                  <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[470px] hover:shadow-md transition-shadow">
+                    {/* CARD HEADER: COMPANY NAME & LOGO */}
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl gap-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {group.companyLogo ? (
+                            <img src={group.companyLogo} alt="Company Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
+                              {getInitials(group.companyName || `G${originalIndex}`)}
                             </div>
-                          </div>
+                          )}
                         </div>
-
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
-
-                          <div className="relative">
-                            <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {openDropdownId === group.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
-                                <button onClick={() => { setGroupToChangeLeader(group); setShowChangeLeaderModal(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Edit2 className="w-4 h-4" /> Change Leader</button>
-                                <button onClick={() => { setGroupToDelete(group); setShowDeleteConfirm(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete Group</button>
-                              </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-extrabold text-[#122244] text-sm truncate" title={group.companyName || `Group ${originalIndex}`}>
+                            {group.companyName || `Group ${originalIndex}`}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.2 rounded">
+                              Group {originalIndex}
+                            </span>
+                            {activeSection === "ALL" && (
+                              <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-extrabold rounded uppercase tracking-wider">
+                                {group.section}
+                              </span>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* CARD BODY */}
-                      <div className="p-4 flex-1 flex flex-col overflow-hidden">
-                        {/* BUSINESS VENTURE CLARIFICATION CARD */}
-                        <div className="flex items-center gap-3 p-2.5 bg-gray-50/90 rounded-xl border border-gray-200/80 mb-3">
-                          <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 shadow-2xs flex items-center justify-center overflow-hidden flex-shrink-0">
-                            {group.businessLogo ? (
-                              <img src={group.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="font-extrabold text-xs text-[#c9a654]">
-                                {getInitials(group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "BN"))}
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
-                              Business Name
-                            </p>
-                            <p className={`text-xs font-bold truncate ${group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project") ? 'text-[#122244]' : 'text-gray-400 italic'}`} title={group.businessName || group.title || "Pending Business Proposal"}>
-                              {group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "Pending Business Proposal")}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
 
-                        <div className="mb-3">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
-                            {group.status === 'Pending Review' ? 'Proposal for Review' : group.status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : group.status === 'Pending Review' ? 'bg-[#e74c3c]' : 'bg-[#2ecc71]'}`}>{getInitials(group.leaderName)}</div>
-                          <div className="min-w-0">
-                            <p className="text-[9px] font-bold text-[#c9a654] uppercase tracking-widest leading-none mb-0.5">Team Leader</p>
-                            <p className="text-xs font-bold text-gray-900 truncate">{group.leaderName}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                          {group.memberIds.length === 0 ? (
-                            <p className="text-xs text-gray-400 italic mt-1">No members assigned yet.</p>
-                          ) : (
-                            <ul className="space-y-1.5">
-                              {group.memberIds.map(memberId => {
-                                const member = students.find(s => s.id === memberId);
-                                if (!member) return null;
-                                return <li key={memberId} className="text-xs text-gray-600 truncate flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>{member.firstName} {member.lastName}</li>;
-                              })}
-                            </ul>
+                        <div className="relative">
+                          <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {openDropdownId === group.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
+                              <button onClick={() => { setGroupToChangeLeader(group); setShowChangeLeaderModal(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Edit2 className="w-4 h-4" /> Change Leader</button>
+                              <button onClick={() => { setGroupToDelete(group); setShowDeleteConfirm(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete Group</button>
+                            </div>
                           )}
                         </div>
                       </div>
+                    </div>
 
-                      <div className="p-4 border-t border-gray-100 bg-white rounded-b-xl mt-auto">
-                        {group.status === 'Drafting' && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">View Group Info</button>
-                        )}
-                        {group.status === 'Pending Review' && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> Review Proposals</button>
-                        )}
-                        {group.status === 'Approved Proposal' && (
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View Approved Status</button>
-                        )}
-                        {group.status === 'Active Business' && (
-                          <div className="flex flex-col gap-2 w-full">
-                            <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4" /> View Active Business</button>
-                            <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View All Proposals</button>
-                          </div>
+                    {/* CARD BODY */}
+                    <div className="p-4 flex-1 flex flex-col overflow-hidden">
+                      {/* BUSINESS VENTURE CLARIFICATION CARD */}
+                      <div className="flex items-center gap-3 p-2.5 bg-gray-50/90 rounded-xl border border-gray-200/80 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 shadow-2xs flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {group.businessLogo ? (
+                            <img src={group.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="font-extrabold text-xs text-[#c9a654]">
+                              {getInitials(group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "BN"))}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
+                            Business Name
+                          </p>
+                          <p className={`text-xs font-bold truncate ${group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project") ? 'text-[#122244]' : 'text-gray-400 italic'}`} title={group.businessName || group.title || "Pending Business Proposal"}>
+                            {group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "Pending Business Proposal")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
+                          {group.status === 'Pending Review' ? 'Proposal for Review' : group.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : group.status === 'Pending Review' ? 'bg-[#e74c3c]' : 'bg-[#2ecc71]'}`}>{getInitials(group.leaderName)}</div>
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-bold text-[#c9a654] uppercase tracking-widest leading-none mb-0.5">Team Leader</p>
+                          <p className="text-xs font-bold text-gray-900 truncate">{group.leaderName}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                        {group.memberIds.length === 0 ? (
+                          <p className="text-xs text-gray-400 italic mt-1">No members assigned yet.</p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {group.memberIds.map(memberId => {
+                              const member = students.find(s => s.id === memberId);
+                              if (!member) return null;
+                              return <li key={memberId} className="text-xs text-gray-600 truncate flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>{member.firstName} {member.lastName}</li>;
+                            })}
+                          </ul>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    <div className="p-4 border-t border-gray-100 bg-white rounded-b-xl mt-auto">
+                      {group.status === 'Drafting' && (
+                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">View Group Info</button>
+                      )}
+                      {group.status === 'Pending Review' && (
+                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> Review Proposals</button>
+                      )}
+                      {group.status === 'Approved Proposal' && (
+                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View Approved Status</button>
+                      )}
+                      {group.status === 'Active Business' && (
+                        <div className="flex flex-col gap-2 w-full">
+                          <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4" /> View Active Business</button>
+                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View All Proposals</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              };
+
+              if (activeSection === "ALL") {
+                const { map: secGroupMap, sortedSectionKeys: secGroupKeys } = groupCardsBySection(filteredGroups);
+                return (
+                  <div className="space-y-10">
+                    {secGroupKeys.map(secName => {
+                      const secGroups = secGroupMap[secName] || [];
+                      if (secGroups.length === 0) return null;
+                      return (
+                        <div key={secName} className="space-y-4">
+                          <div className="flex items-center gap-3 border-b-2 border-gray-200/80 pb-2.5">
+                            <h2 className="text-xl font-black text-[#122244] uppercase tracking-wider flex items-center gap-2.5">
+                              <span className="w-3.5 h-3.5 rounded-full bg-[#c9a654]"></span>
+                              Section: {secName}
+                            </h2>
+                            <span className="px-3 py-0.5 bg-blue-50 text-[#4285F4] text-xs font-black rounded-full border border-blue-200">
+                              {secGroups.length} {secGroups.length === 1 ? "Group" : "Groups"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {secGroups.map(group => renderGroupCard(group))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredGroups.map(group => renderGroupCard(group))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1633,17 +1791,15 @@ const AdviserDashboard: React.FC = () => {
                         const proposalFin = activeProposal.originalProposalFinancials || activeProposal.financialData;
                         if (!proposalFin) return null;
 
-                        const safeUnitCost = Number(proposalFin.unitCost) || Number(proposalFin.variableCost) || (Number(proposalFin.productionCost) && Number(proposalFin.quantityYield) ? Number(proposalFin.productionCost) / Number(proposalFin.quantityYield) : 0);
-                        const safeSellingPrice = Number(proposalFin.sellingPrice) || 0;
-                        const safeMonthlySales = Number(proposalFin.monthlySales) || 0;
-                        const safeFixedCosts = proposalFin.opexList && proposalFin.opexList.length > 0
-                          ? proposalFin.opexList.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
-                          : (Number(proposalFin.fixedCosts) || 0);
-                        const monthlyRev = safeSellingPrice * safeMonthlySales;
-                        const grossMargin = monthlyRev > 0 ? ((monthlyRev - (safeUnitCost * safeMonthlySales)) / monthlyRev) * 100 : 0;
+                        const products = normalizeProposalProducts(proposalFin, activeProposal.businessName);
+                        const equipmentList = proposalFin.equipmentList || [];
+                        const calculatedEquipmentTotal = equipmentList.reduce(
+                          (s: number, e: any) => s + (Number(e.total) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
+                          0
+                        );
 
                         return (
-                          <div className="space-y-4 pt-4 border-t border-gray-100">
+                          <div className="space-y-6 pt-4 border-t border-gray-100">
                             <div className="flex items-center justify-between">
                               <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
                                 <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
@@ -1653,111 +1809,111 @@ const AdviserDashboard: React.FC = () => {
                               </span>
                             </div>
 
-                            {/* KPI Banner */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                                <span className="font-extrabold text-[#122244] text-sm">₱{safeUnitCost.toFixed(2)}</span>
+                            {/* Products Breakdown */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                                <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Product Costing & Yield Profiles</span>
                               </div>
-                              <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
-                                <span className="text-[9px] text-[#b59545] font-bold uppercase block">Proposed Price</span>
-                                <span className="font-extrabold text-[#c9a654] text-sm">₱{safeSellingPrice.toFixed(2)}</span>
-                              </div>
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Monthly Sales</span>
-                                <span className="font-extrabold text-[#122244] text-sm">{safeMonthlySales.toLocaleString()} pcs</span>
-                              </div>
-                              <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase block">Est. Revenue</span>
-                                <span className="font-extrabold text-green-700 text-sm">₱{monthlyRev.toLocaleString()}</span>
-                              </div>
-                            </div>
+                              {products.map((prod, pIdx) => {
+                                const metrics = computeProductMetrics(prod);
+                                const ingredients = prod.ingredients || [];
 
-                            {/* Detailed Grid: Costing & OpEx */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                              <div className="space-y-2">
-                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Unit Costing & Markup Strategy</span>
-                                {proposalFin.productionCost && proposalFin.quantityYield && (
-                                  <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                    <span className="text-gray-500">Batch Cost / Yield:</span>
-                                    <span className="font-semibold text-gray-900">₱{Number(proposalFin.productionCost).toLocaleString()} / {proposalFin.quantityYield} pcs</span>
-                                  </div>
-                                )}
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Proposed Markup:</span>
-                                  <span className="font-bold text-[#c9a654]">+{proposalFin.markupPercentage || '0'}%</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Gross Margin:</span>
-                                  <span className="font-bold text-purple-700">{grossMargin.toFixed(1)}%</span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <span className="font-bold text-[10px] uppercase text-gray-400 block tracking-wider">Volume & Fixed Costs</span>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Total Fixed OpEx:</span>
-                                  <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-200/50 pb-1">
-                                  <span className="text-gray-500">Operating Schedule:</span>
-                                  <span className="font-semibold text-gray-900">{proposalFin.operatingDays || '300'} days/yr</span>
-                                </div>
-                                {proposalFin.isCapitalBorrowed && (
-                                  <div className="flex justify-between border-b border-gray-200/50 pb-1 text-amber-800">
-                                    <span>Loan Interest:</span>
-                                    <span className="font-bold">{proposalFin.interestRate}% Interest/yr</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Itemized OpEx List (if present) */}
-                            {proposalFin.opexList && proposalFin.opexList.length > 0 && (
-                              <div className="space-y-1.5">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Submitted Operating Expenses</span>
-                                <div className="max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                                  {proposalFin.opexList.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between text-xs bg-white px-3 py-1 rounded border border-gray-100">
-                                      <span className="text-gray-700">{item.name || 'Expense Item'}</span>
-                                      <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
+                                return (
+                                  <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
+                                    <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
+                                      <span className="font-extrabold text-sm text-[#122244]">
+                                        {prod.name || `Product #${pIdx + 1}`}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
+                                        Yield: {metrics.batchYield || 0} units
+                                      </span>
                                     </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+
+                                    {/* Per-Product Summary Cards */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                        <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
+                                      </div>
+                                      <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
+                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">Target Price</span>
+                                        <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
+                                      </div>
+                                      <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
+                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Revenue</span>
+                                        <span className="font-extrabold text-green-700 text-sm">
+                                          ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200">
+                                        <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                        <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                          ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Ingredients list if present */}
+                                    {ingredients.length > 0 && (
+                                      <div className="space-y-1.5 pt-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
+                                          {ingredients.map((ing, iIdx) => (
+                                            <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
+                                              <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
+                                              <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
 
                             {/* Equipment CapEx (if present) */}
-                            {proposalFin.equipmentList && proposalFin.equipmentList.length > 0 && (
-                              <div className="space-y-1.5">
+                            {equipmentList.length > 0 && (
+                              <div className="space-y-2 pt-2">
                                 <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Submitted Machinery & Equipment</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                                    <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Startup Equipment & Assets Breakdown (CapEx)</span>
+                                  </div>
                                   <span className="text-xs font-bold text-[#122244]">
-                                    Total: ₱{proposalFin.equipmentList.reduce((s: number, e: any) => s + (Number(e.total) || 0), 0).toLocaleString()}
+                                    Total: ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
                                   <table className="w-full text-left text-xs">
                                     <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
                                       <tr>
-                                        <th className="p-2">Item Name</th>
-                                        <th className="p-2 text-center w-12">Qty</th>
-                                        <th className="p-2 text-right w-20">Unit Price</th>
-                                        <th className="p-2 text-right w-24">Total</th>
+                                        <th className="p-2">Item / Asset name</th>
+                                        <th className="p-2 text-center w-12">QTY</th>
+                                        <th className="p-2 text-right w-20">UNIT PRICE</th>
+                                        <th className="p-2 text-right w-24">TOTAL</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                      {proposalFin.equipmentList.map((eq: any, idx: number) => (
+                                      {equipmentList.map((eq: any, idx: number) => (
                                         <tr key={idx}>
                                           <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
                                           <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
                                           <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
-                                          <td className="p-2 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                          <td className="p-2 text-right font-bold text-[#122244]">₱{(Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))).toLocaleString()}</td>
                                         </tr>
                                       ))}
                                     </tbody>
                                   </table>
                                 </div>
+                              </div>
+                            )}
+
+                            {proposalFin.isCapitalBorrowed && (
+                              <div className="flex justify-between items-center text-xs text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200/70">
+                                <span className="font-semibold">Startup Capital Loan Financing:</span>
+                                <span className="font-black">{proposalFin.interestRate || '0'}% Annual Interest Rate</span>
                               </div>
                             )}
                           </div>
@@ -2120,154 +2276,162 @@ const AdviserDashboard: React.FC = () => {
                     <div className="p-6 space-y-6">
                       {(() => {
                         const fin = viewingProposal.financialData || {};
-                        const safeSellingPrice = Number(fin.sellingPrice) || 0;
-                        const safeMonthlySales = Number(fin.monthlySales) || 0;
-                        const safeUnitCost = Number(fin.unitCost) || Number(fin.variableCost) || (Number(fin.productionCost) && Number(fin.quantityYield) ? Number(fin.productionCost) / Number(fin.quantityYield) : 0);
-                        const safeFixedCosts = fin.opexList && fin.opexList.length > 0
-                          ? fin.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
-                          : (Number(fin.fixedCosts) || 0);
-                        const safeStartupCapital = Number(fin.startupCapital) || Number(viewingProposal.totalCapital) || 0;
-
-                        const monthlyRevenue = safeSellingPrice * safeMonthlySales;
-                        const totalMonthlyVariableCosts = safeUnitCost * safeMonthlySales;
-                        const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
-                        const monthlyInterest = fin.isCapitalBorrowed && fin.interestRate ? (safeStartupCapital * (Number(fin.interestRate) / 100)) / 12 : 0;
-                        const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
-                        const contributionMargin = safeSellingPrice - safeUnitCost;
-                        const breakEvenUnits = contributionMargin > 0 ? Math.ceil(safeFixedCosts / contributionMargin) : "N/A";
+                        const products = normalizeProposalProducts(fin, viewingProposal.businessName);
+                        const equipmentList = fin.equipmentList || [];
+                        const calculatedEquipmentTotal = equipmentList.reduce(
+                          (sum: number, eq: any) => sum + (Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))),
+                          0
+                        );
 
                         return (
-                          <>
-                            {/* KPI Banner */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Unit Cost (COGS)</span>
-                                <span className="text-sm font-black text-[#122244]">₱{safeUnitCost.toFixed(2)}</span>
-                              </div>
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Selling Price</span>
-                                <span className="text-sm font-black text-green-700">₱{safeSellingPrice.toFixed(2)}</span>
-                              </div>
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Rev</span>
-                                <span className="text-sm font-black text-blue-700">₱{monthlyRevenue.toLocaleString()}</span>
-                              </div>
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Gross Margin</span>
-                                <span className="text-sm font-black text-purple-700">{grossProfitMargin.toFixed(1)}%</span>
-                              </div>
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Est. Net Profit</span>
-                                <span className={`text-sm font-black ${netMonthlyProfit >= 0 ? 'text-[#c9a654]' : 'text-red-500'}`}>
-                                  ₱{netMonthlyProfit.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-center">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block">Break-Even</span>
-                                <span className="text-sm font-black text-amber-700">{breakEvenUnits} units</span>
-                              </div>
-                            </div>
-
-                            {/* Detailed Breakdown Grids */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                              {/* Step 1 & 2: Costing & Pricing */}
-                              <div className="space-y-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
-                                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                                  <Package className="w-3.5 h-3.5 text-[#c9a654]" /> Unit Costing & Markup Strategy
-                                </h4>
-                                <div className="space-y-2.5 text-xs">
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Batch Production Cost:</span>
-                                    <span className="font-bold text-gray-900">₱{Number(fin.productionCost || 0).toLocaleString()}</span>
+                          <div className="space-y-6">
+                            {/* TOTAL CAPITAL HERO CARD */}
+                            <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
+                              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2.5 py-0.5 bg-[#c9a654]/20 border border-[#c9a654]/40 text-[#f3d98b] text-[10px] font-black rounded-full uppercase tracking-wider">
+                                      Proposal Total Capital
+                                    </span>
                                   </div>
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Quantity Yield per Batch:</span>
-                                    <span className="font-bold text-gray-900">{fin.quantityYield || '0'} pcs/batch</span>
-                                  </div>
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Unit Cost (COGS):</span>
-                                    <span className="font-extrabold text-[#122244]">₱{safeUnitCost.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Proposed Markup:</span>
-                                    <span className="font-bold text-[#c9a654]">+{fin.markupPercentage || '0'}% (₱{Number(fin.markupAmount || 0).toFixed(2)})</span>
-                                  </div>
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Computed Base Price:</span>
-                                    <span className="font-bold text-gray-700">₱{Number(fin.computedSellingPrice || 0).toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between pt-1 font-bold text-sm">
-                                    <span className="text-green-800">Target Selling Price:</span>
-                                    <span className="font-black text-green-700">₱{safeSellingPrice.toFixed(2)}</span>
-                                  </div>
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-200">
+                                    Total Capital Overview
+                                  </h4>
+                                  <p className="text-[11px] text-gray-300">
+                                    Directly pulled from the Total Capital requirement inputted in the business proposal
+                                  </p>
                                 </div>
-                              </div>
-
-                              {/* Step 3: Sales Volume & Operating Expenses */}
-                              <div className="space-y-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
-                                <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                                  <TrendingUp className="w-3.5 h-3.5 text-[#c9a654]" /> Sales Volume & Operating Expenses
-                                </h4>
-                                <div className="space-y-2.5 text-xs">
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Monthly Target Sales:</span>
-                                    <span className="font-bold text-gray-900">{safeMonthlySales.toLocaleString()} units/mo</span>
-                                  </div>
-                                  <div className="flex justify-between pb-1.5 border-b border-gray-200/60">
-                                    <span className="text-gray-500">Total Monthly OpEx:</span>
-                                    <span className="font-bold text-red-600">₱{safeFixedCosts.toLocaleString()}/mo</span>
-                                  </div>
-                                  {fin.opexList && fin.opexList.length > 0 && (
-                                    <div className="space-y-1.5 pt-1">
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">OpEx Breakdown:</span>
-                                      <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                                        {fin.opexList.map((item: any, idx: number) => (
-                                          <div key={idx} className="flex justify-between text-[11px] bg-white px-2.5 py-1 rounded border border-gray-100">
-                                            <span className="text-gray-700">{item.name || 'Expense'}</span>
-                                            <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {fin.isCapitalBorrowed && (
-                                    <div className="flex justify-between pt-1 border-t border-gray-200/60 text-[11px] text-amber-800 bg-amber-50 p-2 rounded">
-                                      <span>Borrowed Capital Loan:</span>
-                                      <span className="font-bold">{fin.interestRate}% Interest/yr</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Equipment / CapEx Table */}
-                            {fin.equipmentList && fin.equipmentList.length > 0 && (
-                              <div className="space-y-2 pt-2">
-                                <div className="flex justify-between items-center">
-                                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                    Itemized Equipment & Machinery (CapEx)
-                                  </label>
-                                  <span className="text-xs font-extrabold text-[#122244]">
-                                    Total: ₱{fin.equipmentList.reduce((sum: number, eq: any) => sum + (Number(eq.total) || 0), 0).toLocaleString()}
+                                <div className="text-left sm:text-right bg-white/5 border border-white/10 px-5 py-3 rounded-xl backdrop-blur-sm">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200/80 block">
+                                    Total Capital Amount
+                                  </span>
+                                  <span className="text-2xl sm:text-3xl font-black text-[#f3d98b] tracking-tight">
+                                    ₱{(Number(String(viewingProposal.totalCapital || "").replace(/,/g, "")) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
-                                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                              </div>
+                            </div>
+
+                            {/* Section 1 & 2: Multi-Product Costing & Yield Profiles */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                                <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                  Product Costing & Yield Profiles ({products.length} {products.length === 1 ? 'Product' : 'Products'})
+                                </h4>
+                              </div>
+
+                              <div className="space-y-4">
+                                {products.map((prod, pIdx) => {
+                                  const metrics = computeProductMetrics(prod);
+                                  const ingredients = prod.ingredients || [];
+
+                                  return (
+                                    <div key={prod.id || pIdx} className="bg-gray-50/70 p-5 rounded-2xl border border-gray-100 space-y-4 text-xs">
+                                      <div className="flex justify-between items-center border-b border-gray-200/60 pb-3">
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="px-2.5 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
+                                            Product #{pIdx + 1}
+                                          </span>
+                                          <span className="font-extrabold text-sm text-[#122244]">
+                                            {prod.name || `Product #${pIdx + 1}`}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                                            Yield: {metrics.batchYield || 0} units
+                                          </span>
+                                          <span className="text-xs font-bold text-[#c9a654] bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                            +{metrics.markupPct}% Mark-up
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Per-Product Dynamic Summary KPI Cards */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                                        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                                          <span className="text-[10px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                          <span className="font-extrabold text-[#122244] text-base mt-0.5 block">₱{metrics.unitCost.toFixed(2)}</span>
+                                          <span className="text-[9px] text-gray-400">Total Cost / Yield</span>
+                                        </div>
+                                        <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-200 shadow-sm">
+                                          <span className="text-[10px] text-[#b59545] font-bold uppercase block">Target Price</span>
+                                          <span className="font-extrabold text-[#c9a654] text-base mt-0.5 block">₱{metrics.sellingPrice.toFixed(2)}</span>
+                                          <span className="text-[9px] text-gray-500">+{metrics.markupPct}% Mark-up</span>
+                                        </div>
+                                        <div className="bg-green-50/40 p-3 rounded-xl border border-green-200 shadow-sm">
+                                          <span className="text-[10px] text-green-700 font-bold uppercase block">Revenue</span>
+                                          <span className="font-extrabold text-green-700 text-base mt-0.5 block">
+                                            ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                          <span className="text-[9px] text-green-600">Selling Price × Qty</span>
+                                        </div>
+                                        <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200 shadow-sm">
+                                          <span className="text-[10px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                          <span className={`font-extrabold text-base mt-0.5 block ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                            ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                          <span className="text-[9px] text-purple-600">Revenue - Total Cost</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Ingredients list */}
+                                      {ingredients.length > 0 && (
+                                        <div className="space-y-1.5 pt-2">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Itemized Ingredients & Materials</span>
+                                            <span className="text-[11px] font-extrabold text-[#122244]">
+                                              Batch Cost: ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                          </div>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                                            {ingredients.map((ing, iIdx) => (
+                                              <div key={iIdx} className="flex justify-between items-center text-xs bg-white px-3 py-1.5 rounded-lg border border-gray-100">
+                                                <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
+                                                <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Section 2: Equipment / CapEx Table */}
+                            {equipmentList.length > 0 && (
+                              <div className="space-y-3 pt-3">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                      Startup Equipment & Assets Breakdown (CapEx)
+                                    </h4>
+                                  </div>
+                                  <span className="text-xs font-extrabold text-[#122244] bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
+                                    Total: ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                                   <table className="w-full text-left text-xs border-collapse">
-                                    <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-gray-400 font-bold">
+                                    <thead className="bg-gray-50 border-b border-gray-200 text-[10px] uppercase text-gray-500 font-bold">
                                       <tr>
-                                        <th className="p-2.5">Item Name</th>
-                                        <th className="p-2.5 w-16 text-center">Qty</th>
-                                        <th className="p-2.5 w-24">Unit Price</th>
-                                        <th className="p-2.5 w-28 text-right">Total</th>
+                                        <th className="p-2.5 pl-3.5">Item / Asset name</th>
+                                        <th className="p-2.5 w-16 text-center">QTY</th>
+                                        <th className="p-2.5 w-24">UNIT PRICE</th>
+                                        <th className="p-2.5 pr-3.5 w-28 text-right">TOTAL</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                      {fin.equipmentList.map((eq: any, idx: number) => (
+                                    <tbody className="divide-y divide-gray-100">
+                                      {equipmentList.map((eq: any, idx: number) => (
                                         <tr key={idx} className="hover:bg-gray-50/50">
-                                          <td className="p-2.5 font-medium text-gray-800">{eq.name || '-'}</td>
+                                          <td className="p-2.5 pl-3.5 font-medium text-gray-800">{eq.name || '-'}</td>
                                           <td className="p-2.5 text-center text-gray-600">{eq.quantity || 1}</td>
                                           <td className="p-2.5 text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
-                                          <td className="p-2.5 text-right font-bold text-[#122244]">₱{Number(eq.total || 0).toLocaleString()}</td>
+                                          <td className="p-2.5 pr-3.5 text-right font-bold text-[#122244]">₱{(Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))).toLocaleString()}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -2275,7 +2439,14 @@ const AdviserDashboard: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                          </>
+
+                            {fin.isCapitalBorrowed && (
+                              <div className="flex justify-between items-center text-xs text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200/70">
+                                <span className="font-semibold">Startup Capital Loan Financing:</span>
+                                <span className="font-black">{fin.interestRate || '0'}% Annual Interest Rate</span>
+                              </div>
+                            )}
+                          </div>
                         );
                       })()}
                     </div>
@@ -2475,9 +2646,13 @@ const AdviserDashboard: React.FC = () => {
                         )}
                         <button
                           type="button"
-                          className="text-gray-400 hover:text-gray-600 p-1 rounded-md"
+                          className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
                         >
-                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFeedbackExpanded ? "rotate-180" : ""}`} />
+                          {isFeedbackExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-gray-500" />
+                          ) : (
+                            <ChevronUp className="w-4 h-4 text-gray-500" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -2541,150 +2716,229 @@ const AdviserDashboard: React.FC = () => {
         </div>
       )}
       {/* NEW MODAL: Create Group Step 1 - Assign Leader */}
-      {showCreateLeaderModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
-                <p className="text-sm text-gray-500 mt-1">Step 1: Select a team leader for this new group.</p>
+      {showCreateLeaderModal && (() => {
+        const unassignedCandidateStudents = students.filter(
+          s => !assignedIds.has(s.id) &&
+          (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           s.studentId.includes(searchTerm) ||
+           (s.section || "").toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+        const { map: secMap, sortedSectionKeys } = groupStudentsBySection(unassignedCandidateStudents);
+
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                  <p className="text-sm text-gray-500 mt-1">Step 1: Assign a team leader for this new group.</p>
+                </div>
+                <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
               </div>
-              <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search unassigned students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
-                />
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search unassigned students..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
-                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
-              ) : (
-                students.filter(s => !assignedIds.has(s.id) && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
-                  const isSelected = selectedLeaderId === student.id;
-                  return (
-                    <label key={student.id} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                          {getInitials(`${student.firstName} ${student.lastName}`)}
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xs font-black text-[#122244] uppercase tracking-wider">Select a Team Leader</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {sortedSectionKeys.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
+                ) : (
+                  sortedSectionKeys.map(secName => {
+                    const secStudents = secMap[secName] || [];
+                    return (
+                      <div key={secName} className="space-y-2">
+                        <div className="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center justify-between border border-gray-200 shadow-2xs">
+                          <span className="text-xs font-black text-[#122244] uppercase tracking-wider">{secName}</span>
+                          <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                            {secStudents.length} Unassigned
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
-                          <p className="text-xs text-gray-500">{student.studentId}</p>
+                        <div className="space-y-1.5">
+                          {secStudents.map(student => {
+                            const isSelected = selectedLeaderId === student.id;
+                            return (
+                              <label key={student.id} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-[#c9a654] bg-yellow-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                    {getInitials(`${student.firstName} ${student.lastName}`)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-xs text-gray-500">{student.studentId}</span>
+                                      <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-bold rounded">
+                                        {student.section || "No Section"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <input
+                                  type="radio"
+                                  name="leaderSelection"
+                                  value={student.id}
+                                  checked={isSelected}
+                                  onChange={() => setSelectedLeaderId(student.id)}
+                                  className="w-4 h-4 text-[#c9a654] focus:ring-[#c9a654]"
+                                />
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
-                      <input
-                        type="radio"
-                        name="leaderSelection"
-                        value={student.id}
-                        checked={isSelected}
-                        onChange={() => setSelectedLeaderId(student.id)}
-                        className="w-4 h-4 text-[#c9a654] focus:ring-[#c9a654]"
-                      />
-                    </label>
-                  );
-                })
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
-              <button
-                onClick={() => {
-                  setShowCreateLeaderModal(false);
-                  setShowCreateMembersModal(true);
-                  setSearchTerm("");
-                }}
-                disabled={!selectedLeaderId}
-                className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50"
-              >
-                Next: Select Members
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NEW MODAL: Create Group Step 2 - Assign Members */}
-      {showCreateMembersModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
-                <p className="text-sm text-gray-500 mt-1">Step 2: Select members to join this group.</p>
+                    );
+                  })
+                )}
               </div>
-              <button onClick={() => { setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="bg-purple-50 border-b border-purple-100 p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                {getInitials(students.find(s => s.id === selectedLeaderId)?.firstName + " " + students.find(s => s.id === selectedLeaderId)?.lastName)}
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
-                <p className="text-sm font-bold text-[#122244]">{students.find(s => s.id === selectedLeaderId)?.firstName} {students.find(s => s.id === selectedLeaderId)?.lastName}</p>
-              </div>
-            </div>
-
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search unassigned students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).length === 0 ? (
-                <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students match your search.</p>
-              ) : (
-                students.filter(s => !assignedIds.has(s.id) && s.id !== selectedLeaderId && (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.studentId.includes(searchTerm))).map(student => {
-                  const isSelected = selectedMemberIds.includes(student.id);
-                  return (
-                    <label key={student.id} onClick={(e) => {
-                      e.preventDefault();
-                      setSelectedMemberIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
-                    }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-green-400 bg-green-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                          {getInitials(`${student.firstName} ${student.lastName}`)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
-                          <p className="text-xs text-gray-500">{student.studentId}</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </div>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
-              <p className="text-xs text-gray-500"><span className="font-bold text-[#122244]">{selectedMemberIds.length}</span> selected</p>
-              <div className="flex gap-2">
-                <button onClick={() => { setShowCreateMembersModal(false); setShowCreateLeaderModal(true); }} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
-                <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+                <button onClick={() => { setShowCreateLeaderModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Cancel</button>
+                <button
+                  onClick={() => {
+                    setShowCreateLeaderModal(false);
+                    setShowCreateMembersModal(true);
+                    setSearchTerm("");
+                  }}
+                  disabled={!selectedLeaderId}
+                  className="px-5 py-2.5 bg-[#c9a654] text-white font-semibold rounded-lg shadow-md hover:bg-[#b59545] disabled:opacity-50"
+                >
+                  Next: Select Members
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* NEW MODAL: Create Group Step 2 - Assign Members */}
+      {showCreateMembersModal && (() => {
+        const selectedLeaderObj = students.find(s => s.id === selectedLeaderId);
+        const leaderSection = (selectedLeaderObj?.section || "").trim();
+
+        // Strictly show only students from the selected leader's section
+        const unassignedCandidateMembers = students.filter(
+          s => !assignedIds.has(s.id) &&
+          s.id !== selectedLeaderId &&
+          (!leaderSection || (s.section || "").trim() === leaderSection) &&
+          (`${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           s.studentId.includes(searchTerm) ||
+           (s.section || "").toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+        const { map: secMap, sortedSectionKeys } = groupStudentsBySection(unassignedCandidateMembers);
+
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold text-[#122244]">Create Group</h2>
+                  <p className="text-sm text-gray-500 mt-1">Step 2: Select members to join this group.</p>
+                </div>
+                <button onClick={() => { setShowCreateMembersModal(false); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="bg-purple-50 border-b border-purple-100 p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    {getInitials(selectedLeaderObj?.firstName + " " + selectedLeaderObj?.lastName)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase text-purple-600 tracking-tighter">Selected Leader</p>
+                    <p className="text-sm font-bold text-[#122244]">{selectedLeaderObj?.firstName} {selectedLeaderObj?.lastName}</p>
+                  </div>
+                </div>
+                {selectedLeaderObj?.section && (
+                  <span className="px-2 py-0.5 bg-white border border-purple-200 text-purple-700 text-[10px] font-black rounded-md uppercase">
+                    {selectedLeaderObj.section}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search unassigned students..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 shadow-sm"
+                  />
+                </div>
+              </div>
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xs font-black text-[#122244] uppercase tracking-wider">Select Members of the Group</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {sortedSectionKeys.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 italic text-sm">No unassigned students in {leaderSection || "this section"} match your search.</p>
+                ) : (
+                  sortedSectionKeys.map(secName => {
+                    const secStudents = secMap[secName] || [];
+                    return (
+                      <div key={secName} className="space-y-2">
+                        <div className="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center justify-between border border-gray-200 shadow-2xs">
+                          <span className="text-xs font-black text-[#122244] uppercase tracking-wider">{secName}</span>
+                          <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                            {secStudents.length} Unassigned
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {secStudents.map(student => {
+                            const isSelected = selectedMemberIds.includes(student.id);
+                            return (
+                              <label key={student.id} onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedMemberIds(prev => prev.includes(student.id) ? prev.filter(id => id !== student.id) : [...prev, student.id]);
+                              }} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-colors ${isSelected ? 'border-green-400 bg-green-50/30 shadow-sm' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                    {getInitials(`${student.firstName} ${student.lastName}`)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-[#122244]">{`${student.firstName} ${student.lastName}`}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-xs text-gray-500">{student.studentId}</span>
+                                      <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-bold rounded">
+                                        {student.section || "No Section"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
+                                  {isSelected && <Check className="w-3.5 h-3.5" />}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
+                <p className="text-xs text-gray-500"><span className="font-bold text-[#122244]">{selectedMemberIds.length}</span> selected</p>
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowCreateMembersModal(false); setShowCreateLeaderModal(true); }} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-lg shadow-sm hover:bg-gray-50">Back</button>
+                  <button onClick={handleCreateGroup} disabled={isLoading} className="px-5 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg shadow-md hover:bg-[#1a3263] flex items-center gap-2">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* NEW MODAL: Feedback History & Submission */}
       {showFeedbackModal && activeProposal && (
@@ -2799,61 +3053,88 @@ const AdviserDashboard: React.FC = () => {
       )}
 
       {/* MODAL: View All Students */}
-      {showAllStudentsModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold text-[#122244]">All Students - {activeSection}</h2>
-                <p className="text-sm text-gray-500 mt-1">Complete class roster for this section.</p>
+      {showAllStudentsModal && (() => {
+        const { map: secMap, sortedSectionKeys } = groupStudentsBySection(filteredStudents);
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold text-[#122244]">All Students - {activeSection === "ALL" ? "My Sections" : activeSection}</h2>
+                  <p className="text-sm text-gray-500 mt-1">Complete class roster sorted by sections.</p>
+                </div>
+                <button onClick={() => setShowAllStudentsModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
               </div>
-              <button onClick={() => setShowAllStudentsModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4 border-b border-gray-100">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search students by name or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                />
+              <div className="p-4 border-b border-gray-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search students by name, ID, or section..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {filteredStudents.map(student => {
-                const isLeader = groups.some(g => g.leaderId === student.id);
-                const isMember = groups.some(g => g.memberIds.includes(student.id));
-                return (
-                  <div key={student.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
-                        {getInitials(`${student.firstName} ${student.lastName}`)}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {sortedSectionKeys.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 italic text-sm">No students match your search.</p>
+                ) : (
+                  sortedSectionKeys.map(secName => {
+                    const secStudents = secMap[secName] || [];
+                    return (
+                      <div key={secName} className="space-y-2">
+                        <div className="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center justify-between border border-gray-200 shadow-2xs">
+                          <span className="text-xs font-black text-[#122244] uppercase tracking-wider">{secName}</span>
+                          <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                            {secStudents.length} {secStudents.length === 1 ? 'Student' : 'Students'}
+                          </span>
+                        </div>
+                        <div className="space-y-2 pl-1">
+                          {secStudents.map(student => {
+                            const isLeader = groups.some(g => g.leaderId === student.id);
+                            const isMember = groups.some(g => g.memberIds.includes(student.id));
+                            return (
+                              <div key={student.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                                    {getInitials(`${student.firstName} ${student.lastName}`)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-xs text-gray-500">{student.studentId}</span>
+                                      <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-bold rounded">
+                                        {student.section || "No Section"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {isLeader ? (
+                                  <span className="text-[10px] font-bold px-2 py-1 bg-yellow-100 text-yellow-700 rounded uppercase">Leader</span>
+                                ) : isMember ? (
+                                  <span className="text-[10px] font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded uppercase">Member</span>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-2 py-1 bg-red-50 text-red-500 rounded uppercase">Unassigned</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{`${student.firstName} ${student.lastName}`}</p>
-                        <p className="text-xs text-gray-500">{student.studentId}</p>
-                      </div>
-                    </div>
-                    {isLeader ? (
-                      <span className="text-[10px] font-bold px-2 py-1 bg-yellow-100 text-yellow-700 rounded uppercase">Leader</span>
-                    ) : isMember ? (
-                      <span className="text-[10px] font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded uppercase">Member</span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-2 py-1 bg-red-50 text-red-500 rounded uppercase">Unassigned</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
-              <span className="text-sm text-gray-500">Showing <span className="font-bold text-gray-900">{filteredStudents.length}</span> students</span>
-              <button onClick={() => setShowAllStudentsModal(false)} className="px-5 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
+                    );
+                  })
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-2xl">
+                <span className="text-sm text-gray-500">Showing <span className="font-bold text-gray-900">{filteredStudents.length}</span> students</span>
+                <button onClick={() => setShowAllStudentsModal(false)} className="px-5 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50">Close</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL: Change Leader */}
       {showChangeLeaderModal && groupToChangeLeader && (
@@ -2945,6 +3226,18 @@ const AdviserDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 p-3.5 bg-[#122244] hover:bg-[#1a3264] text-[#c9a654] hover:text-white rounded-full shadow-2xl border-2 border-[#c9a654]/40 hover:border-[#c9a654] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center group animate-in fade-in zoom-in-75 cursor-pointer"
+          title="Scroll to Top"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
+        </button>
+      )}
     </div>
   );
 };

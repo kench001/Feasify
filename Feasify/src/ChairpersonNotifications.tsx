@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import {
   Archive,
   Folder,
@@ -38,46 +38,53 @@ const ChairpersonNotifications: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let unsubNotifications: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      if (unsubNotifications) { unsubNotifications(); unsubNotifications = undefined; }
       if (u) {
         const snap = await getDoc(doc(db, "users", u.uid));
         if (snap.exists()) {
           const data = snap.data();
           setUserName(`${data.firstName} ${data.lastName}`);
-          fetchNotifications(u.uid);
+          unsubNotifications = setupNotificationsListener(u.uid);
         }
       } else {
         navigate("/");
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsubAuth();
+      if (unsubNotifications) unsubNotifications();
+    };
   }, [navigate]);
 
-  const fetchNotifications = async (uid: string) => {
-    try {
-      const q = query(
-        collection(db, "notifications"),
-        where("userId", "==", uid),
-        orderBy("rawTime", "desc")
-      );
-      const snap = await getDocs(q);
-      const data: Notification[] = snap.docs.map(doc => {
-        const d = doc.data();
+  const setupNotificationsListener = (uid: string): (() => void) => {
+    const q = query(
+      collection(db, "notifications"),
+      where("userId", "==", uid),
+      orderBy("rawTime", "desc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const data: Notification[] = snap.docs.map(d => {
+        const nd = d.data();
         return {
-          id: doc.id,
-          title: d.title || "Notification",
-          message: d.message || "",
-          type: d.type || 'system',
-          timestamp: getTimeAgo(d.rawTime),
-          isRead: d.isRead || false,
-          rawTime: d.rawTime
+          id: d.id,
+          title: nd.title || "Notification",
+          message: nd.message || "",
+          type: nd.type || 'system',
+          timestamp: getTimeAgo(nd.rawTime),
+          isRead: nd.isRead || false,
+          rawTime: nd.rawTime
         };
       });
       setNotifications(data);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
+    }, (error) => {
+      console.error("Chairperson notifications listener error:", error);
       setNotifications([]);
-    }
+    });
+    return unsub;
   };
 
   const getTimeAgo = (timestamp: any): string => {
