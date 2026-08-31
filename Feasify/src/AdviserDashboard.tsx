@@ -10,7 +10,7 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp
+  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
 
@@ -133,6 +133,7 @@ const AdviserDashboard: React.FC = () => {
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   const [modalAiResult, setModalAiResult] = useState<any>(null);
+  const [customAIRules, setCustomAIRules] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -158,6 +159,10 @@ const AdviserDashboard: React.FC = () => {
           // Load per-section settings from Firestore
           if (data.sectionSettings) {
             setSectionSettingsMap(data.sectionSettings);
+          }
+          
+          if (data.customAIRules) {
+            setCustomAIRules(data.customAIRules);
           }
 
           setAdviserSections(parsedSections);
@@ -426,6 +431,7 @@ const AdviserDashboard: React.FC = () => {
           proposedLocation: proposal.proposedLocation,
           promotionalStrategy: proposal.promotionalStrategy,
           financialData: proposal.financialData || {},
+          customAIRules: customAIRules,
         }),
         signal: controller.signal,
       });
@@ -1208,8 +1214,11 @@ const AdviserDashboard: React.FC = () => {
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-        <nav className="flex-1 p-4 space-y-4 mt-2">
-          <div className="space-y-1">
+        {/* SIDEBAR NAVIGATION */}
+        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-8">
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
+            <div className="space-y-1">
             <button
               onClick={() => {
                 setActiveSection("ALL");
@@ -1248,10 +1257,15 @@ const AdviserDashboard: React.FC = () => {
               ))}
             </div>
           </div>
-          <div className="pt-4 border-t border-white/10 space-y-1">
-            <button onClick={() => navigate("/adviser/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
-            <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
-            <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
+            <div className="space-y-1">
+              <button onClick={() => navigate("/adviser/profile")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><User className="w-4 h-4" /> Profile</button>
+              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Cpu className="w-4 h-4" /> AI Rules</button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
+            </div>
           </div>
         </nav>
         <div className="p-4 border-t border-white/10 bg-black/20">

@@ -232,23 +232,23 @@ const Financial_input: React.FC = () => {
   const safeVariableCost = normalizedProducts.length > 1 && totalMultiYield > 0
     ? totalMultiVariableCost / totalMultiYield
     : (firstMetrics.unitCost > 0 ? firstMetrics.unitCost : (Number(financials.variableCost) || 0));
-  
+
   const calculatedOpex = financials.opexList && financials.opexList.length > 0
     ? financials.opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
     : (Number(financials.fixedCosts) || 0);
   const safeFixedCosts = calculatedOpex;
-  
-  const calculatedEquipmentTotal = financials.equipmentList && financials.equipmentList.length > 0 
+
+  const calculatedEquipmentTotal = financials.equipmentList && financials.equipmentList.length > 0
     ? financials.equipmentList.reduce((sum, item) => sum + item.total, 0)
     : (Number(financials.startupCapital) || 0);
   const safeStartupCapital = calculatedEquipmentTotal;
-  
+
   const safeOperatingDays = Number(financials.operatingDays) || 300;
 
   const monthlyRevenue = normalizedProducts.length > 1 ? totalMultiRevenue : (safeSellingPrice * safeMonthlySales);
   const totalMonthlyVariableCosts = normalizedProducts.length > 1 ? totalMultiVariableCost : (safeVariableCost * safeMonthlySales);
   const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
-  
+
   const monthlyInterest = financials.isCapitalBorrowed ? (safeStartupCapital * (Number(financials.interestRate) / 100)) / 12 : 0;
 
   const netMonthlyProfit =
@@ -316,10 +316,10 @@ const Financial_input: React.FC = () => {
 
   // --- AUTOMATED FINANCIAL RATIOS & ACTIVITY METRICS (Section 5) ---
   // 1. Current Ratio = Current Assets / Current Liabilities
-  const currentRatio = totalCurrentLiabilities > 0 
-    ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) 
+  const currentRatio = totalCurrentLiabilities > 0
+    ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2)
     : (totalCurrentAssets > 0 ? "99.9" : "0.0");
-  
+
   // 2. Inventory Turnover = Cost of Sales / Average Inventory
   const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
   const avgInventory = rawMaterialInventory > 0 ? rawMaterialInventory : 1;
@@ -330,8 +330,8 @@ const Financial_input: React.FC = () => {
   const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
 
   // 4. Current Asset Turnover = Net Sales / Current Assets
-  const currentAssetTurnover = totalCurrentAssets > 0 
-    ? (annualRevenue / totalCurrentAssets).toFixed(2) 
+  const currentAssetTurnover = totalCurrentAssets > 0
+    ? (annualRevenue / totalCurrentAssets).toFixed(2)
     : "0.0";
 
   // 5. Exact Payback Period in Years, Months, and Days
@@ -438,8 +438,8 @@ const Financial_input: React.FC = () => {
             const data = snap.data() as any;
             setUserName(
               [data.firstName, data.lastName].filter(Boolean).join(" ") ||
-                u.displayName ||
-                "",
+              u.displayName ||
+              "",
             );
             if (data.section) {
               loadUserGroup(u.uid, data.section);
@@ -557,7 +557,7 @@ const Financial_input: React.FC = () => {
         fixedCosts: getVal(selectedProj.financialData.fixedCosts),
         startupCapital: getVal(
           selectedProj.financialData.startupCapital ||
-            selectedProj.proposalCapital
+          selectedProj.proposalCapital
         ),
         cashInvested: getVal(selectedProj.financialData.cashInvested),
         rentAdvanceDeposit: getVal(selectedProj.financialData.rentAdvanceDeposit),
@@ -690,1285 +690,1281 @@ const Financial_input: React.FC = () => {
       await signOutUser();
       localStorage.clear();
       sessionStorage.clear();
-    } catch (e) {}
+    } catch (e) { }
     navigate("/");
   };
 
   const getInitials = (name: string) =>
     name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "U";
 
   return (
     <>
       <div className="flex min-h-screen bg-gray-50/50 overflow-hidden text-[#122244] print:hidden">
-      {/* Mobile Backdrop */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-      {/* SIDEBAR */}
-      <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
-      >
-        <div className="p-6 border-b border-white/10">
-          <img
-            src="/dashboard logo.png"
-            className="w-70 h-20 object-contain"
-            alt="FeasiFy"
+        {/* Mobile Backdrop */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
           />
-        </div>
-        <nav className="flex-1 p-4 space-y-4 mt-2">
-          <div className="space-y-1">
+        )}
+        {/* SIDEBAR */}
+        <aside
+          className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        >
+          <div className="p-6 border-b border-white/10">
+            <img
+              src="/dashboard logo.png"
+              className="w-70 h-20 object-contain"
+              alt="FeasiFy"
+            />
+          </div>
+          <nav className="flex-1 p-4 space-y-4 mt-2">
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <LayoutDashboard className="w-4 h-4" /> Dashboard
+              </button>
+              <button
+                onClick={() => navigate("/projects")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Folder className="w-4 h-4" /> Business Proposal
+              </button>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+                <FileEdit className="w-4 h-4" /> Financial Input
+              </button>
+              <button
+                onClick={() => navigate("/ai-analysis")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Zap className="w-4 h-4" /> AI Feasibility Analysis
+              </button>
+              <button
+                onClick={() => navigate("/reports")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <BarChart3 className="w-4 h-4" /> Reports
+              </button>
+              <button
+                onClick={() => navigate("/messages")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" /> Message
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-white/10 space-y-1">
+              <button
+                onClick={() => navigate("/profile")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <User className="w-4 h-4" /> Profile
+              </button>
+              <button
+                onClick={() => navigate("/settings")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Settings className="w-4 h-4" /> Settings
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <ShieldAlert className="w-4 h-4" /> Logout
+              </button>
+            </div>
+          </nav>
+          <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
+              {getInitials(userName)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-white">
+                {userName || "User"}
+              </p>
+              <p className="text-[10px] text-gray-400 truncate">Student</p>
+            </div>
             <button
+              onClick={() => navigate("/notifications")}
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
+            </button>
+          </div>
+        </aside>
+
+        <main
+          className={`flex-1 transition-all duration-300 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        >
+          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
+            <SidebarIcon
+              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            />
+            <span className="mx-2">|</span>
+            <span
+              className="cursor-pointer hover:text-[#c9a654]"
               onClick={() => navigate("/dashboard")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
             >
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </button>
-            <button
-              onClick={() => navigate("/projects")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Folder className="w-4 h-4" /> Business Proposal
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-              <FileEdit className="w-4 h-4" /> Financial Input
-            </button>
-            <button
-              onClick={() => navigate("/ai-analysis")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Zap className="w-4 h-4" /> AI Feasibility Analysis
-            </button>
-            <button
-              onClick={() => navigate("/reports")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <BarChart3 className="w-4 h-4" /> Reports
-            </button>
-            <button
-              onClick={() => navigate("/messages")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <MessageCircle className="w-4 h-4" /> Message
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-white/10 space-y-1">
-            <button
-              onClick={() => navigate("/profile")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <User className="w-4 h-4" /> Profile
-            </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Settings className="w-4 h-4" /> Settings
-            </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <ShieldAlert className="w-4 h-4" /> Logout
-            </button>
-          </div>
-        </nav>
-        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-            {getInitials(userName)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-white">
-              {userName || "User"}
-            </p>
-            <p className="text-[10px] text-gray-400 truncate">Student</p>
-          </div>
-          <button
-            onClick={() => navigate("/notifications")}
-            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-            title="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            )}
-          </button>
-        </div>
-      </aside>
-
-      <main
-        className={`flex-1 transition-all duration-300 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
-      >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-          <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
-          <span className="mx-2">|</span>
-          <span
-            className="cursor-pointer hover:text-[#c9a654]"
-            onClick={() => navigate("/dashboard")}
-          >
-            FeasiFy
-          </span>
-          <span>›</span>
-          <span className="font-semibold text-gray-900">Financial Input</span>
-        </div>
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center min-h-[50vh]">
-            <div className="w-10 h-10 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-medium text-sm">Loading project data...</p>
-          </div>
-        ) : projects.length === 0 || !selectedProjectId ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12 max-w-2xl mx-auto my-8">
-            <div className="w-20 h-20 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-amber-100">
-              <Folder className="w-10 h-10" />
-            </div>
-            <span className="px-3 py-1 bg-amber-100 text-[#b59545] text-xs font-black rounded-full uppercase tracking-wider mb-3">
-              Active Business Required
+              FeasiFy
             </span>
-            <h2 className="text-2xl font-extrabold text-[#122244] mb-3">
-              No Active Business Setup
-            </h2>
-            <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-              Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock Financial Input.
-            </p>
-            <button
-              onClick={() => navigate("/projects")}
-              className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
-            >
-              <Folder className="w-4 h-4 text-[#c9a654]" /> Go to Business Proposals
-            </button>
+            <span>›</span>
+            <span className="font-semibold text-gray-900">Financial Input</span>
           </div>
-        ) : (
-          <div className="p-8 max-w-7xl mx-auto">
-          {/* BUSINESS WORKSPACE HERO BANNER */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-[#122244] text-[#c9a654] rounded-2xl flex items-center justify-center font-extrabold text-2xl shadow-inner border border-gray-100 flex-shrink-0">
-                {getInitials(activeProjName)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-green-200 flex items-center gap-1">
-                    <CheckCircle2 size={12} className="text-green-600" /> Active Business Workspace
-                  </span>
-                  <span className="text-xs text-gray-400 font-medium">•</span>
-                  <span className="text-xs text-gray-500 font-bold">
-                    Initial Capital: <span className="text-green-700 font-extrabold">₱{Number(projects.find(p => p.id === selectedProjectId)?.proposalCapital || 0).toLocaleString()}</span>
-                  </span>
-                </div>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">
-                  {activeProjName}
-                </h1>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
-                  Live operational financial inputs & dynamic statement simulations
-                </p>
-              </div>
-            </div>
 
-            {/* ACTION BUTTONS & AUTOSAVE STATUS */}
-            <div className="flex flex-wrap gap-2.5 items-center w-full md:w-auto justify-end pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
-              <span
-                className={`text-xs font-bold flex items-center gap-1.5 mr-2 ${isSaving ? "text-amber-600 animate-pulse" : "text-green-600"}`}
-              >
-                {isSaving ? <Save size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                {saveStatus}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[50vh]">
+              <div className="w-10 h-10 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-gray-500 font-medium text-sm">Loading project data...</p>
+            </div>
+          ) : projects.length === 0 || !selectedProjectId ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12 max-w-2xl mx-auto my-8">
+              <div className="w-20 h-20 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+                <Folder className="w-10 h-10" />
+              </div>
+              <span className="px-3 py-1 bg-amber-100 text-[#b59545] text-xs font-black rounded-full uppercase tracking-wider mb-3">
+                Active Business Required
               </span>
-
-              {/* EXPORT FILE BUTTON */}
+              <h2 className="text-2xl font-extrabold text-[#122244] mb-3">
+                No Active Business Setup
+              </h2>
+              <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
+                Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock Financial Input.
+              </p>
               <button
-                type="button"
-                onClick={() => setShowExportModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#122244] rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95"
-                title="Export Financial Report as Excel/CSV or PDF"
+                onClick={() => navigate("/projects")}
+                className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
               >
-                <Download size={14} className="text-[#c9a654]" /> Export File
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/ai-analysis", {
-                    state: { projectId: selectedProjectId, runAnalysis: true },
-                  })
-                }
-                className="flex items-center gap-1.5 bg-[#c9a654] hover:bg-[#b59545] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
-              >
-                <Zap size={14} fill="currentColor" /> Run Analysis
+                <Folder className="w-4 h-4 text-[#c9a654]" /> Go to Business Proposals
               </button>
             </div>
-          </div>
-
-          {/* TAB BAR NAVIGATION */}
-          <div className="flex space-x-2 border-b border-gray-200 mb-8 overflow-x-auto pb-1">
-            <button
-              onClick={() => setActiveModuleTab("operations")}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${
-                activeModuleTab === "operations"
-                  ? "bg-[#122244] text-white border-[#122244] shadow-md"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <Package className={`w-4 h-4 ${activeModuleTab === "operations" ? "text-[#c9a654]" : "text-gray-400"}`} />
-              Operational Inputs & Costing
-            </button>
-
-            <button
-              onClick={() => setActiveModuleTab("balance-sheet")}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${
-                activeModuleTab === "balance-sheet"
-                  ? "bg-[#122244] text-white border-[#122244] shadow-md"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <Scale className={`w-4 h-4 ${activeModuleTab === "balance-sheet" ? "text-[#c9a654]" : "text-gray-400"}`} />
-              Balance Sheet (Financial Position)
-            </button>
-          </div>
-
-          {/* === TAB 1: OPERATIONAL INPUTS & COSTING === */}
-          {activeModuleTab === "operations" && (
-            <div className="space-y-8 animate-in fade-in duration-200">
-              {/* HERO METRIC CARDS (AS IS - 4TH IMAGE) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
-                {/* 1. Monthly Revenue */}
-                <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-6 shadow-sm text-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Monthly Revenue
-                  </span>
-                  <p className="text-2xl font-black">
-                    ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </p>
-                  <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                    Price × Sales
-                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                      ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
-                      {safeMonthlySales.toLocaleString()}
+          ) : (
+            <div className="p-8 max-w-7xl mx-auto">
+              {/* BUSINESS WORKSPACE HERO BANNER */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-[#122244] text-[#c9a654] rounded-2xl flex items-center justify-center font-extrabold text-2xl shadow-inner border border-gray-100 flex-shrink-0">
+                    {getInitials(activeProjName)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-green-200 flex items-center gap-1">
+                        <CheckCircle2 size={12} className="text-green-600" /> Active Business Workspace
+                      </span>
+                      <span className="text-xs text-gray-400 font-medium">•</span>
+                      <span className="text-xs text-gray-500 font-bold">
+                        Initial Capital: <span className="text-green-700 font-extrabold">₱{Number(projects.find(p => p.id === selectedProjectId)?.proposalCapital || 0).toLocaleString()}</span>
+                      </span>
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">
+                      {activeProjName}
+                    </h1>
+                    <p className="text-xs text-gray-400 font-medium mt-0.5">
+                      Live operational financial inputs & dynamic statement simulations
                     </p>
                   </div>
                 </div>
 
-                {/* 2. Monthly Expenses */}
-                <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-6 shadow-sm text-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Monthly Expenses
-                  </span>
-                  <p className="text-2xl font-black">
-                    ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </p>
-                  <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                    (COGS per Unit × Sales) + Fixed
-                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                      (₱{safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
-                      {safeMonthlySales.toLocaleString()}) + ₱
-                      {safeFixedCosts.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3. Break-Even Point */}
-                <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-6 shadow-sm text-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Break-Even Point
-                  </span>
-                  <p className="text-2xl font-black">
-                    {breakEvenUnits}{" "}
-                    <span className="text-xs text-gray-400 font-bold">units</span>
-                  </p>
-                  <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                    Monthly OpEx / (Price - COGS)
-                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                      ₱{safeFixedCosts.toLocaleString()} / (₱
-                      {safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                      {safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })})
-                    </p>
-                  </div>
-                </div>
-
-                {/* 4. Gross Margin */}
-                <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-6 shadow-sm text-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Gross Margin
-                  </span>
-                  <p className="text-2xl font-black">
-                    {grossProfitMargin.toFixed(1)}%
-                  </p>
-                  <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                    (Rev - COGS) / Rev
-                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                      (₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                      {totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}) / ₱
-                      {monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 5. Net Profit / Month */}
-                <div
-                  className={`bg-white rounded-xl border-l-4 p-6 shadow-sm text-center ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}
-                >
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Net Profit/mo
-                  </span>
-                  <p
-                    className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}
+                {/* ACTION BUTTONS & AUTOSAVE STATUS */}
+                <div className="flex flex-wrap gap-2.5 items-center w-full md:w-auto justify-end pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
+                  <span
+                    className={`text-xs font-bold flex items-center gap-1.5 mr-2 ${isSaving ? "text-amber-600 animate-pulse" : "text-green-600"}`}
                   >
-                    ₱{netMonthlyProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </p>
-                  <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                    Revenue - Expenses
-                    <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                      ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                      {(
-                        totalMonthlyVariableCosts + safeFixedCosts
-                      ).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                    {isSaving ? <Save size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    {saveStatus}
+                  </span>
 
-              {/* === SECTION 1: PRODUCT COSTING & YIELD (SALES & PRICING ENGINE) === */}
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-[#122244] text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Package size={16} className="text-[#c9a654]" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
-                        Product Costing, Sales & Pricing
-                      </h4>
-                      <p className="text-[11px] text-gray-400">
-                        Batch yield, raw material ingredients, mark-up percentage, and target selling price
-                      </p>
-                    </div>
-                  </div>
+                  {/* EXPORT FILE BUTTON */}
                   <button
                     type="button"
-                    onClick={handleAddProduct}
-                    className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#122244] rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95"
+                    title="Export Financial Report as Excel/CSV or PDF"
                   >
-                    <Plus size={14} /> Add Product
+                    <Download size={14} className="text-[#c9a654]" /> Export File
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/ai-analysis", {
+                        state: { projectId: selectedProjectId, runAnalysis: true },
+                      })
+                    }
+                    className="flex items-center gap-1.5 bg-[#c9a654] hover:bg-[#b59545] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
+                  >
+                    <Zap size={14} fill="currentColor" /> Run Analysis
                   </button>
                 </div>
+              </div>
 
-                {/* PRODUCTS LIST */}
-                <div className="space-y-6">
-                  {normalizedProducts.map((product, prodIdx) => {
-                    const metrics = computeProductMetrics(product);
-                    const ingredients = product.ingredients || [];
+              {/* TAB BAR NAVIGATION */}
+              <div className="flex space-x-2 border-b border-gray-200 mb-8 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setActiveModuleTab("operations")}
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${activeModuleTab === "operations"
+                    ? "bg-[#122244] text-white border-[#122244] shadow-md"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                >
+                  <Package className={`w-4 h-4 ${activeModuleTab === "operations" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                  Operational Inputs & Costing
+                </button>
 
-                    return (
-                      <div
-                        key={product.id || prodIdx}
-                        className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-6 shadow-sm relative"
+                <button
+                  onClick={() => setActiveModuleTab("balance-sheet")}
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${activeModuleTab === "balance-sheet"
+                    ? "bg-[#122244] text-white border-[#122244] shadow-md"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                >
+                  <Scale className={`w-4 h-4 ${activeModuleTab === "balance-sheet" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                  Balance Sheet (Financial Position)
+                </button>
+              </div>
+
+              {/* === TAB 1: OPERATIONAL INPUTS & COSTING === */}
+              {activeModuleTab === "operations" && (
+                <div className="space-y-8 animate-in fade-in duration-200">
+                  {/* HERO METRIC CARDS (AS IS - 4TH IMAGE) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
+                    {/* 1. Monthly Revenue */}
+                    <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-6 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Monthly Revenue
+                      </span>
+                      <p className="text-2xl font-black">
+                        ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        Price × Sales
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                          ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
+                          {safeMonthlySales.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. Monthly Expenses */}
+                    <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-6 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Monthly Expenses
+                      </span>
+                      <p className="text-2xl font-black">
+                        ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        (COGS per Unit × Sales) + Fixed
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                          (₱{safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
+                          {safeMonthlySales.toLocaleString()}) + ₱
+                          {safeFixedCosts.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3. Break-Even Point */}
+                    <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-6 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Break-Even Point
+                      </span>
+                      <p className="text-2xl font-black">
+                        {breakEvenUnits}{" "}
+                        <span className="text-xs text-gray-400 font-bold">units</span>
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        Monthly OpEx / (Price - COGS)
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                          ₱{safeFixedCosts.toLocaleString()} / (₱
+                          {safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
+                          {safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })})
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 4. Gross Margin */}
+                    <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-6 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Gross Margin
+                      </span>
+                      <p className="text-2xl font-black">
+                        {grossProfitMargin.toFixed(1)}%
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        (Rev - COGS) / Rev
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                          (₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
+                          {totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}) / ₱
+                          {monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 5. Net Profit / Month */}
+                    <div
+                      className={`bg-white rounded-xl border-l-4 p-6 shadow-sm text-center ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}
+                    >
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Net Profit/mo
+                      </span>
+                      <p
+                        className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}
                       >
-                        {/* Product Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
-                              Product #{prodIdx + 1}
-                            </span>
-                            <div className="flex-1 max-w-md">
-                              <input
-                                type="text"
-                                placeholder={`Product ${prodIdx + 1} Name`}
-                                value={product.name || ""}
-                                onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                              />
-                            </div>
-                          </div>
-                          {normalizedProducts.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveProduct(prodIdx)}
-                              className="self-end sm:self-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors font-semibold"
-                            >
-                              <Trash2 size={13} /> Remove Product
-                            </button>
-                          )}
+                        ₱{netMonthlyProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        Revenue - Expenses
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                          ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
+                          {(
+                            totalMonthlyVariableCosts + safeFixedCosts
+                          ).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* === SECTION 1: PRODUCT COSTING & YIELD (SALES & PRICING ENGINE) === */}
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-[#122244] text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          <Package size={16} className="text-[#c9a654]" />
                         </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                            Product Costing, Sales & Pricing
+                          </h4>
+                          <p className="text-[11px] text-gray-400">
+                            Batch yield, raw material ingredients, mark-up percentage, and target selling price
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddProduct}
+                        className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                      >
+                        <Plus size={14} /> Add Product
+                      </button>
+                    </div>
 
-                        {/* Product Yield & Ingredients Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                          {/* Yield Input & Calculation */}
-                          <div className="lg:col-span-4 space-y-4">
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                Monthly Target Sales / Batch Yield (Units) <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="e.g. 300"
-                                value={product.quantityYield}
-                                onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                              />
-                              <p className="text-[9px] text-gray-400 mt-1 italic">
-                                Total finished units produced or sold per month
-                              </p>
-                            </div>
+                    {/* PRODUCTS LIST */}
+                    <div className="space-y-6">
+                      {normalizedProducts.map((product, prodIdx) => {
+                        const metrics = computeProductMetrics(product);
+                        const ingredients = product.ingredients || [];
 
-                            {/* Total Batch Cost & Unit Cost Preview */}
-                            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2.5">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-500 font-medium">Total Batch Cost:</span>
-                                <span className="font-extrabold text-[#122244]">
-                                  ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        return (
+                          <div
+                            key={product.id || prodIdx}
+                            className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-6 shadow-sm relative"
+                          >
+                            {/* Product Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
+                                  Product #{prodIdx + 1}
                                 </span>
+                                <div className="flex-1 max-w-md">
+                                  <input
+                                    type="text"
+                                    placeholder={`Product ${prodIdx + 1} Name`}
+                                    value={product.name || ""}
+                                    onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                  />
+                                </div>
                               </div>
-                              <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
-                                <span className="text-gray-500 font-medium">Yield:</span>
-                                <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
-                              </div>
-                              <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
-                                <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
-                                <span className="font-black text-[#122244] text-sm">
-                                  ₱{metrics.unitCost.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Ingredient List */}
-                          <div className="lg:col-span-8 space-y-3">
-                            <div className="flex justify-between items-center">
-                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                Direct Production Costs / Ingredients
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => handleAddIngredient(prodIdx)}
-                                className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
-                              >
-                                <Plus size={12} /> Add Ingredient
-                              </button>
-                            </div>
-
-                            {ingredients.length === 0 ? (
-                              <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
-                                <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
+                              {normalizedProducts.length > 1 && (
                                 <button
                                   type="button"
-                                  onClick={() => handleAddIngredient(prodIdx)}
-                                  className="text-xs font-bold text-[#c9a654] hover:underline"
+                                  onClick={() => handleRemoveProduct(prodIdx)}
+                                  className="self-end sm:self-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors font-semibold"
                                 >
-                                  + Add direct production materials / ingredients
+                                  <Trash2 size={13} /> Remove Product
                                 </button>
+                              )}
+                            </div>
+
+                            {/* Product Yield & Ingredients Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                              {/* Yield Input & Calculation */}
+                              <div className="lg:col-span-4 space-y-4">
+                                <div>
+                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                    Monthly Target Sales / Batch Yield (Units) <span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    type="number"
+                                    placeholder="e.g. 300"
+                                    value={product.quantityYield}
+                                    onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                  />
+                                  <p className="text-[9px] text-gray-400 mt-1 italic">
+                                    Total finished units produced or sold per month
+                                  </p>
+                                </div>
+
+                                {/* Total Batch Cost & Unit Cost Preview */}
+                                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2.5">
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-500 font-medium">Total Batch Cost:</span>
+                                    <span className="font-extrabold text-[#122244]">
+                                      ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
+                                    <span className="text-gray-500 font-medium">Yield:</span>
+                                    <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
+                                    <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
+                                    <span className="font-black text-[#122244] text-sm">
+                                      ₱{metrics.unitCost.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            ) : (
-                              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
-                                {ingredients.map((ing, ingIdx) => (
-                                  <div
-                                    key={ing.id || ingIdx}
-                                    className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
+
+                              {/* Ingredient List */}
+                              <div className="lg:col-span-8 space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Direct Production Costs / Ingredients
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddIngredient(prodIdx)}
+                                    className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
                                   >
-                                    <input
-                                      type="text"
-                                      placeholder="Ingredient / Direct Material Name"
-                                      value={ing.name}
-                                      onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
-                                      onBlur={() => handleAutoSave()}
-                                      className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
-                                    />
-                                    <div className="w-32 relative">
-                                      <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
-                                      <input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={ing.price !== undefined ? ing.price : ""}
-                                        onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
-                                        onBlur={() => handleAutoSave()}
-                                        className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
-                                      />
-                                    </div>
+                                    <Plus size={12} /> Add Ingredient
+                                  </button>
+                                </div>
+
+                                {ingredients.length === 0 ? (
+                                  <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
+                                    <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
                                     <button
                                       type="button"
-                                      onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
-                                      className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
-                                      title="Remove ingredient"
+                                      onClick={() => handleAddIngredient(prodIdx)}
+                                      className="text-xs font-bold text-[#c9a654] hover:underline"
                                     >
-                                      <Trash2 size={13} />
+                                      + Add direct production materials / ingredients
                                     </button>
                                   </div>
-                                ))}
+                                ) : (
+                                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
+                                    {ingredients.map((ing, ingIdx) => (
+                                      <div
+                                        key={ing.id || ingIdx}
+                                        className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
+                                      >
+                                        <input
+                                          type="text"
+                                          placeholder="Ingredient / Direct Material Name"
+                                          value={ing.name}
+                                          onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
+                                          onBlur={() => handleAutoSave()}
+                                          className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
+                                        />
+                                        <div className="w-32 relative">
+                                          <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
+                                          <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={ing.price !== undefined ? ing.price : ""}
+                                            onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
+                                            onBlur={() => handleAutoSave()}
+                                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
+                                          className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                          title="Remove ingredient"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
+
+                            {/* Mark-up Strategy & Target Selling Price */}
+                            <div className="pt-4 border-t border-gray-100 space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                                  <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                    Mark-up Strategy & Target Selling Price
+                                  </h5>
+                                </div>
+                                <div className="flex gap-1.5 items-center">
+                                  <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                                  {["50", "100", "120"].map((pct) => (
+                                    <button
+                                      key={pct}
+                                      type="button"
+                                      onClick={() => {
+                                        const mPct = Number(pct);
+                                        const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                        handleUpdateProduct(prodIdx, {
+                                          markupPercentage: pct,
+                                          sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
+                                        });
+                                      }}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
+                                        ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                        }`}
+                                    >
+                                      {pct}%
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                    Mark-up Percentage (%)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    placeholder="e.g. 100"
+                                    value={product.markupPercentage}
+                                    onChange={(e) => {
+                                      const newPct = e.target.value;
+                                      const mPct = Number(newPct) || 0;
+                                      const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                      handleUpdateProduct(prodIdx, {
+                                        markupPercentage: newPct,
+                                        sellingPrice: compBase > 0 ? String(Math.round(compBase)) : (product.sellingPrice || "")
+                                      });
+                                    }}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                  />
+                                  <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
+                                    <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
+                                  </div>
+                                </div>
+
+                                <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/80 flex flex-col justify-center">
+                                  <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
+                                  <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
+                                  <span className="text-[9px] text-gray-500">Unit Cost (₱{metrics.unitCost.toFixed(2)}) + Mark-up</span>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                    Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
+                                  </label>
+                                  <input
+                                    type="number"
+                                    placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
+                                    value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
+                                    onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
+                                  />
+                                  <p className="text-[9px] text-gray-400 mt-1 italic">
+                                    Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
+                            <div className="pt-3 border-t border-gray-100">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                                Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
+                              </span>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[#122244]">
+                                {/* Unit Cost (COGS) */}
+                                <div className="bg-gray-50/90 p-3.5 rounded-xl border border-gray-200">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
+                                  <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
+                                  <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
+                                </div>
+
+                                {/* Target Price */}
+                                <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-200">
+                                  <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
+                                  <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
+                                  <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{metrics.markupPct}% Mark-up</p>
+                                </div>
+
+                                {/* Revenue */}
+                                <div className="bg-green-50/40 p-3.5 rounded-xl border border-green-200">
+                                  <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
+                                  <p className="text-base font-black text-green-700 mt-0.5">
+                                    ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                  <p className="text-[9px] text-green-600 font-medium mt-0.5">Selling Price × Yield</p>
+                                </div>
+
+                                {/* Gross Profit */}
+                                <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200">
+                                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
+                                  <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                    ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                  <p className="text-[9px] text-purple-600 font-medium mt-0.5">Revenue - Batch Cost</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* === SECTION 2: MONTHLY OPERATING COSTS (OPEX) - ENLARGED === */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm">
+                          <TrendingUp className="text-[#c9a654]" size={18} />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                            Monthly Operating Expenses (OpEx)
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Fixed monthly overhead costs (Rent, Utilities, Marketing, Salaries buffer, Supplies)
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-blue-50/80 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
+                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Monthly OpEx:</span>
+                          <span className="text-base font-black text-blue-900">₱{safeFixedCosts.toLocaleString()}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentList = financials.opexList || [];
+                            const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                            const updatedList = [...currentList, newItem];
+                            const newState = { ...financials, opexList: updatedList };
+                            setFinancials(newState);
+                            handleAutoSave(newState);
+                          }}
+                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all"
+                        >
+                          <Plus size={14} className="text-[#c9a654]" /> Add Expense
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase font-bold text-gray-500 tracking-wider">
+                          <tr>
+                            <th className="p-3.5 pl-5">Expense Description / Name</th>
+                            <th className="p-3.5 w-48 text-right">Monthly Amount (₱)</th>
+                            <th className="p-3.5 w-16 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {financials.opexList && financials.opexList.map((item, index) => (
+                            <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="p-3 pl-5">
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  placeholder="e.g. Rent, Electricity, Internet, Supplies"
+                                  onChange={(e) => {
+                                    const newList = [...financials.opexList];
+                                    newList[index].name = e.target.value;
+                                    setFinancials({ ...financials, opexList: newList });
+                                  }}
+                                  onBlur={() => handleAutoSave()}
+                                  className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <div className="relative">
+                                  <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={item.amount === 0 ? "" : item.amount}
+                                    placeholder="0.00"
+                                    onChange={(e) => {
+                                      const newList = [...financials.opexList];
+                                      const amt = e.target.value === "" ? 0 : Number(e.target.value);
+                                      newList[index].amount = amt;
+                                      setFinancials({ ...financials, opexList: newList });
+                                    }}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none"
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newList = financials.opexList.filter(i => i.id !== item.id);
+                                    const newState = { ...financials, opexList: newList };
+                                    setFinancials(newState);
+                                    handleAutoSave(newState);
+                                  }}
+                                  className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                  title="Delete Expense"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {(!financials.opexList || financials.opexList.length === 0) && (
+                            <tr>
+                              <td colSpan={3} className="p-8 text-center text-xs text-gray-400 italic">
+                                No monthly operating expenses added yet. Click "+ Add Expense" above to start itemizing fixed costs.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentList = financials.opexList || [];
+                          const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                          const updatedList = [...currentList, newItem];
+                          const newState = { ...financials, opexList: updatedList };
+                          setFinancials(newState);
+                          handleAutoSave(newState);
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                      >
+                        <Plus size={14} /> + Add Another Expense Item
+                      </button>
+                      <span className="text-xs text-gray-400 font-medium">
+                        Total Fixed OpEx: <strong className="text-[#122244]">₱{safeFixedCosts.toLocaleString()}/mo</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* === SECTION 3: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-[#122244]">
+                    {/* LEFT: Initial Capital & Market Indicators */}
+                    <div className="lg:col-span-5 space-y-6">
+                      {/* Initial Capital */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5">
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+                          <div>
+                            <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
+                              <DollarSign className="text-[#c9a654]" /> Initial Capital Contributed
+                            </h3>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Direct cash contribution from owners/partners</p>
+                          </div>
+                          <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                            <span className="text-xs font-black text-green-800">₱{totalInitialCapital.toLocaleString()}</span>
                           </div>
                         </div>
 
-                        {/* Mark-up Strategy & Target Selling Price */}
-                        <div className="pt-4 border-t border-gray-100 space-y-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                              <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                                Mark-up Strategy & Target Selling Price
-                              </h5>
-                            </div>
-                            <div className="flex gap-1.5 items-center">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                              {["50", "100", "120"].map((pct) => (
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                            Cash Invested (₱)
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={financials.cashInvested}
+                            onChange={(e) => setFinancials({ ...financials, cashInvested: e.target.value })}
+                            onBlur={() => handleAutoSave()}
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                          />
+                          <p className="text-[9px] text-gray-400 mt-1 italic">Recorded under Owner's Equity in the Balance Sheet</p>
+                        </div>
+                      </div>
+
+                      {/* Market Indicators */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5 text-[#122244]">
+                        <h3 className="font-bold flex items-center gap-2 border-b border-gray-100 pb-4 uppercase text-xs tracking-widest">
+                          <Target className="text-[#c9a654]" /> Market Indicators
+                        </h3>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
+                              Competitor Count:{" "}
+                              <span className="text-[#122244] font-black text-sm ml-1">
+                                {financials.competitorCount}
+                              </span>
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="20"
+                              value={financials.competitorCount}
+                              onChange={(e) =>
+                                setFinancials({
+                                  ...financials,
+                                  competitorCount: Number(e.target.value),
+                                })
+                              }
+                              onMouseUp={() => handleAutoSave()}
+                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">
+                              Market Demand Level
+                            </label>
+                            <div className="flex bg-gray-100 p-1 rounded-xl">
+                              {["Low", "Medium", "High"].map((level) => (
                                 <button
-                                  key={pct}
+                                  key={level}
                                   type="button"
                                   onClick={() => {
-                                    const mPct = Number(pct);
-                                    const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                    handleUpdateProduct(prodIdx, {
-                                      markupPercentage: pct,
-                                      sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
-                                    });
+                                    const newState = {
+                                      ...financials,
+                                      marketDemand: level,
+                                    };
+                                    setFinancials(newState);
+                                    handleAutoSave(newState);
                                   }}
-                                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${
-                                    String(product.markupPercentage) === pct
-                                      ? "bg-[#c9a654] text-white border-[#c9a654]"
-                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                  }`}
+                                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${financials.marketDemand === level
+                                    ? "bg-white shadow-sm text-[#122244]"
+                                    : "text-gray-400 hover:text-gray-600"
+                                    }`}
                                 >
-                                  {pct}%
+                                  {level}
                                 </button>
                               ))}
                             </div>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                Mark-up Percentage (%)
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="e.g. 100"
-                                value={product.markupPercentage}
-                                onChange={(e) => {
-                                  const newPct = e.target.value;
-                                  const mPct = Number(newPct) || 0;
-                                  const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                  handleUpdateProduct(prodIdx, {
-                                    markupPercentage: newPct,
-                                    sellingPrice: compBase > 0 ? String(Math.round(compBase)) : (product.sellingPrice || "")
-                                  });
-                                }}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                              />
-                              <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
-                                <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
-                              </div>
-                            </div>
-
-                            <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/80 flex flex-col justify-center">
-                              <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
-                              <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
-                              <span className="text-[9px] text-gray-500">Unit Cost (₱{metrics.unitCost.toFixed(2)}) + Mark-up</span>
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
-                              </label>
-                              <input
-                                type="number"
-                                placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
-                                value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
-                                onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
-                              />
-                              <p className="text-[9px] text-gray-400 mt-1 italic">
-                                Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
-                        <div className="pt-3 border-t border-gray-100">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
-                            Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
-                          </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[#122244]">
-                            {/* Unit Cost (COGS) */}
-                            <div className="bg-gray-50/90 p-3.5 rounded-xl border border-gray-200">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
-                              <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
-                              <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
-                            </div>
-
-                            {/* Target Price */}
-                            <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-200">
-                              <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
-                              <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
-                              <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{metrics.markupPct}% Mark-up</p>
-                            </div>
-
-                            {/* Revenue */}
-                            <div className="bg-green-50/40 p-3.5 rounded-xl border border-green-200">
-                              <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
-                              <p className="text-base font-black text-green-700 mt-0.5">
-                                ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                              <p className="text-[9px] text-green-600 font-medium mt-0.5">Selling Price × Yield</p>
-                            </div>
-
-                            {/* Gross Profit */}
-                            <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200">
-                              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
-                              <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                              <p className="text-[9px] text-purple-600 font-medium mt-0.5">Revenue - Batch Cost</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* === SECTION 2: MONTHLY OPERATING COSTS (OPEX) - ENLARGED === */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm">
-                      <TrendingUp className="text-[#c9a654]" size={18} />
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
-                        Monthly Operating Expenses (OpEx)
-                      </h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Fixed monthly overhead costs (Rent, Utilities, Marketing, Salaries buffer, Supplies)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-50/80 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
-                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Monthly OpEx:</span>
-                      <span className="text-base font-black text-blue-900">₱{safeFixedCosts.toLocaleString()}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const currentList = financials.opexList || [];
-                        const newItem = { id: Date.now().toString(), name: "", amount: 0 };
-                        const updatedList = [...currentList, newItem];
-                        const newState = { ...financials, opexList: updatedList };
-                        setFinancials(newState);
-                        handleAutoSave(newState);
-                      }}
-                      className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all"
-                    >
-                      <Plus size={14} className="text-[#c9a654]" /> Add Expense
-                    </button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase font-bold text-gray-500 tracking-wider">
-                      <tr>
-                        <th className="p-3.5 pl-5">Expense Description / Name</th>
-                        <th className="p-3.5 w-48 text-right">Monthly Amount (₱)</th>
-                        <th className="p-3.5 w-16 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {financials.opexList && financials.opexList.map((item, index) => (
-                        <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="p-3 pl-5">
-                            <input
-                              type="text"
-                              value={item.name}
-                              placeholder="e.g. Rent, Electricity, Internet, Supplies"
-                              onChange={(e) => {
-                                const newList = [...financials.opexList];
-                                newList[index].name = e.target.value;
-                                setFinancials({ ...financials, opexList: newList });
-                              }}
-                              onBlur={() => handleAutoSave()}
-                              className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none"
-                            />
-                          </td>
-                          <td className="p-3">
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.amount === 0 ? "" : item.amount}
-                                placeholder="0.00"
-                                onChange={(e) => {
-                                  const newList = [...financials.opexList];
-                                  const amt = e.target.value === "" ? 0 : Number(e.target.value);
-                                  newList[index].amount = amt;
-                                  setFinancials({ ...financials, opexList: newList });
-                                }}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none"
-                              />
-                            </div>
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newList = financials.opexList.filter(i => i.id !== item.id);
-                                const newState = { ...financials, opexList: newList };
-                                setFinancials(newState);
-                                handleAutoSave(newState);
-                              }}
-                              className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                              title="Delete Expense"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {(!financials.opexList || financials.opexList.length === 0) && (
-                        <tr>
-                          <td colSpan={3} className="p-8 text-center text-xs text-gray-400 italic">
-                            No monthly operating expenses added yet. Click "+ Add Expense" above to start itemizing fixed costs.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentList = financials.opexList || [];
-                      const newItem = { id: Date.now().toString(), name: "", amount: 0 };
-                      const updatedList = [...currentList, newItem];
-                      const newState = { ...financials, opexList: updatedList };
-                      setFinancials(newState);
-                      handleAutoSave(newState);
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
-                  >
-                    <Plus size={14} /> + Add Another Expense Item
-                  </button>
-                  <span className="text-xs text-gray-400 font-medium">
-                    Total Fixed OpEx: <strong className="text-[#122244]">₱{safeFixedCosts.toLocaleString()}/mo</strong>
-                  </span>
-                </div>
-              </div>
-
-              {/* === SECTION 3: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-[#122244]">
-                {/* LEFT: Initial Capital & Market Indicators */}
-                <div className="lg:col-span-5 space-y-6">
-                  {/* Initial Capital */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                          <DollarSign className="text-[#c9a654]" /> Initial Capital Contributed
-                        </h3>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Direct cash contribution from owners/partners</p>
-                      </div>
-                      <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
-                        <span className="text-xs font-black text-green-800">₱{totalInitialCapital.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                        Cash Invested (₱)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={financials.cashInvested}
-                        onChange={(e) => setFinancials({ ...financials, cashInvested: e.target.value })}
-                        onBlur={() => handleAutoSave()}
-                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                      />
-                      <p className="text-[9px] text-gray-400 mt-1 italic">Recorded under Owner's Equity in the Balance Sheet</p>
-                    </div>
-                  </div>
-
-                  {/* Market Indicators */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5 text-[#122244]">
-                    <h3 className="font-bold flex items-center gap-2 border-b border-gray-100 pb-4 uppercase text-xs tracking-widest">
-                      <Target className="text-[#c9a654]" /> Market Indicators
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
-                          Competitor Count:{" "}
-                          <span className="text-[#122244] font-black text-sm ml-1">
-                            {financials.competitorCount}
-                          </span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="20"
-                          value={financials.competitorCount}
-                          onChange={(e) =>
-                            setFinancials({
-                              ...financials,
-                              competitorCount: Number(e.target.value),
-                            })
-                          }
-                          onMouseUp={() => handleAutoSave()}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1.5">
-                          Market Demand Level
-                        </label>
-                        <div className="flex bg-gray-100 p-1 rounded-xl">
-                          {["Low", "Medium", "High"].map((level) => (
-                            <button
-                              key={level}
-                              type="button"
-                              onClick={() => {
-                                const newState = {
-                                  ...financials,
-                                  marketDemand: level,
-                                };
-                                setFinancials(newState);
-                                handleAutoSave(newState);
-                              }}
-                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                financials.marketDemand === level
-                                  ? "bg-white shadow-sm text-[#122244]"
-                                  : "text-gray-400 hover:text-gray-600"
-                              }`}
-                            >
-                              {level}
-                            </button>
-                          ))}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* RIGHT: Fiscal Summary (BMBE Tax Framework) */}
-                <div className="lg:col-span-7">
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 h-full flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                    {/* RIGHT: Fiscal Summary (BMBE Tax Framework) */}
+                    <div className="lg:col-span-7">
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 h-full flex flex-col justify-between">
                         <div>
-                          <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
-                            <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (BMBE Tax Framework)
-                          </h3>
-                          <p className="text-[11px] text-gray-400 mt-0.5">Republic Act No. 9178 BMBE Tax Exemptions</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
-                          className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1.5 rounded-lg hover:bg-[#c9a654]/5 transition-all"
-                        >
-                          {showTaxBreakdown ? "Hide Details" : "View Computation"}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center mt-5">
-                        <div className="space-y-4 text-[#122244]">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                              Annual Net Profit (Before Tax)
-                            </label>
-                            <p className="text-2xl font-black text-[#122244]">
-                              ₱{annualNetProfitPreTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
+                          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                            <div>
+                              <h3 className="font-bold flex items-center gap-2 uppercase text-xs tracking-widest text-[#122244]">
+                                <BarChart3 className="text-[#c9a654]" /> Fiscal Summary (BMBE Tax Framework)
+                              </h3>
+                              <p className="text-[11px] text-gray-400 mt-0.5">Republic Act No. 9178 BMBE Tax Exemptions</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowTaxBreakdown(!showTaxBreakdown)}
+                              className="text-[10px] font-black uppercase text-[#c9a654] border border-[#c9a654]/30 px-3 py-1.5 rounded-lg hover:bg-[#c9a654]/5 transition-all"
+                            >
+                              {showTaxBreakdown ? "Hide Details" : "View Computation"}
+                            </button>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                              Estimated Annual Business Tax (3%)
-                            </label>
-                            <p className="text-3xl font-black text-[#c9a654]">
-                              ₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
-                              <Info size={14} className="text-green-600" />
-                              <span className="text-[11px] font-bold text-green-700">
-                                {taxResult.note}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {showTaxBreakdown ? (
-                          <div className="bg-[#122244] p-5 rounded-xl text-white shadow-xl border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
-                              <p className="text-[10px] font-black text-[#c9a654] uppercase tracking-widest">
-                                BMBE Computation
-                              </p>
-                              <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5">
-                                <button
-                                  type="button"
-                                  onClick={() => setTaxTab("math")}
-                                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "math" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                  Math Breakdown
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setTaxTab("log")}
-                                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "log" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                  Tax Log
-                                </button>
-                              </div>
-                            </div>
-
-                            {taxTab === "math" ? (
-                              <div className="space-y-3 animate-in fade-in duration-300 text-xs">
-                                <p className="text-gray-300">
-                                  ₱{annualRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })} Annual Revenue × 3% Flat Percentage Tax = <span className="text-green-400 font-bold">₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center mt-5">
+                            <div className="space-y-4 text-[#122244]">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                  Annual Net Profit (Before Tax)
+                                </label>
+                                <p className="text-2xl font-black text-[#122244]">
+                                  ₱{annualNetProfitPreTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
                               </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                  Estimated Annual Business Tax (3%)
+                                </label>
+                                <p className="text-3xl font-black text-[#c9a654]">
+                                  ₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-green-50 rounded-lg w-fit border border-green-100">
+                                  <Info size={14} className="text-green-600" />
+                                  <span className="text-[11px] font-bold text-green-700">
+                                    {taxResult.note}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {showTaxBreakdown ? (
+                              <div className="bg-[#122244] p-5 rounded-xl text-white shadow-xl border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                                  <p className="text-[10px] font-black text-[#c9a654] uppercase tracking-widest">
+                                    BMBE Computation
+                                  </p>
+                                  <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setTaxTab("math")}
+                                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "math" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                      Math Breakdown
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTaxTab("log")}
+                                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${taxTab === "log" ? "bg-[#c9a654] text-white" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                      Tax Log
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {taxTab === "math" ? (
+                                  <div className="space-y-3 animate-in fade-in duration-300 text-xs">
+                                    <p className="text-gray-300">
+                                      ₱{annualRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })} Annual Revenue × 3% Flat Percentage Tax = <span className="text-green-400 font-bold">₱{taxResult.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 text-xs">
+                                    <p className="text-gray-300">Income Tax: <span className="text-green-400 font-bold">₱0 (BMBE Exempt)</span></p>
+                                    <p className="text-gray-300">Percentage Tax: <span className="text-white font-bold">₱{taxResult.percentageTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
-                              <div className="space-y-2 text-xs">
-                                <p className="text-gray-300">Income Tax: <span className="text-green-400 font-bold">₱0 (BMBE Exempt)</span></p>
-                                <p className="text-gray-300">Percentage Tax: <span className="text-white font-bold">₱{taxResult.percentageTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                              <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
+                                <p className="text-xs text-gray-400 italic">
+                                  Click "View Computation" to see the BMBE tax exemption logic.
+                                </p>
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <div className="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center text-[#122244]">
-                            <p className="text-xs text-gray-400 italic">
-                              Click "View Computation" to see the BMBE tax exemption logic.
-                            </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* === TAB 2: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
+              {activeModuleTab === "balance-sheet" && (
+                <div className="space-y-6 animate-in fade-in duration-200 text-[#122244]">
+                  {/* BALANCE CHECK HEADER BANNER */}
+                  <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-white/10">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Scale className="w-5 h-5 text-[#c9a654]" />
+                        <h2 className="text-xl font-extrabold tracking-wide">
+                          Statement of Financial Position (Balance Sheet)
+                        </h2>
+                      </div>
+                      <p className="text-xs text-gray-300">
+                        Real-time snapshot of business assets, obligations, and net owner's equity.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-xl">
+                      <ShieldCheck className="w-4 h-4 text-green-400" />
+                      <span className="text-xs font-bold text-green-300 uppercase tracking-wider">
+                        Balance Verified: ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* TWO COLUMN STATEMENT OF FINANCIAL POSITION */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                    {/* ASSETS COLUMN */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                      <div className="border-b pb-4 flex justify-between items-center">
+                        <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
+                        </h3>
+                        <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
+                          ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* Current Assets */}
+                      <div className="space-y-3">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Assets</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Cash on Hand</span>
+                              <span className="text-[10px] text-gray-400 block">15% allocated for daily store operations</span>
+                            </div>
+                            <span className="font-extrabold text-[#122244]">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
-                        )}
+
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Cash in Bank</span>
+                              <span className="text-[10px] text-gray-400 block">85% secured reserve in business accounts</span>
+                            </div>
+                            <span className="font-extrabold text-[#122244]">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Merchandise & Materials Inventory</span>
+                              <span className="text-[10px] text-gray-400 block">Ending inventory estimated at 15% of COGS</span>
+                            </div>
+                            <span className="font-extrabold text-[#122244]">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-blue-800 border-t border-gray-100 px-1">
+                            <span>Total Current Assets:</span>
+                            <span className="text-sm font-black">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Non-Current Assets */}
+                      <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Non-Current Assets</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Property, Plant & Equipment (Gross)</span>
+                              <span className="text-[10px] text-gray-400 block">Machinery & store equipment list</span>
+                            </div>
+                            <span className="font-bold text-gray-700">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-red-600">
+                            <div>
+                              <span className="font-bold">Less: Accumulated Depreciation</span>
+                              <span className="text-[10px] text-gray-400 block">10% annual straight-line depreciation</span>
+                            </div>
+                            <span className="font-bold">(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-purple-800 border-t border-gray-100 px-1">
+                            <span>Total Non-Current Assets (Net):</span>
+                            <span className="text-sm font-black">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Assets Summary */}
+                      <div className="p-4 bg-blue-50/70 border-2 border-blue-200 rounded-xl flex justify-between items-center">
+                        <span className="font-black text-sm uppercase tracking-wider text-blue-950">TOTAL ASSETS:</span>
+                        <span className="text-xl font-black text-blue-900">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+
+                    {/* LIABILITIES & EQUITY COLUMN */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                      <div className="border-b pb-4 flex justify-between items-center">
+                        <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#c9a654]"></div> LIABILITIES & OWNER'S EQUITY
+                        </h3>
+                        <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
+                          ₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* Current Liabilities */}
+                      <div className="space-y-3">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Liabilities (Obligations)</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Accounts Payable</span>
+                              <span className="text-[10px] text-gray-400 block">Short-term supplier obligations (20% of COGS)</span>
+                            </div>
+                            <span className="font-extrabold text-[#122244]">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Utilities Payable</span>
+                              <span className="text-[10px] text-gray-400 block">Accrued operating expenses (15% of OpEx)</span>
+                            </div>
+                            <span className="font-extrabold text-[#122244]">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-red-800 border-t border-gray-100 px-1">
+                            <span>Total Current Liabilities:</span>
+                            <span className="text-sm font-black">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Owner's Equity */}
+                      <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Owner's Equity (Net Worth)</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="font-bold text-gray-800">Initial Capital</span>
+                              <span className="text-[10px] text-gray-400 block">Cash starting investment</span>
+                            </div>
+                            <span className="font-bold text-gray-700">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-green-700">
+                            <div>
+                              <span className="font-bold">Add: Retained Net Income (After Tax)</span>
+                              <span className="text-[10px] text-gray-400 block">Annual net profit from operations (net of 3% BMBE tax)</span>
+                            </div>
+                            <span className="font-bold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-[#b59545] border-t border-gray-100 px-1">
+                            <span>Ending Capital (Owner's Net Worth):</span>
+                            <span className="text-sm font-black text-[#c9a654]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Liabilities & Equity Summary */}
+                      <div className="p-4 bg-amber-50/70 border-2 border-amber-200 rounded-xl flex justify-between items-center">
+                        <span className="font-black text-sm uppercase tracking-wider text-amber-950">TOTAL LIABILITIES & EQUITY:</span>
+                        <span className="text-xl font-black text-[#c9a654]">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
+        </main>
 
-          {/* === TAB 2: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
-          {activeModuleTab === "balance-sheet" && (
-            <div className="space-y-6 animate-in fade-in duration-200 text-[#122244]">
-              {/* BALANCE CHECK HEADER BANNER */}
-              <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-white/10">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Scale className="w-5 h-5 text-[#c9a654]" />
-                    <h2 className="text-xl font-extrabold tracking-wide">
-                      Statement of Financial Position (Balance Sheet)
-                    </h2>
+        {/* EXPORT FORMAT MODAL */}
+        {showExportModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setShowExportModal(false)}
+            />
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative">
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-50 rounded-lg text-[#c9a654]">
+                    <Download className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-gray-300">
-                    Real-time snapshot of business assets, obligations, and net owner's equity.
-                  </p>
+                  <div>
+                    <h3 className="text-base font-extrabold text-[#122244]">Export Financial Report</h3>
+                    <p className="text-xs text-gray-400">Choose your preferred export format</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-xl">
-                  <ShieldCheck className="w-4 h-4 text-green-400" />
-                  <span className="text-xs font-bold text-green-300 uppercase tracking-wider">
-                    Balance Verified: ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* TWO COLUMN STATEMENT OF FINANCIAL POSITION */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* ASSETS COLUMN */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                  <div className="border-b pb-4 flex justify-between items-center">
-                    <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
-                    </h3>
-                    <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
-                      ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
+              <div className="py-6 space-y-3">
+                {/* Option 1: Excel / CSV */}
+                <button
+                  onClick={() => {
+                    setShowExportModal(false);
+                    handleExportCSV();
+                  }}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all text-left group"
+                >
+                  <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <FileSpreadsheet className="w-6 h-6" />
                   </div>
-
-                  {/* Current Assets */}
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Assets</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Cash on Hand</span>
-                          <span className="text-[10px] text-gray-400 block">15% allocated for daily store operations</span>
-                        </div>
-                        <span className="font-extrabold text-[#122244]">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Cash in Bank</span>
-                          <span className="text-[10px] text-gray-400 block">85% secured reserve in business accounts</span>
-                        </div>
-                        <span className="font-extrabold text-[#122244]">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Merchandise & Materials Inventory</span>
-                          <span className="text-[10px] text-gray-400 block">Ending inventory estimated at 15% of COGS</span>
-                        </div>
-                        <span className="font-extrabold text-[#122244]">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2 font-bold text-xs text-blue-800 border-t border-gray-100 px-1">
-                        <span>Total Current Assets:</span>
-                        <span className="text-sm font-black">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-sm text-[#122244] group-hover:text-emerald-900">Excel / Spreadsheet (.CSV)</h4>
+                      <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Editable</span>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Download full operational costing, double-entry balance sheet, and financial ratios for Microsoft Excel or Google Sheets.
+                    </p>
                   </div>
+                </button>
 
-                  {/* Non-Current Assets */}
-                  <div className="space-y-3 pt-4 border-t border-gray-100">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Non-Current Assets</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Property, Plant & Equipment (Gross)</span>
-                          <span className="text-[10px] text-gray-400 block">Machinery & store equipment list</span>
-                        </div>
-                        <span className="font-bold text-gray-700">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-red-600">
-                        <div>
-                          <span className="font-bold">Less: Accumulated Depreciation</span>
-                          <span className="text-[10px] text-gray-400 block">10% annual straight-line depreciation</span>
-                        </div>
-                        <span className="font-bold">(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2 font-bold text-xs text-purple-800 border-t border-gray-100 px-1">
-                        <span>Total Non-Current Assets (Net):</span>
-                        <span className="text-sm font-black">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
+                {/* Option 2: PDF Document */}
+                <button
+                  onClick={() => {
+                    setShowExportModal(false);
+                    setTimeout(() => window.print(), 250);
+                  }}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all text-left group"
+                >
+                  <div className="p-3 bg-blue-100 text-blue-700 rounded-xl group-hover:bg-[#122244] group-hover:text-white transition-colors">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-sm text-[#122244] group-hover:text-blue-900">PDF Document (.PDF)</h4>
+                      <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Print Ready</span>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Generate an executive, formatted feasibility statement ready for presentation and panel defense submission.
+                    </p>
                   </div>
+                </button>
+              </div>
 
-                  {/* Total Assets Summary */}
-                  <div className="p-4 bg-blue-50/70 border-2 border-blue-200 rounded-xl flex justify-between items-center">
-                    <span className="font-black text-sm uppercase tracking-wider text-blue-950">TOTAL ASSETS:</span>
-                    <span className="text-xl font-black text-blue-900">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-
-                {/* LIABILITIES & EQUITY COLUMN */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                  <div className="border-b pb-4 flex justify-between items-center">
-                    <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#c9a654]"></div> LIABILITIES & OWNER'S EQUITY
-                    </h3>
-                    <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
-                      ₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-
-                  {/* Current Liabilities */}
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Liabilities (Obligations)</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Accounts Payable</span>
-                          <span className="text-[10px] text-gray-400 block">Short-term supplier obligations (20% of COGS)</span>
-                        </div>
-                        <span className="font-extrabold text-[#122244]">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Utilities Payable</span>
-                          <span className="text-[10px] text-gray-400 block">Accrued operating expenses (15% of OpEx)</span>
-                        </div>
-                        <span className="font-extrabold text-[#122244]">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2 font-bold text-xs text-red-800 border-t border-gray-100 px-1">
-                        <span>Total Current Liabilities:</span>
-                        <span className="text-sm font-black">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Owner's Equity */}
-                  <div className="space-y-3 pt-4 border-t border-gray-100">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Owner's Equity (Net Worth)</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                        <div>
-                          <span className="font-bold text-gray-800">Initial Capital</span>
-                          <span className="text-[10px] text-gray-400 block">Cash starting investment</span>
-                        </div>
-                        <span className="font-bold text-gray-700">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-green-700">
-                        <div>
-                          <span className="font-bold">Add: Retained Net Income (After Tax)</span>
-                          <span className="text-[10px] text-gray-400 block">Annual net profit from operations (net of 3% BMBE tax)</span>
-                        </div>
-                        <span className="font-bold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2 font-bold text-xs text-[#b59545] border-t border-gray-100 px-1">
-                        <span>Ending Capital (Owner's Net Worth):</span>
-                        <span className="text-sm font-black text-[#c9a654]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total Liabilities & Equity Summary */}
-                  <div className="p-4 bg-amber-50/70 border-2 border-amber-200 rounded-xl flex justify-between items-center">
-                    <span className="font-black text-sm uppercase tracking-wider text-amber-950">TOTAL LIABILITIES & EQUITY:</span>
-                    <span className="text-xl font-black text-[#c9a654]">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
+              <div className="pt-3 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="px-5 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
         )}
-      </main>
 
-      {/* EXPORT FORMAT MODAL */}
-      {showExportModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setShowExportModal(false)}
-          />
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative">
-            <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-amber-50 rounded-lg text-[#c9a654]">
-                  <Download className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-[#122244]">Export Financial Report</h3>
-                  <p className="text-xs text-gray-400">Choose your preferred export format</p>
-                </div>
+        {/* LOGOUT CONFIRM */}
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowLogoutConfirm(false)}
+            />
+            <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl text-center relative text-[#122244]">
+              <h3 className="text-lg font-bold mb-2">Sign Out?</h3>
+              <p className="text-sm text-gray-600 mb-6 italic text-center text-[#122244]">
+                Are you sure you want to log out?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 text-gray-600 text-gray-600"
+                >
+                  Stay
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
+                >
+                  Logout
+                </button>
               </div>
-              <button
-                onClick={() => setShowExportModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-6 space-y-3">
-              {/* Option 1: Excel / CSV */}
-              <button
-                onClick={() => {
-                  setShowExportModal(false);
-                  handleExportCSV();
-                }}
-                className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all text-left group"
-              >
-                <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <FileSpreadsheet className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-extrabold text-sm text-[#122244] group-hover:text-emerald-900">Excel / Spreadsheet (.CSV)</h4>
-                    <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Editable</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                    Download full operational costing, double-entry balance sheet, and financial ratios for Microsoft Excel or Google Sheets.
-                  </p>
-                </div>
-              </button>
-
-              {/* Option 2: PDF Document */}
-              <button
-                onClick={() => {
-                  setShowExportModal(false);
-                  setTimeout(() => window.print(), 250);
-                }}
-                className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all text-left group"
-              >
-                <div className="p-3 bg-blue-100 text-blue-700 rounded-xl group-hover:bg-[#122244] group-hover:text-white transition-colors">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-extrabold text-sm text-[#122244] group-hover:text-blue-900">PDF Document (.PDF)</h4>
-                    <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Print Ready</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                    Generate an executive, formatted feasibility statement ready for presentation and panel defense submission.
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            <div className="pt-3 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setShowExportModal(false)}
-                className="px-5 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* LOGOUT CONFIRM */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowLogoutConfirm(false)}
-          />
-          <div className="bg-white rounded-2xl p-6 z-10 w-11/12 max-w-sm shadow-xl text-center relative text-[#122244]">
-            <h3 className="text-lg font-bold mb-2">Sign Out?</h3>
-            <p className="text-sm text-gray-600 mb-6 italic text-center text-[#122244]">
-              Are you sure you want to log out?
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 text-gray-600 text-gray-600"
-              >
-                Stay
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -2110,101 +2106,96 @@ const Financial_input: React.FC = () => {
 
         {/* SECTION 3: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
         <div className="mb-5">
-          <div className="flex justify-between items-center border-b-2 border-[#122244] pb-1 mb-2">
+          <div className="flex justify-between items-center border-b-2 border-[#122244] pb-1 mb-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#122244]">
               2. Statement of Financial Position (Balance Sheet)
             </h2>
-            <span className="text-[9px] font-black uppercase text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-              Verified Double-Entry Standard Balanced ✓
-            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-[11px]">
+          <div className="grid grid-cols-2 gap-4 text-[11px] font-serif">
             {/* ASSETS */}
-            <div className="border border-gray-300 rounded p-2.5 space-y-1.5">
-              <h3 className="font-black uppercase text-[#122244] border-b pb-1 flex justify-between">
-                <span>ASSETS</span>
-                <span>₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <div className="space-y-1.5 pr-4">
+              <h3 className="font-bold text-[#122244] border-b border-gray-800 pb-1 mb-3 uppercase tracking-wide">
+                ASSETS
               </h3>
-              
-              <div className="space-y-1">
-                <p className="font-bold text-gray-500 uppercase text-[9px]">Current Assets</p>
-                <div className="flex justify-between">
-                  <span>Cash on Hand (15%):</span>
-                  <span className="font-semibold">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+
+              <div className="space-y-1.5">
+                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide">Current Assets</p>
+                <div className="flex justify-between pl-3">
+                  <span>Cash on Hand (15%)</span>
+                  <span>₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Cash in Bank (85%):</span>
-                  <span className="font-semibold">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <div className="flex justify-between pl-3">
+                  <span>Cash in Bank (85%)</span>
+                  <span>₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Merchandise & Materials Inventory:</span>
-                  <span className="font-semibold">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <div className="flex justify-between pl-3">
+                  <span>Merchandise & Materials Inventory</span>
+                  <span>₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between font-bold pt-1 border-t border-gray-200">
-                  <span>Total Current Assets:</span>
+                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
+                  <span>Total Current Assets</span>
                   <span>₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
 
-                <p className="font-bold text-gray-500 uppercase text-[9px] pt-1.5">Non-Current Assets</p>
-                <div className="flex justify-between">
-                  <span>Property, Plant & Equipment (Gross):</span>
-                  <span className="font-semibold">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide pt-3">Non-Current Assets</p>
+                <div className="flex justify-between pl-3">
+                  <span>Property, Plant & Equipment (Gross)</span>
+                  <span>₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Less: Accumulated Depreciation (10%):</span>
+                <div className="flex justify-between pl-3">
+                  <span>Less: Accumulated Depreciation (10%)</span>
                   <span>(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
                 </div>
-                <div className="flex justify-between font-bold pt-1 border-t border-gray-200">
-                  <span>Total Non-Current Assets (Net PPE):</span>
+                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
+                  <span>Total Non-Current Assets (Net PPE)</span>
                   <span>₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
 
-                <div className="flex justify-between font-black text-xs bg-gray-100 p-1.5 rounded mt-1.5 border border-gray-300">
-                  <span>TOTAL ASSETS:</span>
+                <div className="flex justify-between font-bold pt-2 mt-5 border-t border-b-4 border-double border-gray-900 text-[12px] uppercase tracking-wide pl-1">
+                  <span>TOTAL ASSETS</span>
                   <span>₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
 
             {/* LIABILITIES & OWNER'S EQUITY */}
-            <div className="border border-gray-300 rounded p-2.5 space-y-1.5">
-              <h3 className="font-black uppercase text-[#122244] border-b pb-1 flex justify-between">
-                <span>LIABILITIES & EQUITY</span>
-                <span>₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <div className="space-y-1.5 pl-4 border-l border-gray-200">
+              <h3 className="font-bold text-[#122244] border-b border-gray-800 pb-1 mb-3 uppercase tracking-wide">
+                LIABILITIES & EQUITY
               </h3>
 
-              <div className="space-y-1">
-                <p className="font-bold text-gray-500 uppercase text-[9px]">Current Liabilities</p>
-                <div className="flex justify-between">
-                  <span>Accounts Payable (20% of COGS):</span>
-                  <span className="font-semibold">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              <div className="space-y-1.5">
+                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide">Current Liabilities</p>
+                <div className="flex justify-between pl-3">
+                  <span>Accounts Payable (20% of COGS)</span>
+                  <span>₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Utilities & OpEx Payable (15% of OpEx):</span>
-                  <span className="font-semibold">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <div className="flex justify-between pl-3">
+                  <span>Utilities & OpEx Payable (15% of OpEx)</span>
+                  <span>₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between font-bold pt-1 border-t border-gray-200">
-                  <span>Total Current Liabilities:</span>
+                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
+                  <span>Total Current Liabilities</span>
                   <span>₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
 
-                <p className="font-bold text-gray-500 uppercase text-[9px] pt-1.5">Owner's Equity</p>
-                <div className="flex justify-between">
-                  <span>Initial Cash Capital:</span>
-                  <span className="font-semibold">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide pt-3">Owner's Equity</p>
+                <div className="flex justify-between pl-3">
+                  <span>Initial Cash Capital</span>
+                  <span>₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between text-green-700">
-                  <span>Add: Retained Net Profit (After Tax):</span>
-                  <span className="font-semibold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <div className="flex justify-between pl-3">
+                  <span>Add: Retained Net Profit (After Tax)</span>
+                  <span>₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between font-bold pt-1 border-t border-gray-200">
-                  <span>Ending Owner's Capital:</span>
+                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
+                  <span>Ending Owner's Capital</span>
                   <span>₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
 
-                <div className="flex justify-between font-black text-xs bg-gray-100 p-1.5 rounded mt-1.5 border border-gray-300">
-                  <span>TOTAL LIABILITIES & EQUITY:</span>
+                <div className="flex justify-between font-bold pt-2 mt-5 border-t border-b-4 border-double border-gray-900 text-[12px] uppercase tracking-wide pl-1">
+                  <span>TOTAL LIABILITIES & EQUITY</span>
                   <span>₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>

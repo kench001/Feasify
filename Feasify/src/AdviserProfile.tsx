@@ -41,6 +41,8 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  Clock,
+  Cpu,
 } from "lucide-react";
 
 interface Teammate {
@@ -320,11 +322,14 @@ const AdviserProfile: React.FC = () => {
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
         </div>
-        <nav className="flex-1 p-4 space-y-8 mt-4">
+        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/dashboard")}className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold  text-gray-400 transition-all ">My Sections</button>
+              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all shadow-md">
+                <span>My Sections</span>
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">All</span>
+              </button>
               <div className="pl-4 pr-2 py-2 space-y-1.5">
                 {adviserSections.map((sectionName) => (
                   <button
@@ -350,6 +355,7 @@ const AdviserProfile: React.FC = () => {
             <div className="space-y-1">
               <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white bg-[#c9a654] shadow-md"><User className="w-4 h-4" /> Profile</button>
               <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
+              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Cpu className="w-4 h-4" /> AI Rules</button>
               <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
             </div>
           </div>

@@ -1,10 +1,10 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const fs = require("fs");
-const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const rateLimit = require("express-rate-limit");
 
@@ -437,6 +437,12 @@ EVALUATION RULES:
 2. Profitability Check: A business must have positive Net Profit/Month and positive Annual Net Profit (After Tax) to be feasible. If Net Profit is less than or equal to 0, status must be NOT_FEASIBLE and score must be 30.
 3. Realism Audit: Compare the submitted financial data (startup capital, unit selling price, COGS/unit, and monthly OPEX) against the approved university feasibility studies under APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples). Focus on comparing the startup capital scale and the COGS-to-price ratios. Warn if they are extremely unrealistic, but DO NOT check or criticize for capital reconciliation (DF-03 balance) or cash reserve buffer quantities since those are NOT evaluated in this phase.
 
+ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
+- Tone & Style: ${req.body.customAIRules?.tone || 'Default academic and constructive tone.'}
+- Dealbreakers: ${req.body.customAIRules?.dealbreakers || 'None specific.'}
+- Focus Areas: ${req.body.customAIRules?.focusAreas || 'General financial feasibility.'}
+- Formatting: ${req.body.customAIRules?.formatting || 'Follow standard output structure.'}
+
 SUBMITTED FINANCIAL DATA:
 - Selling Price per Unit: PHP ${sellingPrice}
 - Cost of Goods Sold (COGS) per Unit: PHP ${variableCost}
@@ -470,6 +476,7 @@ Your generated JSON object MUST contain exactly these calculated metrics:
   }
 
 Please write the explanations, insights, and improvement tips based strictly on the metrics, values, and realism rules above.
+CRITICALLY IMPORTANT: You MUST strictly apply the ADVISER'S CUSTOM AI RULES (Tone, Dealbreakers, Focus Areas, Formatting) when writing the text for 'explanations', 'insights', 'improvementTips', and 'aiScoreExplanations'. If the tone is goofy, write in a goofy tone. If formatting requires bullets, use bullets.
 
 Your response must be a single stringified JSON object matching this structure:
 {
@@ -654,10 +661,13 @@ app.post(
       const totalCapital = payload.totalCapital || "0";
       const productDescription = payload.productDescription || payload.otherDetails || "N/A";
       const priceRanges = payload.priceRanges || "N/A";
+      const financialDataString = payload.financialData && Object.keys(payload.financialData).length > 0 
+        ? JSON.stringify(payload.financialData, null, 2) 
+        : "No detailed financial data provided yet.";
 
       // Pass target criteria and exemplars as few-shot data structures
       const prompt = `
-You are an expert academic feasibility study evaluator assessing a qualitative BUSINESS PROPOSAL.
+You are an expert academic feasibility study evaluator assessing a BUSINESS PROPOSAL with attached FINANCIAL PROJECTIONS.
 Do not use general world-wide knowledge. Rely purely on the local data.
 
 LOCAL GRADING MATRIX CONTEXT:
@@ -678,22 +688,24 @@ SUBMITTED PROPOSAL TO EVALUATE:
 - Promotional Strategy: "${promotionalStrategy}"
 - Target Market: "${targetMarket}"
 
-⚠️ CRITICAL STAGE SEPARATION RULE (DO NOT PENALIZE FOR LACKING FINANCIAL INPUTS):
-1. This is strictly the Qualitative BUSINESS PROPOSAL Phase. 
-2. Detailed monthly expense lists (OPEX like rent bills, utilities, employee benefit tables) and programmatically calculated unit COGS are NOT entered at this stage. Those are handled in the subsequent "Financial Input" phase.
-3. Therefore, DO NOT penalize or fail the proposal (e.g., do not give an "Unacceptable" or "Needs Improvement" grade) for lacking exact utility bills, itemized leasehold renovations, or programmatically generated ROI metrics.
-4. Focus your Category 1 (Financial Viability & Risk) assessment purely on:
-   - The logical adequacy of the high-level Total Capital (PHP ${totalCapital}) relative to the described business size (e.g. is PHP 150,000 realistic to set up a compact breakfast pandesal kiosk?).
-   - The plausibility and realism of the high-level Price Ranges text ("${priceRanges}") relative to their target market demographic ("${targetMarket}").
-5. Focus your Category 2 (Operational & Location Feasibility) assessment on the qualitative location matching ("${proposedLocation}") and described operational setup. Do not penalize for the absence of an itemized equipment catalog.
+SUBMITTED FINANCIAL DATA (QUANTITATIVE INPUTS):
+${financialDataString}
 
 INSTRUCTIONS:
-- Evaluate Category 1 based on qualitative financial logic and capital adequacy.
-- Evaluate Category 2 on proposed location matching and described kiosk concept.
-- Evaluate Category 3 on target demographic mapping and promotion.
-- Evaluate Category 4 on Mission, Vision, and product identity cohesion.
-- Scores must be integers. Ensure Category 1 scores represent the qualitative alignment rather than penalizing for missing numerical sheets.
-- Keep the 'draftFeedback' extremely short, concise, specific, and direct. Do not include greetings (like "Dear Students"), introductions, formal letter structures, or closing signatures (like "Sincerely, ..."). Just output the specific, actionable feedback directly.
+1. Evaluate Category 1 (Financial Viability & Risk) based on the realism of the total capital, price ranges, and the detailed FINANCIAL DATA provided (e.g., OPEX, COGS, equipment costs). If the detailed financial data contradicts the qualitative proposal or seems unrealistic for the business type and location, flag it as a weakness.
+2. Evaluate Category 2 (Operational & Location Feasibility) on proposed location matching, operational setup, and whether the declared capital/equipment makes sense for this setup.
+3. Evaluate Category 3 (Target Market & Marketing) on target demographic mapping and promotion, ensuring they align with the proposed price ranges and product description.
+4. Evaluate Category 4 (Mission & Vision) on identity cohesion.
+5. Scores must be integers.
+6. Keep the 'draftFeedback' extremely short, concise, specific, and direct. Do not include greetings (like "Dear Students"), introductions, formal letter structures, or closing signatures (like "Sincerely, ..."). Just output the specific, actionable feedback directly.
+
+ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
+- Tone & Style: ${payload.customAIRules?.tone || 'Default academic and constructive tone.'}
+- Dealbreakers: ${payload.customAIRules?.dealbreakers || 'None specific.'}
+- Focus Areas: ${payload.customAIRules?.focusAreas || 'General feasibility and consistency.'}
+- Formatting: ${payload.customAIRules?.formatting || 'Follow standard output structure.'}
+
+WARNING: You MUST strictly adopt the exact "Tone & Style" requested in the custom rules above (if provided). If it requests a goofy, informal, strict, or mocking tone, you MUST apply that exact tone to all your 'explanations', 'insights', and 'draftFeedback' strings. Ignore your standard academic tone if a custom tone is requested.
 
 Your response must be a single stringified JSON object matching this structure:
 {
@@ -705,16 +717,16 @@ Your response must be a single stringified JSON object matching this structure:
   },
   "explanations": {
     "feasibility": "Brief summary of overall feasibility alignment.",
-    "financial": "Summary of capital adequacy and pricing logic.",
+    "financial": "Summary of capital adequacy, pricing logic, and provided financial data realism.",
     "risk": "Summary of strategic buffers.",
     "market": "Summary of marketing feasibility."
   },
   "insights": [
     { "type": "positive", "title": "Strength Title", "description": "Strength details matching Category 1-4 excellent descriptors" },
-    { "type": "warning", "title": "Area of Concern", "description": "Concerns matching lower rubric descriptors (do not criticize lack of detailed spreadsheets, focus on ideas)" },
-    { "type": "info", "title": "Recommendation", "description": "Clear step-by-step instruction to improve the qualitative concept" }
+    { "type": "warning", "title": "Area of Concern", "description": "Concerns matching lower rubric descriptors (evaluate both qualitative concepts and quantitative financial logic)" },
+    { "type": "info", "title": "Recommendation", "description": "Clear step-by-step instruction to improve the proposal and its financials" }
   ],
-  "realityCheck": "A direct, realistic statement matching high-level capital of PHP ${totalCapital} with the described location type.",
+  "realityCheck": "A direct, realistic statement matching high-level capital of PHP ${totalCapital} and the detailed financial data with the described location and business type.",
   "draftFeedback": "A short, concise, and highly specific feedback statement focusing strictly on key issues and exact improvements needed. No letter format, no greetings, and no sign-offs."
 }
 

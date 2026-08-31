@@ -19,6 +19,7 @@ import ChairpersonModule from "./ChairpersonModule";
 import ChairpersonFeasib from "./ChairpersonFeasib";
 import AdviserDashboard from "./AdviserDashboard";
 import AdviserSettings from "./AdviserSettings";
+import AdviserAIRules from "./AdviserAIRules";
 import AdviserProfile from "./AdviserProfile";
 import ChairpersonProfile from "./ChairpersonProfile";
 
@@ -68,6 +69,7 @@ function App() {
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
         <Route path="/adviser/profile" element={<AdviserProfile />} />
         <Route path="/adviser/settings" element={<AdviserSettings />} />
+        <Route path="/adviser/airules" element={<AdviserAIRules />} />
         <Route path="/adviser/notifications" element={<AdviserNotifications />} />
         
         {/* Chairperson Profile */}

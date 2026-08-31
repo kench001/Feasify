@@ -11,7 +11,8 @@ import {
   Bell,
   Lock,
   Moon,
-  Globe
+  Globe,
+  Cpu
 } from "lucide-react";
 
 const AdviserSettings: React.FC = () => {
@@ -131,14 +132,15 @@ const AdviserSettings: React.FC = () => {
           />
         </div>
 
-        <nav className="flex-1 p-4 space-y-8 mt-4">
+        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
               Main Menu
             </p>
             <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-white hover:bg-white/10 transition-all">
-                My Sections
+              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all shadow-md">
+                <span>My Sections</span>
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">All</span>
               </button>
               <div className="pl-4 pr-2 py-2 space-y-1.5">
                 {adviserSections.map((sectionName) => (
@@ -170,6 +172,9 @@ const AdviserSettings: React.FC = () => {
               </button>
               <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white hover:bg-white/10 transition-all shadow-md">
                 <SettingsIcon className="w-4 h-4" /> Settings
+              </button>
+              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                <Cpu className="w-4 h-4" /> AI Rules
               </button>
               <button
                 onClick={() => setShowLogoutConfirm(true)}
