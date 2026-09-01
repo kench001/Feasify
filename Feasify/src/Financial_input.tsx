@@ -46,6 +46,10 @@ import {
   Printer,
   FileText,
   X,
+  Lock,
+  Unlock,
+  ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import {
   normalizeProposalProducts,
@@ -55,6 +59,41 @@ import type {
   ProductCostingItem,
   IngredientItem,
 } from "./Projects";
+
+export interface MonthlyFinancialRecord {
+  month: number;
+  monthName?: string;
+  isLocked: boolean;
+  lockedAt?: string;
+  financials: {
+    products: ProductCostingItem[];
+    sellingPrice: string;
+    monthlySales: string;
+    variableCost: string;
+    fixedCosts: string;
+    startupCapital: string;
+    cashInvested: string;
+    rentAdvanceDeposit: string;
+    trainingsPrograms: string;
+    advertisingExpense: string;
+    salariesExpenseInitial: string;
+    accountsPayable: string;
+    utilitiesPayable: string;
+    competitorCount: number;
+    marketDemand: string;
+    operatingDays: string;
+    equipmentList: { id: string; name: string; quantity: number; unitPrice: number; total: number }[];
+    opexList: { id: string; name: string; amount: number }[];
+    isCapitalBorrowed: boolean;
+    interestRate: string;
+  };
+}
+
+const getOrdinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 const Financial_input: React.FC = () => {
   const navigate = useNavigate();
@@ -68,6 +107,7 @@ const Financial_input: React.FC = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showLockConfirmModal, setShowLockConfirmModal] = useState(false);
   const [taxTab, setTaxTab] = useState<"log" | "math">("math");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
@@ -75,6 +115,38 @@ const Financial_input: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
+
+  // Multi-Month Financial State
+  const [monthlyRecords, setMonthlyRecords] = useState<MonthlyFinancialRecord[]>([
+    {
+      month: 1,
+      monthName: "Month 1 (1st Month)",
+      isLocked: false,
+      financials: {
+        products: [] as ProductCostingItem[],
+        sellingPrice: "",
+        monthlySales: "",
+        variableCost: "",
+        fixedCosts: "",
+        startupCapital: "",
+        cashInvested: "",
+        rentAdvanceDeposit: "",
+        trainingsPrograms: "",
+        advertisingExpense: "",
+        salariesExpenseInitial: "",
+        accountsPayable: "",
+        utilitiesPayable: "",
+        competitorCount: 0,
+        marketDemand: "Medium",
+        operatingDays: "300",
+        equipmentList: [],
+        opexList: [],
+        isCapitalBorrowed: false,
+        interestRate: "",
+      },
+    },
+  ]);
+  const [activeMonthIndex, setActiveMonthIndex] = useState(0);
 
   const [financials, setFinancials] = useState({
     products: [] as ProductCostingItem[],
@@ -99,6 +171,10 @@ const Financial_input: React.FC = () => {
     interestRate: "",
   });
 
+  const isCurrentMonthLocked = monthlyRecords[activeMonthIndex]?.isLocked || false;
+  const currentMonthRecord = monthlyRecords[activeMonthIndex];
+  const currentMonthNumber = currentMonthRecord?.month || (activeMonthIndex + 1);
+
   const activeProjName = projects.find((p) => p.id === selectedProjectId)?.name || "Active Business Projections";
 
   // --- PHILIPPINE BMBE TAX CALCULATION (RA 9178) ---
@@ -122,6 +198,7 @@ const Financial_input: React.FC = () => {
   }, activeProjName);
 
   const handleAddProduct = () => {
+    if (isCurrentMonthLocked) return;
     const newProduct: ProductCostingItem = {
       id: "prod-" + Date.now(),
       name: "",
@@ -133,26 +210,52 @@ const Financial_input: React.FC = () => {
     const updatedProducts = [...normalizedProducts, newProduct];
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   const handleRemoveProduct = (index: number) => {
-    if (normalizedProducts.length <= 1) return;
+    if (isCurrentMonthLocked || normalizedProducts.length <= 1) return;
     const updatedProducts = normalizedProducts.filter((_, i) => i !== index);
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   const handleUpdateProduct = (index: number, updates: Partial<ProductCostingItem>) => {
+    if (isCurrentMonthLocked) return;
     const updatedProducts = [...normalizedProducts];
     updatedProducts[index] = { ...updatedProducts[index], ...updates };
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   const handleAddIngredient = (productIndex: number) => {
+    if (isCurrentMonthLocked) return;
     const updatedProducts = [...normalizedProducts];
     const currentProd = updatedProducts[productIndex];
     const newIng: IngredientItem = {
@@ -166,10 +269,19 @@ const Financial_input: React.FC = () => {
     };
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   const handleUpdateIngredient = (productIndex: number, ingredientIndex: number, updates: Partial<IngredientItem>) => {
+    if (isCurrentMonthLocked) return;
     const updatedProducts = [...normalizedProducts];
     const currentProd = updatedProducts[productIndex];
     const ings = [...(currentProd.ingredients || [])];
@@ -180,10 +292,19 @@ const Financial_input: React.FC = () => {
     };
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   const handleRemoveIngredient = (productIndex: number, ingredientIndex: number) => {
+    if (isCurrentMonthLocked) return;
     const updatedProducts = [...normalizedProducts];
     const currentProd = updatedProducts[productIndex];
     const ings = (currentProd.ingredients || []).filter((_, i) => i !== ingredientIndex);
@@ -193,7 +314,15 @@ const Financial_input: React.FC = () => {
     };
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
-    handleAutoSave(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
   };
 
   // --- CALCULATION ENGINE ---
@@ -272,10 +401,15 @@ const Financial_input: React.FC = () => {
     safeStartupCapital > 0
       ? ((annualNetProfitAfterTax / safeStartupCapital) * 100).toFixed(1)
       : "0.0";
+  const unitContributionMargin = safeSellingPrice - safeVariableCost;
   const breakEvenUnits =
-    safeSellingPrice - safeVariableCost > 0
-      ? Math.ceil(safeFixedCosts / (safeSellingPrice - safeVariableCost))
+    unitContributionMargin > 0
+      ? Math.ceil(safeFixedCosts / unitContributionMargin)
       : "N/A";
+  const breakEvenRevenue =
+    typeof breakEvenUnits === "number" && safeSellingPrice > 0
+      ? breakEvenUnits * safeSellingPrice
+      : (grossProfitMargin > 0 ? safeFixedCosts / (grossProfitMargin / 100) : 0);
 
   // --- BALANCE SHEET ENGINE (feasify_financial_input_module.md) ---
   // Section 1: Initial Capital & Sources of Financing
@@ -357,6 +491,8 @@ const Financial_input: React.FC = () => {
 
     addRow(`FEASIFY FINANCIAL PROJECTIONS & FEASIBILITY REPORT`);
     addRow(`Business Name:`, activeProjName);
+    addRow(`Financial Period:`, currentMonthRecord?.monthName || `Month ${currentMonthNumber}`);
+    addRow(`Status:`, isCurrentMonthLocked ? `Finalized & Locked (${currentMonthRecord?.lockedAt ? new Date(currentMonthRecord.lockedAt).toLocaleDateString() : 'Locked'})` : `Active / Editable`);
     addRow(`Generated Date:`, dateStr);
     addRow();
 
@@ -417,7 +553,7 @@ const Financial_input: React.FC = () => {
     const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
-    link.setAttribute("download", `${activeProjName.replace(/[^a-zA-Z0-9_-]/g, "_")}_Financial_Projections.csv`);
+    link.setAttribute("download", `${activeProjName.replace(/[^a-zA-Z0-9_-]/g, "_")}_Month_${currentMonthNumber}_Financial_Projections.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -532,57 +668,113 @@ const Financial_input: React.FC = () => {
     setSelectedProjectId(projectId);
     sessionStorage.setItem("lastSelectedProjectId", projectId);
 
+    const getVal = (val: any) => {
+      if (val === undefined || val === null || String(val) === "0") return "";
+      return String(val);
+    };
+
     if (selectedProj.financialData) {
-      let loadedOpex = selectedProj.financialData.opexList || [];
-      if (loadedOpex.length === 0 && selectedProj.financialData.fixedCosts && Number(selectedProj.financialData.fixedCosts) > 0) {
-        loadedOpex = [{
-          id: Date.now().toString(),
-          name: "General OpEx",
-          amount: Number(selectedProj.financialData.fixedCosts)
-        }];
+      const finData = selectedProj.financialData;
+
+      // Check if multi-month records already exist
+      if (finData.monthlyRecords && Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0) {
+        const loadedRecords: MonthlyFinancialRecord[] = finData.monthlyRecords.map((rec: any, idx: number) => {
+          const fin = rec.financials || {};
+          let loadedOpex = fin.opexList || [];
+          if (loadedOpex.length === 0 && fin.fixedCosts && Number(fin.fixedCosts) > 0) {
+            loadedOpex = [{
+              id: Date.now().toString() + "-" + idx,
+              name: "General OpEx",
+              amount: Number(fin.fixedCosts)
+            }];
+          }
+          const loadedProducts = normalizeProposalProducts(fin, selectedProj.name);
+
+          return {
+            month: rec.month || (idx + 1),
+            monthName: rec.monthName || `Month ${rec.month || idx + 1} (${getOrdinal(rec.month || idx + 1)} Month)`,
+            isLocked: !!rec.isLocked,
+            lockedAt: rec.lockedAt,
+            financials: {
+              products: loadedProducts,
+              sellingPrice: getVal(fin.sellingPrice),
+              monthlySales: getVal(fin.monthlySales),
+              variableCost: getVal(fin.variableCost),
+              fixedCosts: getVal(fin.fixedCosts),
+              startupCapital: getVal(fin.startupCapital || selectedProj.proposalCapital),
+              cashInvested: getVal(fin.cashInvested),
+              rentAdvanceDeposit: getVal(fin.rentAdvanceDeposit),
+              trainingsPrograms: getVal(fin.trainingsPrograms),
+              advertisingExpense: getVal(fin.advertisingExpense),
+              salariesExpenseInitial: getVal(fin.salariesExpenseInitial),
+              accountsPayable: getVal(fin.accountsPayable),
+              utilitiesPayable: getVal(fin.utilitiesPayable),
+              competitorCount: fin.competitorCount || 0,
+              marketDemand: fin.marketDemand || "Medium",
+              operatingDays: String(fin.operatingDays || "300"),
+              equipmentList: fin.equipmentList || [],
+              opexList: loadedOpex,
+              isCapitalBorrowed: fin.isCapitalBorrowed || false,
+              interestRate: getVal(fin.interestRate),
+            },
+          };
+        });
+
+        setMonthlyRecords(loadedRecords);
+        // Default to the last month (the active editable month or latest added)
+        const targetIdx = Math.max(0, loadedRecords.length - 1);
+        setActiveMonthIndex(targetIdx);
+        setFinancials(loadedRecords[targetIdx].financials);
+      } else {
+        // Single-month legacy migration: Create Month 1 from existing financialData
+        let loadedOpex = finData.opexList || [];
+        if (loadedOpex.length === 0 && finData.fixedCosts && Number(finData.fixedCosts) > 0) {
+          loadedOpex = [{
+            id: Date.now().toString(),
+            name: "General OpEx",
+            amount: Number(finData.fixedCosts)
+          }];
+        }
+        const loadedProducts = normalizeProposalProducts(finData, selectedProj.name);
+
+        const initialFinState = {
+          products: loadedProducts,
+          sellingPrice: getVal(finData.sellingPrice),
+          monthlySales: getVal(finData.monthlySales),
+          variableCost: getVal(finData.variableCost),
+          fixedCosts: getVal(finData.fixedCosts),
+          startupCapital: getVal(finData.startupCapital || selectedProj.proposalCapital),
+          cashInvested: getVal(finData.cashInvested),
+          rentAdvanceDeposit: getVal(finData.rentAdvanceDeposit),
+          trainingsPrograms: getVal(finData.trainingsPrograms),
+          advertisingExpense: getVal(finData.advertisingExpense),
+          salariesExpenseInitial: getVal(finData.salariesExpenseInitial),
+          accountsPayable: getVal(finData.accountsPayable),
+          utilitiesPayable: getVal(finData.utilitiesPayable),
+          competitorCount: finData.competitorCount || 0,
+          marketDemand: finData.marketDemand || "Medium",
+          operatingDays: String(finData.operatingDays || "300"),
+          equipmentList: finData.equipmentList || [],
+          opexList: loadedOpex,
+          isCapitalBorrowed: finData.isCapitalBorrowed || false,
+          interestRate: getVal(finData.interestRate),
+        };
+
+        const initialRecords: MonthlyFinancialRecord[] = [
+          {
+            month: 1,
+            monthName: "Month 1 (1st Month)",
+            isLocked: false,
+            financials: initialFinState,
+          },
+        ];
+
+        setMonthlyRecords(initialRecords);
+        setActiveMonthIndex(0);
+        setFinancials(initialFinState);
       }
-
-      const getVal = (val: any) => {
-        if (val === undefined || val === null || String(val) === "0") return "";
-        return String(val);
-      };
-
-      const loadedProducts = normalizeProposalProducts(selectedProj.financialData, selectedProj.name);
-
-      setFinancials({
-        products: loadedProducts,
-        sellingPrice: getVal(selectedProj.financialData.sellingPrice),
-        monthlySales: getVal(selectedProj.financialData.monthlySales),
-        variableCost: getVal(selectedProj.financialData.variableCost),
-        fixedCosts: getVal(selectedProj.financialData.fixedCosts),
-        startupCapital: getVal(
-          selectedProj.financialData.startupCapital ||
-          selectedProj.proposalCapital
-        ),
-        cashInvested: getVal(selectedProj.financialData.cashInvested),
-        rentAdvanceDeposit: getVal(selectedProj.financialData.rentAdvanceDeposit),
-        trainingsPrograms: getVal(selectedProj.financialData.trainingsPrograms),
-        advertisingExpense: getVal(selectedProj.financialData.advertisingExpense),
-        salariesExpenseInitial: getVal(selectedProj.financialData.salariesExpenseInitial),
-        accountsPayable: getVal(selectedProj.financialData.accountsPayable),
-        utilitiesPayable: getVal(selectedProj.financialData.utilitiesPayable),
-        competitorCount: selectedProj.financialData.competitorCount || 0,
-        marketDemand: selectedProj.financialData.marketDemand || "Medium",
-        operatingDays: String(
-          selectedProj.financialData.operatingDays || "300",
-        ),
-        equipmentList: selectedProj.financialData.equipmentList || [],
-        opexList: loadedOpex,
-        isCapitalBorrowed: selectedProj.financialData.isCapitalBorrowed || false,
-        interestRate: getVal(selectedProj.financialData.interestRate),
-      });
     } else {
-      const getVal = (val: any) => {
-        if (val === undefined || val === null || String(val) === "0") return "";
-        return String(val);
-      };
-
-      setFinancials({
+      const initialFinState = {
         products: normalizeProposalProducts(undefined, selectedProj.name),
         sellingPrice: "",
         monthlySales: "",
@@ -603,11 +795,24 @@ const Financial_input: React.FC = () => {
         opexList: [],
         isCapitalBorrowed: false,
         interestRate: "",
-      });
+      };
+
+      const initialRecords: MonthlyFinancialRecord[] = [
+        {
+          month: 1,
+          monthName: "Month 1 (1st Month)",
+          isLocked: false,
+          financials: initialFinState,
+        },
+      ];
+
+      setMonthlyRecords(initialRecords);
+      setActiveMonthIndex(0);
+      setFinancials(initialFinState);
     }
   };
 
-  const handleAutoSave = async (dataToSave = financials) => {
+  const handleAutoSave = async (dataToSave = financials, recordsToSave = monthlyRecords) => {
     if (!selectedProjectId) return;
     setIsSaving(true);
     try {
@@ -617,7 +822,7 @@ const Financial_input: React.FC = () => {
 
       const prods = dataToSave.products && dataToSave.products.length > 0
         ? dataToSave.products
-        : normalizedProducts;
+        : normalizeProposalProducts(dataToSave, activeProjName);
 
       let syncSellingPrice = dataToSave.sellingPrice;
       let syncMonthlySales = dataToSave.monthlySales;
@@ -639,6 +844,17 @@ const Financial_input: React.FC = () => {
         syncComputedBasePrice = firstM.computedBasePrice > 0 ? String(Number(firstM.computedBasePrice.toFixed(2))) : "";
       }
 
+      // Sync active month's financials in monthlyRecords
+      const cleanRecords = recordsToSave.map((rec, idx) => {
+        if (idx === activeMonthIndex) {
+          return {
+            ...rec,
+            financials: dataToSave,
+          };
+        }
+        return rec;
+      });
+
       const payload = {
         ...dataToSave,
         products: prods,
@@ -652,6 +868,9 @@ const Financial_input: React.FC = () => {
         markupAmount: syncMarkupAmt,
         computedSellingPrice: syncComputedBasePrice,
         fixedCosts: String(computedFixedCosts),
+        monthlyRecords: cleanRecords,
+        activeMonthIndex: activeMonthIndex,
+        totalMonths: cleanRecords.length,
         updatedAt: serverTimestamp()
       };
 
@@ -660,10 +879,71 @@ const Financial_input: React.FC = () => {
       });
       setSaveStatus("All changes saved");
     } catch (e) {
+      console.error("Save failed:", e);
       setSaveStatus("Save failed");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSwitchMonthTab = (targetIndex: number) => {
+    if (targetIndex === activeMonthIndex || !monthlyRecords[targetIndex]) return;
+
+    // Sync current unsaved changes into current record before switching
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: financials,
+      };
+    }
+    setMonthlyRecords(updatedRecords);
+    setActiveMonthIndex(targetIndex);
+    setFinancials(updatedRecords[targetIndex].financials);
+  };
+
+  const handleConfirmLockAndProceed = async () => {
+    if (isCurrentMonthLocked) return;
+
+    const currentRec = monthlyRecords[activeMonthIndex] || {
+      month: activeMonthIndex + 1,
+      monthName: `Month ${activeMonthIndex + 1}`,
+      isLocked: false,
+      financials: financials,
+    };
+
+    const lockedRecord: MonthlyFinancialRecord = {
+      ...currentRec,
+      isLocked: true,
+      lockedAt: new Date().toISOString(),
+      financials: JSON.parse(JSON.stringify(financials)),
+    };
+
+    const nextMonthNum = monthlyRecords.length + 1;
+    // Deep clone current month's financials to serve as the baseline for the next month
+    const clonedFinancials = JSON.parse(JSON.stringify(financials));
+
+    const nextRecord: MonthlyFinancialRecord = {
+      month: nextMonthNum,
+      monthName: `Month ${nextMonthNum} (${getOrdinal(nextMonthNum)} Month)`,
+      isLocked: false,
+      financials: clonedFinancials,
+    };
+
+    const updatedRecords = [
+      ...monthlyRecords.slice(0, activeMonthIndex),
+      lockedRecord,
+      ...monthlyRecords.slice(activeMonthIndex + 1),
+      nextRecord,
+    ];
+
+    const nextActiveIndex = updatedRecords.length - 1;
+    setMonthlyRecords(updatedRecords);
+    setActiveMonthIndex(nextActiveIndex);
+    setFinancials(clonedFinancials);
+    setShowLockConfirmModal(false);
+
+    await handleAutoSave(clonedFinancials, updatedRecords);
   };
 
   useEffect(() => {
@@ -911,6 +1191,143 @@ const Financial_input: React.FC = () => {
                 </div>
               </div>
 
+              {/* FILE FOLDER TAB SYSTEM */}
+              <div className="mb-6">
+                {/* File Tabs Top Rail */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b-2 border-slate-200 px-3 pt-3 bg-slate-100/70 rounded-t-2xl">
+                  {/* File Tabs Strip - Compact Staggered Overlapping Tabs */}
+                  <div
+                    className="flex items-end overflow-x-auto overflow-y-hidden pb-0 max-w-full pl-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-400 mr-2 uppercase tracking-wider pb-3 shrink-0">
+                      <Folder size={14} className="text-[#c9a654]" />
+                      <span>Periods:</span>
+                    </div>
+
+                    <div className="flex items-end shrink-0 pl-1">
+                      {monthlyRecords.map((rec, idx) => {
+                        const isSelected = idx === activeMonthIndex;
+                        const isLocked = rec.isLocked;
+                        // Dynamic stacking z-index so the active tab is in front, and surrounding tabs tuck neatly behind
+                        const tabZIndex = isSelected ? 30 : idx < activeMonthIndex ? 10 + idx : 25 - idx;
+
+                        return (
+                          <button
+                            key={`month-tab-${rec.month || idx + 1}`}
+                            type="button"
+                            onClick={() => handleSwitchMonthTab(idx)}
+                            style={{ zIndex: tabZIndex }}
+                            className={`group relative flex items-center gap-2 px-4 sm:px-5 pt-2.5 pb-3 rounded-t-2xl text-xs font-bold transition-colors shrink-0 select-none border-t-[3px] border-x -mb-[2px] ${
+                              idx > 0 ? "-ml-6 sm:-ml-8" : ""
+                            } ${
+                              isSelected
+                                ? "bg-white text-[#122244] border-t-[#c9a654] border-x-slate-300 shadow-[-5px_0_12px_rgba(0,0,0,0.1),5px_0_12px_rgba(0,0,0,0.06)]"
+                                : "bg-[#dbe3ed] hover:bg-[#cfd9e6] text-slate-700 border-t-slate-300 border-x-slate-300/90 shadow-[-3px_0_6px_rgba(0,0,0,0.04)] hover:text-[#122244]"
+                            }`}
+                          >
+                            {/* Tab Folder / File Icon */}
+                            <div
+                              className={`p-1 rounded-md transition-colors ${
+                                isSelected
+                                  ? "bg-amber-50 text-[#c9a654]"
+                                  : "bg-slate-300/80 text-slate-600 group-hover:text-slate-900 group-hover:bg-slate-300"
+                              }`}
+                            >
+                              <FileSpreadsheet size={13} />
+                            </div>
+
+                            {/* Tab Title - Constant stable width */}
+                            <span className="tracking-tight font-extrabold whitespace-nowrap">
+                              Month {rec.month}
+                            </span>
+
+                            {/* Status Pill on File Tab - Constant stable width */}
+                            {isLocked ? (
+                              <span
+                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap ${
+                                  isSelected
+                                    ? "bg-amber-100 text-amber-900 border border-amber-300/60"
+                                    : "bg-slate-300/90 text-slate-700 border border-slate-400/50"
+                                }`}
+                                title="This month is finalized and locked (read-only)"
+                              >
+                                <Lock size={9} />
+                                <span>Locked</span>
+                              </span>
+                            ) : (
+                              <span
+                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap ${
+                                  isSelected
+                                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300/60"
+                                    : "bg-slate-300/90 text-slate-700 border border-slate-400/50"
+                                }`}
+                                title="Active editing month"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Active</span>
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Top-Right File Actions */}
+                  <div className="flex items-center gap-2 pb-2 self-end">
+                    {!isCurrentMonthLocked && activeMonthIndex === monthlyRecords.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowLockConfirmModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white rounded-xl font-extrabold text-xs shadow-md transition-all active:scale-95 border border-[#122244]"
+                      >
+                        <Lock size={13} className="text-[#c9a654]" />
+                        <span>Lock & Proceed to Month {currentMonthNumber + 1}</span>
+                        <ArrowRight size={14} className="text-[#c9a654]" />
+                      </button>
+                    ) : isCurrentMonthLocked && activeMonthIndex < monthlyRecords.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchMonthTab(monthlyRecords.length - 1)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-[#122244] rounded-xl font-bold text-xs shadow-sm transition-all border border-slate-200"
+                      >
+                        <span>Open Month {monthlyRecords.length} (Active File)</span>
+                        <ArrowRight size={13} className="text-[#c9a654]" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Locked Banner inside File Folder */}
+                {isCurrentMonthLocked && (
+                  <div className="p-3.5 bg-amber-50/90 border-x border-b border-amber-200/80 rounded-b-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 shadow-sm animate-in fade-in duration-200">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 shadow-inner">
+                        <Lock size={14} />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-xs">
+                          {currentMonthRecord?.monthName || `Month ${currentMonthNumber}`} Archive File (Finalized & Locked)
+                        </span>
+                        <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                          This month's records are permanently locked and saved as read-only.
+                        </p>
+                      </div>
+                    </div>
+                    {activeMonthIndex < monthlyRecords.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchMonthTab(monthlyRecords.length - 1)}
+                        className="px-3.5 py-1.5 bg-[#122244] text-white rounded-lg font-bold text-[11px] hover:bg-[#1a2f55] transition-all shrink-0 self-end sm:self-auto shadow-sm"
+                      >
+                        Switch to Month {monthlyRecords.length} →
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* TAB BAR NAVIGATION */}
               <div className="flex space-x-2 border-b border-gray-200 mb-8 overflow-x-auto pb-1">
                 <button
@@ -939,99 +1356,125 @@ const Financial_input: React.FC = () => {
               {/* === TAB 1: OPERATIONAL INPUTS & COSTING === */}
               {activeModuleTab === "operations" && (
                 <div className="space-y-8 animate-in fade-in duration-200">
-                  {/* HERO METRIC CARDS (AS IS - 4TH IMAGE) */}
+                  {/* HERO METRIC CARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
                     {/* 1. Monthly Revenue */}
-                    <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-6 shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Monthly Revenue
-                      </span>
-                      <p className="text-2xl font-black">
-                        ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                      </p>
-                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                        Price × Sales
-                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                          ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
-                          {safeMonthlySales.toLocaleString()}
+                    <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Monthly Revenue
+                        </span>
+                        <p className="text-2xl font-black text-green-700 mt-1">
+                          ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
+                      </div>
+                      <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        {normalizedProducts.length > 1 ? (
+                          <>
+                            <span>Total Yield: {safeMonthlySales.toLocaleString()} units</span>
+                            <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
+                              {normalizedProducts.length} Products Combined
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <span>Price × Monthly Sales</span>
+                            <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                              ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {safeMonthlySales.toLocaleString()}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* 2. Monthly Expenses */}
-                    <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-6 shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Monthly Expenses
-                      </span>
-                      <p className="text-2xl font-black">
-                        ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                      </p>
-                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                        (COGS per Unit × Sales) + Fixed
-                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                          (₱{safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ×{" "}
-                          {safeMonthlySales.toLocaleString()}) + ₱
-                          {safeFixedCosts.toLocaleString()}
+                    <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Monthly Expenses
+                        </span>
+                        <p className="text-2xl font-black text-red-600 mt-1">
+                          ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
+                      </div>
+                      <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        {normalizedProducts.length > 1 ? (
+                          <>
+                            <span>Total Variable (COGS) + Fixed</span>
+                            <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                              ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <span>(COGS/Unit × Sales) + Fixed</span>
+                            <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                              (₱{safeVariableCost.toFixed(2)} × {safeMonthlySales.toLocaleString()}) + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* 3. Break-Even Point */}
-                    <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-6 shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Break-Even Point
-                      </span>
-                      <p className="text-2xl font-black">
-                        {breakEvenUnits}{" "}
-                        <span className="text-xs text-gray-400 font-bold">units</span>
-                      </p>
-                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                        Monthly OpEx / (Price - COGS)
-                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                          ₱{safeFixedCosts.toLocaleString()} / (₱
-                          {safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                          {safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })})
+                    <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Break-Even Point
+                        </span>
+                        <p className="text-2xl font-black text-blue-700 mt-1">
+                          {typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits}{" "}
+                          <span className="text-xs text-gray-400 font-bold">units</span>
+                        </p>
+                      </div>
+                      <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        <span>Monthly OpEx / Margin per Unit</span>
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                          ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / ₱{Math.max(0, safeSellingPrice - safeVariableCost).toFixed(2)}
                         </p>
                       </div>
                     </div>
 
                     {/* 4. Gross Margin */}
-                    <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-6 shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Gross Margin
-                      </span>
-                      <p className="text-2xl font-black">
-                        {grossProfitMargin.toFixed(1)}%
-                      </p>
-                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                        (Rev - COGS) / Rev
-                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                          (₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                          {totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}) / ₱
-                          {monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Gross Margin
+                        </span>
+                        <p className={`text-2xl font-black mt-1 ${grossProfitMargin >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                          {grossProfitMargin.toFixed(1)}%
+                        </p>
+                      </div>
+                      <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        <span>(Revenue - COGS) / Revenue</span>
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                          (₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} - ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}) / ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                       </div>
                     </div>
 
                     {/* 5. Net Profit / Month */}
                     <div
-                      className={`bg-white rounded-xl border-l-4 p-6 shadow-sm text-center ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}
+                      className={`bg-white rounded-xl border-l-4 p-5 shadow-sm text-center flex flex-col justify-between ${
+                        netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"
+                      }`}
                     >
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Net Profit/mo
-                      </span>
-                      <p
-                        className={`text-2xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}
-                      >
-                        ₱{netMonthlyProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                      </p>
-                      <div className="mt-2 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
-                        Revenue - Expenses
-                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                          ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱
-                          {(
-                            totalMonthlyVariableCosts + safeFixedCosts
-                          ).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{monthlyInterest > 0 && ` - ₱${monthlyInterest.toLocaleString()} (Int)`}
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Net Profit / mo
+                        </span>
+                        <p
+                          className={`text-2xl font-black mt-1 ${
+                            netMonthlyProfit < 0 ? "text-red-600" : "text-emerald-700"
+                          }`}
+                        >
+                          {netMonthlyProfit < 0 ? "-" : ""}₱{Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
+                        <span>Revenue - Expenses</span>
+                        <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
+                          ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} - ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}
                         </p>
                       </div>
                     </div>
@@ -1053,13 +1496,15 @@ const Financial_input: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleAddProduct}
-                        className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
-                      >
-                        <Plus size={14} /> Add Product
-                      </button>
+                      {!isCurrentMonthLocked && (
+                        <button
+                          type="button"
+                          onClick={handleAddProduct}
+                          className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                        >
+                          <Plus size={14} /> Add Product
+                        </button>
+                      )}
                     </div>
 
                     {/* PRODUCTS LIST */}
@@ -1082,15 +1527,16 @@ const Financial_input: React.FC = () => {
                                 <div className="flex-1 max-w-md">
                                   <input
                                     type="text"
+                                    disabled={isCurrentMonthLocked}
                                     placeholder={`Product ${prodIdx + 1} Name`}
                                     value={product.name || ""}
                                     onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                 </div>
                               </div>
-                              {normalizedProducts.length > 1 && (
+                              {normalizedProducts.length > 1 && !isCurrentMonthLocked && (
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveProduct(prodIdx)}
@@ -1111,11 +1557,12 @@ const Financial_input: React.FC = () => {
                                   </label>
                                   <input
                                     type="number"
+                                    disabled={isCurrentMonthLocked}
                                     placeholder="e.g. 300"
                                     value={product.quantityYield}
                                     onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                   <p className="text-[9px] text-gray-400 mt-1 italic">
                                     Total finished units produced or sold per month
@@ -1149,25 +1596,29 @@ const Financial_input: React.FC = () => {
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                     Direct Production Costs / Ingredients
                                   </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddIngredient(prodIdx)}
-                                    className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
-                                  >
-                                    <Plus size={12} /> Add Ingredient
-                                  </button>
+                                  {!isCurrentMonthLocked && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddIngredient(prodIdx)}
+                                      className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
+                                    >
+                                      <Plus size={12} /> Add Ingredient
+                                    </button>
+                                  )}
                                 </div>
 
                                 {ingredients.length === 0 ? (
                                   <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
                                     <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAddIngredient(prodIdx)}
-                                      className="text-xs font-bold text-[#c9a654] hover:underline"
-                                    >
-                                      + Add direct production materials / ingredients
-                                    </button>
+                                    {!isCurrentMonthLocked && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddIngredient(prodIdx)}
+                                        className="text-xs font-bold text-[#c9a654] hover:underline"
+                                      >
+                                        + Add direct production materials / ingredients
+                                      </button>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
@@ -1178,31 +1629,35 @@ const Financial_input: React.FC = () => {
                                       >
                                         <input
                                           type="text"
+                                          disabled={isCurrentMonthLocked}
                                           placeholder="Ingredient / Direct Material Name"
                                           value={ing.name}
                                           onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
                                           onBlur={() => handleAutoSave()}
-                                          className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
+                                          className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                         />
                                         <div className="w-32 relative">
                                           <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
                                           <input
                                             type="number"
+                                            disabled={isCurrentMonthLocked}
                                             placeholder="0.00"
                                             value={ing.price !== undefined ? ing.price : ""}
                                             onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
                                             onBlur={() => handleAutoSave()}
-                                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
+                                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                           />
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
-                                          className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
-                                          title="Remove ingredient"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
+                                        {!isCurrentMonthLocked && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                            title="Remove ingredient"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
@@ -1219,29 +1674,31 @@ const Financial_input: React.FC = () => {
                                     Mark-up Strategy & Target Selling Price
                                   </h5>
                                 </div>
-                                <div className="flex gap-1.5 items-center">
-                                  <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                                  {["50", "100", "120"].map((pct) => (
-                                    <button
-                                      key={pct}
-                                      type="button"
-                                      onClick={() => {
-                                        const mPct = Number(pct);
-                                        const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                        handleUpdateProduct(prodIdx, {
-                                          markupPercentage: pct,
-                                          sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
-                                        });
-                                      }}
-                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
-                                        ? "bg-[#c9a654] text-white border-[#c9a654]"
-                                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                        }`}
-                                    >
-                                      {pct}%
-                                    </button>
-                                  ))}
-                                </div>
+                                {!isCurrentMonthLocked && (
+                                  <div className="flex gap-1.5 items-center">
+                                    <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                                    {["50", "100", "120"].map((pct) => (
+                                      <button
+                                        key={pct}
+                                        type="button"
+                                        onClick={() => {
+                                          const mPct = Number(pct);
+                                          const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                          handleUpdateProduct(prodIdx, {
+                                            markupPercentage: pct,
+                                            sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
+                                          });
+                                        }}
+                                        className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
+                                          ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                          : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                          }`}
+                                      >
+                                        {pct}%
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1251,6 +1708,7 @@ const Financial_input: React.FC = () => {
                                   </label>
                                   <input
                                     type="number"
+                                    disabled={isCurrentMonthLocked}
                                     placeholder="e.g. 100"
                                     value={product.markupPercentage}
                                     onChange={(e) => {
@@ -1263,7 +1721,7 @@ const Financial_input: React.FC = () => {
                                       });
                                     }}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                   <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
                                     <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
@@ -1283,11 +1741,12 @@ const Financial_input: React.FC = () => {
                                   </label>
                                   <input
                                     type="number"
+                                    disabled={isCurrentMonthLocked}
                                     placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
                                     value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
                                     onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
+                                    className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                   <p className="text-[9px] text-gray-400 mt-1 italic">
                                     Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
@@ -1362,20 +1821,30 @@ const Financial_input: React.FC = () => {
                           <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Monthly OpEx:</span>
                           <span className="text-base font-black text-blue-900">₱{safeFixedCosts.toLocaleString()}</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentList = financials.opexList || [];
-                            const newItem = { id: Date.now().toString(), name: "", amount: 0 };
-                            const updatedList = [...currentList, newItem];
-                            const newState = { ...financials, opexList: updatedList };
-                            setFinancials(newState);
-                            handleAutoSave(newState);
-                          }}
-                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all"
-                        >
-                          <Plus size={14} className="text-[#c9a654]" /> Add Expense
-                        </button>
+                        {!isCurrentMonthLocked && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentList = financials.opexList || [];
+                              const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                              const updatedList = [...currentList, newItem];
+                              const newState = { ...financials, opexList: updatedList };
+                              setFinancials(newState);
+                              const updatedRecords = [...monthlyRecords];
+                              if (updatedRecords[activeMonthIndex]) {
+                                updatedRecords[activeMonthIndex] = {
+                                  ...updatedRecords[activeMonthIndex],
+                                  financials: newState,
+                                };
+                                setMonthlyRecords(updatedRecords);
+                              }
+                              handleAutoSave(newState, updatedRecords);
+                            }}
+                            className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all"
+                          >
+                            <Plus size={14} className="text-[#c9a654]" /> Add Expense
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1385,7 +1854,7 @@ const Financial_input: React.FC = () => {
                           <tr>
                             <th className="p-3.5 pl-5">Expense Description / Name</th>
                             <th className="p-3.5 w-48 text-right">Monthly Amount (₱)</th>
-                            <th className="p-3.5 w-16 text-center">Action</th>
+                            {!isCurrentMonthLocked && <th className="p-3.5 w-16 text-center">Action</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -1394,15 +1863,25 @@ const Financial_input: React.FC = () => {
                               <td className="p-3 pl-5">
                                 <input
                                   type="text"
+                                  disabled={isCurrentMonthLocked}
                                   value={item.name}
                                   placeholder="e.g. Rent, Electricity, Internet, Supplies"
                                   onChange={(e) => {
                                     const newList = [...financials.opexList];
                                     newList[index].name = e.target.value;
-                                    setFinancials({ ...financials, opexList: newList });
+                                    const newState = { ...financials, opexList: newList };
+                                    setFinancials(newState);
+                                    const updatedRecords = [...monthlyRecords];
+                                    if (updatedRecords[activeMonthIndex]) {
+                                      updatedRecords[activeMonthIndex] = {
+                                        ...updatedRecords[activeMonthIndex],
+                                        financials: newState,
+                                      };
+                                      setMonthlyRecords(updatedRecords);
+                                    }
                                   }}
                                   onBlur={() => handleAutoSave()}
-                                  className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none"
+                                  className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="p-3">
@@ -1410,6 +1889,7 @@ const Financial_input: React.FC = () => {
                                   <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
                                   <input
                                     type="number"
+                                    disabled={isCurrentMonthLocked}
                                     min="0"
                                     value={item.amount === 0 ? "" : item.amount}
                                     placeholder="0.00"
@@ -1417,34 +1897,53 @@ const Financial_input: React.FC = () => {
                                       const newList = [...financials.opexList];
                                       const amt = e.target.value === "" ? 0 : Number(e.target.value);
                                       newList[index].amount = amt;
-                                      setFinancials({ ...financials, opexList: newList });
+                                      const newState = { ...financials, opexList: newList };
+                                      setFinancials(newState);
+                                      const updatedRecords = [...monthlyRecords];
+                                      if (updatedRecords[activeMonthIndex]) {
+                                        updatedRecords[activeMonthIndex] = {
+                                          ...updatedRecords[activeMonthIndex],
+                                          financials: newState,
+                                        };
+                                        setMonthlyRecords(updatedRecords);
+                                      }
                                     }}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none"
+                                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                 </div>
                               </td>
-                              <td className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newList = financials.opexList.filter(i => i.id !== item.id);
-                                    const newState = { ...financials, opexList: newList };
-                                    setFinancials(newState);
-                                    handleAutoSave(newState);
-                                  }}
-                                  className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                  title="Delete Expense"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </td>
+                              {!isCurrentMonthLocked && (
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newList = financials.opexList.filter(i => i.id !== item.id);
+                                      const newState = { ...financials, opexList: newList };
+                                      setFinancials(newState);
+                                      const updatedRecords = [...monthlyRecords];
+                                      if (updatedRecords[activeMonthIndex]) {
+                                        updatedRecords[activeMonthIndex] = {
+                                          ...updatedRecords[activeMonthIndex],
+                                          financials: newState,
+                                        };
+                                        setMonthlyRecords(updatedRecords);
+                                      }
+                                      handleAutoSave(newState, updatedRecords);
+                                    }}
+                                    className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                    title="Delete Expense"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                           {(!financials.opexList || financials.opexList.length === 0) && (
                             <tr>
-                              <td colSpan={3} className="p-8 text-center text-xs text-gray-400 italic">
-                                No monthly operating expenses added yet. Click "+ Add Expense" above to start itemizing fixed costs.
+                              <td colSpan={isCurrentMonthLocked ? 2 : 3} className="p-8 text-center text-xs text-gray-400 italic">
+                                No monthly operating expenses added yet.
                               </td>
                             </tr>
                           )}
@@ -1452,25 +1951,35 @@ const Financial_input: React.FC = () => {
                       </table>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentList = financials.opexList || [];
-                          const newItem = { id: Date.now().toString(), name: "", amount: 0 };
-                          const updatedList = [...currentList, newItem];
-                          const newState = { ...financials, opexList: updatedList };
-                          setFinancials(newState);
-                          handleAutoSave(newState);
-                        }}
-                        className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
-                      >
-                        <Plus size={14} /> + Add Another Expense Item
-                      </button>
-                      <span className="text-xs text-gray-400 font-medium">
-                        Total Fixed OpEx: <strong className="text-[#122244]">₱{safeFixedCosts.toLocaleString()}/mo</strong>
-                      </span>
-                    </div>
+                    {!isCurrentMonthLocked && (
+                      <div className="flex justify-between items-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentList = financials.opexList || [];
+                            const newItem = { id: Date.now().toString(), name: "", amount: 0 };
+                            const updatedList = [...currentList, newItem];
+                            const newState = { ...financials, opexList: updatedList };
+                            setFinancials(newState);
+                            const updatedRecords = [...monthlyRecords];
+                            if (updatedRecords[activeMonthIndex]) {
+                              updatedRecords[activeMonthIndex] = {
+                                ...updatedRecords[activeMonthIndex],
+                                financials: newState,
+                              };
+                              setMonthlyRecords(updatedRecords);
+                            }
+                            handleAutoSave(newState, updatedRecords);
+                          }}
+                          className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                        >
+                          <Plus size={14} /> + Add Another Expense Item
+                        </button>
+                        <span className="text-xs text-gray-400 font-medium">
+                          Total Fixed OpEx: <strong className="text-[#122244]">₱{safeFixedCosts.toLocaleString()}/mo</strong>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* === SECTION 3: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
@@ -1497,11 +2006,23 @@ const Financial_input: React.FC = () => {
                           </label>
                           <input
                             type="number"
+                            disabled={isCurrentMonthLocked}
                             placeholder="0"
                             value={financials.cashInvested}
-                            onChange={(e) => setFinancials({ ...financials, cashInvested: e.target.value })}
+                            onChange={(e) => {
+                              const newState = { ...financials, cashInvested: e.target.value };
+                              setFinancials(newState);
+                              const updatedRecords = [...monthlyRecords];
+                              if (updatedRecords[activeMonthIndex]) {
+                                updatedRecords[activeMonthIndex] = {
+                                  ...updatedRecords[activeMonthIndex],
+                                  financials: newState,
+                                };
+                                setMonthlyRecords(updatedRecords);
+                              }
+                            }}
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                           />
                           <p className="text-[9px] text-gray-400 mt-1 italic">Recorded under Owner's Equity in the Balance Sheet</p>
                         </div>
@@ -1522,17 +2043,27 @@ const Financial_input: React.FC = () => {
                             </label>
                             <input
                               type="range"
+                              disabled={isCurrentMonthLocked}
                               min="0"
                               max="20"
                               value={financials.competitorCount}
-                              onChange={(e) =>
-                                setFinancials({
+                              onChange={(e) => {
+                                const newState = {
                                   ...financials,
                                   competitorCount: Number(e.target.value),
-                                })
-                              }
+                                };
+                                setFinancials(newState);
+                                const updatedRecords = [...monthlyRecords];
+                                if (updatedRecords[activeMonthIndex]) {
+                                  updatedRecords[activeMonthIndex] = {
+                                    ...updatedRecords[activeMonthIndex],
+                                    financials: newState,
+                                  };
+                                  setMonthlyRecords(updatedRecords);
+                                }
+                              }}
                               onMouseUp={() => handleAutoSave()}
-                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654] disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                           <div>
@@ -1544,18 +2075,27 @@ const Financial_input: React.FC = () => {
                                 <button
                                   key={level}
                                   type="button"
+                                  disabled={isCurrentMonthLocked}
                                   onClick={() => {
                                     const newState = {
                                       ...financials,
                                       marketDemand: level,
                                     };
                                     setFinancials(newState);
-                                    handleAutoSave(newState);
+                                    const updatedRecords = [...monthlyRecords];
+                                    if (updatedRecords[activeMonthIndex]) {
+                                      updatedRecords[activeMonthIndex] = {
+                                        ...updatedRecords[activeMonthIndex],
+                                        financials: newState,
+                                      };
+                                      setMonthlyRecords(updatedRecords);
+                                    }
+                                    handleAutoSave(newState, updatedRecords);
                                   }}
                                   className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${financials.marketDemand === level
                                     ? "bg-white shadow-sm text-[#122244]"
                                     : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    } ${isCurrentMonthLocked ? "cursor-not-allowed" : ""}`}
                                 >
                                   {level}
                                 </button>
@@ -1850,6 +2390,63 @@ const Financial_input: React.FC = () => {
           )}
         </main>
 
+        {/* LOCK & PROCEED CONFIRMATION MODAL */}
+        {showLockConfirmModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setShowLockConfirmModal(false)}
+            />
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative text-[#122244]">
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-11 h-11 bg-amber-50 border border-amber-200 text-[#c9a654] rounded-xl flex items-center justify-center font-black shrink-0">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#122244]">
+                    Finalize Month {currentMonthNumber}?
+                  </h3>
+                  <p className="text-xs text-gray-400">Lock current inputs and proceed to next month</p>
+                </div>
+              </div>
+
+              <div className="py-5 space-y-3">
+                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2 leading-relaxed">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                    Important: Month {currentMonthNumber} will be permanently locked
+                  </p>
+                  <p className="text-[11px] text-amber-800">
+                    Once confirmed, this month's product costing, operating expenses, and balance sheet inputs will be saved and <strong>cannot be edited again</strong>.
+                  </p>
+                </div>
+
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  <strong>Month {currentMonthNumber + 1}</strong> will be created with your current configuration carried forward as a starting point. You will be able to edit and customize financials for Month {currentMonthNumber + 1}.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowLockConfirmModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Keep Editing Month {currentMonthNumber}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLockAndProceed}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#122244] hover:bg-[#1a2f55] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
+                >
+                  <Lock size={13} className="text-[#c9a654]" />
+                  <span>Confirm & Proceed to Month {currentMonthNumber + 1}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* EXPORT FORMAT MODAL */}
         {showExportModal && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -1978,8 +2575,8 @@ const Financial_input: React.FC = () => {
               <span className="text-xl font-black tracking-wider text-[#122244]">FeasiFy</span>
               <span className="text-[10px] bg-[#c9a654] text-white px-2 py-0.5 rounded font-bold uppercase">Official Statement</span>
             </div>
-            <h1 className="text-xl font-extrabold text-[#122244]">{activeProjName}</h1>
-            <p className="text-[11px] text-gray-600">Financial Feasibility Study & Statement of Financial Position</p>
+            <h1 className="text-xl font-extrabold text-[#122244]">{activeProjName} - {currentMonthRecord?.monthName || `Month ${currentMonthNumber}`}</h1>
+            <p className="text-[11px] text-gray-600">Financial Feasibility Study & Statement of Financial Position ({isCurrentMonthLocked ? 'Finalized Baseline' : 'Active Projection'})</p>
           </div>
           <div className="text-right text-[11px] text-gray-600 space-y-0.5">
             <p><strong className="text-gray-900">Date Generated:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
