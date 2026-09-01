@@ -8,6 +8,96 @@ const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const rateLimit = require("express-rate-limit");
 
+// ==========================================
+// FIREBASE ADMIN SDK — Audit Trail Security
+// ==========================================
+let adminApp = null;
+let adminFirestore = null;
+let adminAuth = null;
+
+try {
+  const admin = require("firebase-admin");
+
+  const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountEnv) {
+    // Preferred: base64-encoded JSON stored in env var
+    const serviceAccount = JSON.parse(
+      Buffer.from(serviceAccountEnv, "base64").toString("utf-8")
+    );
+    adminApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // Fallback: file path via env var
+    adminApp = admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+    });
+  } else {
+    console.warn(
+      "⚠️ [Firebase Admin] No credentials found. Audit Trail API will operate in FRONTEND-ONLY mode (no server-side section enforcement).\n" +
+      "   To enable backend enforcement, set FIREBASE_SERVICE_ACCOUNT env var (base64-encoded service account JSON)."
+    );
+  }
+
+  if (adminApp) {
+    adminFirestore = admin.firestore();
+    adminAuth = admin.auth();
+    console.log("✅ [Firebase Admin] Initialized — Audit Trail backend enforcement active.");
+  }
+} catch (err) {
+  console.error("❌ [Firebase Admin] Initialization failed:", err.message);
+}
+
+/**
+ * Middleware: Verify Firebase ID token from Authorization header.
+ * Attaches { uid, role, sections[] } to req.user.
+ * If Admin SDK not available, falls back to trust-but-log mode.
+ */
+const verifyToken = async (req, res, next) => {
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ error: "Missing Authorization token." });
+  }
+
+  if (!adminAuth || !adminFirestore) {
+    // Admin SDK not configured — reject to avoid unprotected access
+    return res.status(503).json({
+      error: "Backend auth not configured. Set FIREBASE_SERVICE_ACCOUNT env var.",
+      hint: "See README or implementation plan for setup instructions."
+    });
+  }
+
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    const uid = decoded.uid;
+    const email = decoded.email || "";
+
+    // Fetch user's role and sections from Firestore
+    const userDoc = await adminFirestore.collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      return res.status(403).json({ error: "User profile not found." });
+    }
+
+    const userData = userDoc.data();
+    const role = userData.role || "Student";
+    const isChairperson = email === "chairperson@gmail.com" || role === "Chairperson";
+
+    // Parse sections from comma-separated string (matches AdviserDashboard.tsx logic)
+    const rawSection = userData.section || "";
+    const sections = typeof rawSection === "string"
+      ? rawSection.split(",").map(s => s.trim()).filter(Boolean)
+      : (Array.isArray(rawSection) ? rawSection : []);
+
+    req.user = { uid, email, role, sections, isChairperson, displayName: `${userData.firstName || ""} ${userData.lastName || ""}`.trim() };
+    next();
+  } catch (err) {
+    console.error("[verifyToken] Error:", err.message);
+    return res.status(401).json({ error: "Invalid or expired token." });
+  }
+};
+
 const app = express();
 
 // Rate limiting configurations
@@ -776,6 +866,117 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
     }
   }
 );
+
+// ==========================================
+// AUDIT TRAIL ENDPOINTS
+// ==========================================
+
+/**
+ * GET /api/audit/logs
+ * Returns audit trail records filtered by the caller's role:
+ * - Chairperson: all records
+ * - Adviser: only records where sectionCode is in their assigned sections
+ * - Student / Others: 403
+ *
+ * Query params:
+ *   section?    Filter by specific section (must be within adviser's allowed sections)
+ *   action?     Filter by action type (CREATE, UPDATE, DELETE, APPROVE, REJECT, REVISION, SUBMIT)
+ *   startDate?  ISO date string
+ *   endDate?    ISO date string
+ *   search?     Text search against description and userName
+ *   limit?      Max results (default 100, max 500)
+ */
+app.get("/api/audit/logs", verifyToken, async (req, res) => {
+  if (!adminFirestore) {
+    return res.status(503).json({ error: "Firestore not available on backend." });
+  }
+
+  try {
+    const { section, action, startDate, endDate, search, limit: limitParam } = req.query;
+    const limitNum = Math.min(parseInt(limitParam || "100", 10), 500);
+    const { isChairperson, sections: adviserSections, role } = req.user;
+
+    // Only Adviser and Chairperson can access audit logs
+    if (!isChairperson && role !== "Adviser") {
+      return res.status(403).json({ error: "Access denied. Insufficient privileges." });
+    }
+
+    // Determine which sections this caller may see
+    let allowedSections = isChairperson ? null : adviserSections; // null = all sections
+
+    // If a specific section filter is requested, validate it
+    if (section && section !== "all" && section !== "") {
+      if (!isChairperson && !adviserSections.includes(section)) {
+        return res.status(403).json({
+          error: `Access denied to section '${section}'. Not in your assigned sections.`
+        });
+      }
+      allowedSections = [section];
+    }
+
+    let queryRef = adminFirestore.collection("audit_logs");
+
+    // Build WHERE clause for sections
+    let sectionFilteredRef;
+    if (allowedSections !== null && allowedSections.length > 0) {
+      // Firestore 'in' supports up to 30 items
+      sectionFilteredRef = queryRef.where("sectionCode", "in", allowedSections.slice(0, 30));
+    } else if (allowedSections !== null && allowedSections.length === 0) {
+      // Adviser with no sections assigned — return empty
+      return res.json({ logs: [], total: 0, adviserSections: [] });
+    } else {
+      sectionFilteredRef = queryRef; // Chairperson — no section filter
+    }
+
+    // Action filter
+    if (action && action !== "all") {
+      sectionFilteredRef = sectionFilteredRef.where("action", "==", action.toUpperCase());
+    }
+
+    // Date filters
+    if (startDate) {
+      sectionFilteredRef = sectionFilteredRef.where("createdAt", ">=", new Date(startDate));
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      sectionFilteredRef = sectionFilteredRef.where("createdAt", ">=", new Date(startDate || 0))
+        .where("createdAt", "<=", end);
+    }
+
+    // Order and limit
+    const snapshot = await sectionFilteredRef
+      .orderBy("createdAt", "desc")
+      .limit(limitNum)
+      .get();
+
+    let logs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() || null,
+    }));
+
+    // Client-side text search (Firestore doesn't support full-text natively)
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      logs = logs.filter(log =>
+        (log.description || "").toLowerCase().includes(q) ||
+        (log.userName || "").toLowerCase().includes(q) ||
+        (log.sectionCode || "").toLowerCase().includes(q)
+      );
+    }
+
+    return res.json({
+      logs,
+      total: logs.length,
+      adviserSections: req.user.sections,
+      isChairperson: req.user.isChairperson,
+    });
+  } catch (err) {
+    console.error("[GET /api/audit/logs] Error:", err);
+    return res.status(500).json({ error: "Failed to fetch audit logs." });
+  }
+});
 
 // ==========================================
 // SOCKET.IO REAL-TIME COMMUNICATION

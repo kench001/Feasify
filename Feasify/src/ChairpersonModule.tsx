@@ -25,7 +25,8 @@ import {
   AlertTriangle, 
   AlertCircle,
   Bell,
-  XCircle
+  XCircle,
+  Clock
 } from "lucide-react";
 
 interface UserData {
@@ -644,6 +645,9 @@ const ChairpersonModule: React.FC = () => {
               </button>
               <button onClick={() => navigate('/admin/projects')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
                 <FileText className="w-5 h-5" /> Business Feasibility Management
+              </button>
+              <button onClick={() => navigate('/admin/audit-trail')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                <Clock className="w-5 h-5" /> Audit Trail
               </button>
             </div>
           </div>

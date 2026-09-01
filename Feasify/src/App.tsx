@@ -22,6 +22,8 @@ import AdviserSettings from "./AdviserSettings";
 import AdviserAIRules from "./AdviserAIRules";
 import AdviserProfile from "./AdviserProfile";
 import ChairpersonProfile from "./ChairpersonProfile";
+import AdviserAuditTrail from "./AdviserAuditTrail";
+import ChairpersonAuditTrail from "./ChairpersonAuditTrail";
 
 function App() {
   return (
@@ -64,6 +66,7 @@ function App() {
         <Route path="/admin/users" element={<ChairpersonModule />} />
         <Route path="/admin/projects" element={<ChairpersonFeasib />} /> {/* <-- Add this route */}
         <Route path="/admin/chairpersonnotification" element={<ChairpersonNotifications />} />
+        <Route path="/admin/audit-trail" element={<ChairpersonAuditTrail />} />
 
         {/* Adviser Modules */}
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
@@ -71,6 +74,7 @@ function App() {
         <Route path="/adviser/settings" element={<AdviserSettings />} />
         <Route path="/adviser/airules" element={<AdviserAIRules />} />
         <Route path="/adviser/notifications" element={<AdviserNotifications />} />
+        <Route path="/adviser/audit-trail" element={<AdviserAuditTrail />} />
         
         {/* Chairperson Profile */}
         <Route path="/admin/profile" element={<ChairpersonProfile />} />

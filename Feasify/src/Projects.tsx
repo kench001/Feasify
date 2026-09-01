@@ -18,6 +18,7 @@ import {
   deleteDoc,
   onSnapshot,
 } from "firebase/firestore";
+import { logAuditEvent } from "./services/auditLogger";
 import {
   LayoutDashboard,
   Folder,
@@ -954,6 +955,18 @@ const Projects: React.FC = () => {
         mission: setupMission.trim(),
         vision: setupVision.trim(),
         objectives: validObjectives,
+      });
+
+      // Audit Log
+      logAuditEvent({
+        userId: currentUser?.uid || "",
+        userName: userName,
+        userRole: "Student Leader",
+        action: "UPDATE",
+        sectionCode: userGroup.section || "Unassigned",
+        description: `Updated Team/Company setup for "${finalCompanyName}"`,
+        recordId: userGroup.id,
+        newValue: { companyName: finalCompanyName, mission: setupMission.trim(), vision: setupVision.trim() }
       });
 
       setUserGroup((prev) =>

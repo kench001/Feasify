@@ -12,7 +12,8 @@ import {
   Lock,
   Moon,
   Globe,
-  Cpu
+  Cpu,
+  Clock
 } from "lucide-react";
 
 const AdviserSettings: React.FC = () => {
@@ -159,6 +160,12 @@ const AdviserSettings: React.FC = () => {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => navigate("/adviser/audit-trail")}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all mt-2"
+              >
+                <Clock className="w-4 h-4" /> Audit Trail
+              </button>
             </div>
           </div>
 

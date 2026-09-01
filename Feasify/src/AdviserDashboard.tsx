@@ -13,6 +13,7 @@ import {
   Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
+import { logAuditEvent } from "./services/auditLogger";
 
 interface StudentData {
   id: string;
@@ -515,6 +516,19 @@ const AdviserDashboard: React.FC = () => {
       };
 
       setGroups(prev => [...prev, newGroup]);
+
+      // Audit Log
+      logAuditEvent({
+        userId: adviserUid,
+        userName: userName,
+        userRole: "Adviser",
+        action: "CREATE",
+        sectionCode: activeSection,
+        description: `Created new team group with leader ${leader.firstName} ${leader.lastName}`,
+        recordId: docRef.id,
+        newValue: { section: activeSection, leaderName: `${leader.firstName} ${leader.lastName}` }
+      });
+
       setShowCreateMembersModal(false);
       setSelectedLeaderId("");
       setSelectedMemberIds([]);
@@ -663,7 +677,20 @@ const AdviserDashboard: React.FC = () => {
     if (!groupToDelete) return;
     setIsLoading(true);
     try {
+      const secCode = groupToDelete.section || activeSection || "Unassigned";
       await deleteDoc(doc(db, "groups", groupToDelete.id));
+      
+      logAuditEvent({
+        userId: adviserUid,
+        userName: userName,
+        userRole: "Adviser",
+        action: "DELETE",
+        sectionCode: secCode,
+        description: `Deleted team group "${groupToDelete.title || groupToDelete.businessName || groupToDelete.id}"`,
+        recordId: groupToDelete.id,
+        oldValue: { title: groupToDelete.title, leaderName: groupToDelete.leaderName }
+      });
+
       setGroups(prev => prev.filter(g => g.id !== groupToDelete.id));
       setGroupToDelete(null); setShowDeleteConfirm(false);
     } catch (error) { console.error(error); alert("Failed to delete."); }
@@ -675,6 +702,7 @@ const AdviserDashboard: React.FC = () => {
     if (!selectedGroup || !proposal.id) return;
     try {
       const newStatus = action === 'Approve' ? 'Approved' : action === 'Reject' ? 'Rejected' : 'Revision';
+      const secCode = selectedGroup.section || activeSection || "Unassigned";
 
       let updatePayload: any = {
         status: newStatus,
@@ -694,6 +722,19 @@ const AdviserDashboard: React.FC = () => {
       }
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
+
+      // Audit Log
+      const auditAction = action === 'Approve' ? 'APPROVE' : action === 'Reject' ? 'REJECT' : 'REVISION';
+      logAuditEvent({
+        userId: adviserUid,
+        userName: userName,
+        userRole: "Adviser",
+        action: auditAction,
+        sectionCode: secCode,
+        description: `${action}d business proposal "${proposal.businessName || selectedGroup.title}"`,
+        recordId: proposal.id,
+        newValue: { status: newStatus, feedback: feedbackInput || null }
+      });
 
       let newGroupStatus = selectedGroup.status;
       if (action === 'Approve') {
@@ -1256,6 +1297,13 @@ const AdviserDashboard: React.FC = () => {
                 </button>
               ))}
             </div>
+            {/* Audit Trail Nav Link under Main Menu */}
+            <button
+              onClick={() => navigate("/adviser/audit-trail")}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all mt-2"
+            >
+              <Clock className="w-4 h-4" /> Audit Trail
+            </button>
           </div>
           </div>
           <div>
