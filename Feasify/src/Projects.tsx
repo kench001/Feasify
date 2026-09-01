@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import companyNamesData from "./data/companyNames.json";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
@@ -197,6 +198,9 @@ interface GroupData {
     | "Approved Proposal"
     | "Active Business";
   activeProposalId?: string;
+  mission?: string;
+  vision?: string;
+  objectives?: string[];
 }
 
 // Added FeedbackItem interface
@@ -429,6 +433,17 @@ const Projects: React.FC = () => {
   const [setupLogoFile, setSetupLogoFile] = useState<File | null>(null);
   const [setupLogoPreview, setSetupLogoPreview] = useState("");
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [setupMission, setSetupMission] = useState("");
+  const [setupVision, setSetupVision] = useState("");
+  const [setupObjectives, setSetupObjectives] = useState<string[]>([""]
+  );
+  const [setupErrors, setSetupErrors] = useState<Record<string, string>>({});
+  const [companyNameQuery, setCompanyNameQuery] = useState("");
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const companyNameRef = useRef<HTMLDivElement>(null);
+
+  // DTI company names list
+  const dtiCompanies: string[] = (companyNamesData as any).companies.map((c: any) => c.name as string);
 
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
@@ -563,7 +578,11 @@ const Projects: React.FC = () => {
         ? g.companyName
         : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
       setSetupCompanyName(rawCompName);
+      setCompanyNameQuery(rawCompName);
       setSetupLogoPreview(g.companyLogo || "");
+      setSetupMission(g.mission || "");
+      setSetupVision(g.vision || "");
+      setSetupObjectives(g.objectives && g.objectives.length > 0 ? g.objectives : [""]);
 
       // --- VIEW TRANSITIONS: driven by GROUP state changes only ---
       // This fires when the group document changes (isSetup, joinedMembers, activeProposalId).
@@ -677,7 +696,11 @@ const Projects: React.FC = () => {
           ? g.companyName
           : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
         setSetupCompanyName(rawCompName);
+        setCompanyNameQuery(rawCompName);
         setSetupLogoPreview(g.companyLogo || "");
+        setSetupMission(g.mission || "");
+        setSetupVision(g.vision || "");
+        setSetupObjectives(g.objectives && g.objectives.length > 0 ? g.objectives : [""]);
 
         await fetchGroupDetails(g);
         const fetchedProposals = await fetchProposals(g.id);
@@ -888,6 +911,31 @@ const Projects: React.FC = () => {
 
   const handleFinishTeamSetup = async () => {
     if (!userGroup) return;
+
+    // Validation
+    const errors: Record<string, string> = {};
+    const trimmedName = setupCompanyName.trim();
+    if (!trimmedName) {
+      errors.companyName = "Company name is required.";
+    } else {
+      // Block names that exactly match a DTI-registered entry (case-insensitive)
+      const isDtiRegistered = dtiCompanies.some(
+        (n) => n.toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (isDtiRegistered) {
+        errors.companyName = "This business name is already registered in the DTI list. Please enter a unique company name.";
+      }
+    }
+    if (!setupMission.trim()) errors.mission = "Mission statement is required.";
+    if (!setupVision.trim()) errors.vision = "Vision statement is required.";
+    const validObjectives = setupObjectives.map((o) => o.trim()).filter(Boolean);
+    if (validObjectives.length === 0) errors.objectives = "At least one company objective is required.";
+    if (Object.keys(errors).length > 0) {
+      setSetupErrors(errors);
+      return;
+    }
+    setSetupErrors({});
+
     setIsUploadingLogo(true);
     try {
       let finalLogoUrl = setupLogoPreview;
@@ -903,6 +951,9 @@ const Projects: React.FC = () => {
         companyLogo: finalLogoUrl || "",
         isSetup: true,
         status: "Drafting",
+        mission: setupMission.trim(),
+        vision: setupVision.trim(),
+        objectives: validObjectives,
       });
 
       setUserGroup((prev) =>
@@ -914,6 +965,9 @@ const Projects: React.FC = () => {
               companyLogo: finalLogoUrl || "",
               isSetup: true,
               status: "Drafting",
+              mission: setupMission.trim(),
+              vision: setupVision.trim(),
+              objectives: validObjectives,
             }
           : null,
       );
@@ -1599,8 +1653,13 @@ const Projects: React.FC = () => {
                       ? userGroup.companyName
                       : (userGroup?.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project" ? userGroup.title : "");
                     setSetupCompanyName(rawCompName);
+                    setCompanyNameQuery(rawCompName);
                     setSetupLogoPreview(userGroup?.companyLogo || "");
                     setSetupLogoFile(null);
+                    setSetupMission(userGroup?.mission || "");
+                    setSetupVision(userGroup?.vision || "");
+                    setSetupObjectives(userGroup?.objectives && userGroup.objectives.length > 0 ? userGroup.objectives : [""]);
+                    setSetupErrors({});
                     setShowSetupModal(true);
                   }}
                   className="flex items-center gap-2 px-6 py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all"
@@ -1677,13 +1736,19 @@ const Projects: React.FC = () => {
                         {isLeader && (
                           <button
                             onClick={() => {
-                              setSetupCompanyName(currentCompanyName !== "Pending Company Name" ? currentCompanyName : "");
+                              const cn = currentCompanyName !== "Pending Company Name" ? currentCompanyName : "";
+                              setSetupCompanyName(cn);
+                              setCompanyNameQuery(cn);
                               setSetupLogoPreview(userGroup.companyLogo || "");
                               setSetupLogoFile(null);
+                              setSetupMission(userGroup.mission || "");
+                              setSetupVision(userGroup.vision || "");
+                              setSetupObjectives(userGroup.objectives && userGroup.objectives.length > 0 ? userGroup.objectives : [""]);
+                              setSetupErrors({});
                               setShowSetupModal(true);
                             }}
                             className="p-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors"
-                            title="Edit Company Details"
+                            title="Edit Team Info"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -1704,6 +1769,34 @@ const Projects: React.FC = () => {
                     <span className="text-[10px] uppercase ml-1">View Team</span>
                   </button>
                 </div>
+
+                {/* Mission / Vision / Objectives card */}
+                {(userGroup.mission || userGroup.vision || (userGroup.objectives && userGroup.objectives.length > 0)) && (
+                  <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {userGroup.mission && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-1">Mission</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{userGroup.mission}</p>
+                      </div>
+                    )}
+                    {userGroup.vision && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#122244] mb-1">Vision</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{userGroup.vision}</p>
+                      </div>
+                    )}
+                    {userGroup.objectives && userGroup.objectives.length > 0 && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-2">Objectives</p>
+                        <ol className="list-decimal list-inside space-y-1">
+                          {userGroup.objectives.map((obj, idx) => (
+                            <li key={idx} className="text-sm text-gray-700 leading-snug">{obj}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {userGroup.status === "Active Business" && activeBusiness && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between">
@@ -3410,140 +3503,304 @@ const Projects: React.FC = () => {
       </main>
 
       {/* SETUP MODAL */}
-      {showSetupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
-              <div className="w-full">
-                <h2 className="text-2xl font-extrabold">Team Setup</h2>
-                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
-                  Name your company, upload logo & review assigned members
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSetupModal(false)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {showSetupModal && (() => {
+        const nameSuggestions = companyNameQuery.trim().length >= 1
+          ? dtiCompanies.filter((n) =>
+              n.toLowerCase().includes(companyNameQuery.trim().toLowerCase())
+            ).slice(0, 8)
+          : [];
 
-            <div className="p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
-              {/* Company Name */}
-              <div>
-                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                  Company Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={setupCompanyName}
-                  onChange={(e) => setSetupCompanyName(e.target.value)}
-                  placeholder="e.g., Fatui Harbingers, Nexus Enterprises..."
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all"
-                />
-              </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
 
-              {/* Company Logo */}
-              <div>
-                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                  Company Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
-                </label>
-                <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl bg-gray-50/50">
-                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-xs">
-                    {setupLogoPreview ? (
-                      <>
-                        <img src={setupLogoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => { setSetupLogoPreview(""); setSetupLogoFile(null); }}
-                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Remove Logo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      id="logo-file-input"
-                      accept="image/*"
-                      onChange={handleLogoFileChange}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="logo-file-input"
-                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
-                    >
-                      <Upload className="w-4 h-4 text-[#c9a654]" />
-                      {setupLogoPreview ? "Change Logo" : "Upload Logo Image"}
-                    </label>
-                    <p className="text-[11px] text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB.</p>
-                  </div>
+              {/* Header */}
+              <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
+                <div className="w-full">
+                  <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+                    {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowSetupModal(false)}
+                  className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Members Review */}
-              <div>
-                <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-2">
-                  Assigned Team Members ({groupMembersData.length + 1})
-                </label>
-                <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
-                  {/* Leader */}
-                  <div className="flex items-center gap-3 p-3 border border-yellow-100 rounded-xl bg-yellow-50/40">
-                    <div className="w-9 h-9 bg-[#c9a654] rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                      {getInitials(userName)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#122244] text-sm">{userName}</p>
-                      <p className="text-[10px] font-black uppercase text-[#c9a654] tracking-wider">Team Leader</p>
-                    </div>
-                  </div>
-                  {/* Members */}
-                  {groupMembersData.length > 0 ? (
-                    groupMembersData.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-gray-50/50"
-                      >
-                        <div className="w-9 h-9 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                          {getInitials(`${member.firstName} ${member.lastName}`)}
+              <div className="p-6 overflow-y-auto space-y-7 flex-1 custom-scrollbar">
+
+                {/* ─── SECTION: Team Information ─── */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
+                  <div className="space-y-4">
+
+                    {/* Company Name with autocomplete */}
+                    <div ref={companyNameRef} className="relative">
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                        Company Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={companyNameQuery}
+                        onChange={(e) => {
+                          setCompanyNameQuery(e.target.value);
+                          setSetupCompanyName(e.target.value);
+                          setShowNameSuggestions(true);
+                          if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
+                        }}
+                        onFocus={() => setShowNameSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowNameSuggestions(false), 150)}
+                        placeholder="Type to search or enter a unique business name..."
+                        className={`w-full px-4 py-3 bg-gray-50 border ${
+                          setupErrors.companyName
+                            ? "border-red-400 bg-red-50/20"
+                            : (!setupErrors.companyName && companyNameQuery.trim().length > 0 && dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()))
+                              ? "border-amber-400 bg-amber-50/20"
+                              : "border-gray-200"
+                        } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
+                      />
+                      {/* Submit-time error */}
+                      {setupErrors.companyName && (
+                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />{setupErrors.companyName}
+                        </p>
+                      )}
+                      {/* Real-time duplicate warning (live, before submit) */}
+                      {!setupErrors.companyName && companyNameQuery.trim().length > 0 &&
+                        dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()) && (
+                        <p className="text-amber-600 text-[11px] font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          This business name is already registered in the DTI list. You cannot use this name — please enter a unique one.
+                        </p>
+                      )}
+                      {/* Suggestions dropdown */}
+                      {showNameSuggestions && nameSuggestions.length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
+                          {nameSuggestions.map((name) => (
+                            <button
+                              key={name}
+                              type="button"
+                              onMouseDown={() => {
+                                setSetupCompanyName(name);
+                                setCompanyNameQuery(name);
+                                setShowNameSuggestions(false);
+                                if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-[#122244] hover:bg-amber-50 hover:text-[#c9a654] font-medium transition-colors"
+                            >
+                              {name}
+                            </button>
+                          ))}
+                          <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-50 italic">
+                            Data reference: DTI Business Name Registration System
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-[#122244] text-sm">
-                            {member.firstName} {member.lastName}
-                          </p>
-                          <p className="text-[10px] font-black uppercase text-green-600 tracking-wider">
-                            Team Member
-                          </p>
+                      )}
+                    </div>
+
+                    {/* Company Logo */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                        Company Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                      </label>
+                      <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                        <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-xs">
+                          {setupLogoPreview ? (
+                            <>
+                              <img src={setupLogoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => { setSetupLogoPreview(""); setSetupLogoFile(null); }}
+                                className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove Logo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            id="logo-file-input"
+                            accept="image/*"
+                            onChange={handleLogoFileChange}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="logo-file-input"
+                            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                          >
+                            <Upload className="w-4 h-4 text-[#c9a654]" />
+                            {setupLogoPreview ? "Change Logo" : "Upload Logo Image"}
+                          </label>
+                          <p className="text-[11px] text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB.</p>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-gray-400 text-xs italic">No other members assigned yet.</p>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-              <button
-                onClick={handleFinishTeamSetup}
-                disabled={isUploadingLogo}
-                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Finish Setup
-              </button>
+                    {/* Members Review */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-2">
+                        Assigned Team Members ({groupMembersData.length + 1})
+                      </label>
+                      <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+                        <div className="flex items-center gap-3 p-3 border border-yellow-100 rounded-xl bg-yellow-50/40">
+                          <div className="w-9 h-9 bg-[#c9a654] rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            {getInitials(userName)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#122244] text-sm">{userName}</p>
+                            <p className="text-[10px] font-black uppercase text-[#c9a654] tracking-wider">Team Leader</p>
+                          </div>
+                        </div>
+                        {groupMembersData.length > 0 ? (
+                          groupMembersData.map((member) => (
+                            <div key={member.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-gray-50/50">
+                              <div className="w-9 h-9 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                                {getInitials(`${member.firstName} ${member.lastName}`)}
+                              </div>
+                              <div>
+                                <p className="font-bold text-[#122244] text-sm">{member.firstName} {member.lastName}</p>
+                                <p className="text-[10px] font-black uppercase text-green-600 tracking-wider">Team Member</p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-3">
+                            <p className="text-gray-400 text-xs italic">No other members assigned yet.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── SECTION: Mission & Vision ─── */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#122244] mb-3 pb-1 border-b border-gray-100">Mission &amp; Vision</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                        Company Mission <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={setupMission}
+                        onChange={(e) => {
+                          setSetupMission(e.target.value);
+                          if (setupErrors.mission) setSetupErrors(prev => ({ ...prev, mission: "" }));
+                        }}
+                        placeholder="What is your company's mission? (e.g., To provide quality products and services to every customer.)"
+                        className={`w-full px-4 py-3 bg-gray-50 border ${
+                          setupErrors.mission ? "border-red-400 bg-red-50/20" : "border-gray-200"
+                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
+                      />
+                      {setupErrors.mission && (
+                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />{setupErrors.mission}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                        Company Vision <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={setupVision}
+                        onChange={(e) => {
+                          setSetupVision(e.target.value);
+                          if (setupErrors.vision) setSetupErrors(prev => ({ ...prev, vision: "" }));
+                        }}
+                        placeholder="What is your company's vision? (e.g., To be the most trusted business in the region.)"
+                        className={`w-full px-4 py-3 bg-gray-50 border ${
+                          setupErrors.vision ? "border-red-400 bg-red-50/20" : "border-gray-200"
+                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
+                      />
+                      {setupErrors.vision && (
+                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />{setupErrors.vision}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── SECTION: Company Objectives ─── */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-3 pb-1 border-b border-gray-100">Company Objectives</p>
+                  <div className="space-y-2">
+                    {setupObjectives.map((obj, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="mt-3 text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          value={obj}
+                          onChange={(e) => {
+                            const updated = [...setupObjectives];
+                            updated[idx] = e.target.value;
+                            setSetupObjectives(updated);
+                            if (setupErrors.objectives) setSetupErrors(prev => ({ ...prev, objectives: "" }));
+                          }}
+                          placeholder={`Objective ${idx + 1}...`}
+                          className={`flex-1 px-3 py-2.5 bg-gray-50 border ${
+                            setupErrors.objectives && obj.trim() === "" ? "border-red-300" : "border-gray-200"
+                          } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400/30 focus:border-green-400 transition-all`}
+                        />
+                        {setupObjectives.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = setupObjectives.filter((_, i) => i !== idx);
+                              setSetupObjectives(updated);
+                            }}
+                            className="mt-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                            title="Remove objective"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {setupErrors.objectives && (
+                      <p className="text-red-500 text-[11px] font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />{setupErrors.objectives}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSetupObjectives([...setupObjectives, ""])}
+                      className="mt-2 flex items-center gap-2 px-4 py-2 border border-dashed border-green-400 text-green-600 rounded-xl text-xs font-bold hover:bg-green-50 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Objective
+                    </button>
+                  </div>
+                </div>
+
+              </div>{/* end scrollable body */}
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+                <button
+                  onClick={handleFinishTeamSetup}
+                  disabled={isUploadingLogo}
+                  className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {userGroup?.isSetup ? "Save Changes" : "Finish Setup"}
+                </button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ROSTER MODAL */}
       {showRosterModal && (
