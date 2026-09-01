@@ -50,6 +50,9 @@ import {
   Unlock,
   ArrowRight,
   AlertTriangle,
+  Copy,
+  Edit3,
+  Check,
 } from "lucide-react";
 import {
   normalizeProposalProducts,
@@ -60,11 +63,42 @@ import type {
   IngredientItem,
 } from "./Projects";
 
+export interface MonthlyDraft {
+  id: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+  financials: {
+    products: ProductCostingItem[];
+    sellingPrice: string;
+    monthlySales: string;
+    variableCost: string;
+    fixedCosts: string;
+    startupCapital: string;
+    cashInvested: string;
+    rentAdvanceDeposit: string;
+    trainingsPrograms: string;
+    advertisingExpense: string;
+    salariesExpenseInitial: string;
+    accountsPayable: string;
+    utilitiesPayable: string;
+    competitorCount: number;
+    marketDemand: string;
+    operatingDays: string;
+    equipmentList: { id: string; name: string; quantity: number; unitPrice: number; total: number }[];
+    opexList: { id: string; name: string; amount: number }[];
+    isCapitalBorrowed: boolean;
+    interestRate: string;
+  };
+}
+
 export interface MonthlyFinancialRecord {
   month: number;
   monthName?: string;
   isLocked: boolean;
   lockedAt?: string;
+  activeDraftId?: string;
+  drafts?: MonthlyDraft[];
   financials: {
     products: ProductCostingItem[];
     sellingPrice: string;
@@ -108,6 +142,11 @@ const Financial_input: React.FC = () => {
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showLockConfirmModal, setShowLockConfirmModal] = useState(false);
+  const [showCreateDraftModal, setShowCreateDraftModal] = useState(false);
+  const [newDraftName, setNewDraftName] = useState("");
+  const [newDraftCloneCurrent, setNewDraftCloneCurrent] = useState(true);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [editingDraftName, setEditingDraftName] = useState("");
   const [taxTab, setTaxTab] = useState<"log" | "math">("math");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
@@ -323,6 +362,161 @@ const Financial_input: React.FC = () => {
       setMonthlyRecords(updatedRecords);
     }
     handleAutoSave(newState, updatedRecords);
+  };
+
+  // --- MONTHLY DRAFTS & SCENARIO ENGINE ---
+  const currentDrafts: MonthlyDraft[] = currentMonthRecord?.drafts && currentMonthRecord.drafts.length > 0
+    ? currentMonthRecord.drafts
+    : [
+        {
+          id: "draft-1",
+          name: "Draft 1 (Primary)",
+          financials: financials,
+          createdAt: currentMonthRecord?.lockedAt || new Date().toISOString(),
+        }
+      ];
+
+  const activeDraftId = currentMonthRecord?.activeDraftId || currentDrafts[0]?.id || "draft-1";
+  const activeDraft = currentDrafts.find((d) => d.id === activeDraftId) || currentDrafts[0];
+
+  const handleSwitchDraft = (draftId: string) => {
+    if (!currentMonthRecord) return;
+    const targetDraft = currentDrafts.find((d) => d.id === draftId);
+    if (!targetDraft) return;
+
+    // Save current edits into active draft before switching
+    const updatedDrafts = currentDrafts.map((d) => {
+      if (d.id === activeDraftId) {
+        return {
+          ...d,
+          financials: JSON.parse(JSON.stringify(financials)),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return d;
+    });
+
+    const updatedRecords = [...monthlyRecords];
+    updatedRecords[activeMonthIndex] = {
+      ...updatedRecords[activeMonthIndex],
+      drafts: updatedDrafts,
+      activeDraftId: draftId,
+      financials: targetDraft.financials,
+    };
+
+    setMonthlyRecords(updatedRecords);
+    setFinancials(targetDraft.financials);
+    handleAutoSave(targetDraft.financials, updatedRecords);
+  };
+
+  const handleCreateNewDraft = (draftName?: string, cloneCurrent = true) => {
+    if (isCurrentMonthLocked || !currentMonthRecord) return;
+
+    const newId = "draft-" + Date.now();
+    const count = currentDrafts.length + 1;
+    const finalName = draftName?.trim() || `Draft ${count}`;
+    const newFinData = cloneCurrent
+      ? JSON.parse(JSON.stringify(financials))
+      : {
+          products: normalizeProposalProducts(undefined, activeProjName),
+          sellingPrice: "",
+          monthlySales: "",
+          variableCost: "",
+          fixedCosts: "",
+          startupCapital: financials.startupCapital || "",
+          cashInvested: "",
+          rentAdvanceDeposit: "",
+          trainingsPrograms: "",
+          advertisingExpense: "",
+          salariesExpenseInitial: "",
+          accountsPayable: "",
+          utilitiesPayable: "",
+          competitorCount: 0,
+          marketDemand: "Medium",
+          operatingDays: "300",
+          equipmentList: [],
+          opexList: [],
+          isCapitalBorrowed: false,
+          interestRate: "",
+        };
+
+    // Update current active draft with latest values
+    const updatedDrafts = currentDrafts.map((d) => {
+      if (d.id === activeDraftId) {
+        return {
+          ...d,
+          financials: JSON.parse(JSON.stringify(financials)),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return d;
+    });
+
+    const newDraft: MonthlyDraft = {
+      id: newId,
+      name: finalName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      financials: newFinData,
+    };
+    updatedDrafts.push(newDraft);
+
+    const updatedRecords = [...monthlyRecords];
+    updatedRecords[activeMonthIndex] = {
+      ...updatedRecords[activeMonthIndex],
+      drafts: updatedDrafts,
+      activeDraftId: newId,
+      financials: newFinData,
+    };
+
+    setMonthlyRecords(updatedRecords);
+    setFinancials(newFinData);
+    setShowCreateDraftModal(false);
+    setNewDraftName("");
+    handleAutoSave(newFinData, updatedRecords);
+  };
+
+  const handleRenameDraft = (draftId: string, name: string) => {
+    if (isCurrentMonthLocked || !currentMonthRecord || !name.trim()) return;
+    const updatedDrafts = currentDrafts.map((d) => {
+      if (d.id === draftId) {
+        return { ...d, name: name.trim(), updatedAt: new Date().toISOString() };
+      }
+      return d;
+    });
+    const updatedRecords = [...monthlyRecords];
+    updatedRecords[activeMonthIndex] = {
+      ...updatedRecords[activeMonthIndex],
+      drafts: updatedDrafts,
+    };
+    setMonthlyRecords(updatedRecords);
+    setEditingDraftId(null);
+    setEditingDraftName("");
+    handleAutoSave(financials, updatedRecords);
+  };
+
+  const handleDeleteDraft = (draftId: string) => {
+    if (isCurrentMonthLocked || !currentMonthRecord || currentDrafts.length <= 1) return;
+    const remainingDrafts = currentDrafts.filter((d) => d.id !== draftId);
+    let newActiveId = activeDraftId;
+    let newFinData = financials;
+
+    if (draftId === activeDraftId) {
+      newActiveId = remainingDrafts[0].id;
+      newFinData = remainingDrafts[0].financials;
+      setFinancials(newFinData);
+    }
+
+    const updatedRecords = [...monthlyRecords];
+    updatedRecords[activeMonthIndex] = {
+      ...updatedRecords[activeMonthIndex],
+      drafts: remainingDrafts,
+      activeDraftId: newActiveId,
+      financials: newFinData,
+    };
+
+    setMonthlyRecords(updatedRecords);
+    handleAutoSave(newFinData, updatedRecords);
   };
 
   // --- CALCULATION ENGINE ---
@@ -690,33 +884,74 @@ const Financial_input: React.FC = () => {
           }
           const loadedProducts = normalizeProposalProducts(fin, selectedProj.name);
 
+          const defaultFinState = {
+            products: loadedProducts,
+            sellingPrice: getVal(fin.sellingPrice),
+            monthlySales: getVal(fin.monthlySales),
+            variableCost: getVal(fin.variableCost),
+            fixedCosts: getVal(fin.fixedCosts),
+            startupCapital: getVal(fin.startupCapital || selectedProj.proposalCapital),
+            cashInvested: getVal(fin.cashInvested),
+            rentAdvanceDeposit: getVal(fin.rentAdvanceDeposit),
+            trainingsPrograms: getVal(fin.trainingsPrograms),
+            advertisingExpense: getVal(fin.advertisingExpense),
+            salariesExpenseInitial: getVal(fin.salariesExpenseInitial),
+            accountsPayable: getVal(fin.accountsPayable),
+            utilitiesPayable: getVal(fin.utilitiesPayable),
+            competitorCount: fin.competitorCount || 0,
+            marketDemand: fin.marketDemand || "Medium",
+            operatingDays: String(fin.operatingDays || "300"),
+            equipmentList: fin.equipmentList || [],
+            opexList: loadedOpex,
+            isCapitalBorrowed: fin.isCapitalBorrowed || false,
+            interestRate: getVal(fin.interestRate),
+          };
+
+          // Load or initialize drafts for this month
+          let loadedDrafts: MonthlyDraft[] = [];
+          if (rec.drafts && Array.isArray(rec.drafts) && rec.drafts.length > 0) {
+            loadedDrafts = rec.drafts.map((d: any, dIdx: number) => {
+              const dFin = d.financials || {};
+              const dProducts = normalizeProposalProducts(dFin, selectedProj.name);
+              let dOpex = dFin.opexList || [];
+              if (dOpex.length === 0 && dFin.fixedCosts && Number(dFin.fixedCosts) > 0) {
+                dOpex = [{ id: "opex-" + dIdx, name: "General OpEx", amount: Number(dFin.fixedCosts) }];
+              }
+              return {
+                id: d.id || `draft-${dIdx + 1}`,
+                name: d.name || `Draft ${dIdx + 1}`,
+                createdAt: d.createdAt,
+                updatedAt: d.updatedAt,
+                financials: {
+                  ...defaultFinState,
+                  ...dFin,
+                  products: dProducts,
+                  opexList: dOpex,
+                },
+              };
+            });
+          } else {
+            loadedDrafts = [
+              {
+                id: "draft-1",
+                name: "Draft 1 (Primary)",
+                createdAt: rec.lockedAt || new Date().toISOString(),
+                financials: defaultFinState,
+              },
+            ];
+          }
+
+          const activeDraftId = rec.activeDraftId || loadedDrafts[0].id;
+          const activeDraft = loadedDrafts.find((d) => d.id === activeDraftId) || loadedDrafts[0];
+
           return {
             month: rec.month || (idx + 1),
             monthName: rec.monthName || `Month ${rec.month || idx + 1} (${getOrdinal(rec.month || idx + 1)} Month)`,
             isLocked: !!rec.isLocked,
             lockedAt: rec.lockedAt,
-            financials: {
-              products: loadedProducts,
-              sellingPrice: getVal(fin.sellingPrice),
-              monthlySales: getVal(fin.monthlySales),
-              variableCost: getVal(fin.variableCost),
-              fixedCosts: getVal(fin.fixedCosts),
-              startupCapital: getVal(fin.startupCapital || selectedProj.proposalCapital),
-              cashInvested: getVal(fin.cashInvested),
-              rentAdvanceDeposit: getVal(fin.rentAdvanceDeposit),
-              trainingsPrograms: getVal(fin.trainingsPrograms),
-              advertisingExpense: getVal(fin.advertisingExpense),
-              salariesExpenseInitial: getVal(fin.salariesExpenseInitial),
-              accountsPayable: getVal(fin.accountsPayable),
-              utilitiesPayable: getVal(fin.utilitiesPayable),
-              competitorCount: fin.competitorCount || 0,
-              marketDemand: fin.marketDemand || "Medium",
-              operatingDays: String(fin.operatingDays || "300"),
-              equipmentList: fin.equipmentList || [],
-              opexList: loadedOpex,
-              isCapitalBorrowed: fin.isCapitalBorrowed || false,
-              interestRate: getVal(fin.interestRate),
-            },
+            activeDraftId: activeDraft.id,
+            drafts: loadedDrafts,
+            financials: activeDraft.financials,
           };
         });
 
@@ -765,6 +1000,15 @@ const Financial_input: React.FC = () => {
             month: 1,
             monthName: "Month 1 (1st Month)",
             isLocked: false,
+            activeDraftId: "draft-1",
+            drafts: [
+              {
+                id: "draft-1",
+                name: "Draft 1 (Primary)",
+                createdAt: new Date().toISOString(),
+                financials: initialFinState,
+              },
+            ],
             financials: initialFinState,
           },
         ];
@@ -802,6 +1046,15 @@ const Financial_input: React.FC = () => {
           month: 1,
           monthName: "Month 1 (1st Month)",
           isLocked: false,
+          activeDraftId: "draft-1",
+          drafts: [
+            {
+              id: "draft-1",
+              name: "Draft 1 (Primary)",
+              createdAt: new Date().toISOString(),
+              financials: initialFinState,
+            },
+          ],
           financials: initialFinState,
         },
       ];
@@ -844,11 +1097,29 @@ const Financial_input: React.FC = () => {
         syncComputedBasePrice = firstM.computedBasePrice > 0 ? String(Number(firstM.computedBasePrice.toFixed(2))) : "";
       }
 
-      // Sync active month's financials in monthlyRecords
+      // Sync active month's financials and active draft in monthlyRecords
       const cleanRecords = recordsToSave.map((rec, idx) => {
         if (idx === activeMonthIndex) {
+          const recActiveDraftId = rec.activeDraftId || "draft-1";
+          const currentDraftsList = (rec.drafts && rec.drafts.length > 0)
+            ? rec.drafts
+            : [{ id: "draft-1", name: "Draft 1 (Primary)", createdAt: new Date().toISOString(), financials: dataToSave }];
+
+          const updatedDrafts = currentDraftsList.map((d) => {
+            if (d.id === recActiveDraftId) {
+              return {
+                ...d,
+                financials: dataToSave,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return d;
+          });
+
           return {
             ...rec,
+            drafts: updatedDrafts,
+            activeDraftId: recActiveDraftId,
             financials: dataToSave,
           };
         }
@@ -889,11 +1160,21 @@ const Financial_input: React.FC = () => {
   const handleSwitchMonthTab = (targetIndex: number) => {
     if (targetIndex === activeMonthIndex || !monthlyRecords[targetIndex]) return;
 
-    // Sync current unsaved changes into current record before switching
+    // Sync current unsaved changes into current record and its active draft before switching
     const updatedRecords = [...monthlyRecords];
     if (updatedRecords[activeMonthIndex]) {
+      const rec = updatedRecords[activeMonthIndex];
+      const curDraftId = rec.activeDraftId || "draft-1";
+      const recDrafts = (rec.drafts || []).map((d) => {
+        if (d.id === curDraftId) {
+          return { ...d, financials: financials, updatedAt: new Date().toISOString() };
+        }
+        return d;
+      });
+
       updatedRecords[activeMonthIndex] = {
-        ...updatedRecords[activeMonthIndex],
+        ...rec,
+        drafts: recDrafts,
         financials: financials,
       };
     }
@@ -920,13 +1201,22 @@ const Financial_input: React.FC = () => {
     };
 
     const nextMonthNum = monthlyRecords.length + 1;
-    // Deep clone current month's financials to serve as the baseline for the next month
+    // Deep clone current month's active financials to serve as the baseline for the next month
     const clonedFinancials = JSON.parse(JSON.stringify(financials));
 
     const nextRecord: MonthlyFinancialRecord = {
       month: nextMonthNum,
       monthName: `Month ${nextMonthNum} (${getOrdinal(nextMonthNum)} Month)`,
       isLocked: false,
+      activeDraftId: "draft-1",
+      drafts: [
+        {
+          id: "draft-1",
+          name: "Draft 1 (Baseline)",
+          createdAt: new Date().toISOString(),
+          financials: clonedFinancials,
+        },
+      ],
       financials: clonedFinancials,
     };
 
@@ -996,7 +1286,7 @@ const Financial_input: React.FC = () => {
         )}
         {/* SIDEBAR */}
         <aside
-          className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+          className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
           <div className="p-6 border-b border-white/10">
             <img
@@ -1194,23 +1484,39 @@ const Financial_input: React.FC = () => {
               {/* FILE FOLDER TAB SYSTEM */}
               <div className="mb-6">
                 {/* File Tabs Top Rail */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b-2 border-slate-200 px-3 pt-3 bg-slate-100/70 rounded-t-2xl">
-                  {/* File Tabs Strip - Compact Staggered Overlapping Tabs */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b-2 border-slate-200 px-2 sm:px-3 pt-3 bg-slate-100/70 rounded-t-2xl">
+                  {/* File Tabs Strip - Dynamically Compressed Overlapping Tabs */}
                   <div
-                    className="flex items-end overflow-x-auto overflow-y-hidden pb-0 max-w-full pl-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    className="flex items-end overflow-x-auto overflow-y-hidden pb-0 min-w-0 flex-1 pl-0.5 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                     style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-400 mr-2 uppercase tracking-wider pb-3 shrink-0">
-                      <Folder size={14} className="text-[#c9a654]" />
-                      <span>Periods:</span>
+                    <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 mr-1.5 uppercase tracking-wider pb-3 shrink-0">
+                      <Folder size={13} className="text-[#c9a654]" />
+                      <span className="hidden xs:inline">Periods:</span>
                     </div>
 
-                    <div className="flex items-end shrink-0 pl-1">
+                    <div className="flex items-end shrink-0 pl-0.5">
                       {monthlyRecords.map((rec, idx) => {
+                        const totalMonthCount = monthlyRecords.length;
                         const isSelected = idx === activeMonthIndex;
                         const isLocked = rec.isLocked;
-                        // Dynamic stacking z-index so the active tab is in front, and surrounding tabs tuck neatly behind
-                        const tabZIndex = isSelected ? 30 : idx < activeMonthIndex ? 10 + idx : 25 - idx;
+
+                        // Dynamic stacking z-index: active tab is in front, others layer neatly
+                        const tabZIndex = isSelected ? 40 : idx < activeMonthIndex ? 10 + idx : 30 - idx;
+
+                        // Dynamic compression spacing based on total month count
+                        const overlapClass = idx === 0 ? "" :
+                          totalMonthCount >= 10 ? "-ml-8 sm:-ml-12" :
+                          totalMonthCount >= 7 ? "-ml-7 sm:-ml-10" :
+                          totalMonthCount >= 5 ? "-ml-6 sm:-ml-8" :
+                          "-ml-5 sm:-ml-7";
+
+                        // Dynamic padding based on total month count
+                        const paddingClass =
+                          totalMonthCount >= 10 ? (isSelected ? "px-2.5 sm:px-4" : "px-1.5 sm:px-2.5") :
+                          totalMonthCount >= 7 ? (isSelected ? "px-3 sm:px-4" : "px-2 sm:px-3") :
+                          totalMonthCount >= 5 ? "px-3 sm:px-4" :
+                          "px-4 sm:px-5";
 
                         return (
                           <button
@@ -1218,34 +1524,33 @@ const Financial_input: React.FC = () => {
                             type="button"
                             onClick={() => handleSwitchMonthTab(idx)}
                             style={{ zIndex: tabZIndex }}
-                            className={`group relative flex items-center gap-2 px-4 sm:px-5 pt-2.5 pb-3 rounded-t-2xl text-xs font-bold transition-colors shrink-0 select-none border-t-[3px] border-x -mb-[2px] ${
-                              idx > 0 ? "-ml-6 sm:-ml-8" : ""
-                            } ${
+                            title={`${rec.monthName || `Month ${rec.month}`} (${isLocked ? "Locked Archive" : "Active Editing"})`}
+                            className={`group relative flex items-center gap-1.5 sm:gap-2 ${paddingClass} pt-2 pb-2.5 rounded-t-2xl text-xs font-bold transition-all shrink-0 select-none border-t-[3px] border-x -mb-[2px] ${overlapClass} ${
                               isSelected
-                                ? "bg-white text-[#122244] border-t-[#c9a654] border-x-slate-300 shadow-[-5px_0_12px_rgba(0,0,0,0.1),5px_0_12px_rgba(0,0,0,0.06)]"
+                                ? "bg-white text-[#122244] border-t-[#c9a654] border-x-slate-300 shadow-[-5px_0_12px_rgba(0,0,0,0.12),5px_0_12px_rgba(0,0,0,0.08)]"
                                 : "bg-[#dbe3ed] hover:bg-[#cfd9e6] text-slate-700 border-t-slate-300 border-x-slate-300/90 shadow-[-3px_0_6px_rgba(0,0,0,0.04)] hover:text-[#122244]"
                             }`}
                           >
                             {/* Tab Folder / File Icon */}
                             <div
-                              className={`p-1 rounded-md transition-colors ${
+                              className={`p-1 rounded-md transition-colors shrink-0 ${
                                 isSelected
                                   ? "bg-amber-50 text-[#c9a654]"
                                   : "bg-slate-300/80 text-slate-600 group-hover:text-slate-900 group-hover:bg-slate-300"
                               }`}
                             >
-                              <FileSpreadsheet size={13} />
+                              <FileSpreadsheet size={totalMonthCount >= 8 && !isSelected ? 11 : 12} />
                             </div>
 
-                            {/* Tab Title - Constant stable width */}
-                            <span className="tracking-tight font-extrabold whitespace-nowrap">
-                              Month {rec.month}
+                            {/* Tab Title - Responsive abbreviation if many months */}
+                            <span className="tracking-tight font-extrabold whitespace-nowrap text-xs">
+                              {totalMonthCount >= 10 && !isSelected ? `M${rec.month}` : totalMonthCount >= 7 && !isSelected ? `Mo. ${rec.month}` : `Month ${rec.month}`}
                             </span>
 
-                            {/* Status Pill on File Tab - Constant stable width */}
+                            {/* Status Pill on File Tab */}
                             {isLocked ? (
                               <span
-                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap ${
+                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap shrink-0 ${
                                   isSelected
                                     ? "bg-amber-100 text-amber-900 border border-amber-300/60"
                                     : "bg-slate-300/90 text-slate-700 border border-slate-400/50"
@@ -1253,11 +1558,13 @@ const Financial_input: React.FC = () => {
                                 title="This month is finalized and locked (read-only)"
                               >
                                 <Lock size={9} />
-                                <span>Locked</span>
+                                {(!totalMonthCount || totalMonthCount < 6 || isSelected) && (
+                                  <span>Locked</span>
+                                )}
                               </span>
                             ) : (
                               <span
-                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap ${
+                                className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase whitespace-nowrap shrink-0 ${
                                   isSelected
                                     ? "bg-emerald-100 text-emerald-900 border border-emerald-300/60"
                                     : "bg-slate-300/90 text-slate-700 border border-slate-400/50"
@@ -1265,7 +1572,9 @@ const Financial_input: React.FC = () => {
                                 title="Active editing month"
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span>Active</span>
+                                {(!totalMonthCount || totalMonthCount < 6 || isSelected) && (
+                                  <span>Active</span>
+                                )}
                               </span>
                             )}
                           </button>
@@ -1299,9 +1608,137 @@ const Financial_input: React.FC = () => {
                   </div>
                 </div>
 
+                {/* DRAFTS / SCENARIOS SUB-BAR */}
+                <div className="bg-white border-x border-b border-slate-200 px-4 py-3 rounded-b-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-500 shrink-0 uppercase tracking-wider text-[10px]">
+                      <Layers size={13} className="text-[#c9a654]" />
+                      <span>Month {currentMonthNumber} Drafts:</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {currentDrafts.map((draft) => {
+                        const isDraftActive = draft.id === activeDraftId;
+                        const isEditingThis = editingDraftId === draft.id;
+
+                        if (isEditingThis) {
+                          return (
+                            <form
+                              key={draft.id}
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleRenameDraft(draft.id, editingDraftName);
+                              }}
+                              className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shrink-0"
+                            >
+                              <input
+                                type="text"
+                                autoFocus
+                                value={editingDraftName}
+                                onChange={(e) => setEditingDraftName(e.target.value)}
+                                className="text-xs font-bold text-[#122244] bg-transparent outline-none w-28"
+                              />
+                              <button
+                                type="submit"
+                                className="text-emerald-700 hover:text-emerald-900 p-0.5"
+                                title="Save Name"
+                              >
+                                <Check size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDraftId(null)}
+                                className="text-slate-400 hover:text-slate-600 p-0.5"
+                                title="Cancel"
+                              >
+                                <X size={12} />
+                              </button>
+                            </form>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={draft.id}
+                            className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all border shrink-0 ${
+                              isDraftActive
+                                ? "bg-[#122244] text-white border-[#122244] shadow-sm"
+                                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleSwitchDraft(draft.id)}
+                              className="flex items-center gap-1.5"
+                            >
+                              {isDraftActive ? (
+                                <CheckCircle2 size={12} className="text-[#c9a654]" />
+                              ) : (
+                                <FileText size={12} className="text-slate-400" />
+                              )}
+                              <span>{draft.name}</span>
+                            </button>
+
+                            {/* Rename & Delete Actions */}
+                            {!isCurrentMonthLocked && (
+                              <div className="flex items-center gap-0.5 ml-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingDraftId(draft.id);
+                                    setEditingDraftName(draft.name);
+                                  }}
+                                  className={`p-0.5 rounded hover:bg-white/20 transition-colors ${
+                                    isDraftActive ? "text-amber-200 hover:text-white" : "text-slate-400 hover:text-slate-700"
+                                  }`}
+                                  title="Rename Draft"
+                                >
+                                  <Edit3 size={11} />
+                                </button>
+                                {currentDrafts.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteDraft(draft.id);
+                                    }}
+                                    className={`p-0.5 rounded hover:bg-white/20 transition-colors ${
+                                      isDraftActive ? "text-red-300 hover:text-red-100" : "text-slate-400 hover:text-red-600"
+                                    }`}
+                                    title="Delete Draft"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* + New Draft Button */}
+                  {!isCurrentMonthLocked && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewDraftName(`Draft ${currentDrafts.length + 1}`);
+                        setNewDraftCloneCurrent(true);
+                        setShowCreateDraftModal(true);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#c9a654] hover:bg-[#b59545] px-4 py-2 rounded-xl shadow-sm transition-all active:scale-95 shrink-0 self-start md:self-auto"
+                    >
+                      <Plus size={14} className="text-white" />
+                      <span>New Draft / Scenario</span>
+                    </button>
+                  )}
+                </div>
+
                 {/* Locked Banner inside File Folder */}
                 {isCurrentMonthLocked && (
-                  <div className="p-3.5 bg-amber-50/90 border-x border-b border-amber-200/80 rounded-b-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 shadow-sm animate-in fade-in duration-200">
+                  <div className="mt-3 p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 shadow-sm animate-in fade-in duration-200">
                     <div className="flex items-start sm:items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 shadow-inner">
                         <Lock size={14} />
@@ -2389,6 +2826,115 @@ const Financial_input: React.FC = () => {
             </div>
           )}
         </main>
+
+        {/* CREATE DRAFT MODAL */}
+        {showCreateDraftModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setShowCreateDraftModal(false)}
+            />
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative text-[#122244]">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-50 rounded-lg text-[#c9a654] border border-amber-200">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-[#122244]">New Financial Draft</h3>
+                    <p className="text-xs text-gray-400">Month {currentMonthNumber} Scenario</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDraftModal(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="py-5 space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                    Draft / Scenario Name
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="e.g. Higher Volume Strategy, Lower Mark-up"
+                    value={newDraftName}
+                    onChange={(e) => setNewDraftName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateNewDraft(newDraftName, newDraftCloneCurrent);
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                    Starting Template
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setNewDraftCloneCurrent(true)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        newDraftCloneCurrent
+                          ? "bg-amber-50/70 border-[#c9a654] text-[#122244] ring-1 ring-[#c9a654]"
+                          : "bg-white border-gray-200 hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1 font-extrabold text-xs">
+                        <Copy size={13} className="text-[#c9a654]" />
+                        <span>Duplicate Current</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500">Copy products and OpEx from active draft</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNewDraftCloneCurrent(false)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        !newDraftCloneCurrent
+                          ? "bg-amber-50/70 border-[#c9a654] text-[#122244] ring-1 ring-[#c9a654]"
+                          : "bg-white border-gray-200 hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1 font-extrabold text-xs">
+                        <Plus size={13} className="text-[#c9a654]" />
+                        <span>Blank Template</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500">Start fresh with clear financial costing inputs</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 flex gap-2.5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDraftModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCreateNewDraft(newDraftName, newDraftCloneCurrent)}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
+                >
+                  <Plus size={13} className="text-[#c9a654]" />
+                  <span>Create Draft</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* LOCK & PROCEED CONFIRMATION MODAL */}
         {showLockConfirmModal && (

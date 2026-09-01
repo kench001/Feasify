@@ -203,7 +203,7 @@ const Reports: React.FC = () => {
 
       {/* Sidebar - Marked as print:hidden */}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 print:hidden`}
+        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} print:hidden`}
       >
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
           <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
