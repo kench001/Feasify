@@ -81,3 +81,57 @@ Error: SyntaxError: Expected double-quoted property name in JSON at position 171
     at C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:309:16
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
 
+[2026-09-02T15:30:45.958Z] AI Analysis Error:
+Request: {
+  "projectId": "JCMS2aYO47Y2yIvACks8",
+  "financialData": {
+    "sellingPrice": 100,
+    "monthlySales": 20,
+    "variableCost": 50,
+    "fixedCosts": 12000,
+    "startupCapital": 2000000,
+    "competitorCount": 0,
+    "marketDemand": "Medium",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "id": "eq-1787941938281",
+        "name": "Blender",
+        "quantity": 3,
+        "unitPrice": 2300,
+        "total": 6900
+      },
+      {
+        "id": "eq-1787941938860",
+        "name": "Coffee Maker",
+        "quantity": 2,
+        "unitPrice": 3000,
+        "total": 6000
+      },
+      {
+        "id": "eq-1787941948453",
+        "name": "Rent",
+        "quantity": 1,
+        "unitPrice": 20000,
+        "total": 20000
+      }
+    ],
+    "opexList": [
+      {
+        "id": "1788148994332",
+        "name": "rent",
+        "amount": 12000
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0
+  }
+}
+Error: AbortError: This operation was aborted
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:381:20)
+    at async generateContent (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:205:22)
+    at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:622:22
+

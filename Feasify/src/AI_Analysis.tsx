@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import { AIAnalysisLoading } from "./AIAnalysisLoading";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -576,23 +577,34 @@ const AI_Analysis: React.FC = () => {
         </div>
 
         {isAnalyzing ? (
-          <div className="flex flex-col items-center justify-center min-h-[70vh]">
-            <div className="relative w-24 h-24 mb-6">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-100"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-[#c9a654] border-t-transparent animate-spin"></div>
-              <Zap className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-bold text-[#122244] mb-2">
-              Analyzing Model...
-            </h2>
-            <p className="text-gray-500 italic">
-              Processing professional insights for {selectedProject?.name}...
-            </p>
-          </div>
+          <AIAnalysisLoading projectName={selectedProject?.name} />
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[50vh]">
             <div className="w-10 h-10 border-4 border-[#122244] border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-gray-500 font-medium text-sm">Loading project analysis...</p>
+          </div>
+        ) : analysisError && feasibilityScore === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-red-100 shadow-sm p-8 sm:p-12 max-w-xl mx-auto my-8">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-red-100">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-black rounded-full uppercase tracking-wider mb-3">
+              Evaluation Encountered an Issue
+            </span>
+            <h2 className="text-2xl font-extrabold text-[#122244] mb-3">
+              Analysis Could Not Complete
+            </h2>
+            <p className="text-gray-500 text-sm max-w-md mx-auto mb-6 leading-relaxed">
+              {analysisError}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => executeAnalysis(financials, selectedProjectId)}
+                className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4 text-[#c9a654]" /> Retry Feasibility Analysis
+              </button>
+            </div>
           </div>
         ) : projects.length === 0 || !selectedProjectId ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-2xl border border-gray-100 shadow-sm p-12 max-w-2xl mx-auto my-8">
