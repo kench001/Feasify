@@ -959,7 +959,7 @@ const Projects: React.FC = () => {
 
       // Audit Log
       logAuditEvent({
-        userId: currentUser?.uid || "",
+        userId: userUid || auth.currentUser?.uid || "",
         userName: userName,
         userRole: "Student Leader",
         action: "UPDATE",
