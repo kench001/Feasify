@@ -245,6 +245,8 @@ const Financial_input: React.FC = () => {
       ingredients: [],
       markupPercentage: "100",
       sellingPrice: "",
+      applyVat: true,
+      vatRate: 12,
     };
     const updatedProducts = [...normalizedProducts, newProduct];
     const newState = { ...financials, products: updatedProducts };
@@ -293,7 +295,7 @@ const Financial_input: React.FC = () => {
     handleAutoSave(newState, updatedRecords);
   };
 
-  const handleAddIngredient = (productIndex: number) => {
+  const handleAddIngredient = (productIndex: number, category: "ingredient" | "labor" | "miscellaneous" = "ingredient") => {
     if (isCurrentMonthLocked) return;
     const updatedProducts = [...normalizedProducts];
     const currentProd = updatedProducts[productIndex];
@@ -301,6 +303,7 @@ const Financial_input: React.FC = () => {
       id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
       name: "",
       price: "",
+      category,
     };
     updatedProducts[productIndex] = {
       ...currentProd,
@@ -544,9 +547,14 @@ const Financial_input: React.FC = () => {
     return sum + m.batchYield;
   }, 0);
 
+  const totalMultiVat = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + m.totalVat;
+  }, 0);
+
   const safeSellingPrice = normalizedProducts.length > 1 && totalMultiYield > 0
     ? totalMultiRevenue / totalMultiYield
-    : (firstMetrics.sellingPrice > 0 ? firstMetrics.sellingPrice : (Number(financials.sellingPrice) || 0));
+    : (firstMetrics.netSellingPrice > 0 ? firstMetrics.netSellingPrice : (firstMetrics.sellingPrice > 0 ? firstMetrics.sellingPrice : (Number(financials.sellingPrice) || 0)));
 
   const safeMonthlySales = normalizedProducts.length > 1
     ? totalMultiYield
@@ -2014,6 +2022,22 @@ const Financial_input: React.FC = () => {
                                       ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
+                                  {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
+                                    <div className="space-y-1 pb-1.5 pt-0.5 border-b border-gray-200/60 text-[11px]">
+                                      <div className="flex justify-between items-center text-gray-500">
+                                        <span>Direct Materials:</span>
+                                        <span className="font-bold text-gray-700">
+                                          ₱{ingredients.filter(i => !i.category || i.category === "ingredient").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-blue-800">
+                                        <span>Direct Labor & Misc:</span>
+                                        <span className="font-bold text-blue-900">
+                                          ₱{ingredients.filter(i => i.category === "labor" || i.category === "miscellaneous").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
                                   <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
                                     <span className="text-gray-500 font-medium">Yield:</span>
                                     <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
@@ -2031,30 +2055,49 @@ const Financial_input: React.FC = () => {
                               <div className="lg:col-span-8 space-y-3">
                                 <div className="flex justify-between items-center">
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                    Direct Production Costs / Ingredients
+                                    Direct Production Costs (Materials, Labor & Misc)
                                   </label>
                                   {!isCurrentMonthLocked && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAddIngredient(prodIdx)}
-                                      className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
-                                    >
-                                      <Plus size={12} /> Add Ingredient
-                                    </button>
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddIngredient(prodIdx, "ingredient")}
+                                        className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
+                                      >
+                                        <Plus size={12} /> Add Ingredient
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddIngredient(prodIdx, "labor")}
+                                        className="flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200/70 hover:bg-blue-100 transition-colors"
+                                      >
+                                        <Plus size={12} /> Add Labor / Misc
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
 
                                 {ingredients.length === 0 ? (
                                   <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
-                                    <p className="text-xs text-gray-400 italic">No ingredients listed yet for this product.</p>
+                                    <p className="text-xs text-gray-400 italic">No production costs or ingredients listed yet.</p>
                                     {!isCurrentMonthLocked && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddIngredient(prodIdx)}
-                                        className="text-xs font-bold text-[#c9a654] hover:underline"
-                                      >
-                                        + Add direct production materials / ingredients
-                                      </button>
+                                      <div className="flex justify-center gap-3 pt-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAddIngredient(prodIdx, "ingredient")}
+                                          className="text-xs font-bold text-[#c9a654] hover:underline"
+                                        >
+                                          + Add Ingredient
+                                        </button>
+                                        <span className="text-gray-300">|</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAddIngredient(prodIdx, "labor")}
+                                          className="text-xs font-bold text-blue-700 hover:underline"
+                                        >
+                                          + Add Direct Labor / Misc
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 ) : (
@@ -2064,10 +2107,32 @@ const Financial_input: React.FC = () => {
                                         key={ing.id || ingIdx}
                                         className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
                                       >
+                                        <select
+                                          disabled={isCurrentMonthLocked}
+                                          value={ing.category || "ingredient"}
+                                          onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
+                                          className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${
+                                            (ing.category === "labor")
+                                              ? "bg-blue-50 text-blue-800 border-blue-200"
+                                              : (ing.category === "miscellaneous")
+                                              ? "bg-purple-50 text-purple-800 border-purple-200"
+                                              : "bg-amber-50 text-[#b59545] border-amber-200"
+                                          }`}
+                                        >
+                                          <option value="ingredient">Material</option>
+                                          <option value="labor">Labor</option>
+                                          <option value="miscellaneous">Misc</option>
+                                        </select>
                                         <input
                                           type="text"
                                           disabled={isCurrentMonthLocked}
-                                          placeholder="Ingredient / Direct Material Name"
+                                          placeholder={
+                                            ing.category === "labor"
+                                              ? "Direct Labor (e.g. Barista, Baker, Prep)"
+                                              : ing.category === "miscellaneous"
+                                              ? "Misc Cost (e.g. Packaging, Cups, Foil)"
+                                              : "Ingredient / Direct Material Name"
+                                          }
                                           value={ing.name}
                                           onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
                                           onBlur={() => handleAutoSave()}
@@ -2111,34 +2176,61 @@ const Financial_input: React.FC = () => {
                                     Mark-up Strategy & Target Selling Price
                                   </h5>
                                 </div>
-                                {!isCurrentMonthLocked && (
-                                  <div className="flex gap-1.5 items-center">
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                                    {["50", "100", "120"].map((pct) => (
-                                      <button
-                                        key={pct}
-                                        type="button"
-                                        onClick={() => {
-                                          const mPct = Number(pct);
-                                          const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                          handleUpdateProduct(prodIdx, {
-                                            markupPercentage: pct,
-                                            sellingPrice: compBase > 0 ? String(Math.round(compBase)) : ""
-                                          });
-                                        }}
-                                        className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
-                                          ? "bg-[#c9a654] text-white border-[#c9a654]"
-                                          : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                          }`}
-                                      >
-                                        {pct}%
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {/* 12% VAT Toggle Button */}
+                                  {!isCurrentMonthLocked && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const nextVat = product.applyVat === false;
+                                        const compPrice = nextVat ? (metrics.computedBasePrice * 1.12) : metrics.computedBasePrice;
+                                        handleUpdateProduct(prodIdx, {
+                                          applyVat: nextVat,
+                                          sellingPrice: compPrice > 0 ? String(Math.round(compPrice)) : (product.sellingPrice || "")
+                                        });
+                                      }}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${
+                                        product.applyVat !== false
+                                          ? "bg-blue-900 text-white border-blue-900 shadow-sm"
+                                          : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
+                                      }`}
+                                      title="Toggle Philippine 12% Value-Added Tax (VAT)"
+                                    >
+                                      <span className={`w-1.5 h-1.5 rounded-full ${product.applyVat !== false ? "bg-amber-400" : "bg-gray-400"}`} />
+                                      {product.applyVat !== false ? "12% VAT Applied" : "Non-VAT / Exempt"}
+                                    </button>
+                                  )}
+
+                                  {!isCurrentMonthLocked && (
+                                    <div className="flex gap-1.5 items-center">
+                                      <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                                      {["50", "100", "120"].map((pct) => (
+                                        <button
+                                          key={pct}
+                                          type="button"
+                                          onClick={() => {
+                                            const mPct = Number(pct);
+                                            const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                            const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
+                                            handleUpdateProduct(prodIdx, {
+                                              markupPercentage: pct,
+                                              sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : ""
+                                            });
+                                          }}
+                                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
+                                            ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                            }`}
+                                        >
+                                          {pct}%
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div>
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
                                     Mark-up Percentage (%)
@@ -2152,9 +2244,10 @@ const Financial_input: React.FC = () => {
                                       const newPct = e.target.value;
                                       const mPct = Number(newPct) || 0;
                                       const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                      const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
                                       handleUpdateProduct(prodIdx, {
                                         markupPercentage: newPct,
-                                        sellingPrice: compBase > 0 ? String(Math.round(compBase)) : (product.sellingPrice || "")
+                                        sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : (product.sellingPrice || "")
                                       });
                                     }}
                                     onBlur={() => handleAutoSave()}
@@ -2166,27 +2259,59 @@ const Financial_input: React.FC = () => {
                                   </div>
                                 </div>
 
-                                <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/80 flex flex-col justify-center">
-                                  <span className="text-[10px] font-bold text-[#b59545] uppercase">Computed Base Price</span>
-                                  <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
-                                  <span className="text-[9px] text-gray-500">Unit Cost (₱{metrics.unitCost.toFixed(2)}) + Mark-up</span>
+                                <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-between">
+                                  <div>
+                                    <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Computed Base Price</span>
+                                    <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
+                                  </div>
+                                  <span className="text-[9px] text-gray-500">Unit Cost + Mark-up (VAT-Excl.)</span>
+                                </div>
+
+                                <div className={`p-3 rounded-lg border flex flex-col justify-between ${
+                                  product.applyVat !== false ? "bg-blue-50/60 border-blue-200" : "bg-gray-50 border-gray-200 opacity-60"
+                                }`}>
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">12% Output VAT</span>
+                                      {product.applyVat !== false ? (
+                                        <span className="text-[8px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded uppercase">Standard</span>
+                                      ) : (
+                                        <span className="text-[8px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded uppercase">Exempt</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xl font-black text-blue-900 mt-0.5">
+                                      +₱{(product.applyVat !== false ? metrics.vatAmountPerUnit : 0).toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <span className="text-[9px] text-blue-700/80">
+                                    {product.applyVat !== false ? `Suggested SRP: ₱${metrics.computedVatInclusivePrice.toFixed(2)}` : "Non-VAT / Exempt (0%)"}
+                                  </span>
                                 </div>
 
                                 <div>
-                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                    Final / Target Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
-                                  </label>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                      Final Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
+                                    </label>
+                                    {product.applyVat !== false && (
+                                      <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1 py-0.2 rounded uppercase">VAT-Inc.</span>
+                                    )}
+                                  </div>
                                   <input
                                     type="number"
                                     disabled={isCurrentMonthLocked}
-                                    placeholder={metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0"}
+                                    placeholder={
+                                      product.applyVat !== false
+                                        ? (metrics.computedVatInclusivePrice > 0 ? String(Math.round(metrics.computedVatInclusivePrice)) : "0")
+                                        : (metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0")
+                                    }
                                     value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
                                     onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
                                     onBlur={() => handleAutoSave()}
                                     className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                   <p className="text-[9px] text-gray-400 mt-1 italic">
-                                    Psychological rounding allowed (e.g. ₱89.06 → ₱89.00)
+                                    {product.applyVat !== false ? "VAT-Inclusive consumer price" : "Net price (Non-VAT)"}
                                   </p>
                                 </div>
                               </div>
@@ -2194,10 +2319,17 @@ const Financial_input: React.FC = () => {
 
                             {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
                             <div className="pt-3 border-t border-gray-100">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
-                                Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
-                              </span>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[#122244]">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                  Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
+                                </span>
+                                {product.applyVat !== false && (
+                                  <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                    BIR 12% VAT Segregated from Revenue
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-[#122244]">
                                 {/* Unit Cost (COGS) */}
                                 <div className="bg-gray-50/90 p-3.5 rounded-xl border border-gray-200">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
@@ -2207,27 +2339,44 @@ const Financial_input: React.FC = () => {
 
                                 {/* Target Price */}
                                 <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-200">
-                                  <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Target Price</span>
+                                  <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">
+                                    Target Price {product.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                  </span>
                                   <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
-                                  <p className="text-[9px] text-gray-500 font-semibold mt-0.5">+{metrics.markupPct}% Mark-up</p>
+                                  <p className="text-[9px] text-gray-500 font-semibold mt-0.5">
+                                    {product.applyVat !== false ? `Net: ₱${metrics.netSellingPrice.toFixed(2)}` : `+${metrics.markupPct}% Mark-up`}
+                                  </p>
+                                </div>
+
+                                {/* 12% Output VAT */}
+                                <div className="bg-blue-50/40 p-3.5 rounded-xl border border-blue-200">
+                                  <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">12% Output VAT</span>
+                                  <p className="text-base font-black text-blue-900 mt-0.5">
+                                    ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                  <p className="text-[9px] text-blue-600 font-medium mt-0.5 truncate">
+                                    {product.applyVat !== false ? `₱${metrics.unitVatAmount.toFixed(2)}/unit (BIR Remittance)` : "Exempt (0%)"}
+                                  </p>
                                 </div>
 
                                 {/* Revenue */}
                                 <div className="bg-green-50/40 p-3.5 rounded-xl border border-green-200">
-                                  <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
+                                  <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Net Revenue</span>
                                   <p className="text-base font-black text-green-700 mt-0.5">
                                     ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
-                                  <p className="text-[9px] text-green-600 font-medium mt-0.5">Selling Price × Yield</p>
+                                  <p className="text-[9px] text-green-600 font-medium mt-0.5">
+                                    {product.applyVat !== false ? "Net Sales (excl. VAT)" : "Selling Price × Yield"}
+                                  </p>
                                 </div>
 
                                 {/* Gross Profit */}
-                                <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200">
+                                <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200 col-span-2 sm:col-span-1">
                                   <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
                                   <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
                                     ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
-                                  <p className="text-[9px] text-purple-600 font-medium mt-0.5">Revenue - Batch Cost</p>
+                                  <p className="text-[9px] text-purple-600 font-medium mt-0.5">Net Revenue - Batch Cost</p>
                                 </div>
                               </div>
                             </div>

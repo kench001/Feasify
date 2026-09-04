@@ -1893,22 +1893,30 @@ const AdviserDashboard: React.FC = () => {
                                     </div>
 
                                     {/* Per-Product Summary Cards */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
                                       <div className="bg-white p-2.5 rounded-lg border border-gray-200">
                                         <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
                                         <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
                                       </div>
                                       <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
-                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">Target Price</span>
+                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">
+                                          Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                        </span>
                                         <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
                                       </div>
+                                      <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
+                                        <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
+                                        <span className="font-extrabold text-blue-900 text-sm">
+                                          ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
                                       <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
-                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Revenue</span>
+                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
                                         <span className="font-extrabold text-green-700 text-sm">
                                           ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                       </div>
-                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200">
+                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
                                         <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
                                         <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
                                           ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1916,15 +1924,33 @@ const AdviserDashboard: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Ingredients list if present */}
+                                    {/* Direct production costs list if present */}
                                     {ingredients.length > 0 && (
                                       <div className="space-y-1.5 pt-1">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Production Cost Breakdown:</span>
+                                          {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
+                                            <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                              Labor & Misc Included
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
                                           {ingredients.map((ing, iIdx) => (
-                                            <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
-                                              <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
-                                              <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                            <div key={iIdx} className="flex justify-between items-center text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
+                                              <div className="flex items-center gap-1.5 truncate">
+                                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border shrink-0 ${
+                                                  ing.category === "labor"
+                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                    : ing.category === "miscellaneous"
+                                                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                                                    : "bg-amber-50 text-[#b59545] border-amber-200"
+                                                }`}>
+                                                  {ing.category === "labor" ? "Labor" : ing.category === "miscellaneous" ? "Misc" : "Material"}
+                                                </span>
+                                                <span className="text-gray-700 truncate">{ing.name || (ing.category === "labor" ? "Direct Labor" : "Ingredient")}</span>
+                                              </div>
+                                              <span className="font-semibold text-gray-900 ml-2 shrink-0">₱{Number(ing.price || 0).toFixed(2)}</span>
                                             </div>
                                           ))}
                                         </div>
@@ -2411,38 +2437,60 @@ const AdviserDashboard: React.FC = () => {
                                       </div>
 
                                       {/* Per-Product Dynamic Summary KPI Cards */}
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-center text-xs">
                                         <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
                                           <span className="text-[10px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
                                           <span className="font-extrabold text-[#122244] text-base mt-0.5 block">₱{metrics.unitCost.toFixed(2)}</span>
                                           <span className="text-[9px] text-gray-400">Total Cost / Yield</span>
                                         </div>
                                         <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-200 shadow-sm">
-                                          <span className="text-[10px] text-[#b59545] font-bold uppercase block">Target Price</span>
+                                          <span className="text-[10px] text-[#b59545] font-bold uppercase block">
+                                            Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                          </span>
                                           <span className="font-extrabold text-[#c9a654] text-base mt-0.5 block">₱{metrics.sellingPrice.toFixed(2)}</span>
-                                          <span className="text-[9px] text-gray-500">+{metrics.markupPct}% Mark-up</span>
+                                          <span className="text-[9px] text-gray-500">
+                                            {prod.applyVat !== false ? `Net: ₱${metrics.netSellingPrice.toFixed(2)}` : `+${metrics.markupPct}% Mark-up`}
+                                          </span>
+                                        </div>
+                                        <div className="bg-blue-50/40 p-3 rounded-xl border border-blue-200 shadow-sm">
+                                          <span className="text-[10px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
+                                          <span className="font-extrabold text-blue-900 text-base mt-0.5 block">
+                                            ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                          <span className="text-[9px] text-blue-600 truncate block">
+                                            {prod.applyVat !== false ? `₱${metrics.unitVatAmount.toFixed(2)}/unit (BIR Remittance)` : "Exempt (0%)"}
+                                          </span>
                                         </div>
                                         <div className="bg-green-50/40 p-3 rounded-xl border border-green-200 shadow-sm">
-                                          <span className="text-[10px] text-green-700 font-bold uppercase block">Revenue</span>
+                                          <span className="text-[10px] text-green-700 font-bold uppercase block">Net Revenue</span>
                                           <span className="font-extrabold text-green-700 text-base mt-0.5 block">
                                             ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
-                                          <span className="text-[9px] text-green-600">Selling Price × Qty</span>
+                                          <span className="text-[9px] text-green-600">
+                                            {prod.applyVat !== false ? "Net Sales (excl. VAT)" : "Selling Price × Qty"}
+                                          </span>
                                         </div>
-                                        <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200 shadow-sm">
+                                        <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200 shadow-sm col-span-2 sm:col-span-1">
                                           <span className="text-[10px] text-purple-700 font-bold uppercase block">Gross Profit</span>
                                           <span className={`font-extrabold text-base mt-0.5 block ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
                                             ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
-                                          <span className="text-[9px] text-purple-600">Revenue - Total Cost</span>
+                                          <span className="text-[9px] text-purple-600">Net Revenue - Total Cost</span>
                                         </div>
                                       </div>
 
-                                      {/* Ingredients list */}
+                                      {/* Direct production costs list */}
                                       {ingredients.length > 0 && (
                                         <div className="space-y-1.5 pt-2">
                                           <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Itemized Ingredients & Materials</span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Direct Production Costs</span>
+                                              {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
+                                                <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                                  Materials + Labor/Misc
+                                                </span>
+                                              )}
+                                            </div>
                                             <span className="text-[11px] font-extrabold text-[#122244]">
                                               Batch Cost: ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
@@ -2450,8 +2498,19 @@ const AdviserDashboard: React.FC = () => {
                                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
                                             {ingredients.map((ing, iIdx) => (
                                               <div key={iIdx} className="flex justify-between items-center text-xs bg-white px-3 py-1.5 rounded-lg border border-gray-100">
-                                                <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
-                                                <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                                <div className="flex items-center gap-1.5 truncate">
+                                                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border shrink-0 ${
+                                                    ing.category === "labor"
+                                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                      : ing.category === "miscellaneous"
+                                                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                                                      : "bg-amber-50 text-[#b59545] border-amber-200"
+                                                  }`}>
+                                                    {ing.category === "labor" ? "Labor" : ing.category === "miscellaneous" ? "Misc" : "Material"}
+                                                  </span>
+                                                  <span className="text-gray-700 truncate">{ing.name || (ing.category === "labor" ? "Direct Labor" : "Ingredient")}</span>
+                                                </div>
+                                                <span className="font-semibold text-gray-900 ml-2 shrink-0">₱{Number(ing.price || 0).toFixed(2)}</span>
                                               </div>
                                             ))}
                                           </div>
