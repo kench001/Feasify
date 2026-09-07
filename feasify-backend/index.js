@@ -195,6 +195,53 @@ const getCopyrightDB = () => {
   }
 };
 
+// Helper to safely load local Company Names Database (DTI + SEC)
+const getCompanyNamesDB = () => {
+  try {
+    const dataDir = path.join(__dirname, "data");
+    const filePath = path.join(dataDir, "companyNames.json");
+    if (fs.existsSync(filePath)) {
+      const fileData = fs.readFileSync(filePath, "utf-8");
+      return JSON.parse(fileData);
+    }
+    // Fallback: check frontend data directory
+    const frontendFilePath = path.join(__dirname, "..", "Feasify", "src", "data", "companyNames.json");
+    if (fs.existsSync(frontendFilePath)) {
+      const fileData = fs.readFileSync(frontendFilePath, "utf-8");
+      return JSON.parse(fileData);
+    }
+    return {
+      registrationSources: [
+        { type: "DTI", name: "Department of Trade and Industry" },
+        { type: "SEC", name: "Securities and Exchange Commission" }
+      ],
+      companies: []
+    };
+  } catch (error) {
+    console.error("Failed reading company names database:", error);
+    return { registrationSources: [], companies: [] };
+  }
+};
+
+// In-memory cache/store for team proposal counts (guarantees backend 3-limit enforcement)
+const teamProposalsStore = new Map();
+
+// Helper to get group proposal count (checks Firestore if available, falls back to store)
+const getGroupProposalCount = async (groupId) => {
+  if (adminFirestore) {
+    try {
+      const snap = await adminFirestore.collection("proposals").where("groupId", "==", groupId).get();
+      const count = snap.size;
+      teamProposalsStore.set(groupId, count);
+      return count;
+    } catch (e) {
+      console.warn("[Backend proposal count] Firestore query failed, falling back to local store:", e.message);
+    }
+  }
+  return teamProposalsStore.get(groupId) || 0;
+};
+
+
 // Retry wrapper with exponential backoff + jitter for Gemini API calls
 async function callGeminiWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -397,6 +444,291 @@ app.post(["/api/copyright-check", "/api/copyright/check"], (req, res) => {
     matchedName,
     isTaglineCopyrighted,
     matchedTagline,
+  });
+});
+
+// ==========================================
+// DTI + SEC COMPANY NAME CHECKER ENDPOINTS
+// ==========================================
+
+// Endpoint to fetch registration sources and company list
+app.get(["/api/company-names", "/api/registration-sources"], (req, res) => {
+  const db = getCompanyNamesDB();
+  res.json({
+    registrationSources: db.registrationSources || [
+      { type: "DTI", name: "Department of Trade and Industry" },
+      { type: "SEC", name: "Securities and Exchange Commission" }
+    ],
+    totalCount: db.companies ? db.companies.length : 0,
+    companies: db.companies || []
+  });
+});
+
+// Endpoint to check company name against DTI and SEC records
+app.post(["/api/check-company-name", "/api/company-name/check"], (req, res) => {
+  const { name, companyName } = req.body || {};
+  const inputName = (name || companyName || "").trim();
+
+  const db = getCompanyNamesDB();
+  const companies = db.companies || [];
+
+  const disclaimer =
+    "Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system.";
+  const sourcesChecked = ["DTI", "SEC"];
+
+  if (!inputName) {
+    return res.json({
+      status: "empty",
+      resultText: "Please enter a company name to check.",
+      isAvailable: false,
+      matches: [],
+      sourcesChecked,
+      disclaimer
+    });
+  }
+
+  const normalize = (str) =>
+    (str || "")
+      .toLowerCase()
+      .replace(/[’'"]/g, "")
+      .replace(/[^a-z0-9]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const stripSuffixes = (str) =>
+    normalize(str)
+      .replace(/\b(inc|corp|corporation|incorporated|llc|co|company|enterprises|enterprise|trading|services|holdings|ventures|group|philippines|phil)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const normInput = normalize(inputName);
+  const strippedInput = stripSuffixes(inputName);
+
+  // 1. Exact Match Check (case-insensitive, normalized)
+  const exactMatch = companies.find((c) => {
+    const cName = c.companyName || c.name || "";
+    return normalize(cName) === normInput;
+  });
+
+  if (exactMatch) {
+    return res.json({
+      status: "exact",
+      resultText: "Name Already Exists",
+      isAvailable: false,
+      message: `The company name "${inputName}" exactly matches an existing registered record in ${exactMatch.registrationSource || "DTI"}.`,
+      matches: [
+        {
+          name: exactMatch.companyName || exactMatch.name,
+          registrationSource: exactMatch.registrationSource || "DTI"
+        }
+      ],
+      sourcesChecked,
+      disclaimer
+    });
+  }
+
+  // 2. Similar Match Check
+  const similarMatches = [];
+  const seenNames = new Set();
+
+  for (const c of companies) {
+    const cName = c.companyName || c.name || "";
+    const normC = normalize(cName);
+    const strippedC = stripSuffixes(cName);
+
+    if (normC === normInput) continue;
+
+    let isSimilar = false;
+
+    // Substring containment
+    if (
+      (normInput.length >= 4 && normC.includes(normInput)) ||
+      (normC.length >= 4 && normInput.includes(normC))
+    ) {
+      isSimilar = true;
+    }
+
+    // Stripped suffix match
+    if (
+      strippedInput.length >= 3 &&
+      strippedC.length >= 3 &&
+      (strippedInput === strippedC ||
+        strippedC.includes(strippedInput) ||
+        strippedInput.includes(strippedC))
+    ) {
+      isSimilar = true;
+    }
+
+    // Significant token overlap (at least 2 matching words)
+    const inputTokens = normInput.split(" ").filter((w) => w.length >= 3);
+    const cTokens = normC.split(" ").filter((w) => w.length >= 3);
+    const matchingTokens = inputTokens.filter((t) => cTokens.includes(t));
+    if (inputTokens.length >= 2 && matchingTokens.length >= 2) {
+      isSimilar = true;
+    }
+
+    if (isSimilar && !seenNames.has(normC)) {
+      seenNames.add(normC);
+      similarMatches.push({
+        name: c.companyName || c.name,
+        registrationSource: c.registrationSource || "DTI"
+      });
+      if (similarMatches.length >= 10) break;
+    }
+  }
+
+  if (similarMatches.length > 0) {
+    return res.json({
+      status: "similar",
+      resultText: "Similar Name Found",
+      isAvailable: false,
+      message: `Found ${similarMatches.length} potentially similar registered name(s) in DTI / SEC.`,
+      matches: similarMatches,
+      sourcesChecked,
+      disclaimer
+    });
+  }
+
+  // 3. No Match Found
+  return res.json({
+    status: "none",
+    resultText: "No Match Found",
+    isAvailable: true,
+    message: `No exact or similar registered company name found for "${inputName}".`,
+    matches: [],
+    sourcesChecked,
+    disclaimer
+  });
+});
+
+// ==========================================
+// PROPOSALS MANAGEMENT & 3-PROPOSAL LIMIT ENDPOINTS
+// ==========================================
+
+// Endpoint to validate/check team proposal limit
+app.all(["/api/teams/:groupId/proposals/count", "/api/proposals/validate-limit"], async (req, res) => {
+  const groupId = req.params.groupId || req.body?.groupId || req.query?.groupId;
+  if (!groupId) {
+    return res.status(400).json({ error: "groupId is required." });
+  }
+
+  const count = await getGroupProposalCount(groupId);
+  const maxProposals = 3;
+  const allowed = count < maxProposals;
+
+  res.json({
+    groupId,
+    count,
+    max: maxProposals,
+    allowed,
+    message: allowed
+      ? `Proposals: ${count} / ${maxProposals}`
+      : "Maximum of 3 proposals reached."
+  });
+});
+
+// Endpoint to create a proposal with STRICT server-side enforcement of maximum 3 proposals per team
+app.post(["/api/teams/:groupId/proposals", "/api/proposals"], async (req, res) => {
+  const groupId = req.params.groupId || req.body?.groupId;
+  if (!groupId) {
+    return res.status(400).json({ error: "groupId is required." });
+  }
+
+  const existingCount = await getGroupProposalCount(groupId);
+  const maxProposals = 3;
+
+  if (existingCount >= maxProposals) {
+    return res.status(400).json({
+      error: "Maximum of 3 proposals reached.",
+      message: "Maximum of 3 proposals reached per team. Further submissions are blocked.",
+      proposalLimitReached: true,
+      currentCount: existingCount,
+      maxProposals
+    });
+  }
+
+  const proposalNumber = existingCount + 1;
+  const now = new Date().toISOString();
+  const proposalData = {
+    ...req.body,
+    groupId,
+    proposalNumber,
+    status: req.body.status || "Draft",
+    submissionDate: req.body.submissionDate || now,
+    adviserRemarks: req.body.adviserRemarks || "",
+    createdAt: now,
+    updatedAt: now
+  };
+
+  let createdId = `prop_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  if (adminFirestore) {
+    try {
+      const docRef = await adminFirestore.collection("proposals").add(proposalData);
+      createdId = docRef.id;
+    } catch (e) {
+      console.warn("[Backend proposal creation] Firestore add failed, proceeding with generated ID:", e.message);
+    }
+  }
+
+  teamProposalsStore.set(groupId, existingCount + 1);
+
+  return res.status(201).json({
+    success: true,
+    message: `Proposal ${proposalNumber} created successfully.`,
+    proposalId: createdId,
+    proposalNumber,
+    currentCount: existingCount + 1,
+    proposal: {
+      id: createdId,
+      ...proposalData
+    }
+  });
+});
+
+// Endpoint to update individual proposal status and adviser remarks
+app.put("/api/proposals/:proposalId/status", async (req, res) => {
+  const { proposalId } = req.params;
+  const { status, adviserRemarks } = req.body || {};
+
+  const validStatuses = [
+    "Draft",
+    "Submitted",
+    "Under Review",
+    "Revision Required",
+    "Approved",
+    "Rejected",
+    "Pending",
+    "Revision"
+  ];
+
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({
+      error: `Invalid status "${status}". Supported statuses: Draft, Submitted, Under Review, Revision Required, Approved, Rejected.`
+    });
+  }
+
+  if (adminFirestore) {
+    try {
+      const updatePayload = {
+        updatedAt: new Date().toISOString()
+      };
+      if (status) updatePayload.status = status;
+      if (adviserRemarks !== undefined) updatePayload.adviserRemarks = adviserRemarks;
+
+      await adminFirestore.collection("proposals").doc(proposalId).update(updatePayload);
+    } catch (e) {
+      console.error("[Backend update proposal status] Error:", e.message);
+      return res.status(500).json({ error: "Failed to update proposal in Firestore: " + e.message });
+    }
+  }
+
+  res.json({
+    success: true,
+    proposalId,
+    status,
+    adviserRemarks,
+    updatedAt: new Date().toISOString()
   });
 });
 

@@ -50,6 +50,7 @@ interface FeedbackItem {
 interface ProposalData {
   id?: string;
   groupId: string;
+  proposalNumber?: number;
   businessType: string;
   businessName: string;
   businessLogo?: string;
@@ -63,13 +64,48 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
-  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Revision';
+  status: 'Draft' | 'Submitted' | 'Under Review' | 'Revision Required' | 'Approved' | 'Rejected' | 'Pending' | 'Revision';
+  adviserRemarks?: string;
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[];
+  submissionDate?: string;
   financialData?: any;
+  originalProposalFinancials?: any;
   aiAnalysis?: any;
   createdAt?: any;
+  updatedAt?: any;
 }
+
+const getProposalStatusBadge = (status?: string) => {
+  switch (status) {
+    case 'Approved':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200"><CheckCircle2 className="w-3 h-3" /> Approved</span>;
+    case 'Rejected':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"><X className="w-3 h-3" /> Rejected</span>;
+    case 'Revision Required':
+    case 'Revision':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200"><Edit2 className="w-3 h-3" /> Revision Required</span>;
+    case 'Under Review':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200"><Clock className="w-3 h-3" /> Under Review</span>;
+    case 'Submitted':
+    case 'Pending':
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200"><Clock className="w-3 h-3" /> Submitted</span>;
+    case 'Draft':
+    default:
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">Draft</span>;
+  }
+};
+
+const formatProposalDate = (proposal: ProposalData) => {
+  if (proposal.submissionDate) return proposal.submissionDate;
+  if (proposal.createdAt?.toDate) {
+    try {
+      return new Date(proposal.createdAt.toDate()).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) { }
+  }
+  if (proposal.status === 'Draft') return "Draft (Not submitted)";
+  return "Submitted recently";
+};
 
 const AdviserDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -86,6 +122,7 @@ const AdviserDashboard: React.FC = () => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [groupProposals, setGroupProposals] = useState<ProposalData[]>([]);
+  const [proposalsByGroup, setProposalsByGroup] = useState<Record<string, ProposalData[]>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   // View & Tab States
@@ -282,15 +319,32 @@ const AdviserDashboard: React.FC = () => {
 
       unsubProposals = onSnapshot(propQuery, (propSnap) => {
         const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
+        const byGroup: Record<string, ProposalData[]> = {};
+
         propSnap.docs.forEach(pd => {
-          const pdata = pd.data();
+          const pdata = { id: pd.id, ...pd.data() } as ProposalData;
           if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
             proposalMap[pdata.groupId] = {
               businessName: pdata.businessName,
               businessLogo: pdata.businessLogo,
             };
           }
+          if (!byGroup[pdata.groupId]) {
+            byGroup[pdata.groupId] = [];
+          }
+          byGroup[pdata.groupId].push(pdata);
         });
+
+        Object.keys(byGroup).forEach(gid => {
+          byGroup[gid].sort((a, b) => {
+            const numA = a.proposalNumber || 1;
+            const numB = b.proposalNumber || 1;
+            if (numA !== numB) return numA - numB;
+            return (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0) - (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+          });
+        });
+
+        setProposalsByGroup(byGroup);
 
         const fetchedGroups = groupDocs.map(d => {
           const gData = d.data();
@@ -348,8 +402,14 @@ const AdviserDashboard: React.FC = () => {
           originalProposalFinancials: data.originalProposalFinancials || data.financialData || null
         } as ProposalData;
       });
-      fetched.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+      fetched.sort((a, b) => {
+        const numA = a.proposalNumber || 1;
+        const numB = b.proposalNumber || 1;
+        if (numA !== numB) return numA - numB;
+        return (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0) - (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+      });
       setGroupProposals(fetched);
+      setProposalsByGroup(prev => ({ ...prev, [groupId]: fetched }));
     }, (error) => {
       console.error("Group proposals listener error:", error);
     });
@@ -393,10 +453,13 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
-  const handleOpenProposalModal = (proposal: ProposalData) => {
+  const handleOpenProposalModal = (proposal: ProposalData, group?: GroupData) => {
+    if (group) {
+      setSelectedGroup(group);
+    }
     setViewingProposal(proposal);
-    setFeedbackInput("");
-    setIsFeedbackExpanded(false);
+    setFeedbackInput(proposal.adviserRemarks || proposal.adviserFeedback || "");
+    setIsFeedbackExpanded(true);
     if (proposal.aiAnalysis) {
       setModalAiResult(proposal.aiAnalysis);
     } else {
@@ -697,92 +760,151 @@ const AdviserDashboard: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
-  // --- LOGIC: APPROVE/REJECT PROPOSAL ---
-  const handleProposalAction = async (proposal: ProposalData, action: 'Approve' | 'Reject' | 'Revision') => {
-    if (!selectedGroup || !proposal.id) return;
+  // --- LOGIC: APPROVE/REJECT/REVISE/REVIEW PROPOSAL ---
+  const handleProposalAction = async (
+    proposal: ProposalData,
+    action: 'Approve' | 'Reject' | 'Revision' | 'Approved' | 'Rejected' | 'Revision Required' | 'Under Review' | 'Submitted' | 'Draft' | 'Save Remarks'
+  ) => {
+    const targetGroup = selectedGroup || groups.find(g => g.id === proposal.groupId);
+    if (!targetGroup || !proposal.id) return;
+    setIsSaving(true);
     try {
-      const newStatus = action === 'Approve' ? 'Approved' : action === 'Reject' ? 'Rejected' : 'Revision';
-      const secCode = selectedGroup.section || activeSection || "Unassigned";
+      let newStatus: ProposalData['status'] = proposal.status;
+      if (action === 'Approve' || action === 'Approved') newStatus = 'Approved';
+      else if (action === 'Reject' || action === 'Rejected') newStatus = 'Rejected';
+      else if (action === 'Revision' || action === 'Revision Required') newStatus = 'Revision Required';
+      else if (action === 'Under Review') newStatus = 'Under Review';
+      else if (action === 'Submitted') newStatus = 'Submitted';
+      else if (action === 'Draft') newStatus = 'Draft';
+
+      const secCode = targetGroup.section || activeSection || "Unassigned";
 
       let updatePayload: any = {
         status: newStatus,
+        adviserRemarks: feedbackInput.trim(),
+        adviserFeedback: feedbackInput.trim(),
         updatedAt: serverTimestamp()
       };
 
       if (feedbackInput.trim()) {
         const newFeedback: FeedbackItem = {
           id: Date.now().toString(),
-          text: feedbackInput,
+          text: feedbackInput.trim(),
           authorName: userName,
           role: "Adviser",
           date: new Date().toISOString()
         };
         updatePayload.feedbackHistory = arrayUnion(newFeedback);
-        updatePayload.adviserFeedback = feedbackInput;
       }
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
 
+      // Best effort backend sync for independent status and remarks
+      try {
+        await fetch(`http://localhost:5000/api/proposals/${proposal.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: newStatus,
+            remarks: feedbackInput.trim()
+          })
+        });
+      } catch (apiErr) {
+        // Backend offline or non-blocking
+      }
+
       // Audit Log
-      const auditAction = action === 'Approve' ? 'APPROVE' : action === 'Reject' ? 'REJECT' : 'REVISION';
+      const auditAction = action === 'Approve' || action === 'Approved' ? 'APPROVE' :
+                          action === 'Reject' || action === 'Rejected' ? 'REJECT' :
+                          action === 'Under Review' ? 'UNDER_REVIEW' :
+                          action === 'Save Remarks' ? 'REMARKS_UPDATE' : 'REVISION';
       logAuditEvent({
         userId: adviserUid,
         userName: userName,
         userRole: "Adviser",
         action: auditAction,
         sectionCode: secCode,
-        description: `${action}d business proposal "${proposal.businessName || selectedGroup.title}"`,
+        description: `${action} business proposal "${proposal.businessName || targetGroup.title}"`,
         recordId: proposal.id,
-        newValue: { status: newStatus, feedback: feedbackInput || null }
+        newValue: { status: newStatus, remarks: feedbackInput || null }
       });
 
-      let newGroupStatus = selectedGroup.status;
-      if (action === 'Approve') {
+      let newGroupStatus = targetGroup.status;
+      if (newStatus === 'Approved') {
         newGroupStatus = 'Approved Proposal';
         if (proposal.financialData && !proposal.originalProposalFinancials) {
           updatePayload.originalProposalFinancials = proposal.financialData;
         }
-        await updateDoc(doc(db, "groups", selectedGroup.id), {
+        await updateDoc(doc(db, "groups", targetGroup.id), {
           status: newGroupStatus,
           businessName: proposal.businessName,
           businessLogo: proposal.businessLogo || "",
           title: proposal.businessName,
+          activeProposalId: proposal.id
         });
-        setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {
+        setGroups(prev => prev.map(g => g.id === targetGroup.id ? {
           ...g,
           status: newGroupStatus,
           businessName: proposal.businessName,
           businessLogo: proposal.businessLogo || "",
           title: proposal.businessName,
+          activeProposalId: proposal.id
         } : g));
-        setSelectedGroup(prev => prev ? {
-          ...prev,
-          status: newGroupStatus,
-          businessName: proposal.businessName,
-          businessLogo: proposal.businessLogo || "",
-          title: proposal.businessName,
-        } : null);
-      } else if (action === 'Reject') {
-        const otherPending = groupProposals.filter(p => p.id !== proposal.id && p.status === 'Pending');
-        if (otherPending.length === 0 && selectedGroup.status !== 'Approved Proposal' && selectedGroup.status !== 'Active Business') {
-          newGroupStatus = 'Drafting';
-        }
-        if (newGroupStatus !== selectedGroup.status) {
-          await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
-          setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
-          setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
-        }
-      } else {
-        if (newGroupStatus !== selectedGroup.status) {
-          await updateDoc(doc(db, "groups", selectedGroup.id), { status: newGroupStatus });
-          setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, status: newGroupStatus } : g));
-          setSelectedGroup(prev => prev ? { ...prev, status: newGroupStatus } : null);
+        if (selectedGroup && selectedGroup.id === targetGroup.id) {
+          setSelectedGroup(prev => prev ? {
+            ...prev,
+            status: newGroupStatus,
+            businessName: proposal.businessName,
+            businessLogo: proposal.businessLogo || "",
+            title: proposal.businessName,
+            activeProposalId: proposal.id
+          } : null);
         }
       }
 
-      await fetchGroupProposals(selectedGroup.id);
-      setViewingProposal(null);
-    } catch (error) { console.error("Action failed:", error); alert("Failed to update proposal status."); }
+      // Update local states for proposals
+      setProposalsByGroup(prev => {
+        const list = prev[targetGroup.id] || [];
+        return {
+          ...prev,
+          [targetGroup.id]: list.map(p => p.id === proposal.id ? {
+            ...p,
+            status: newStatus,
+            adviserRemarks: feedbackInput.trim(),
+            adviserFeedback: feedbackInput.trim()
+          } : p)
+        };
+      });
+
+      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? {
+        ...p,
+        status: newStatus,
+        adviserRemarks: feedbackInput.trim(),
+        adviserFeedback: feedbackInput.trim()
+      } : p));
+
+      if (viewingProposal && viewingProposal.id === proposal.id) {
+        setViewingProposal(prev => prev ? {
+          ...prev,
+          status: newStatus,
+          adviserRemarks: feedbackInput.trim(),
+          adviserFeedback: feedbackInput.trim()
+        } : null);
+      }
+
+      if (selectedGroup && selectedGroup.id === targetGroup.id) {
+        await fetchGroupProposals(targetGroup.id);
+      }
+
+      if (action !== 'Save Remarks') {
+        setViewingProposal(null);
+      }
+    } catch (error) {
+      console.error("Action failed:", error);
+      alert("Failed to update proposal status.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // --- LOGIC: SUBMIT FEEDBACK HISTORY ---
@@ -1473,29 +1595,33 @@ const AdviserDashboard: React.FC = () => {
               const renderGroupCard = (group: GroupData) => {
                 const totalMembers = group.memberIds.length + 1;
                 const originalIndex = groups.findIndex(g => g.id === group.id) + 1;
+                const teamProps = proposalsByGroup[group.id] || [];
+                const proposalCount = teamProps.length;
 
                 let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
                 if (group.status === 'Pending Review') { statusBadgeColor = "bg-yellow-100 text-yellow-700"; statusDotColor = "bg-yellow-500"; }
                 if (group.status === 'Approved Proposal') { statusBadgeColor = "bg-green-100 text-green-700"; statusDotColor = "bg-green-500"; }
                 if (group.status === 'Active Business') { statusBadgeColor = "bg-blue-100 text-blue-700"; statusDotColor = "bg-blue-500"; }
 
+                const teamDisplayName = group.companyName || group.title || `Group ${originalIndex}`;
+
                 return (
-                  <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative h-[470px] hover:shadow-md transition-shadow">
-                    {/* CARD HEADER: COMPANY NAME & LOGO */}
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl gap-2">
+                  <div key={group.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col relative hover:shadow-md transition-shadow overflow-hidden">
+                    {/* CARD HEADER: TEAM NAME & PROPOSALS COUNTER */}
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 gap-2">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
                           {group.companyLogo ? (
-                            <img src={group.companyLogo} alt="Company Logo" className="w-full h-full object-cover" />
+                            <img src={group.companyLogo} alt="Team Logo" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
-                              {getInitials(group.companyName || `G${originalIndex}`)}
+                              {getInitials(teamDisplayName)}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-extrabold text-[#122244] text-sm truncate" title={group.companyName || `Group ${originalIndex}`}>
-                            {group.companyName || `Group ${originalIndex}`}
+                          <h3 className="font-extrabold text-[#122244] text-sm truncate" title={teamDisplayName}>
+                            {teamDisplayName}
                           </h3>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.2 rounded">
@@ -1511,7 +1637,10 @@ const AdviserDashboard: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">{totalMembers}/{maxMembers}</span>
+                        {/* Proposals Counter: Proposals: X / 3 */}
+                        <span className={`px-2.5 py-1 text-xs font-black rounded-full border ${proposalCount >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+                          Proposals: {proposalCount} / 3
+                        </span>
 
                         <div className="relative">
                           <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
@@ -1527,75 +1656,84 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* CARD BODY */}
-                    <div className="p-4 flex-1 flex flex-col overflow-hidden">
-                      {/* BUSINESS VENTURE CLARIFICATION CARD */}
-                      <div className="flex items-center gap-3 p-2.5 bg-gray-50/90 rounded-xl border border-gray-200/80 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 shadow-2xs flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {group.businessLogo ? (
-                            <img src={group.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="font-extrabold text-xs text-[#c9a654]">
-                              {getInitials(group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "BN"))}
-                            </span>
-                          )}
+                    {/* CARD BODY: PROPOSALS 1, 2, 3 */}
+                    <div className="p-4 flex-1 flex flex-col space-y-3">
+                      {/* Max reached notification */}
+                      {proposalCount >= 3 && (
+                        <div className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1.5 text-[11px] text-amber-800 font-bold">
+                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> Maximum of 3 proposals reached.
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
-                            Business Name
-                          </p>
-                          <p className={`text-xs font-bold truncate ${group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project") ? 'text-[#122244]' : 'text-gray-400 italic'}`} title={group.businessName || group.title || "Pending Business Proposal"}>
-                            {group.businessName || (group.title !== "Pending Business Name" && group.title !== "Pending Company Name" && group.title !== "Feasibility Project" ? group.title : "Pending Business Proposal")}
-                          </p>
+                      )}
+
+                      {/* Proposals 1, 2, 3 Section */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-black text-gray-500 uppercase tracking-wider">
+                          <span>Team Proposals</span>
+                          <span>{proposalCount} of 3 created</span>
                         </div>
+
+                        {[1, 2, 3].map(slotNum => {
+                          const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
+                          if (prop) {
+                            return (
+                              <div key={prop.id || slotNum} className="p-3 bg-gray-50/90 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                                        Proposal {slotNum}
+                                      </span>
+                                      {getProposalStatusBadge(prop.status)}
+                                    </div>
+                                    <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
+                                      {prop.businessName || "Untitled Proposal"}
+                                    </h4>
+                                    <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleOpenProposalModal(prop, group)}
+                                    className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
+                                    title={`Open Proposal ${slotNum}`}
+                                  >
+                                    <FileText className="w-3.5 h-3.5" /> Open
+                                  </button>
+                                </div>
+                                <div className="pt-2 border-t border-gray-200/80 text-[11px] flex items-start gap-1">
+                                  <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
+                                  <span className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}>
+                                    {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
+                              <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
+                              <span className="text-[10px] italic">Slot available (Not created)</span>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      <div className="mb-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeColor}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`}></span>
-                          {group.status === 'Pending Review' ? 'Proposal for Review' : group.status}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : group.status === 'Pending Review' ? 'bg-[#e74c3c]' : 'bg-[#2ecc71]'}`}>{getInitials(group.leaderName)}</div>
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-[#c9a654] uppercase tracking-widest leading-none mb-0.5">Team Leader</p>
-                          <p className="text-xs font-bold text-gray-900 truncate">{group.leaderName}</p>
+                      {/* Team Leader & Members brief */}
+                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : 'bg-[#122244]'}`}>{getInitials(group.leaderName)}</div>
+                          <span className="truncate font-semibold text-gray-800 text-[11px]">{group.leaderName} (Leader)</span>
                         </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                        {group.memberIds.length === 0 ? (
-                          <p className="text-xs text-gray-400 italic mt-1">No members assigned yet.</p>
-                        ) : (
-                          <ul className="space-y-1.5">
-                            {group.memberIds.map(memberId => {
-                              const member = students.find(s => s.id === memberId);
-                              if (!member) return null;
-                              return <li key={memberId} className="text-xs text-gray-600 truncate flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>{member.firstName} {member.lastName}</li>;
-                            })}
-                          </ul>
-                        )}
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
                       </div>
                     </div>
 
-                    <div className="p-4 border-t border-gray-100 bg-white rounded-b-xl mt-auto">
-                      {group.status === 'Drafting' && (
-                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm">View Group Info</button>
-                      )}
-                      {group.status === 'Pending Review' && (
-                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-[#122244] text-white font-bold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> Review Proposals</button>
-                      )}
-                      {group.status === 'Approved Proposal' && (
-                        <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-green-500 text-green-600 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View Approved Status</button>
-                      )}
-                      {group.status === 'Active Business' && (
-                        <div className="flex flex-col gap-2 w-full">
-                          <button onClick={() => handleOpenActiveBusiness(group)} className="w-full py-2.5 bg-white border border-[#4285F4] text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-50 transition-colors shadow-sm flex justify-center items-center gap-2"><TrendingUp className="w-4 h-4" /> View Active Business</button>
-                          <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex justify-center items-center gap-2"><FileText className="w-4 h-4" /> View All Proposals</button>
-                        </div>
-                      )}
+                    {/* CARD FOOTER */}
+                    <div className="p-3 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex gap-2">
+                      <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50 transition-colors shadow-xs flex justify-center items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" /> View Group Details & History
+                      </button>
                     </div>
                   </div>
                 );
@@ -1648,8 +1786,22 @@ const AdviserDashboard: React.FC = () => {
                 <button onClick={() => setActiveView('dashboard')} className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg bg-white shadow-sm"><ChevronLeft className="w-4 h-4" /> Back</button>
                 <span className="px-3 py-1 bg-blue-50 text-[#4285F4] text-xs font-bold rounded-md uppercase tracking-wider">GROUP {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
               </div>
-              <h1 className="text-3xl font-extrabold text-[#122244]">Business Proposals</h1>
-              <p className="text-sm text-gray-500 mt-1">{selectedGroup.memberIds.length + 1} members · {groupProposals.filter(p => p.status !== 'Draft').length} proposals submitted</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-3xl font-extrabold text-[#122244]">Business Proposals</h1>
+                  <p className="text-sm text-gray-500 mt-1">{selectedGroup.memberIds.length + 1} members · {groupProposals.length} proposals created</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1.5 text-xs font-black rounded-full border ${groupProposals.length >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+                    Proposals: {groupProposals.length} / 3
+                  </span>
+                  {groupProposals.length >= 3 && (
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg">
+                      Maximum of 3 proposals reached.
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex border-b border-gray-200 mb-6">
@@ -1660,7 +1812,7 @@ const AdviserDashboard: React.FC = () => {
             {/* Content: PROPOSALS TAB */}
             {activeDetailTab === 'Proposals' && (
               <div className="space-y-4">
-                {groupProposals.filter(p => p.status !== 'Draft').length === 0 ? (
+                {groupProposals.length === 0 ? (
                   <div className="py-20 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100"><FileText className="w-8 h-8 text-gray-300" /></div>
                     <h3 className="text-lg font-bold text-[#122244]">No proposals yet</h3>
@@ -1679,29 +1831,35 @@ const AdviserDashboard: React.FC = () => {
                     )}
 
                     {groupProposals.map((proposal, idx) => {
-                      const isApproved = proposal.status === 'Approved';
-                      const isRejected = proposal.status === 'Rejected';
-                      const isRevision = proposal.status === 'Revision';
-                      const isPending = proposal.status === 'Pending';
-
+                      const slotNum = proposal.proposalNumber || idx + 1;
                       return (
-                        <div key={proposal.id} className={`bg-white rounded-xl border-2 p-5 flex justify-between items-center ${isApproved ? 'border-green-400' : isRejected ? 'border-red-200 opacity-80' : isRevision ? 'border-orange-300' : 'border-[#d4af37]'}`}>
-                          <div>
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-bold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${idx + 1}`}</h3>
-                              {isPending && <span className="px-2.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Pending</span>}
-                              {isApproved && <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</span>}
-                              {isRejected && <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><X className="w-3 h-3" /> Rejected</span>}
-                              {isRevision && <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1"><Edit2 className="w-3 h-3" /> Needs Revision</span>}
+                        <div key={proposal.id || idx} className="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-black rounded-md uppercase tracking-wider">
+                                Proposal {slotNum}
+                              </span>
+                              {getProposalStatusBadge(proposal.status)}
                             </div>
-                            <p className="text-sm text-gray-500 mb-1">{proposal.businessName} • {proposal.businessType}</p>
-                            <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {proposal.createdAt ? new Date(proposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+                            <h3 className="font-extrabold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${slotNum}`}</h3>
+                            <p className="text-sm text-gray-500 mb-1">{proposal.businessType ? `${proposal.businessType} • ` : ""}{proposal.tagline || proposal.targetMarket || "No additional description"}</p>
+                            <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {formatProposalDate(proposal)}</p>
+
+                            {/* Adviser Remarks display */}
+                            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 text-xs">
+                              <span className="font-bold text-gray-600">Adviser Remarks: </span>
+                              <span className={proposal.adviserRemarks || proposal.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}>
+                                {proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleOpenProposalModal(proposal)} className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 transition-colors">Open</button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button onClick={() => handleOpenProposalModal(proposal, selectedGroup)} className="w-full md:w-auto px-5 py-2.5 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                              <FileText className="w-4 h-4" /> Open Proposal
+                            </button>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                   </>
                 )}
@@ -2194,13 +2352,13 @@ const AdviserDashboard: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-black rounded-lg uppercase tracking-wider">
+                      Proposal {viewingProposal.proposalNumber || 1} of 3
+                    </span>
                     <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
-                    {viewingProposal.status === 'Pending' && <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm">Pending Review</span>}
-                    {viewingProposal.status === 'Approved' && <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>}
-                    {viewingProposal.status === 'Rejected' && <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Rejected</span>}
-                    {viewingProposal.status === 'Revision' && <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] md:text-xs font-black rounded-lg uppercase tracking-widest shadow-sm flex items-center gap-1.5"><Edit2 className="w-3.5 h-3.5" /> Needs Revision</span>}
+                    {getProposalStatusBadge(viewingProposal.status)}
                   </div>
-                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {viewingProposal.createdAt ? new Date(viewingProposal.createdAt.toDate()).toLocaleString() : 'Recently'}</p>
+                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {formatProposalDate(viewingProposal)}</p>
                 </div>
               </div>
               <button onClick={() => setViewingProposal(null)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50"><X className="w-6 h-6" /></button>
@@ -2672,106 +2830,118 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ADVISER FEEDBACK SECTION (Sticky Bottom & Foldable) */}
-                {viewingProposal.status === 'Pending' ? (
-                  <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
-                    {/* Collapsible Header */}
-                    <div 
-                      onClick={() => setIsFeedbackExpanded(!isFeedbackExpanded)}
-                      className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity mb-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <MessageCircle className="w-4 h-4 text-[#c9a654]" />
-                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest">
-                          Feedback & Decision
-                        </h3>
-                        {feedbackInput.trim() && !isFeedbackExpanded && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
-                            Draft Attached
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {modalAiResult && modalAiResult.draftFeedback && !isFeedbackExpanded && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFeedbackInput(modalAiResult.draftFeedback);
-                              setIsFeedbackExpanded(true);
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[11px] font-bold border border-blue-200/60 shadow-sm"
-                          >
-                            <Sparkles className="w-3 h-3" /> Use AI Draft
-                          </button>
-                        )}
+                {/* ADVISER FEEDBACK & DECISION SECTION (Always Accessible) */}
+                <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
+                  {/* Collapsible Header */}
+                  <div 
+                    onClick={() => setIsFeedbackExpanded(!isFeedbackExpanded)}
+                    className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity mb-3"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <MessageCircle className="w-4 h-4 text-[#c9a654]" />
+                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest">
+                        Adviser Remarks & Decision
+                      </h3>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-full">
+                        Status: {viewingProposal.status}
+                      </span>
+                      {feedbackInput.trim() && !isFeedbackExpanded && (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
+                          Remarks Attached
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {modalAiResult && modalAiResult.draftFeedback && !isFeedbackExpanded && (
                         <button
                           type="button"
-                          className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFeedbackInput(modalAiResult.draftFeedback);
+                            setIsFeedbackExpanded(true);
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[11px] font-bold border border-blue-200/60 shadow-sm"
                         >
-                          {isFeedbackExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500" />
-                          ) : (
-                            <ChevronUp className="w-4 h-4 text-gray-500" />
-                          )}
+                          <Sparkles className="w-3 h-3" /> Use AI Draft
                         </button>
-                      </div>
-                    </div>
-
-                    {/* Foldable Textarea Container */}
-                    {isFeedbackExpanded && (
-                      <div className="space-y-3 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                        {modalAiResult && modalAiResult.draftFeedback && (
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
-                            </button>
-                          </div>
+                      )}
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+                      >
+                        {isFeedbackExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
                         )}
-                        <textarea
-                          value={feedbackInput}
-                          onChange={(e) => setFeedbackInput(e.target.value)}
-                          placeholder="Type your feedback here or run an AI Analysis to generate a draft..."
-                          className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-32 text-sm bg-gray-50/50 text-gray-900 placeholder-gray-400 transition-all shadow-inner"
-                        />
-                      </div>
-                    )}
-
-                    {/* Action Decision Buttons (Always Visible) */}
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Reject')}
-                        disabled={isSaving}
-                        className="flex-1 py-3 bg-white text-red-600 border-2 border-red-100 font-extrabold text-xs sm:text-sm rounded-xl hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
-                        <X className="w-4 h-4" /> Reject Proposal
-                      </button>
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Revision')}
-                        disabled={isSaving}
-                        className="flex-1 py-3 bg-white text-orange-600 border-2 border-orange-100 font-extrabold text-xs sm:text-sm rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
-                        <Edit2 className="w-4 h-4" /> Needs Revision
-                      </button>
-                      <button
-                        onClick={() => handleProposalAction(viewingProposal, 'Approve')}
-                        disabled={isSaving}
-                        className="flex-1 py-3 bg-[#c9a654] text-white font-extrabold text-xs sm:text-sm rounded-xl hover:bg-[#b59545] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1.5 active:scale-95">
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        Approve Proposal
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="border-t border-gray-200 bg-white p-4 md:p-6 flex justify-end gap-3 mt-auto rounded-br-[1.5rem]">
-                    <button onClick={() => setViewingProposal(null)} className="py-3 px-8 bg-gray-100 text-[#122244] font-extrabold text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-sm w-full xl:w-auto">
-                      Close Proposal
+
+                  {/* Foldable Textarea Container */}
+                  {isFeedbackExpanded && (
+                    <div className="space-y-3 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      {modalAiResult && modalAiResult.draftFeedback && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
+                          </button>
+                        </div>
+                      )}
+                      <textarea
+                        value={feedbackInput}
+                        onChange={(e) => setFeedbackInput(e.target.value)}
+                        placeholder="Type adviser remarks, revision feedback, requirements, or approval notes for this proposal..."
+                        className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-28 text-sm bg-gray-50/50 text-gray-900 placeholder-gray-400 transition-all shadow-inner"
+                      />
+                    </div>
+                  )}
+
+                  {/* Action Decision Buttons */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Under Review')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-purple-700 border-2 border-purple-200 font-bold text-xs rounded-xl hover:bg-purple-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      <Clock className="w-3.5 h-3.5" /> Under Review
+                    </button>
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Revision Required')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-orange-600 border-2 border-orange-200 font-bold text-xs rounded-xl hover:bg-orange-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      <Edit2 className="w-3.5 h-3.5" /> Needs Revision
+                    </button>
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Approved')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 text-white font-bold text-xs rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                    </button>
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-red-600 border-2 border-red-200 font-bold text-xs rounded-xl hover:bg-red-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      <X className="w-3.5 h-3.5" /> Reject
+                    </button>
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Save Remarks')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-[#122244] text-white font-bold text-xs rounded-xl hover:bg-[#1f376b] transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      Save Remarks
+                    </button>
+                    <button
+                      onClick={() => setViewingProposal(null)}
+                      className="py-2.5 px-4 bg-gray-100 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-200 transition-colors shadow-xs">
+                      Close
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>

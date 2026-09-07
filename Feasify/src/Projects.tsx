@@ -57,6 +57,7 @@ import {
   Upload,
   Image as ImageIcon,
   ArrowUp,
+  ShieldCheck,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
@@ -328,6 +329,9 @@ export const computeProductMetrics = (product: ProductCostingItem) => {
 interface ProposalData {
   id?: string;
   groupId: string;
+  proposalNumber?: number;
+  teamName?: string;
+  facultyId?: string;
   businessType: string;
   businessName: string;
   businessLogo?: string;
@@ -341,11 +345,15 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
-  status: "Draft" | "Pending" | "Approved" | "Rejected" | "Revision";
+  status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Rejected" | "Pending" | "Revision";
+  adviserRemarks?: string;
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
+  submissionDate?: string;
   financialData?: FinancialProposalData;
+  originalProposalFinancials?: any;
   createdAt?: any;
+  updatedAt?: any;
 }
 
 const initialProposalState: ProposalData = {
@@ -443,8 +451,125 @@ const Projects: React.FC = () => {
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const companyNameRef = useRef<HTMLDivElement>(null);
 
-  // DTI company names list
-  const dtiCompanies: string[] = (companyNamesData as any).companies.map((c: any) => c.name as string);
+  // DTI and SEC company names list
+  interface RegisteredCompany {
+    id: number;
+    name: string;
+    companyName?: string;
+    registrationSource: "DTI" | "SEC";
+  }
+
+  const allRegisteredCompanies: RegisteredCompany[] = (companyNamesData as any).companies || [];
+  const dtiCompanies: string[] = allRegisteredCompanies
+    .filter((c) => c.registrationSource === "DTI")
+    .map((c) => c.name);
+  const secCompanies: string[] = allRegisteredCompanies
+    .filter((c) => c.registrationSource === "SEC")
+    .map((c) => c.name);
+
+  const [nameCheckResult, setNameCheckResult] = useState<{
+    status: "idle" | "checking" | "exact" | "similar" | "none";
+    message: string;
+    matches: { name: string; registrationSource: string }[];
+  } | null>(null);
+  const [isCheckingName, setIsCheckingName] = useState(false);
+
+  const handleCheckCompanyName = (targetName?: string) => {
+    const input = (targetName !== undefined ? targetName : companyNameQuery).trim();
+    if (!input) {
+      setNameCheckResult({
+        status: "idle",
+        message: "Please enter a company name first.",
+        matches: []
+      });
+      return;
+    }
+
+    setIsCheckingName(true);
+
+    const normalize = (str: string) =>
+      (str || "")
+        .toLowerCase()
+        .replace(/[’'"]/g, "")
+        .replace(/[^a-z0-9]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const stripSuffixes = (str: string) =>
+      normalize(str)
+        .replace(/\b(inc|corp|corporation|incorporated|llc|co|company|enterprises|enterprise|trading|services|holdings|ventures|group|philippines|phil)\b/gi, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const normInput = normalize(input);
+    const strippedInput = stripSuffixes(input);
+
+    // 1. Exact Match Check
+    const exact = allRegisteredCompanies.find(c => {
+      const cName = c.companyName || c.name || "";
+      return normalize(cName) === normInput;
+    });
+
+    if (exact) {
+      setNameCheckResult({
+        status: "exact",
+        message: "Name Already Exists",
+        matches: [{ name: exact.companyName || exact.name, registrationSource: exact.registrationSource || "DTI" }]
+      });
+      setIsCheckingName(false);
+      return;
+    }
+
+    // 2. Similar Match Check
+    const similarList: { name: string; registrationSource: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const c of allRegisteredCompanies) {
+      const cName = c.companyName || c.name || "";
+      const normC = normalize(cName);
+      const strippedC = stripSuffixes(cName);
+
+      if (normC === normInput) continue;
+
+      let isSimilar = false;
+      if ((normInput.length >= 4 && normC.includes(normInput)) || (normC.length >= 4 && normInput.includes(normC))) {
+        isSimilar = true;
+      } else if (strippedInput.length >= 3 && strippedC.length >= 3 && (strippedInput === strippedC || strippedC.includes(strippedInput) || strippedInput.includes(strippedC))) {
+        isSimilar = true;
+      } else {
+        const inputTokens = normInput.split(" ").filter(w => w.length >= 3);
+        const cTokens = normC.split(" ").filter(w => w.length >= 3);
+        const matchingTokens = inputTokens.filter(t => cTokens.includes(t));
+        if (inputTokens.length >= 2 && matchingTokens.length >= 2) {
+          isSimilar = true;
+        }
+      }
+
+      if (isSimilar && !seen.has(normC)) {
+        seen.add(normC);
+        similarList.push({
+          name: c.companyName || c.name,
+          registrationSource: c.registrationSource || "DTI"
+        });
+        if (similarList.length >= 8) break;
+      }
+    }
+
+    if (similarList.length > 0) {
+      setNameCheckResult({
+        status: "similar",
+        message: "Similar Name Found",
+        matches: similarList
+      });
+    } else {
+      setNameCheckResult({
+        status: "none",
+        message: "No Match Found",
+        matches: []
+      });
+    }
+    setIsCheckingName(false);
+  };
 
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
@@ -919,12 +1044,12 @@ const Projects: React.FC = () => {
     if (!trimmedName) {
       errors.companyName = "Company name is required.";
     } else {
-      // Block names that exactly match a DTI-registered entry (case-insensitive)
-      const isDtiRegistered = dtiCompanies.some(
-        (n) => n.toLowerCase() === trimmedName.toLowerCase()
+      // Block names that exactly match a DTI- or SEC-registered entry (case-insensitive)
+      const exactRegisteredMatch = allRegisteredCompanies.find(
+        (c) => (c.companyName || c.name).toLowerCase() === trimmedName.toLowerCase()
       );
-      if (isDtiRegistered) {
-        errors.companyName = "This business name is already registered in the DTI list. Please enter a unique company name.";
+      if (exactRegisteredMatch) {
+        errors.companyName = `This business name is already registered in the ${exactRegisteredMatch.registrationSource} list. Please enter a unique company name.`;
       }
     }
     if (!setupMission.trim()) errors.mission = "Mission statement is required.";
@@ -959,7 +1084,7 @@ const Projects: React.FC = () => {
 
       // Audit Log
       logAuditEvent({
-        userId: currentUser?.uid || "",
+        userId: userUid || auth.currentUser?.uid || "",
         userName: userName,
         userRole: "Student Leader",
         action: "UPDATE",
@@ -1145,11 +1270,17 @@ const Projects: React.FC = () => {
     if (checkBusinessName(dataToSave.businessName, copyrightDB || undefined).isCopyrighted) return;
     if (checkTagline(dataToSave.tagline, copyrightDB || undefined).isCopyrighted) return;
 
+    // Enforce 3 proposals maximum on auto-save
+    if (!dataToSave.id && proposals.length >= 3) return;
+
     setIsSaving(true);
     setSaveStatus("Saving...");
     try {
+      const assignedProposalNumber = dataToSave.proposalNumber || (proposals.length + 1);
       const proposalData = {
         ...dataToSave,
+        proposalNumber: assignedProposalNumber,
+        teamName: userGroup.companyName || userGroup.title,
         groupId: userGroup.id,
         status: dataToSave.status || "Draft",
       };
@@ -1164,7 +1295,7 @@ const Projects: React.FC = () => {
           ...proposalData,
           createdAt: serverTimestamp(),
         });
-        setCurrentProposal(prev => ({ ...prev, id: docRef.id }));
+        setCurrentProposal(prev => ({ ...prev, id: docRef.id, proposalNumber: assignedProposalNumber }));
         // Refresh local proposals list to include the new ID
         fetchProposals(userGroup.id);
       }
@@ -1179,6 +1310,15 @@ const Projects: React.FC = () => {
 
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) return;
+
+    // Enforce 3-proposal limit for new proposals
+    if (!currentProposal.id && proposals.length >= 3) {
+      setToastTitle("Proposal Limit Reached");
+      setToastMessage("Maximum of 3 proposals reached. Each team can submit at most 3 proposals.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      return;
+    }
 
     // Capital & Copyright Validation
     const capitalVal = checkTotalCapital(currentProposal.totalCapital);
@@ -1242,11 +1382,38 @@ const Projects: React.FC = () => {
       setIsSaving(true);
     }
 
+    // Optional server validation of proposal limit
     try {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || "http://localhost:10000";
+      const limitRes = await fetch(`${backendUrl}/api/teams/${userGroup.id}/proposals/count`);
+      if (limitRes.ok) {
+        const limitData = await limitRes.json();
+        if (!currentProposal.id && !limitData.allowed) {
+          setToastTitle("Proposal Limit Reached");
+          setToastMessage("Maximum of 3 proposals reached. Further submissions are blocked.");
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 4000);
+          setIsSubmitting(false);
+          setIsSaving(false);
+          return;
+        }
+      }
+    } catch {
+      // If backend network call fails, proceed with client limit check
+    }
+
+    try {
+      const assignedProposalNumber = currentProposal.proposalNumber || (proposals.length + 1);
+      const nowIso = new Date().toISOString();
       const proposalData = {
         ...currentProposal,
+        proposalNumber: assignedProposalNumber,
+        teamName: userGroup.companyName || userGroup.title,
+        facultyId: adviserData ? adviserData.id : "",
         groupId: userGroup.id,
-        status,
+        status: status === "Pending" ? "Submitted" : status,
+        submissionDate: currentProposal.submissionDate || nowIso,
+        adviserRemarks: currentProposal.adviserRemarks || "",
         originalProposalFinancials: currentProposal.originalProposalFinancials || currentProposal.financialData || null,
       };
       if (currentProposal.id) {
@@ -1831,30 +1998,51 @@ const Projects: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-[#122244]">
-                    Business Proposals
-                  </h2>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-[#122244]">
+                      Business Proposals
+                    </h2>
+                    <span className={`px-3 py-1 text-xs font-black rounded-full border ${
+                      proposals.length >= 3 
+                        ? "bg-amber-50 text-amber-800 border-amber-300"
+                        : "bg-blue-50 text-[#4285F4] border-blue-200"
+                    }`}>
+                      Proposals: {proposals.length} / 3
+                    </span>
+                    {proposals.length >= 3 && (
+                      <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md">
+                        Maximum of 3 proposals reached.
+                      </span>
+                    )}
+                  </div>
                   <div className="relative group">
                     <button
                       onClick={() => {
+                        if (proposals.length >= 3) {
+                          setToastTitle("Proposal Limit Reached");
+                          setToastMessage("Maximum of 3 proposals reached. Each team can submit at most 3 proposals.");
+                          setShowToast(true);
+                          setTimeout(() => setShowToast(false), 4000);
+                          return;
+                        }
                         setCurrentProposal(initialProposalState);
                         setIsEditingMode(true);
                         setSaveStatus("All changes saved");
                         setActiveView("form");
                       }}
-                      disabled={!!activeBusiness}
+                      disabled={!!activeBusiness || proposals.length >= 3}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        activeBusiness 
+                        activeBusiness || proposals.length >= 3
                           ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                       }`}
                     >
                       + New Proposal
                     </button>
-                    {activeBusiness && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                        Already has Approved Business
+                    {(activeBusiness || proposals.length >= 3) && (
+                      <div className="absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                        {activeBusiness ? "Already has Approved Business" : "Maximum of 3 proposals reached."}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
                       </div>
                     )}
@@ -1895,10 +2083,10 @@ const Projects: React.FC = () => {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {filteredProposals.map((proposal) => {
+                    {filteredProposals.map((proposal, idx) => {
                       let isApproved = proposal.status === "Approved";
                       let isRejected = proposal.status === "Rejected";
-                      let isRevision = proposal.status === "Revision";
+                      let isRevision = proposal.status === "Revision" || proposal.status === "Revision Required";
 
                       return (
                         <div
@@ -1909,7 +2097,7 @@ const Projects: React.FC = () => {
                             isRevision ? "border-orange-300" : "border-gray-200"
                           }`}
                         >
-                          <div className="flex gap-4 items-center w-full sm:w-auto">
+                          <div className="flex gap-4 items-center w-full sm:w-auto flex-1">
                             <div
                               className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${
                                 proposal.businessLogo
@@ -1931,14 +2119,18 @@ const Projects: React.FC = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2.5 mb-1 flex-wrap">
+                                <span className="px-2 py-0.5 bg-[#122244] text-white text-[10px] font-black rounded uppercase tracking-wider">
+                                  Proposal {proposal.proposalNumber || idx + 1}
+                                </span>
                                 <h3 className="font-bold text-[#122244] text-base truncate max-w-[280px]">
                                   {proposal.businessName || "Untitled Proposal"}
                                 </h3>
                                 <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
                                   proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
                                   proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                  proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
-                                  proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
+                                  proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                                  proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
                                   'bg-gray-100 text-gray-600'
                                 }`}>
                                   {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
@@ -1947,12 +2139,18 @@ const Projects: React.FC = () => {
                               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider truncate">
                                 {proposal.businessType || "No Category Selected"}
                               </p>
-                              {proposal.createdAt && (
+                              {(proposal.createdAt || proposal.submissionDate) && (
                                 <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
                                   <Clock className="w-3.5 h-3.5" />
                                   <span>
-                                    Submitted: {formatDateTime(proposal.createdAt)}
+                                    Submitted: {formatDateTime(proposal.createdAt || proposal.submissionDate)}
                                   </span>
+                                </div>
+                              )}
+                              {proposal.adviserRemarks && (
+                                <div className="mt-2 text-xs text-blue-900 bg-blue-50/80 border border-blue-100 rounded-lg p-2 flex items-start gap-1.5">
+                                  <span className="font-bold uppercase tracking-wider text-[10px] text-blue-600 flex-shrink-0">Remarks:</span>
+                                  <span className="line-clamp-2">{proposal.adviserRemarks}</span>
                                 </div>
                               )}
                             </div>
@@ -3517,10 +3715,11 @@ const Projects: React.FC = () => {
 
       {/* SETUP MODAL */}
       {showSetupModal && (() => {
-        const nameSuggestions = companyNameQuery.trim().length >= 1
-          ? dtiCompanies.filter((n) =>
-              n.toLowerCase().includes(companyNameQuery.trim().toLowerCase())
-            ).slice(0, 8)
+        const nameSuggestions = (companyNameQuery && companyNameQuery.trim().length >= 1)
+          ? allRegisteredCompanies.filter((c) => {
+              const cName = c?.companyName || c?.name || "";
+              return cName.toLowerCase().includes(companyNameQuery.trim().toLowerCase());
+            }).slice(0, 8)
           : [];
 
         return (
@@ -3550,65 +3749,181 @@ const Projects: React.FC = () => {
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
                   <div className="space-y-4">
 
-                    {/* Company Name with autocomplete */}
-                    <div ref={companyNameRef} className="relative">
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                        Company Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={companyNameQuery}
-                        onChange={(e) => {
-                          setCompanyNameQuery(e.target.value);
-                          setSetupCompanyName(e.target.value);
-                          setShowNameSuggestions(true);
-                          if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
-                        }}
-                        onFocus={() => setShowNameSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowNameSuggestions(false), 150)}
-                        placeholder="Type to search or enter a unique business name..."
-                        className={`w-full px-4 py-3 bg-gray-50 border ${
-                          setupErrors.companyName
-                            ? "border-red-400 bg-red-50/20"
-                            : (!setupErrors.companyName && companyNameQuery.trim().length > 0 && dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()))
-                              ? "border-amber-400 bg-amber-50/20"
-                              : "border-gray-200"
-                        } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
-                      />
+                    {/* Company Name with autocomplete and DTI + SEC Checker */}
+                    <div ref={companyNameRef} className="space-y-2">
+                      <div className="flex flex-wrap justify-between items-center gap-2">
+                        <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider">
+                          Company Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
+                          <span className="text-gray-500 font-semibold">Sources Checked:</span>
+                          <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">DTI</span>
+                          <span className="text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">SEC</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={companyNameQuery}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCompanyNameQuery(val);
+                              setSetupCompanyName(val);
+                              setShowNameSuggestions(true);
+                              if (nameCheckResult) setNameCheckResult(null);
+                              if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
+                            }}
+                            onFocus={() => setShowNameSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
+                            placeholder="Type to search or enter proposed company name..."
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              setupErrors.companyName
+                                ? "border-red-400 bg-red-50/20"
+                                : nameCheckResult?.status === "exact"
+                                  ? "border-red-400 bg-red-50/20"
+                                  : nameCheckResult?.status === "similar"
+                                    ? "border-amber-400 bg-amber-50/20"
+                                    : nameCheckResult?.status === "none"
+                                      ? "border-emerald-400 bg-emerald-50/20"
+                                      : "border-gray-200"
+                            } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
+                          />
+
+                          {/* Suggestions dropdown */}
+                          {showNameSuggestions && nameSuggestions.length > 0 && (
+                            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
+                              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                <span>Registered Matches</span>
+                                <span>DTI + SEC</span>
+                              </div>
+                              {nameSuggestions.map((rec, recIdx) => {
+                                const recName = rec?.companyName || rec?.name || `Company ${recIdx + 1}`;
+                                return (
+                                  <button
+                                    key={`${rec?.registrationSource || 'REG'}-${rec?.id || recIdx}-${recName}`}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      setSetupCompanyName(recName);
+                                      setCompanyNameQuery(recName);
+                                      setShowNameSuggestions(false);
+                                      handleCheckCompanyName(recName);
+                                      if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-[#122244] hover:bg-amber-50 hover:text-[#c9a654] font-medium transition-colors flex justify-between items-center"
+                                  >
+                                    <span className="truncate">{recName}</span>
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ml-2 ${
+                                      rec.registrationSource === 'SEC' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {rec.registrationSource}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                              <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-50 italic">
+                                Data reference: DTI (BNRS) + SEC Registered Entities
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Check Company Name Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCheckCompanyName(companyNameQuery)}
+                          disabled={isCheckingName || !companyNameQuery.trim()}
+                          className={`px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all flex-shrink-0 ${
+                            !companyNameQuery.trim()
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                              : "bg-[#122244] text-white hover:bg-[#0a142e] shadow-sm hover:shadow active:scale-95"
+                          }`}
+                          title="Check company name against DTI and SEC registered records"
+                        >
+                          {isCheckingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-[#c9a654]" />}
+                          <span>Check Company Name</span>
+                        </button>
+                      </div>
+
                       {/* Submit-time error */}
                       {setupErrors.companyName && (
                         <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />{setupErrors.companyName}
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" />{setupErrors.companyName}
                         </p>
                       )}
-                      {/* Real-time duplicate warning (live, before submit) */}
-                      {!setupErrors.companyName && companyNameQuery.trim().length > 0 &&
-                        dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()) && (
-                        <p className="text-amber-600 text-[11px] font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                          This business name is already registered in the DTI list. You cannot use this name — please enter a unique one.
-                        </p>
-                      )}
-                      {/* Suggestions dropdown */}
-                      {showNameSuggestions && nameSuggestions.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
-                          {nameSuggestions.map((name) => (
-                            <button
-                              key={name}
-                              type="button"
-                              onMouseDown={() => {
-                                setSetupCompanyName(name);
-                                setCompanyNameQuery(name);
-                                setShowNameSuggestions(false);
-                                if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-[#122244] hover:bg-amber-50 hover:text-[#c9a654] font-medium transition-colors"
-                            >
-                              {name}
-                            </button>
-                          ))}
-                          <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-50 italic">
-                            Data reference: DTI Business Name Registration System
+
+                      {/* Name Checker Results Box */}
+                      {nameCheckResult && (
+                        <div className={`p-4 rounded-xl border transition-all text-xs mt-2 ${
+                          nameCheckResult.status === "exact"
+                            ? "bg-red-50/90 border-red-200 text-red-900"
+                            : nameCheckResult.status === "similar"
+                              ? "bg-amber-50/90 border-amber-200 text-amber-900"
+                              : nameCheckResult.status === "none"
+                                ? "bg-emerald-50/90 border-emerald-200 text-emerald-900"
+                                : "bg-gray-50 border-gray-200 text-gray-700"
+                        }`}>
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2 font-bold text-sm">
+                              {nameCheckResult.status === "exact" && <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                              {nameCheckResult.status === "similar" && <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />}
+                              {nameCheckResult.status === "none" && <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                              <span>{nameCheckResult.message}</span>
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/90 border border-current/20">
+                              DTI + SEC
+                            </span>
+                          </div>
+
+                          {/* Exact Match Details */}
+                          {nameCheckResult.status === "exact" && nameCheckResult.matches.length > 0 && (
+                            <div className="mb-2.5 bg-white/90 p-2.5 rounded-lg border border-red-200/80">
+                              <p className="text-[11px] text-red-800 font-medium">
+                                This company name is already registered. You cannot use this name — please enter a unique name.
+                              </p>
+                              <div className="mt-1.5 flex items-center gap-2">
+                                <span className="font-extrabold text-[#122244]">{nameCheckResult.matches[0].name}</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
+                                  nameCheckResult.matches[0].registrationSource === "SEC" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                                }`}>
+                                  Registered under: {nameCheckResult.matches[0].registrationSource}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Similar Match Details */}
+                          {nameCheckResult.status === "similar" && nameCheckResult.matches.length > 0 && (
+                            <div className="mb-2.5 bg-white/90 p-2.5 rounded-lg border border-amber-200/80">
+                              <p className="text-[11px] text-amber-800 font-semibold mb-1.5">
+                                Potentially similar registered company names:
+                              </p>
+                              <div className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                                {nameCheckResult.matches.map((m, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-xs py-1 border-b border-amber-100/60 last:border-0">
+                                    <span className="font-semibold text-gray-800">{m.name}</span>
+                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                      m.registrationSource === "SEC" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                                    }`}>
+                                      {m.registrationSource}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* No Match Found Details */}
+                          {nameCheckResult.status === "none" && (
+                            <p className="text-[11px] text-emerald-800 font-medium mb-2">
+                              No matching company name found in the DTI or SEC reference datasets.
+                            </p>
+                          )}
+
+                          {/* Official Preliminary Check Disclaimer */}
+                          <div className="pt-2 border-t border-current/10 text-[10px] italic leading-tight text-gray-600">
+                            Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system.
                           </div>
                         </div>
                       )}
