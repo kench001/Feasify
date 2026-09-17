@@ -1882,47 +1882,54 @@ const AdviserDashboard: React.FC = () => {
                                 const ingredients = prod.ingredients || [];
 
                                 return (
-                                  <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
-                                    <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
-                                      <span className="font-extrabold text-sm text-[#122244]">
-                                        {prod.name || `Product #${pIdx + 1}`}
-                                      </span>
-                                      <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
-                                        Yield: {metrics.batchYield || 0} units
-                                      </span>
-                                    </div>
+                                    <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
+                                      <div className="flex justify-between items-center border-b border-gray-200/60 pb-2 flex-wrap gap-2">
+                                        <span className="font-extrabold text-sm text-[#122244]">
+                                          {prod.name || `Product #${pIdx + 1}`}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                            Made: {metrics.totalUnitsProduced.toLocaleString()} pcs ({metrics.batchesPerMonth} {metrics.batchesPerMonth === 1 ? "batch" : "batches"})
+                                          </span>
+                                          <span className="text-[11px] font-bold text-[#b59545] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                            Sold: {metrics.unitsSold.toLocaleString()} pcs
+                                          </span>
+                                        </div>
+                                      </div>
 
-                                    {/* Per-Product Summary Cards */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                                        <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
+                                      {/* Per-Product Summary Cards */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                                          <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                          <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
+                                          <span className="text-[9px] text-[#b59545] font-bold uppercase block">
+                                            Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                          </span>
+                                          <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
+                                          <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
+                                          <span className="font-extrabold text-blue-900 text-sm">
+                                            ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                        </div>
+                                        <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
+                                          <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
+                                          <span className="font-extrabold text-green-700 text-sm">
+                                            ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                          <span className="text-[8px] text-green-600 block">{metrics.unitsSold.toLocaleString()} sold</span>
+                                        </div>
+                                        <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
+                                          <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                          <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                            ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                          <span className="text-[8px] text-purple-600 block">Rev - COGS</span>
+                                        </div>
                                       </div>
-                                      <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
-                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">
-                                          Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
-                                        </span>
-                                        <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
-                                      </div>
-                                      <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
-                                        <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
-                                        <span className="font-extrabold text-blue-900 text-sm">
-                                          ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                      <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
-                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
-                                        <span className="font-extrabold text-green-700 text-sm">
-                                          ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
-                                        <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
-                                        <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                          ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                    </div>
 
                                     {/* Direct production costs list if present */}
                                     {ingredients.length > 0 && (
@@ -2426,11 +2433,14 @@ const AdviserDashboard: React.FC = () => {
                                             {prod.name || `Product #${pIdx + 1}`}
                                           </span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
-                                            Yield: {metrics.batchYield || 0} units
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                            Made: {metrics.totalUnitsProduced.toLocaleString()} pcs ({metrics.batchesPerMonth} {metrics.batchesPerMonth === 1 ? "batch" : "batches"})
                                           </span>
-                                          <span className="text-xs font-bold text-[#c9a654] bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                          <span className="text-xs font-bold text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                            Sold: {metrics.unitsSold.toLocaleString()} pcs
+                                          </span>
+                                          <span className="text-xs font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
                                             +{metrics.markupPct}% Mark-up
                                           </span>
                                         </div>
@@ -2466,16 +2476,18 @@ const AdviserDashboard: React.FC = () => {
                                           <span className="font-extrabold text-green-700 text-base mt-0.5 block">
                                             ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
-                                          <span className="text-[9px] text-green-600">
-                                            {prod.applyVat !== false ? "Net Sales (excl. VAT)" : "Selling Price × Qty"}
+                                          <span className="text-[9px] text-green-600 truncate block">
+                                            {metrics.unitsSold.toLocaleString()} sold ({prod.applyVat !== false ? "Net Sales excl. VAT" : "Selling Price × Sold"})
                                           </span>
                                         </div>
                                         <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200 shadow-sm col-span-2 sm:col-span-1">
-                                          <span className="text-[10px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
                                           <span className={`font-extrabold text-base mt-0.5 block ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
                                             ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </span>
-                                          <span className="text-[9px] text-purple-600">Net Revenue - Total Cost</span>
+                                          <span className="text-[9px] text-purple-600 truncate block">
+                                            Revenue - COGS (₱{metrics.cogsSold.toFixed(2)})
+                                          </span>
                                         </div>
                                       </div>
 

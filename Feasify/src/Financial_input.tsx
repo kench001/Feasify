@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Save,
   ChevronDown,
+  ChevronUp,
   DollarSign,
   Package,
   TrendingUp,
@@ -57,6 +58,8 @@ import {
 import {
   normalizeProposalProducts,
   computeProductMetrics,
+  handlePreventNegative,
+  handlePasteNonNegative,
 } from "./Projects";
 import type {
   ProductCostingItem,
@@ -154,6 +157,7 @@ const Financial_input: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
 
   // Multi-Month Financial State
   const [monthlyRecords, setMonthlyRecords] = useState<MonthlyFinancialRecord[]>([
@@ -236,12 +240,34 @@ const Financial_input: React.FC = () => {
     variableCost: financials.variableCost,
   }, activeProjName);
 
+  const toggleProductExpand = (key: string) => {
+    setExpandedProducts((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const allProductsExpanded =
+    normalizedProducts.length > 0 &&
+    normalizedProducts.every((p, idx) => !!expandedProducts[p.id || String(idx)]);
+
+  const toggleAllProducts = () => {
+    const nextState = !allProductsExpanded;
+    const newMap: Record<string, boolean> = {};
+    normalizedProducts.forEach((p, idx) => {
+      newMap[p.id || String(idx)] = nextState;
+    });
+    setExpandedProducts(newMap);
+  };
+
   const handleAddProduct = () => {
     if (isCurrentMonthLocked) return;
     const newProduct: ProductCostingItem = {
       id: "prod-" + Date.now(),
       name: "",
       quantityYield: "",
+      batchesPerMonth: "1",
+      unitsSold: "",
       ingredients: [],
       markupPercentage: "100",
       sellingPrice: "",
@@ -251,6 +277,10 @@ const Financial_input: React.FC = () => {
     const updatedProducts = [...normalizedProducts, newProduct];
     const newState = { ...financials, products: updatedProducts };
     setFinancials(newState);
+    setExpandedProducts((prev) => ({
+      ...prev,
+      [newProduct.id!]: true,
+    }));
     const updatedRecords = [...monthlyRecords];
     if (updatedRecords[activeMonthIndex]) {
       updatedRecords[activeMonthIndex] = {
@@ -355,6 +385,73 @@ const Financial_input: React.FC = () => {
       ingredients: ings,
     };
     const newState = { ...financials, products: updatedProducts };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  // --- STARTUP EQUIPMENT & ASSETS (CAPEX) HANDLERS ---
+  const handleAddEquipmentItem = () => {
+    if (isCurrentMonthLocked) return;
+    const currentList = financials.equipmentList || [];
+    const newItem = {
+      id: "eq-" + Date.now(),
+      name: "",
+      quantity: 1,
+      unitPrice: 0,
+      total: 0,
+    };
+    const updatedList = [...currentList, newItem];
+    const newState = { ...financials, equipmentList: updatedList };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleUpdateEquipmentItem = (
+    index: number,
+    updates: Partial<{ id: string; name: string; quantity: number; unitPrice: number; total: number }>
+  ) => {
+    if (isCurrentMonthLocked) return;
+    const currentList = [...(financials.equipmentList || [])];
+    const existing = currentList[index];
+    const updatedItem = { ...existing, ...updates };
+    const qty = Number(updatedItem.quantity) || 0;
+    const price = Number(updatedItem.unitPrice) || 0;
+    updatedItem.total = qty * price;
+    currentList[index] = updatedItem;
+
+    const newState = { ...financials, equipmentList: currentList };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleRemoveEquipmentItem = (index: number) => {
+    if (isCurrentMonthLocked) return;
+    const currentList = (financials.equipmentList || []).filter((_, i) => i !== index);
+    const newState = { ...financials, equipmentList: currentList };
     setFinancials(newState);
     const updatedRecords = [...monthlyRecords];
     if (updatedRecords[activeMonthIndex]) {
@@ -527,6 +624,8 @@ const Financial_input: React.FC = () => {
     id: "prod-1",
     name: "",
     quantityYield: financials.monthlySales || "",
+    batchesPerMonth: "1",
+    unitsSold: "",
     ingredients: [],
     markupPercentage: "100",
     sellingPrice: financials.sellingPrice || "",
@@ -540,11 +639,19 @@ const Financial_input: React.FC = () => {
   }, 0);
   const totalMultiVariableCost = normalizedProducts.reduce((sum, p) => {
     const m = computeProductMetrics(p);
-    return sum + (m.unitCost * m.batchYield);
+    return sum + m.cogsSold;
   }, 0);
   const totalMultiYield = normalizedProducts.reduce((sum, p) => {
     const m = computeProductMetrics(p);
-    return sum + m.batchYield;
+    return sum + m.totalUnitsProduced;
+  }, 0);
+  const totalMultiUnitsSold = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + m.unitsSold;
+  }, 0);
+  const totalMultiEndingInventory = normalizedProducts.reduce((sum, p) => {
+    const m = computeProductMetrics(p);
+    return sum + m.endingInventoryValue;
   }, 0);
 
   const totalMultiVat = normalizedProducts.reduce((sum, p) => {
@@ -552,16 +659,20 @@ const Financial_input: React.FC = () => {
     return sum + m.totalVat;
   }, 0);
 
-  const safeSellingPrice = normalizedProducts.length > 1 && totalMultiYield > 0
-    ? totalMultiRevenue / totalMultiYield
+  const safeSellingPrice = normalizedProducts.length > 1 && totalMultiUnitsSold > 0
+    ? totalMultiRevenue / totalMultiUnitsSold
     : (firstMetrics.netSellingPrice > 0 ? firstMetrics.netSellingPrice : (firstMetrics.sellingPrice > 0 ? firstMetrics.sellingPrice : (Number(financials.sellingPrice) || 0)));
 
   const safeMonthlySales = normalizedProducts.length > 1
-    ? totalMultiYield
-    : (firstMetrics.batchYield > 0 ? firstMetrics.batchYield : (Number(financials.monthlySales) || 0));
+    ? totalMultiUnitsSold
+    : (firstMetrics.unitsSold > 0 ? firstMetrics.unitsSold : (Number(financials.monthlySales) || 0));
 
-  const safeVariableCost = normalizedProducts.length > 1 && totalMultiYield > 0
-    ? totalMultiVariableCost / totalMultiYield
+  const safeUnitsProduced = normalizedProducts.length > 1
+    ? totalMultiYield
+    : (firstMetrics.totalUnitsProduced > 0 ? firstMetrics.totalUnitsProduced : safeMonthlySales);
+
+  const safeVariableCost = normalizedProducts.length > 1 && totalMultiUnitsSold > 0
+    ? totalMultiVariableCost / totalMultiUnitsSold
     : (firstMetrics.unitCost > 0 ? firstMetrics.unitCost : (Number(financials.variableCost) || 0));
 
   const calculatedOpex = financials.opexList && financials.opexList.length > 0
@@ -630,8 +741,10 @@ const Financial_input: React.FC = () => {
   const totalLiquidCash = safeCashInvested + operatingCashBuffer;
   const cashOnHand = totalLiquidCash * 0.15; // 15% allocation
   const cashInBank = totalLiquidCash * 0.85; // 85% allocation
-  const rawMaterialInventory = totalMonthlyVariableCosts * 0.15; // 15% ending inventory buffer
-  const totalCurrentAssets = cashOnHand + cashInBank + rawMaterialInventory;
+  const rawMaterialInventory = totalMonthlyVariableCosts * 0.15; // 15% raw materials buffer
+  const finishedGoodsInventory = totalMultiEndingInventory; // Actual unsold finished goods inventory value
+  const totalInventory = rawMaterialInventory + finishedGoodsInventory;
+  const totalCurrentAssets = cashOnHand + cashInBank + totalInventory;
 
   // Non-Current Assets: Equipment/Machinery net of 10% straight-line annual depreciation
   const grossPPE = safeStartupCapital;
@@ -658,7 +771,7 @@ const Financial_input: React.FC = () => {
 
   // 2. Inventory Turnover = Cost of Sales / Average Inventory
   const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
-  const avgInventory = rawMaterialInventory > 0 ? rawMaterialInventory : 1;
+  const avgInventory = totalInventory > 0 ? totalInventory : 1;
   const inventoryTurnover = avgInventory > 0 ? (annualCOGS / avgInventory).toFixed(1) : "0.0";
 
   // 3. Average Age of Inventory = 360 Days / Inventory Turnover
@@ -686,9 +799,9 @@ const Financial_input: React.FC = () => {
     const dateStr = new Date().toLocaleDateString();
 
     const csvRows: string[] = [];
-    const addRow = (col1 = "", col2: string | number = "", col3: string | number = "", col4: string | number = "") => {
+    const addRow = (col1 = "", col2: string | number = "", col3: string | number = "", col4: string | number = "", col5: string | number = "", col6: string | number = "") => {
       const escape = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
-      csvRows.push([escape(col1), escape(col2), escape(col3), escape(col4)].join(","));
+      csvRows.push([escape(col1), escape(col2), escape(col3), escape(col4), escape(col5), escape(col6)].join(","));
     };
 
     addRow(`FEASIFY FINANCIAL PROJECTIONS & FEASIBILITY REPORT`);
@@ -700,7 +813,8 @@ const Financial_input: React.FC = () => {
 
     addRow(`=== 1. OPERATIONAL PROJECTIONS & COSTING ===`);
     addRow(`Selling Price (PHP)`, safeSellingPrice);
-    addRow(`Monthly Target Sales (Units)`, safeMonthlySales);
+    addRow(`Total Units Produced (Nagawa)`, safeUnitsProduced);
+    addRow(`Monthly Units Sold (Nabenta)`, safeMonthlySales);
     addRow(`Cost of Goods Sold (COGS/Unit)`, safeVariableCost);
     addRow(`Monthly Revenue (PHP)`, monthlyRevenue);
     addRow(`Total Monthly Variable Costs (PHP)`, totalMonthlyVariableCosts);
@@ -710,7 +824,36 @@ const Financial_input: React.FC = () => {
     addRow(`Break-Even Point (Units)`, breakEvenUnits);
     addRow();
 
-    addRow(`=== 2. SOURCES OF FINANCING & STARTUP COSTS ===`);
+    if (normalizedProducts.length > 0) {
+      addRow(`--- ITEMIZED PRODUCT COSTING, BATCH PRODUCTION & SALES ---`);
+      addRow(`Product Name`, `Yield/Batch`, `Batches/Mo`, `Total Produced`, `Units Sold`, `Revenue (PHP)`);
+      normalizedProducts.forEach((p, idx) => {
+        const m = computeProductMetrics(p);
+        addRow(
+          p.name || `Product #${idx + 1}`,
+          `${m.batchYield} units`,
+          `${m.batchesPerMonth} batches`,
+          `${m.totalUnitsProduced} units`,
+          `${m.unitsSold} units`,
+          `PHP ${m.revenue.toFixed(2)}`
+        );
+      });
+      addRow();
+    }
+
+    addRow(`=== 2. STARTUP EQUIPMENT & ASSETS BREAKDOWN (CAPEX) ===`);
+    if (financials.equipmentList && financials.equipmentList.length > 0) {
+      addRow(`Item / Asset Name`, `Quantity`, `Unit Price (PHP)`, `Total (PHP)`);
+      financials.equipmentList.forEach((eq: any) => {
+        addRow(eq.name || "Equipment Item", eq.quantity || 1, eq.unitPrice || 0, eq.total || 0);
+      });
+      addRow(`Total CapEx Equipment`, ``, ``, safeStartupCapital);
+    } else {
+      addRow(`Total CapEx Equipment`, safeStartupCapital);
+    }
+    addRow();
+
+    addRow(`=== 3. SOURCES OF FINANCING & STARTUP COSTS ===`);
     addRow(`Cash Invested (PHP)`, safeCashInvested);
     addRow(`Total Initial Capital (PHP)`, totalInitialCapital);
     addRow(`Rent Advance & Deposit (PHP)`, safeRentAdvance);
@@ -719,9 +862,10 @@ const Financial_input: React.FC = () => {
     addRow(`Initial Salaries Buffer (PHP)`, safeSalariesInitial);
     addRow(`Total Equipment / CapEx (PHP)`, safeStartupCapital);
     addRow(`Total Project Cost (PHP)`, totalProjectCost);
+    addRow(`Borrowed / Loaned Capital?`, financials.isCapitalBorrowed ? `Yes (${financials.interestRate || 0}% annual interest)` : `No`);
     addRow();
 
-    addRow(`=== 3. STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) ===`);
+    addRow(`=== 4. STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) ===`);
     addRow(`ASSETS`);
     addRow(`Cash on Hand (15%)`, cashOnHand.toFixed(2));
     addRow(`Cash in Bank (85%)`, cashInBank.toFixed(2));
@@ -1489,6 +1633,56 @@ const Financial_input: React.FC = () => {
                 </div>
               </div>
 
+              {/* PROMINENT TOTAL CAPITAL HERO CARD */}
+              <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] rounded-2xl p-6 text-white shadow-xl mb-6 relative overflow-hidden border border-white/10">
+                <div className="absolute right-0 top-0 w-80 h-full bg-gradient-to-l from-[#c9a654]/15 to-transparent pointer-events-none" />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                  <div className="flex items-start sm:items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654] font-black text-2xl shrink-0 shadow-inner">
+                      <DollarSign className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="px-2.5 py-0.5 bg-[#c9a654]/20 text-[#c9a654] text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-[#c9a654]/30">
+                          Total Capital Overview
+                        </span>
+                        <span className="text-xs text-white/40">•</span>
+                        <span className="text-xs text-slate-300 font-semibold">
+                          {activeProjName}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-white tracking-tight">
+                        Business Feasibility Capital Summary
+                      </h3>
+                      <p className="text-xs text-slate-300 font-medium">
+                        Total capital amount pulled directly from the approved business proposal
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
+                    <div className="pr-4 border-r border-white/10">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Total Capital (Proposal)
+                      </span>
+                      <p className="text-2xl sm:text-3xl font-black text-[#c9a654] tracking-tight mt-0.5">
+                        ₱{Number(projects.find(p => p.id === selectedProjectId)?.proposalCapital || totalInitialCapital || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between gap-3 text-slate-300">
+                        <span className="text-[11px] text-slate-400">Total CapEx Equipment:</span>
+                        <span className="font-bold text-white">₱{safeStartupCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-slate-300">
+                        <span className="text-[11px] text-slate-400">Monthly Fixed OpEx:</span>
+                        <span className="font-bold text-white">₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* FILE FOLDER TAB SYSTEM */}
               <div className="mb-6">
                 {/* File Tabs Top Rail */}
@@ -1816,16 +2010,16 @@ const Financial_input: React.FC = () => {
                       <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                         {normalizedProducts.length > 1 ? (
                           <>
-                            <span>Total Yield: {safeMonthlySales.toLocaleString()} units</span>
+                            <span>Sales: {safeMonthlySales.toLocaleString()} units sold</span>
                             <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold">
-                              {normalizedProducts.length} Products Combined
+                              {safeUnitsProduced.toLocaleString()} units produced • {normalizedProducts.length} Products
                             </p>
                           </>
                         ) : (
                           <>
-                            <span>Price × Monthly Sales</span>
+                            <span>Price × Units Sold</span>
                             <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
-                              ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {safeMonthlySales.toLocaleString()}
+                              ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {safeMonthlySales.toLocaleString()} sold ({safeUnitsProduced.toLocaleString()} produced)
                             </p>
                           </>
                         )}
@@ -1845,16 +2039,16 @@ const Financial_input: React.FC = () => {
                       <div className="mt-3 text-[10px] text-gray-400 font-semibold bg-gray-50/80 py-1.5 px-2 rounded-lg border border-gray-100">
                         {normalizedProducts.length > 1 ? (
                           <>
-                            <span>Total Variable (COGS) + Fixed</span>
+                            <span>COGS (Units Sold) + Fixed</span>
                             <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
                               ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                             </p>
                           </>
                         ) : (
                           <>
-                            <span>(COGS/Unit × Sales) + Fixed</span>
+                            <span>(COGS/Unit × Sold) + Fixed</span>
                             <p className="text-[9px] text-[#c9a654] mt-0.5 font-bold truncate">
-                              (₱{safeVariableCost.toFixed(2)} × {safeMonthlySales.toLocaleString()}) + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                              (₱{safeVariableCost.toFixed(2)} × {safeMonthlySales.toLocaleString()} sold) + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                             </p>
                           </>
                         )}
@@ -1941,32 +2135,55 @@ const Financial_input: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      {!isCurrentMonthLocked && (
-                        <button
-                          type="button"
-                          onClick={handleAddProduct}
-                          className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
-                        >
-                          <Plus size={14} /> Add Product
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+                        {normalizedProducts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={toggleAllProducts}
+                            className="flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#122244] bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl border border-gray-200 transition-all shadow-2xs"
+                          >
+                            {allProductsExpanded ? (
+                              <>
+                                <ChevronUp size={13} /> Fold All
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown size={13} /> Expand All
+                              </>
+                            )}
+                          </button>
+                        )}
+                        {!isCurrentMonthLocked && (
+                          <button
+                            type="button"
+                            onClick={handleAddProduct}
+                            className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                          >
+                            <Plus size={14} /> Add Product
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* PRODUCTS LIST */}
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {normalizedProducts.map((product, prodIdx) => {
                         const metrics = computeProductMetrics(product);
                         const ingredients = product.ingredients || [];
+                        const productKey = product.id || String(prodIdx);
+                        const isExpanded = !!expandedProducts[productKey];
 
                         return (
                           <div
-                            key={product.id || prodIdx}
-                            className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-6 shadow-sm relative"
+                            key={productKey}
+                            className={`bg-white rounded-2xl border transition-all duration-200 shadow-sm relative ${
+                              isExpanded ? "p-5 sm:p-6 space-y-6 border-gray-300 ring-1 ring-gray-200/60" : "p-4 sm:p-5 border-gray-200 hover:border-gray-300"
+                            }`}
                           >
-                            {/* Product Header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                            {/* Product Header (Matches reference image) */}
+                            <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? "border-b border-gray-100 pb-4" : ""}`}>
                               <div className="flex items-center gap-3 flex-1">
-                                <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider">
+                                <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider shadow-2xs shrink-0">
                                   Product #{prodIdx + 1}
                                 </span>
                                 <div className="flex-1 max-w-md">
@@ -1977,416 +2194,899 @@ const Financial_input: React.FC = () => {
                                     value={product.name || ""}
                                     onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                    className="w-full px-3.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                   />
                                 </div>
                               </div>
-                              {normalizedProducts.length > 1 && !isCurrentMonthLocked && (
+
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveProduct(prodIdx)}
-                                  className="self-end sm:self-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors font-semibold"
+                                  onClick={() => toggleProductExpand(productKey)}
+                                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all shadow-2xs ${
+                                    isExpanded
+                                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                                      : "bg-amber-50 hover:bg-amber-100 text-[#b59545] border-amber-200/80"
+                                  }`}
                                 >
-                                  <Trash2 size={13} /> Remove Product
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp size={13} /> Fold Details
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={13} className="text-[#c9a654]" /> Expand Inputs & Costing
+                                    </>
+                                  )}
                                 </button>
-                              )}
+
+                                {normalizedProducts.length > 1 && !isCurrentMonthLocked && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveProduct(prodIdx)}
+                                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors font-semibold"
+                                  >
+                                    <Trash2 size={13} /> Remove Product
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Product Yield & Ingredients Grid */}
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                              {/* Yield Input & Calculation */}
-                              <div className="lg:col-span-4 space-y-4">
-                                <div>
-                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                    Monthly Target Sales / Batch Yield (Units) <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="number"
-                                    disabled={isCurrentMonthLocked}
-                                    placeholder="e.g. 300"
-                                    value={product.quantityYield}
-                                    onChange={(e) => handleUpdateProduct(prodIdx, { quantityYield: e.target.value })}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                  />
-                                  <p className="text-[9px] text-gray-400 mt-1 italic">
-                                    Total finished units produced or sold per month
-                                  </p>
+                            {/* COMPACT SUMMARY STRIP (WHEN FOLDED) */}
+                            {!isExpanded && (
+                              <div className="pt-3.5 border-t border-gray-100">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                                  {/* 1. Units per batch (Editable) */}
+                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                      Units per batch <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      disabled={isCurrentMonthLocked}
+                                      type="number"
+                                      min="0"
+                                      placeholder="e.g. 50"
+                                      value={product.quantityYield !== undefined ? product.quantityYield : ""}
+                                      onKeyDown={handlePreventNegative}
+                                      onPaste={handlePasteNonNegative}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "" || Number(val) >= 0) {
+                                          handleUpdateProduct(prodIdx, { quantityYield: val });
+                                        }
+                                      }}
+                                      onBlur={() => handleAutoSave()}
+                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#122244] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                    />
+                                    <span className="text-[9px] text-gray-400 block mt-1">Batch Yield (finished pcs)</span>
+                                  </div>
+
+                                  {/* 2. Batches per Month (Editable) */}
+                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-emerald-300/80 transition-colors">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                      Batches / Mo
+                                    </label>
+                                    <input
+                                      disabled={isCurrentMonthLocked}
+                                      type="number"
+                                      min="1"
+                                      placeholder="1"
+                                      value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
+                                      onKeyDown={handlePreventNegative}
+                                      onPaste={handlePasteNonNegative}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "" || Number(val) >= 0) {
+                                          handleUpdateProduct(prodIdx, { batchesPerMonth: val });
+                                        }
+                                      }}
+                                      onBlur={() => handleAutoSave()}
+                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-emerald-800 focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                    />
+                                    <span className="text-[9px] text-emerald-600 font-semibold block mt-1">
+                                      {metrics.totalUnitsProduced.toLocaleString()} pcs nagawa
+                                    </span>
+                                  </div>
+
+                                  {/* 3. Units Sold / Mo (Editable) */}
+                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                      Units Sold / Mo
+                                    </label>
+                                    <input
+                                      disabled={isCurrentMonthLocked}
+                                      type="number"
+                                      min="0"
+                                      max={metrics.totalUnitsProduced > 0 ? metrics.totalUnitsProduced : undefined}
+                                      placeholder={String(metrics.totalUnitsProduced || "0")}
+                                      value={product.unitsSold !== undefined ? product.unitsSold : ""}
+                                      onKeyDown={handlePreventNegative}
+                                      onPaste={handlePasteNonNegative}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "") {
+                                          handleUpdateProduct(prodIdx, { unitsSold: "" });
+                                          return;
+                                        }
+                                        const numVal = Math.max(0, Number(val));
+                                        const maxProduced = metrics.totalUnitsProduced;
+                                        if (maxProduced > 0 && numVal > maxProduced) {
+                                          handleUpdateProduct(prodIdx, { unitsSold: String(maxProduced) });
+                                        } else {
+                                          handleUpdateProduct(prodIdx, { unitsSold: val });
+                                        }
+                                      }}
+                                      onBlur={() => handleAutoSave()}
+                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#c9a654] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                    />
+                                    <span className="text-[9px] text-[#b59545] font-semibold block mt-1">
+                                      {metrics.unitsSold.toLocaleString()} pcs nabenta
+                                    </span>
+                                  </div>
+
+                                  {/* 4. Cost per Batch */}
+                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors flex flex-col justify-between">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Batch</span>
+                                      <p className="text-sm font-black text-[#122244] mt-1.5">
+                                        ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </p>
+                                    </div>
+                                    <span className="text-[9px] text-gray-400 mt-1">{ingredients.length} items/costs</span>
+                                  </div>
+
+                                  {/* 5. Cost per Unit (COGS) */}
+                                  <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/70 transition-colors col-span-2 sm:col-span-1 flex flex-col justify-between">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">Cost / Unit (COGS)</span>
+                                      <p className="text-sm font-black text-blue-950 mt-1.5">
+                                        ₱{metrics.unitCost.toFixed(2)}
+                                      </p>
+                                    </div>
+                                    <span className="text-[9px] text-blue-700 font-semibold mt-1">
+                                      {metrics.sellingPrice > 0 ? `Target SRP: ₱${metrics.sellingPrice.toFixed(2)}` : "Unit cost"}
+                                    </span>
+                                  </div>
                                 </div>
 
-                                {/* Total Batch Cost & Unit Cost Preview */}
-                                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2.5">
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-500 font-medium">Total Batch Cost:</span>
-                                    <span className="font-extrabold text-[#122244]">
-                                      ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-400">
+                                  <div className="flex items-center gap-2">
+                                    {metrics.unsoldUnits > 0 ? (
+                                      <span className="text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
+                                        📦 {metrics.unsoldUnits.toLocaleString()} unsold (₱{metrics.endingInventoryValue.toFixed(2)})
+                                      </span>
+                                    ) : metrics.unitsSold === metrics.totalUnitsProduced && metrics.totalUnitsProduced > 0 ? (
+                                      <span className="text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
+                                        ✓ 100% Sold ({metrics.unitsSold.toLocaleString()} pcs)
+                                      </span>
+                                    ) : null}
                                   </div>
-                                  {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
-                                    <div className="space-y-1 pb-1.5 pt-0.5 border-b border-gray-200/60 text-[11px]">
-                                      <div className="flex justify-between items-center text-gray-500">
-                                        <span>Direct Materials:</span>
-                                        <span className="font-bold text-gray-700">
-                                          ₱{ingredients.filter(i => !i.category || i.category === "ingredient").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-blue-800">
-                                        <span>Direct Labor & Misc:</span>
-                                        <span className="font-bold text-blue-900">
-                                          ₱{ingredients.filter(i => i.category === "labor" || i.category === "miscellaneous").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
-                                    <span className="text-gray-500 font-medium">Yield:</span>
-                                    <span className="font-bold text-gray-800">{metrics.batchYield || 0} units</span>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-200/60">
-                                    <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
-                                    <span className="font-black text-[#122244] text-sm">
-                                      ₱{metrics.unitCost.toFixed(2)}
-                                    </span>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleProductExpand(productKey)}
+                                    className="flex items-center gap-1.5 text-[#c9a654] hover:text-[#b59545] font-bold self-end sm:self-auto hover:underline"
+                                  >
+                                    <span>Customize ingredients recipe, labor & mark-up</span>
+                                    <ChevronDown size={13} />
+                                  </button>
                                 </div>
                               </div>
+                            )}
 
-                              {/* Ingredient List */}
-                              <div className="lg:col-span-8 space-y-3">
-                                <div className="flex justify-between items-center">
-                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                    Direct Production Costs (Materials, Labor & Misc)
-                                  </label>
-                                  {!isCurrentMonthLocked && (
-                                    <div className="flex items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddIngredient(prodIdx, "ingredient")}
-                                        className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
-                                      >
-                                        <Plus size={12} /> Add Ingredient
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddIngredient(prodIdx, "labor")}
-                                        className="flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200/70 hover:bg-blue-100 transition-colors"
-                                      >
-                                        <Plus size={12} /> Add Labor / Misc
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {ingredients.length === 0 ? (
-                                  <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
-                                    <p className="text-xs text-gray-400 italic">No production costs or ingredients listed yet.</p>
-                                    {!isCurrentMonthLocked && (
-                                      <div className="flex justify-center gap-3 pt-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleAddIngredient(prodIdx, "ingredient")}
-                                          className="text-xs font-bold text-[#c9a654] hover:underline"
-                                        >
-                                          + Add Ingredient
-                                        </button>
-                                        <span className="text-gray-300">|</span>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleAddIngredient(prodIdx, "labor")}
-                                          className="text-xs font-bold text-blue-700 hover:underline"
-                                        >
-                                          + Add Direct Labor / Misc
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
-                                    {ingredients.map((ing, ingIdx) => (
-                                      <div
-                                        key={ing.id || ingIdx}
-                                        className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
-                                      >
-                                        <select
-                                          disabled={isCurrentMonthLocked}
-                                          value={ing.category || "ingredient"}
-                                          onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
-                                          className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${
-                                            (ing.category === "labor")
-                                              ? "bg-blue-50 text-blue-800 border-blue-200"
-                                              : (ing.category === "miscellaneous")
-                                              ? "bg-purple-50 text-purple-800 border-purple-200"
-                                              : "bg-amber-50 text-[#b59545] border-amber-200"
-                                          }`}
-                                        >
-                                          <option value="ingredient">Material</option>
-                                          <option value="labor">Labor</option>
-                                          <option value="miscellaneous">Misc</option>
-                                        </select>
+                            {/* DETAILED INPUTS & COSTING (WHEN EXPANDED) */}
+                            {isExpanded && (
+                              <div className="space-y-6 animate-in fade-in duration-200">
+                                {/* Product Yield & Ingredients Grid */}
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                  {/* Yield Input & Calculation */}
+                                  <div className="lg:col-span-4 space-y-3.5">
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                          Batch Yield / Units per Batch <span className="text-red-500">*</span>
+                                        </label>
                                         <input
-                                          type="text"
+                                          type="number"
                                           disabled={isCurrentMonthLocked}
-                                          placeholder={
-                                            ing.category === "labor"
-                                              ? "Direct Labor (e.g. Barista, Baker, Prep)"
-                                              : ing.category === "miscellaneous"
-                                              ? "Misc Cost (e.g. Packaging, Cups, Foil)"
-                                              : "Ingredient / Direct Material Name"
-                                          }
-                                          value={ing.name}
-                                          onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
+                                          min="0"
+                                          placeholder="e.g. 50"
+                                          value={product.quantityYield}
+                                          onKeyDown={handlePreventNegative}
+                                          onPaste={handlePasteNonNegative}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === "" || Number(val) >= 0) {
+                                              handleUpdateProduct(prodIdx, { quantityYield: val });
+                                            }
+                                          }}
                                           onBlur={() => handleAutoSave()}
-                                          className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                          className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                         />
-                                        <div className="w-32 relative">
-                                          <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
+                                        <p className="text-[9px] text-gray-400 mt-0.5 italic">
+                                          Number of finished units produced in 1 recipe/batch
+                                        </p>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-2.5">
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                              Batches / Mo.
+                                            </label>
+                                          </div>
                                           <input
                                             type="number"
                                             disabled={isCurrentMonthLocked}
-                                            placeholder="0.00"
-                                            value={ing.price !== undefined ? ing.price : ""}
-                                            onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Number(e.target.value) })}
+                                            min="1"
+                                            placeholder="1"
+                                            value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
+                                            onKeyDown={handlePreventNegative}
+                                            onPaste={handlePasteNonNegative}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              if (val === "" || Number(val) >= 0) {
+                                                handleUpdateProduct(prodIdx, { batchesPerMonth: val });
+                                              }
+                                            }}
                                             onBlur={() => handleAutoSave()}
-                                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                                           />
+                                          <p className="text-[9px] text-emerald-700 font-extrabold mt-1 truncate">
+                                            Nagawa: {metrics.totalUnitsProduced.toLocaleString()} pcs
+                                          </p>
                                         </div>
-                                        {!isCurrentMonthLocked && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
-                                            className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
-                                            title="Remove ingredient"
-                                          >
-                                            <Trash2 size={13} />
-                                          </button>
+
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                              Units Sold / Mo.
+                                            </label>
+                                          </div>
+                                          <input
+                                            type="number"
+                                            disabled={isCurrentMonthLocked}
+                                            min="0"
+                                            max={metrics.totalUnitsProduced > 0 ? metrics.totalUnitsProduced : undefined}
+                                            placeholder={String(metrics.totalUnitsProduced || "")}
+                                            value={product.unitsSold !== undefined ? product.unitsSold : ""}
+                                            onKeyDown={handlePreventNegative}
+                                            onPaste={handlePasteNonNegative}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              if (val === "") {
+                                                handleUpdateProduct(prodIdx, { unitsSold: "" });
+                                                return;
+                                              }
+                                              const numVal = Math.max(0, Number(val));
+                                              const maxProduced = metrics.totalUnitsProduced;
+                                              if (maxProduced > 0 && numVal > maxProduced) {
+                                                handleUpdateProduct(prodIdx, { unitsSold: String(maxProduced) });
+                                              } else {
+                                                handleUpdateProduct(prodIdx, { unitsSold: val });
+                                              }
+                                            }}
+                                            onBlur={() => handleAutoSave()}
+                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                          />
+                                          <p className="text-[9px] text-[#c9a654] font-extrabold mt-1 truncate">
+                                            Nabenta: {metrics.unitsSold.toLocaleString()} pcs
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Inventory status pill */}
+                                      <div className="p-2 rounded-lg bg-slate-100/80 border border-slate-200 text-[10px] flex items-center justify-between">
+                                        <span className="text-gray-500 font-semibold">Inventory Status:</span>
+                                        {metrics.unsoldUnits > 0 ? (
+                                          <span className="font-extrabold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200 truncate">
+                                            📦 {metrics.unsoldUnits.toLocaleString()} unsold (₱{metrics.endingInventoryValue.toFixed(2)})
+                                          </span>
+                                        ) : metrics.unitsSold === metrics.totalUnitsProduced ? (
+                                          <span className="font-extrabold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 truncate">
+                                            ✓ 100% Sold ({metrics.unitsSold.toLocaleString()} pcs)
+                                          </span>
+                                        ) : (
+                                          <span className="font-extrabold text-blue-800 bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200 truncate">
+                                            {metrics.unitsSold.toLocaleString()} pcs sold
+                                          </span>
                                         )}
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Mark-up Strategy & Target Selling Price */}
-                            <div className="pt-4 border-t border-gray-100 space-y-3">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-5 h-5 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                                  <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                                    Mark-up Strategy & Target Selling Price
-                                  </h5>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  {/* 12% VAT Toggle Button */}
-                                  {!isCurrentMonthLocked && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const nextVat = product.applyVat === false;
-                                        const compPrice = nextVat ? (metrics.computedBasePrice * 1.12) : metrics.computedBasePrice;
-                                        handleUpdateProduct(prodIdx, {
-                                          applyVat: nextVat,
-                                          sellingPrice: compPrice > 0 ? String(Math.round(compPrice)) : (product.sellingPrice || "")
-                                        });
-                                      }}
-                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${
-                                        product.applyVat !== false
-                                          ? "bg-blue-900 text-white border-blue-900 shadow-sm"
-                                          : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
-                                      }`}
-                                      title="Toggle Philippine 12% Value-Added Tax (VAT)"
-                                    >
-                                      <span className={`w-1.5 h-1.5 rounded-full ${product.applyVat !== false ? "bg-amber-400" : "bg-gray-400"}`} />
-                                      {product.applyVat !== false ? "12% VAT Applied" : "Non-VAT / Exempt"}
-                                    </button>
-                                  )}
-
-                                  {!isCurrentMonthLocked && (
-                                    <div className="flex gap-1.5 items-center">
-                                      <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                                      {["50", "100", "120"].map((pct) => (
-                                        <button
-                                          key={pct}
-                                          type="button"
-                                          onClick={() => {
-                                            const mPct = Number(pct);
-                                            const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                            const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
-                                            handleUpdateProduct(prodIdx, {
-                                              markupPercentage: pct,
-                                              sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : ""
-                                            });
-                                          }}
-                                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
-                                            ? "bg-[#c9a654] text-white border-[#c9a654]"
-                                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                            }`}
-                                        >
-                                          {pct}%
-                                        </button>
-                                      ))}
                                     </div>
-                                  )}
-                                </div>
-                              </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                <div>
-                                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                    Mark-up Percentage (%)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    disabled={isCurrentMonthLocked}
-                                    placeholder="e.g. 100"
-                                    value={product.markupPercentage}
-                                    onChange={(e) => {
-                                      const newPct = e.target.value;
-                                      const mPct = Number(newPct) || 0;
-                                      const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                      const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
-                                      handleUpdateProduct(prodIdx, {
-                                        markupPercentage: newPct,
-                                        sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : (product.sellingPrice || "")
-                                      });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                  />
-                                  <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
-                                    <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
+                                    {/* Total Batch Cost & Unit Cost Preview */}
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2.5">
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-500 font-medium">Cost per Batch:</span>
+                                        <span className="font-extrabold text-[#122244]">
+                                          ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
+                                        <div className="space-y-1 pb-1.5 pt-0.5 border-b border-gray-200/60 text-[11px]">
+                                          <div className="flex justify-between items-center text-gray-500">
+                                            <span>Direct Materials:</span>
+                                            <span className="font-bold text-gray-700">
+                                              ₱{ingredients.filter(i => !i.category || i.category === "ingredient").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between items-center text-blue-800">
+                                            <span>Direct Labor & Misc:</span>
+                                            <span className="font-bold text-blue-900">
+                                              ₱{ingredients.filter(i => i.category === "labor" || i.category === "miscellaneous").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
+                                        <span className="text-gray-500 font-medium">Monthly Output:</span>
+                                        <span className="font-bold text-gray-800">
+                                          {metrics.totalUnitsProduced.toLocaleString()} units ({metrics.batchesPerMonth} {metrics.batchesPerMonth === 1 ? "batch" : "batches"})
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
+                                        <span className="text-[#122244] font-bold">Computed Unit Cost (COGS):</span>
+                                        <span className="font-black text-[#122244] text-sm">
+                                          ₱{metrics.unitCost.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-between">
-                                  <div>
-                                    <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Computed Base Price</span>
-                                    <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
-                                  </div>
-                                  <span className="text-[9px] text-gray-500">Unit Cost + Mark-up (VAT-Excl.)</span>
-                                </div>
-
-                                <div className={`p-3 rounded-lg border flex flex-col justify-between ${
-                                  product.applyVat !== false ? "bg-blue-50/60 border-blue-200" : "bg-gray-50 border-gray-200 opacity-60"
-                                }`}>
-                                  <div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">12% Output VAT</span>
-                                      {product.applyVat !== false ? (
-                                        <span className="text-[8px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded uppercase">Standard</span>
-                                      ) : (
-                                        <span className="text-[8px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded uppercase">Exempt</span>
+                                  {/* Ingredient List */}
+                                  <div className="lg:col-span-8 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                        Direct Production Costs (Materials, Labor & Misc)
+                                      </label>
+                                      {!isCurrentMonthLocked && (
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddIngredient(prodIdx, "ingredient")}
+                                            className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
+                                          >
+                                            <Plus size={12} /> Add Ingredient
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddIngredient(prodIdx, "labor")}
+                                            className="flex items-center gap-1 text-[11px] font-bold text-blue-800 hover:text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200/70 hover:bg-blue-100 transition-colors"
+                                          >
+                                            <Plus size={12} /> Add Labor / Misc
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
-                                    <p className="text-xl font-black text-blue-900 mt-0.5">
-                                      +₱{(product.applyVat !== false ? metrics.vatAmountPerUnit : 0).toFixed(2)}
-                                    </p>
-                                  </div>
-                                  <span className="text-[9px] text-blue-700/80">
-                                    {product.applyVat !== false ? `Suggested SRP: ₱${metrics.computedVatInclusivePrice.toFixed(2)}` : "Non-VAT / Exempt (0%)"}
-                                  </span>
-                                </div>
 
-                                <div>
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                      Final Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
-                                    </label>
-                                    {product.applyVat !== false && (
-                                      <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1 py-0.2 rounded uppercase">VAT-Inc.</span>
+                                    {ingredients.length === 0 ? (
+                                      <div className="p-5 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
+                                        <p className="text-xs text-gray-400 italic">No production costs or ingredients listed yet.</p>
+                                        {!isCurrentMonthLocked && (
+                                          <div className="flex justify-center gap-3 pt-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAddIngredient(prodIdx, "ingredient")}
+                                              className="text-xs font-bold text-[#c9a654] hover:underline"
+                                            >
+                                              + Add Ingredient
+                                            </button>
+                                            <span className="text-gray-300">|</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAddIngredient(prodIdx, "labor")}
+                                              className="text-xs font-bold text-blue-700 hover:underline"
+                                            >
+                                              + Add Direct Labor / Misc
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300">
+                                        {ingredients.map((ing, ingIdx) => (
+                                          <div
+                                            key={ing.id || ingIdx}
+                                            className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
+                                          >
+                                            <select
+                                              disabled={isCurrentMonthLocked}
+                                              value={ing.category || "ingredient"}
+                                              onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
+                                              className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${
+                                                (ing.category === "labor")
+                                                  ? "bg-blue-50 text-blue-800 border-blue-200"
+                                                  : (ing.category === "miscellaneous")
+                                                  ? "bg-purple-50 text-purple-800 border-purple-200"
+                                                  : "bg-amber-50 text-[#b59545] border-amber-200"
+                                              }`}
+                                            >
+                                              <option value="ingredient">Material</option>
+                                              <option value="labor">Labor</option>
+                                              <option value="miscellaneous">Misc</option>
+                                            </select>
+                                            <input
+                                              type="text"
+                                              disabled={isCurrentMonthLocked}
+                                              placeholder={
+                                                ing.category === "labor"
+                                                  ? "Direct Labor (e.g. Barista, Baker, Prep)"
+                                                  : ing.category === "miscellaneous"
+                                                  ? "Misc Cost (e.g. Packaging, Cups, Foil)"
+                                                  : "Ingredient / Direct Material Name"
+                                              }
+                                              value={ing.name}
+                                              onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
+                                              onBlur={() => handleAutoSave()}
+                                              className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                            />
+                                            <div className="w-32 relative">
+                                              <span className="absolute left-2.5 top-1.5 text-xs text-gray-400 font-bold">₱</span>
+                                              <input
+                                                type="number"
+                                                disabled={isCurrentMonthLocked}
+                                                min="0"
+                                                placeholder="0.00"
+                                                value={ing.price !== undefined ? ing.price : ""}
+                                                onKeyDown={handlePreventNegative}
+                                                onPaste={handlePasteNonNegative}
+                                                onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Math.max(0, Number(e.target.value)) })}
+                                                onBlur={() => handleAutoSave()}
+                                                className="w-full pl-6 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                              />
+                                            </div>
+                                            {!isCurrentMonthLocked && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
+                                                className="p-1.5 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                                                title="Remove ingredient"
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
-                                  <input
-                                    type="number"
-                                    disabled={isCurrentMonthLocked}
-                                    placeholder={
-                                      product.applyVat !== false
-                                        ? (metrics.computedVatInclusivePrice > 0 ? String(Math.round(metrics.computedVatInclusivePrice)) : "0")
-                                        : (metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0")
-                                    }
-                                    value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
-                                    onChange={(e) => handleUpdateProduct(prodIdx, { sellingPrice: e.target.value })}
-                                    onBlur={() => handleAutoSave()}
-                                    className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                  />
-                                  <p className="text-[9px] text-gray-400 mt-1 italic">
-                                    {product.applyVat !== false ? "VAT-Inclusive consumer price" : "Net price (Non-VAT)"}
-                                  </p>
+                                </div>
+
+                                {/* Mark-up Strategy & Target Selling Price */}
+                                <div className="pt-4 border-t border-gray-100 space-y-3">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-5 h-5 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                                      <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                        Mark-up Strategy & Target Selling Price
+                                      </h5>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {/* 12% VAT Toggle Button */}
+                                      {!isCurrentMonthLocked && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const nextVat = product.applyVat === false;
+                                            const compPrice = nextVat ? (metrics.computedBasePrice * 1.12) : metrics.computedBasePrice;
+                                            handleUpdateProduct(prodIdx, {
+                                              applyVat: nextVat,
+                                              sellingPrice: compPrice > 0 ? String(Math.round(compPrice)) : (product.sellingPrice || "")
+                                            });
+                                          }}
+                                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${
+                                            product.applyVat !== false
+                                              ? "bg-blue-900 text-white border-blue-900 shadow-sm"
+                                              : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
+                                          }`}
+                                          title="Toggle Philippine 12% Value-Added Tax (VAT)"
+                                        >
+                                          <span className={`w-1.5 h-1.5 rounded-full ${product.applyVat !== false ? "bg-amber-400" : "bg-gray-400"}`} />
+                                          {product.applyVat !== false ? "12% VAT Applied" : "Non-VAT / Exempt"}
+                                        </button>
+                                      )}
+
+                                      {!isCurrentMonthLocked && (
+                                        <div className="flex gap-1.5 items-center">
+                                          <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
+                                          {["50", "100", "120"].map((pct) => (
+                                            <button
+                                              key={pct}
+                                              type="button"
+                                              onClick={() => {
+                                                const mPct = Number(pct);
+                                                const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                                const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
+                                                handleUpdateProduct(prodIdx, {
+                                                  markupPercentage: pct,
+                                                  sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : ""
+                                                });
+                                              }}
+                                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors ${String(product.markupPercentage) === pct
+                                                ? "bg-[#c9a654] text-white border-[#c9a654]"
+                                                : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                                }`}
+                                            >
+                                              {pct}%
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div>
+                                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                        Mark-up Percentage (%)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        disabled={isCurrentMonthLocked}
+                                        min="0"
+                                        placeholder="e.g. 100"
+                                        value={product.markupPercentage}
+                                        onKeyDown={handlePreventNegative}
+                                        onPaste={handlePasteNonNegative}
+                                        onChange={(e) => {
+                                          const newPct = e.target.value;
+                                          if (newPct !== "" && Number(newPct) < 0) return;
+                                          const mPct = Math.max(0, Number(newPct) || 0);
+                                          const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
+                                          const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
+                                          handleUpdateProduct(prodIdx, {
+                                            markupPercentage: newPct,
+                                            sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : (product.sellingPrice || "")
+                                          });
+                                        }}
+                                        onBlur={() => handleAutoSave()}
+                                        className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                      />
+                                      <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
+                                        <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-between">
+                                      <div>
+                                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Computed Base Price</span>
+                                        <p className="text-xl font-black text-[#c9a654] mt-0.5">₱{metrics.computedBasePrice.toFixed(2)}</p>
+                                      </div>
+                                      <span className="text-[9px] text-gray-500">Unit Cost + Mark-up (VAT-Excl.)</span>
+                                    </div>
+
+                                    <div className={`p-3 rounded-lg border flex flex-col justify-between ${
+                                      product.applyVat !== false ? "bg-blue-50/60 border-blue-200" : "bg-gray-50 border-gray-200 opacity-60"
+                                    }`}>
+                                      <div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">12% Output VAT</span>
+                                          {product.applyVat !== false ? (
+                                            <span className="text-[8px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded uppercase">Standard</span>
+                                          ) : (
+                                            <span className="text-[8px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded uppercase">Exempt</span>
+                                          )}
+                                        </div>
+                                        <p className="text-xl font-black text-blue-900 mt-0.5">
+                                          +₱{(product.applyVat !== false ? metrics.vatAmountPerUnit : 0).toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <span className="text-[9px] text-blue-700/80">
+                                        {product.applyVat !== false ? `Suggested SRP: ₱${metrics.computedVatInclusivePrice.toFixed(2)}` : "Non-VAT / Exempt (0%)"}
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                          Final Selling Price (₱) <span className="text-[#c9a654] font-black">*</span>
+                                        </label>
+                                        {product.applyVat !== false && (
+                                          <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1 py-0.2 rounded uppercase">VAT-Inc.</span>
+                                        )}
+                                      </div>
+                                      <input
+                                        type="number"
+                                        disabled={isCurrentMonthLocked}
+                                        min="0"
+                                        placeholder={
+                                          product.applyVat !== false
+                                            ? (metrics.computedVatInclusivePrice > 0 ? String(Math.round(metrics.computedVatInclusivePrice)) : "0")
+                                            : (metrics.computedBasePrice > 0 ? String(Math.round(metrics.computedBasePrice)) : "0")
+                                        }
+                                        value={product.sellingPrice !== undefined ? product.sellingPrice : ""}
+                                        onKeyDown={handlePreventNegative}
+                                        onPaste={handlePasteNonNegative}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          if (val === "" || Number(val) >= 0) {
+                                            handleUpdateProduct(prodIdx, { sellingPrice: val });
+                                          }
+                                        }}
+                                        onBlur={() => handleAutoSave()}
+                                        className="w-full px-3.5 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                      />
+                                      <p className="text-[9px] text-gray-400 mt-1 italic">
+                                        {product.applyVat !== false ? "VAT-Inclusive consumer price" : "Net price (Non-VAT)"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
+                                <div className="pt-3 border-t border-gray-100">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                      Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
+                                    </span>
+                                    {product.applyVat !== false && (
+                                      <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                        BIR 12% Output VAT Segregated: ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[#122244]">
+                                    {/* 1. Unit Cost (COGS) */}
+                                    <div className="bg-gray-50/90 p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
+                                      <p className="text-lg sm:text-xl font-black text-[#122244] mt-1">₱{metrics.unitCost.toFixed(2)}</p>
+                                      <p className="text-[9px] text-gray-400 font-medium mt-1 truncate">Total Batch Cost / Batch Yield</p>
+                                    </div>
+
+                                    {/* 2. Target Price */}
+                                    <div className="bg-amber-50/40 p-4 rounded-xl border border-amber-200 shadow-xs flex flex-col justify-between">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Target Price</span>
+                                        {product.applyVat !== false && <span className="text-[8px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded uppercase">VAT-Inc.</span>}
+                                      </div>
+                                      <p className="text-lg sm:text-xl font-black text-[#c9a654] mt-1">₱{metrics.sellingPrice.toFixed(2)}</p>
+                                      <p className="text-[9px] text-gray-500 font-semibold mt-1 truncate">
+                                        {product.applyVat !== false ? `Net: ₱${metrics.netSellingPrice.toFixed(2)}` : `Base + ${metrics.markupPct}% Mark-up`}
+                                      </p>
+                                    </div>
+
+                                    {/* 3. Revenue */}
+                                    <div className="bg-green-50/40 p-4 rounded-xl border border-green-200 shadow-xs flex flex-col justify-between">
+                                      <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Revenue</span>
+                                      <p className="text-lg sm:text-xl font-black text-green-700 mt-1">
+                                        ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </p>
+                                      <p className="text-[9px] text-green-600 font-medium mt-1 truncate">
+                                        {metrics.unitsSold.toLocaleString()} units sold ({product.applyVat !== false ? "Net Sales excl. VAT" : "Price × Units Sold"})
+                                      </p>
+                                    </div>
+
+                                    {/* 4. Gross Profit */}
+                                    <div className="bg-purple-50/40 p-4 rounded-xl border border-purple-200 shadow-xs flex flex-col justify-between">
+                                      <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
+                                      <p className={`text-lg sm:text-xl font-black mt-1 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                        ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </p>
+                                      <p className="text-[9px] text-purple-600 font-medium mt-1 truncate">
+                                        Revenue - COGS (₱{metrics.cogsSold.toFixed(2)})
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-
-                            {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
-                            <div className="pt-3 border-t border-gray-100">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                  Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
-                                </span>
-                                {product.applyVat !== false && (
-                                  <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                                    BIR 12% VAT Segregated from Revenue
-                                  </span>
-                                )}
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-[#122244]">
-                                {/* Unit Cost (COGS) */}
-                                <div className="bg-gray-50/90 p-3.5 rounded-xl border border-gray-200">
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
-                                  <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
-                                  <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
-                                </div>
-
-                                {/* Target Price */}
-                                <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-200">
-                                  <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">
-                                    Target Price {product.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
-                                  </span>
-                                  <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
-                                  <p className="text-[9px] text-gray-500 font-semibold mt-0.5">
-                                    {product.applyVat !== false ? `Net: ₱${metrics.netSellingPrice.toFixed(2)}` : `+${metrics.markupPct}% Mark-up`}
-                                  </p>
-                                </div>
-
-                                {/* 12% Output VAT */}
-                                <div className="bg-blue-50/40 p-3.5 rounded-xl border border-blue-200">
-                                  <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">12% Output VAT</span>
-                                  <p className="text-base font-black text-blue-900 mt-0.5">
-                                    ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </p>
-                                  <p className="text-[9px] text-blue-600 font-medium mt-0.5 truncate">
-                                    {product.applyVat !== false ? `₱${metrics.unitVatAmount.toFixed(2)}/unit (BIR Remittance)` : "Exempt (0%)"}
-                                  </p>
-                                </div>
-
-                                {/* Revenue */}
-                                <div className="bg-green-50/40 p-3.5 rounded-xl border border-green-200">
-                                  <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Net Revenue</span>
-                                  <p className="text-base font-black text-green-700 mt-0.5">
-                                    ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </p>
-                                  <p className="text-[9px] text-green-600 font-medium mt-0.5">
-                                    {product.applyVat !== false ? "Net Sales (excl. VAT)" : "Selling Price × Yield"}
-                                  </p>
-                                </div>
-
-                                {/* Gross Profit */}
-                                <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200 col-span-2 sm:col-span-1">
-                                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
-                                  <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                    ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </p>
-                                  <p className="text-[9px] text-purple-600 font-medium mt-0.5">Net Revenue - Batch Cost</p>
-                                </div>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* === SECTION 2: MONTHLY OPERATING COSTS (OPEX) - ENLARGED === */}
+                  {/* === SECTION 3: STARTUP EQUIPMENT & ASSETS BREAKDOWN (CAPEX) === */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-[#c9a654] shadow-sm">
+                          <Package className="text-[#c9a654]" size={18} />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                            Startup Equipment & Assets Breakdown (CapEx)
+                          </h3>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Itemized startup equipment, machinery, and physical assets required for business launch
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200/70 flex items-center gap-2 shadow-sm">
+                          <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Total Equipment (CapEx):</span>
+                          <span className="text-base font-black text-[#122244]">₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        {!isCurrentMonthLocked && (
+                          <button
+                            type="button"
+                            onClick={handleAddEquipmentItem}
+                            className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
+                          >
+                            <Plus size={14} className="text-[#c9a654]" /> Add Item
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead className="bg-gray-50/80 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                          <tr>
+                            <th className="p-3.5 pl-5 min-w-[220px]">Item / Asset name</th>
+                            <th className="p-3.5 w-28 text-center">QTY</th>
+                            <th className="p-3.5 w-40 text-right">UNIT PRICE</th>
+                            <th className="p-3.5 w-44 text-right pr-5">TOTAL</th>
+                            {!isCurrentMonthLocked && <th className="p-3.5 w-14 text-center"></th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {financials.equipmentList && financials.equipmentList.map((item, index) => (
+                            <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="p-3 pl-5">
+                                <input
+                                  type="text"
+                                  disabled={isCurrentMonthLocked}
+                                  placeholder="e.g. Machine or Rent similar"
+                                  value={item.name}
+                                  onChange={(e) => handleUpdateEquipmentItem(index, { name: e.target.value })}
+                                  onBlur={() => handleAutoSave()}
+                                  className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                />
+                              </td>
+                              <td className="p-3 text-center">
+                                <input
+                                  type="number"
+                                  disabled={isCurrentMonthLocked}
+                                  min="1"
+                                  placeholder="1"
+                                  value={item.quantity !== undefined && item.quantity !== 0 ? item.quantity : ""}
+                                  onKeyDown={handlePreventNegative}
+                                  onPaste={handlePasteNonNegative}
+                                  onChange={(e) => handleUpdateEquipmentItem(index, { quantity: e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)) })}
+                                  onBlur={() => handleAutoSave()}
+                                  className="w-full px-2 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] text-center focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <div className="relative">
+                                  <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
+                                  <input
+                                    type="number"
+                                    disabled={isCurrentMonthLocked}
+                                    min="0"
+                                    placeholder="0.00"
+                                    value={item.unitPrice !== undefined && item.unitPrice !== 0 ? item.unitPrice : ""}
+                                    onKeyDown={handlePreventNegative}
+                                    onPaste={handlePasteNonNegative}
+                                    onChange={(e) => handleUpdateEquipmentItem(index, { unitPrice: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                                    onBlur={() => handleAutoSave()}
+                                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3 pr-5 text-right font-black text-xs text-[#122244]">
+                                ₱{(Number(item.total) || ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              {!isCurrentMonthLocked && (
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveEquipmentItem(index)}
+                                    className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                    title="Delete item"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                          {(!financials.equipmentList || financials.equipmentList.length === 0) && (
+                            <tr>
+                              <td colSpan={isCurrentMonthLocked ? 4 : 5} className="py-8 text-center text-gray-400 text-xs italic">
+                                No equipment or assets added yet. Click "+ Add Item" to itemize startup machinery and tools.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+
+                      <div className="p-4 bg-gray-50/90 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        {!isCurrentMonthLocked ? (
+                          <button
+                            type="button"
+                            onClick={handleAddEquipmentItem}
+                            className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                          >
+                            <Plus size={14} /> + Add Item
+                          </button>
+                        ) : <div />}
+                        <div className="flex items-center gap-2 text-right">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Total:</span>
+                          <span className="text-lg font-black text-[#122244]">
+                            ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Financing Options Section at bottom of CapEx */}
+                    <div className="bg-amber-50/50 p-4 sm:p-5 rounded-xl border border-amber-200/80 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            id="isCapitalBorrowed_capex"
+                            disabled={isCurrentMonthLocked}
+                            checked={financials.isCapitalBorrowed}
+                            onChange={(e) => {
+                              const newState = {
+                                ...financials,
+                                isCapitalBorrowed: e.target.checked,
+                              };
+                              setFinancials(newState);
+                              const updatedRecords = [...monthlyRecords];
+                              if (updatedRecords[activeMonthIndex]) {
+                                updatedRecords[activeMonthIndex] = {
+                                  ...updatedRecords[activeMonthIndex],
+                                  financials: newState,
+                                };
+                                setMonthlyRecords(updatedRecords);
+                              }
+                              handleAutoSave(newState, updatedRecords);
+                            }}
+                            className="w-4 h-4 text-[#c9a654] rounded focus:ring-[#c9a654] mt-0.5 accent-[#c9a654] cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <label htmlFor="isCapitalBorrowed_capex" className="cursor-pointer">
+                            <p className="text-xs font-bold text-[#122244]">Is startup capital borrowed / loaned?</p>
+                            <p className="text-[11px] text-gray-500">Enable if equipment or startup capital is funded through a debt loan with interest</p>
+                          </label>
+                        </div>
+
+                        {financials.isCapitalBorrowed && (
+                          <div className="flex items-center gap-2 sm:self-center">
+                            <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                              Annual Interest Rate (%):
+                            </label>
+                            <div className="w-28 relative">
+                              <input
+                                type="number"
+                                disabled={isCurrentMonthLocked}
+                                min="0"
+                                placeholder="e.g. 5"
+                                value={financials.interestRate}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val !== "" && Number(val) < 0) return;
+                                  const newState = {
+                                    ...financials,
+                                    interestRate: val,
+                                  };
+                                  setFinancials(newState);
+                                  const updatedRecords = [...monthlyRecords];
+                                  if (updatedRecords[activeMonthIndex]) {
+                                    updatedRecords[activeMonthIndex] = {
+                                      ...updatedRecords[activeMonthIndex],
+                                      financials: newState,
+                                    };
+                                    setMonthlyRecords(updatedRecords);
+                                  }
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600"
+                              />
+                              <span className="absolute right-2.5 top-1.5 text-xs text-gray-400 font-bold">%</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* === SECTION 4: MONTHLY OPERATING COSTS (OPEX) - ENLARGED === */}
                   <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                       <div className="flex items-center gap-3">
@@ -2479,9 +3179,12 @@ const Financial_input: React.FC = () => {
                                     min="0"
                                     value={item.amount === 0 ? "" : item.amount}
                                     placeholder="0.00"
+                                    onKeyDown={handlePreventNegative}
+                                    onPaste={handlePasteNonNegative}
                                     onChange={(e) => {
+                                      const val = e.target.value;
+                                      const amt = val === "" ? 0 : Math.max(0, Number(val));
                                       const newList = [...financials.opexList];
-                                      const amt = e.target.value === "" ? 0 : Number(e.target.value);
                                       newList[index].amount = amt;
                                       const newState = { ...financials, opexList: newList };
                                       setFinancials(newState);
@@ -2568,7 +3271,7 @@ const Financial_input: React.FC = () => {
                     )}
                   </div>
 
-                  {/* === SECTION 3: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
+                  {/* === SECTION 5: FINANCING, FISCAL SUMMARY & MARKET INDICATORS === */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-[#122244]">
                     {/* LEFT: Initial Capital & Market Indicators */}
                     <div className="lg:col-span-5 space-y-6">
@@ -2593,10 +3296,15 @@ const Financial_input: React.FC = () => {
                           <input
                             type="number"
                             disabled={isCurrentMonthLocked}
+                            min="0"
                             placeholder="0"
                             value={financials.cashInvested}
+                            onKeyDown={handlePreventNegative}
+                            onPaste={handlePasteNonNegative}
                             onChange={(e) => {
-                              const newState = { ...financials, cashInvested: e.target.value };
+                              const val = e.target.value;
+                              if (val !== "" && Number(val) < 0) return;
+                              const newState = { ...financials, cashInvested: val };
                               setFinancials(newState);
                               const updatedRecords = [...monthlyRecords];
                               if (updatedRecords[activeMonthIndex]) {
