@@ -3588,34 +3588,34 @@ const Projects: React.FC = () => {
 
                     <div className="space-y-6">
                       <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Tagline
                         </p>
-                        <p className="text-gray-800 font-bold text-lg">
+                        <p className="text-black font-bold text-lg">
                           {activeBusiness.tagline || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Mission Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.missionStatement || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Vision Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.visionStatement || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Target Market
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.targetMarket || "None Provided"}
                         </p>
                       </div>
@@ -3623,34 +3623,34 @@ const Projects: React.FC = () => {
                       <div className="h-px bg-gray-100 my-4"></div>
 
                       <div>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Product Description
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.productDescription || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Specific Pricing
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.priceRanges || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Location
                         </p>
-                        <p className="text-gray-800 font-medium">
+                        <p className="text-black font-medium">
                           {activeBusiness.proposedLocation || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Promotional Strategy
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.promotionalStrategy ||
                             "None Provided"}
                         </p>

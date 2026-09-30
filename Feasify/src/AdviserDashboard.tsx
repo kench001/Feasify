@@ -1972,39 +1972,39 @@ const AdviserDashboard: React.FC = () => {
 
                     <div className="space-y-6">
                       <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tagline</p>
-                        <p className="text-gray-800 font-bold text-lg">{activeProposal.tagline || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Tagline</p>
+                        <p className="text-black font-bold text-lg">{activeProposal.tagline || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mission Statement</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Mission Statement</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.missionStatement || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Vision Statement</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Vision Statement</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.visionStatement || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Target Market</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Target Market</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.targetMarket || "None Provided"}</p>
                       </div>
 
                       <div className="h-px bg-gray-100 my-4"></div>
 
                       <div>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Product Description</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Product Description</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.productDescription || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Specific Pricing</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Specific Pricing</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.priceRanges || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Location</p>
-                        <p className="text-gray-800 font-medium">{activeProposal.proposedLocation || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Location</p>
+                        <p className="text-black font-medium">{activeProposal.proposedLocation || "None Provided"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">Promotional Strategy</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p>
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">Promotional Strategy</p>
+                        <p className="text-black text-sm leading-relaxed">{activeProposal.promotionalStrategy || "None Provided"}</p>
                       </div>
 
                       {(() => {
