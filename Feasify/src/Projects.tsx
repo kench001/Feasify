@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { OfficialNameChecker } from "./components/OfficialNameChecker";
+import { LocationPickerMap } from "./components/LocationPickerMap";
 import {
   checkDTI,
   checkSEC,
@@ -3355,6 +3356,22 @@ const Projects: React.FC = () => {
                               <span>Proposed Location is required before submitting.</span>
                             </p>
                           )}
+
+                          {/* Interactive Map Picker */}
+                          <div className="mt-3">
+                            <LocationPickerMap
+                              value={currentProposal.proposedLocation || ""}
+                              disabled={!isEditingMode}
+                              onChange={(newAddress) => {
+                                const updated = {
+                                  ...currentProposal,
+                                  proposedLocation: newAddress,
+                                };
+                                setCurrentProposal(updated);
+                                handleAutoSave(updated);
+                              }}
+                            />
+                          </div>
                         </div>
                         <div className={highlightMissingFields && !currentProposal.promotionalStrategy?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
