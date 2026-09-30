@@ -3,12 +3,13 @@
     "source": "Department of Trade and Industry (DTI) & Securities and Exchange Commission (SEC) – Philippines",
     "description": "Business and corporate name dataset structured for DTI and SEC verification. Covers sole proprietorships, trade names, corporations, and partnerships.",
     "disclaimer": "Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system.",
-    "lastUpdated": "2026-09-07",
+    "lastUpdated": "2026-09-30",
     "howToUpdate": "Export business name records from DTI BNRS portal and SEC records. Map to schema: { id: number, name: string, companyName: string, registrationSource: 'DTI' | 'SEC' }.",
     "sourcesSupported": [
       "DTI",
       "SEC"
-    ]
+    ],
+    "totalRecords": 1234
   },
   "registrationSources": [
     {
@@ -7366,6 +7367,106 @@
       "name": "Vanguard Security and Investigation Agency Inc.",
       "companyName": "Vanguard Security and Investigation Agency Inc.",
       "registrationSource": "SEC"
+    },
+    {
+      "id": 1342,
+      "name": "RENERGIA VERDE CORPORATION",
+      "companyName": "RENERGIA VERDE CORPORATION",
+      "registrationSource": "SEC",
+      "verificationStatus": "verified",
+      "registrationNumber": "2023020084748-02",
+      "sourceUrl": "https://mc28.sec.gov.ph/mc28-list-temp/indexinquire?Mc28ListSearch%5Bref_no%5D=2026&page=6&sort=company_name",
+      "sourceType": "official_sec_mc28_registry"
+    },
+    {
+      "id": 1343,
+      "name": "GREEN HUT FOODS CORP.",
+      "companyName": "GREEN HUT FOODS CORP.",
+      "registrationSource": "SEC",
+      "verificationStatus": "verified",
+      "registrationNumber": "A199909012",
+      "sourceUrl": "https://mc28.sec.gov.ph/mc28-list-temp/indexinquire?Mc28ListSearch%5Bref_no%5D=2026&page=6&sort=company_name",
+      "sourceType": "official_sec_mc28_registry"
+    },
+    {
+      "id": 1344,
+      "name": "CHUA HERNANDEZ VENTURES CORPORATION",
+      "companyName": "CHUA HERNANDEZ VENTURES CORPORATION",
+      "registrationSource": "SEC",
+      "verificationStatus": "verified",
+      "registrationNumber": "2026090266818-05",
+      "sourceUrl": "https://mc28.sec.gov.ph/mc28-list-temp/indexinquire?Mc28ListSearch%5Bref_no%5D=2026&page=6&sort=company_name",
+      "sourceType": "official_sec_mc28_registry"
+    },
+    {
+      "id": 1345,
+      "name": "AVIANNA TRAVEL AND TOURS",
+      "companyName": "AVIANNA TRAVEL AND TOURS",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": "5401513",
+      "sourceUrl": "https://bnrs.dti.gov.ph/search/search_this?keyword=&keyword2=NTQwMTUxMw",
+      "sourceType": "official_bnrs_exact_match"
+    },
+    {
+      "id": 1346,
+      "name": "JA CARS.PH BETTING STATION",
+      "companyName": "JA CARS.PH BETTING STATION",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": "4924287",
+      "sourceUrl": "https://bnrs.dti.gov.ph/search/search_this?keyword=&keyword2=NDkyNDI4Nw",
+      "sourceType": "official_bnrs_exact_match"
+    },
+    {
+      "id": 1347,
+      "name": "Abacalogy Handicrafts Trading",
+      "companyName": "Abacalogy Handicrafts Trading",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": null,
+      "sourceUrl": "https://www.dti.gov.ph/dti-regions/dti-region-3/dti-region-3-success-stories/dti-sack-masterpiece",
+      "sourceType": "official_dti_registration_statement"
+    },
+    {
+      "id": 1348,
+      "name": "Chesmae Peanuts",
+      "companyName": "Chesmae Peanuts",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": null,
+      "sourceUrl": "https://www.dti.gov.ph/dti-regional-archived/dti-region-8-success-stories-regional-archived/dti-chesmae-peanuts",
+      "sourceType": "official_dti_registration_statement"
+    },
+    {
+      "id": 1349,
+      "name": "Big G Builders",
+      "companyName": "Big G Builders",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": null,
+      "sourceUrl": "https://www.dti.gov.ph/dti-regional-archived/dti-region-2-success-stories-archived/dti-silya",
+      "sourceType": "official_dti_registration_statement"
+    },
+    {
+      "id": 1350,
+      "name": "Aquino Native Food Manufacturing",
+      "companyName": "Aquino Native Food Manufacturing",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": null,
+      "sourceUrl": "https://www.dti.gov.ph/dti-archives/dti-regional-archived/dti-region-3-success-stories-regional-archived/dti-from-humble-home-dream-store",
+      "sourceType": "official_dti_registration_statement"
+    },
+    {
+      "id": 1351,
+      "name": "Myrnz Creation Cakes and Pastries",
+      "companyName": "Myrnz Creation Cakes and Pastries",
+      "registrationSource": "DTI",
+      "verificationStatus": "verified",
+      "registrationNumber": null,
+      "sourceUrl": "https://www.dti.gov.ph/dti-regional-archived/dti-region-6-success-stories-regional-archived/dti-negosyo-center-iloilo-helps-ofw-couple-bake-their-way-to-success",
+      "sourceType": "official_dti_registration_statement"
     }
   ]
 }

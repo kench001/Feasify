@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import companyNamesData from "./data/companyNames.json";
 import Skeleton from "react-loading-skeleton";
+import { OfficialNameChecker } from "./components/OfficialNameChecker";
+import {
+  checkDTI,
+  checkSEC,
+  checkName,
+  OFFICIAL_SOURCES,
+  type NameCheckResult
+} from "./services/nameCheckerService";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -451,125 +458,9 @@ const Projects: React.FC = () => {
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const companyNameRef = useRef<HTMLDivElement>(null);
 
-  // DTI and SEC company names list
-  interface RegisteredCompany {
-    id: number;
-    name: string;
-    companyName?: string;
-    registrationSource: "DTI" | "SEC";
-  }
-
-  const allRegisteredCompanies: RegisteredCompany[] = (companyNamesData as any).companies || [];
-  const dtiCompanies: string[] = allRegisteredCompanies
-    .filter((c) => c.registrationSource === "DTI")
-    .map((c) => c.name);
-  const secCompanies: string[] = allRegisteredCompanies
-    .filter((c) => c.registrationSource === "SEC")
-    .map((c) => c.name);
-
-  const [nameCheckResult, setNameCheckResult] = useState<{
-    status: "idle" | "checking" | "exact" | "similar" | "none";
-    message: string;
-    matches: { name: string; registrationSource: string }[];
-  } | null>(null);
-  const [isCheckingName, setIsCheckingName] = useState(false);
-
-  const handleCheckCompanyName = (targetName?: string) => {
-    const input = (targetName !== undefined ? targetName : companyNameQuery).trim();
-    if (!input) {
-      setNameCheckResult({
-        status: "idle",
-        message: "Please enter a company name first.",
-        matches: []
-      });
-      return;
-    }
-
-    setIsCheckingName(true);
-
-    const normalize = (str: string) =>
-      (str || "")
-        .toLowerCase()
-        .replace(/[’'"]/g, "")
-        .replace(/[^a-z0-9]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    const stripSuffixes = (str: string) =>
-      normalize(str)
-        .replace(/\b(inc|corp|corporation|incorporated|llc|co|company|enterprises|enterprise|trading|services|holdings|ventures|group|philippines|phil)\b/gi, "")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    const normInput = normalize(input);
-    const strippedInput = stripSuffixes(input);
-
-    // 1. Exact Match Check
-    const exact = allRegisteredCompanies.find(c => {
-      const cName = c.companyName || c.name || "";
-      return normalize(cName) === normInput;
-    });
-
-    if (exact) {
-      setNameCheckResult({
-        status: "exact",
-        message: "Name Already Exists",
-        matches: [{ name: exact.companyName || exact.name, registrationSource: exact.registrationSource || "DTI" }]
-      });
-      setIsCheckingName(false);
-      return;
-    }
-
-    // 2. Similar Match Check
-    const similarList: { name: string; registrationSource: string }[] = [];
-    const seen = new Set<string>();
-
-    for (const c of allRegisteredCompanies) {
-      const cName = c.companyName || c.name || "";
-      const normC = normalize(cName);
-      const strippedC = stripSuffixes(cName);
-
-      if (normC === normInput) continue;
-
-      let isSimilar = false;
-      if ((normInput.length >= 4 && normC.includes(normInput)) || (normC.length >= 4 && normInput.includes(normC))) {
-        isSimilar = true;
-      } else if (strippedInput.length >= 3 && strippedC.length >= 3 && (strippedInput === strippedC || strippedC.includes(strippedInput) || strippedInput.includes(strippedC))) {
-        isSimilar = true;
-      } else {
-        const inputTokens = normInput.split(" ").filter(w => w.length >= 3);
-        const cTokens = normC.split(" ").filter(w => w.length >= 3);
-        const matchingTokens = inputTokens.filter(t => cTokens.includes(t));
-        if (inputTokens.length >= 2 && matchingTokens.length >= 2) {
-          isSimilar = true;
-        }
-      }
-
-      if (isSimilar && !seen.has(normC)) {
-        seen.add(normC);
-        similarList.push({
-          name: c.companyName || c.name,
-          registrationSource: c.registrationSource || "DTI"
-        });
-        if (similarList.length >= 8) break;
-      }
-    }
-
-    if (similarList.length > 0) {
-      setNameCheckResult({
-        status: "similar",
-        message: "Similar Name Found",
-        matches: similarList
-      });
-    } else {
-      setNameCheckResult({
-        status: "none",
-        message: "No Match Found",
-        matches: []
-      });
-    }
-    setIsCheckingName(false);
-  };
+  // Official Government Name Verification state (DTI & SEC)
+  const [setupDtiResult, setSetupDtiResult] = useState<NameCheckResult | null>(null);
+  const [setupSecResult, setSetupSecResult] = useState<NameCheckResult | null>(null);
 
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
@@ -1041,16 +932,20 @@ const Projects: React.FC = () => {
     // Validation
     const errors: Record<string, string> = {};
     const trimmedName = setupCompanyName.trim();
+    const trademarkCheck = checkBusinessName(trimmedName, copyrightDB || undefined);
     if (!trimmedName) {
       errors.companyName = "Company name is required.";
-    } else {
-      // Block names that exactly match a DTI- or SEC-registered entry (case-insensitive)
-      const exactRegisteredMatch = allRegisteredCompanies.find(
-        (c) => (c.companyName || c.name).toLowerCase() === trimmedName.toLowerCase()
-      );
-      if (exactRegisteredMatch) {
-        errors.companyName = `This business name is already registered in the ${exactRegisteredMatch.registrationSource} list. Please enter a unique company name.`;
-      }
+    } else if (trademarkCheck.isCopyrighted) {
+      errors.companyName =
+        trademarkCheck.errorMessage ||
+        `"${trimmedName}" is a protected trademark or well-known brand. Please choose an original proposed name.`;
+    } else if (
+      (setupDtiResult?.status === "FOUND" && setupDtiResult.matchType === "exact") ||
+      (setupSecResult?.status === "FOUND" && setupSecResult.matchType === "exact")
+    ) {
+      errors.companyName = `An exact match for "${trimmedName}" was found in official records (${
+        setupDtiResult?.status === "FOUND" ? "DTI" : "SEC"
+      }). Please verify or select a unique proposed name.`;
     }
     if (!setupMission.trim()) errors.mission = "Mission statement is required.";
     if (!setupVision.trim()) errors.vision = "Vision statement is required.";
@@ -2421,9 +2316,14 @@ const Projects: React.FC = () => {
                             )}
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                            Business Name <span className="text-red-500">*</span>
-                          </label>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                              Business / Company Name <span className="text-red-500">*</span>
+                            </label>
+                            <span className="text-[10px] font-semibold text-gray-500">
+                              Official Verification: DTI & SEC
+                            </span>
+                          </div>
                           {(() => {
                             const check = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
                             return (
@@ -2453,6 +2353,13 @@ const Projects: React.FC = () => {
                               </>
                             );
                           })()}
+
+                          {/* Official DTI & SEC Name Checker Integration */}
+                          <div className="mt-2.5">
+                            <OfficialNameChecker
+                              currentName={currentProposal.businessName}
+                            />
+                          </div>
                         </div>
 
                         <div>
@@ -3714,220 +3621,81 @@ const Projects: React.FC = () => {
       </main>
 
       {/* SETUP MODAL */}
-      {showSetupModal && (() => {
-        const nameSuggestions = (companyNameQuery && companyNameQuery.trim().length >= 1)
-          ? allRegisteredCompanies.filter((c) => {
-              const cName = c?.companyName || c?.name || "";
-              return cName.toLowerCase().includes(companyNameQuery.trim().toLowerCase());
-            }).slice(0, 8)
-          : [];
+      {showSetupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-
-              {/* Header */}
-              <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
-                <div className="w-full">
-                  <h2 className="text-2xl font-extrabold">Team Setup</h2>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
-                    {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowSetupModal(false)}
-                  className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
+              <div className="w-full">
+                <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+                  {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
+                </p>
               </div>
+              <button
+                onClick={() => setShowSetupModal(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              <div className="p-6 overflow-y-auto space-y-7 flex-1 custom-scrollbar">
+            <div className="p-6 overflow-y-auto space-y-7 flex-1 custom-scrollbar">
 
-                {/* ─── SECTION: Team Information ─── */}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
-                  <div className="space-y-4">
+              {/* ─── SECTION: Team Information ─── */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
+                <div className="space-y-4">
 
-                    {/* Company Name with autocomplete and DTI + SEC Checker */}
-                    <div ref={companyNameRef} className="space-y-2">
-                      <div className="flex flex-wrap justify-between items-center gap-2">
-                        <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider">
-                          Company Name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
-                          <span className="text-gray-500 font-semibold">Sources Checked:</span>
-                          <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">DTI</span>
-                          <span className="text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">SEC</span>
-                        </div>
+                  {/* Company Name with live DTI & SEC Checker */}
+                  <div ref={companyNameRef} className="space-y-3">
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider">
+                        Company Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
+                        <span className="text-gray-500 font-semibold">Official Registries:</span>
+                        <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">DTI BNRS</span>
+                        <span className="text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">SEC eSPARC</span>
                       </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            value={companyNameQuery}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCompanyNameQuery(val);
-                              setSetupCompanyName(val);
-                              setShowNameSuggestions(true);
-                              if (nameCheckResult) setNameCheckResult(null);
-                              if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
-                            }}
-                            onFocus={() => setShowNameSuggestions(true)}
-                            onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
-                            placeholder="Type to search or enter proposed company name..."
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              setupErrors.companyName
-                                ? "border-red-400 bg-red-50/20"
-                                : nameCheckResult?.status === "exact"
-                                  ? "border-red-400 bg-red-50/20"
-                                  : nameCheckResult?.status === "similar"
-                                    ? "border-amber-400 bg-amber-50/20"
-                                    : nameCheckResult?.status === "none"
-                                      ? "border-emerald-400 bg-emerald-50/20"
-                                      : "border-gray-200"
-                            } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
-                          />
-
-                          {/* Suggestions dropdown */}
-                          {showNameSuggestions && nameSuggestions.length > 0 && (
-                            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
-                              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                <span>Registered Matches</span>
-                                <span>DTI + SEC</span>
-                              </div>
-                              {nameSuggestions.map((rec, recIdx) => {
-                                const recName = rec?.companyName || rec?.name || `Company ${recIdx + 1}`;
-                                return (
-                                  <button
-                                    key={`${rec?.registrationSource || 'REG'}-${rec?.id || recIdx}-${recName}`}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      setSetupCompanyName(recName);
-                                      setCompanyNameQuery(recName);
-                                      setShowNameSuggestions(false);
-                                      handleCheckCompanyName(recName);
-                                      if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-[#122244] hover:bg-amber-50 hover:text-[#c9a654] font-medium transition-colors flex justify-between items-center"
-                                  >
-                                    <span className="truncate">{recName}</span>
-                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ml-2 ${
-                                      rec.registrationSource === 'SEC' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                    }`}>
-                                      {rec.registrationSource}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                              <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-50 italic">
-                                Data reference: DTI (BNRS) + SEC Registered Entities
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Check Company Name Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleCheckCompanyName(companyNameQuery)}
-                          disabled={isCheckingName || !companyNameQuery.trim()}
-                          className={`px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all flex-shrink-0 ${
-                            !companyNameQuery.trim()
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                              : "bg-[#122244] text-white hover:bg-[#0a142e] shadow-sm hover:shadow active:scale-95"
-                          }`}
-                          title="Check company name against DTI and SEC registered records"
-                        >
-                          {isCheckingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-[#c9a654]" />}
-                          <span>Check Company Name</span>
-                        </button>
-                      </div>
-
-                      {/* Submit-time error */}
-                      {setupErrors.companyName && (
-                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3 flex-shrink-0" />{setupErrors.companyName}
-                        </p>
-                      )}
-
-                      {/* Name Checker Results Box */}
-                      {nameCheckResult && (
-                        <div className={`p-4 rounded-xl border transition-all text-xs mt-2 ${
-                          nameCheckResult.status === "exact"
-                            ? "bg-red-50/90 border-red-200 text-red-900"
-                            : nameCheckResult.status === "similar"
-                              ? "bg-amber-50/90 border-amber-200 text-amber-900"
-                              : nameCheckResult.status === "none"
-                                ? "bg-emerald-50/90 border-emerald-200 text-emerald-900"
-                                : "bg-gray-50 border-gray-200 text-gray-700"
-                        }`}>
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2 font-bold text-sm">
-                              {nameCheckResult.status === "exact" && <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                              {nameCheckResult.status === "similar" && <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />}
-                              {nameCheckResult.status === "none" && <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
-                              <span>{nameCheckResult.message}</span>
-                            </div>
-                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/90 border border-current/20">
-                              DTI + SEC
-                            </span>
-                          </div>
-
-                          {/* Exact Match Details */}
-                          {nameCheckResult.status === "exact" && nameCheckResult.matches.length > 0 && (
-                            <div className="mb-2.5 bg-white/90 p-2.5 rounded-lg border border-red-200/80">
-                              <p className="text-[11px] text-red-800 font-medium">
-                                This company name is already registered. You cannot use this name — please enter a unique name.
-                              </p>
-                              <div className="mt-1.5 flex items-center gap-2">
-                                <span className="font-extrabold text-[#122244]">{nameCheckResult.matches[0].name}</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
-                                  nameCheckResult.matches[0].registrationSource === "SEC" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                                }`}>
-                                  Registered under: {nameCheckResult.matches[0].registrationSource}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Similar Match Details */}
-                          {nameCheckResult.status === "similar" && nameCheckResult.matches.length > 0 && (
-                            <div className="mb-2.5 bg-white/90 p-2.5 rounded-lg border border-amber-200/80">
-                              <p className="text-[11px] text-amber-800 font-semibold mb-1.5">
-                                Potentially similar registered company names:
-                              </p>
-                              <div className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
-                                {nameCheckResult.matches.map((m, idx) => (
-                                  <div key={idx} className="flex justify-between items-center text-xs py-1 border-b border-amber-100/60 last:border-0">
-                                    <span className="font-semibold text-gray-800">{m.name}</span>
-                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                      m.registrationSource === "SEC" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                                    }`}>
-                                      {m.registrationSource}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* No Match Found Details */}
-                          {nameCheckResult.status === "none" && (
-                            <p className="text-[11px] text-emerald-800 font-medium mb-2">
-                              No matching company name found in the DTI or SEC reference datasets.
-                            </p>
-                          )}
-
-                          {/* Official Preliminary Check Disclaimer */}
-                          <div className="pt-2 border-t border-current/10 text-[10px] italic leading-tight text-gray-600">
-                            Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system.
-                          </div>
-                        </div>
-                      )}
                     </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={companyNameQuery}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCompanyNameQuery(val);
+                          setSetupCompanyName(val);
+                          if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
+                        }}
+                        placeholder="Enter proposed company or business name..."
+                        className={`w-full px-4 py-3 bg-gray-50 border ${
+                          setupErrors.companyName
+                            ? "border-red-400 bg-red-50/20"
+                            : "border-gray-200"
+                        } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
+                      />
+                    </div>
+
+                    {/* Submit-time error */}
+                    {setupErrors.companyName && (
+                      <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />{setupErrors.companyName}
+                      </p>
+                    )}
+
+                    {/* Official Live Name Verification Widget */}
+                    <OfficialNameChecker
+                      currentName={companyNameQuery}
+                      onCheckComplete={(provider, res) => {
+                        if (provider === "DTI") setSetupDtiResult(res);
+                        if (provider === "SEC") setSetupSecResult(res);
+                      }}
+                    />
+                  </div>
 
                     {/* Company Logo */}
                     <div>
@@ -4127,8 +3895,7 @@ const Projects: React.FC = () => {
 
             </div>
           </div>
-        );
-      })()}
+        )}
 
       {/* ROSTER MODAL */}
       {showRosterModal && (
@@ -4324,9 +4091,14 @@ const Projects: React.FC = () => {
                   </h4>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Business Name <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block">
+                      Business / Company Name <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[9px] font-semibold text-gray-500">
+                      Official DTI & SEC Check
+                    </span>
+                  </div>
                   {(() => {
                     const check = checkBusinessName(editBasicData.businessName, copyrightDB || undefined);
                     return (
@@ -4353,6 +4125,12 @@ const Projects: React.FC = () => {
                       </>
                     );
                   })()}
+
+                  <div className="mt-2">
+                    <OfficialNameChecker
+                      currentName={editBasicData.businessName}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">

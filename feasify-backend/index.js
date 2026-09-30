@@ -195,33 +195,8 @@ const getCopyrightDB = () => {
   }
 };
 
-// Helper to safely load local Company Names Database (DTI + SEC)
-const getCompanyNamesDB = () => {
-  try {
-    const dataDir = path.join(__dirname, "data");
-    const filePath = path.join(dataDir, "companyNames.json");
-    if (fs.existsSync(filePath)) {
-      const fileData = fs.readFileSync(filePath, "utf-8");
-      return JSON.parse(fileData);
-    }
-    // Fallback: check frontend data directory
-    const frontendFilePath = path.join(__dirname, "..", "Feasify", "src", "data", "companyNames.json");
-    if (fs.existsSync(frontendFilePath)) {
-      const fileData = fs.readFileSync(frontendFilePath, "utf-8");
-      return JSON.parse(fileData);
-    }
-    return {
-      registrationSources: [
-        { type: "DTI", name: "Department of Trade and Industry" },
-        { type: "SEC", name: "Securities and Exchange Commission" }
-      ],
-      companies: []
-    };
-  } catch (error) {
-    console.error("Failed reading company names database:", error);
-    return { registrationSources: [], companies: [] };
-  }
-};
+// Official Government Registration Authority Checker Service (DTI + SEC)
+const nameCheckerService = require("./services/nameChecker");
 
 // In-memory cache/store for team proposal counts (guarantees backend 3-limit enforcement)
 const teamProposalsStore = new Map();
@@ -448,157 +423,148 @@ app.post(["/api/copyright-check", "/api/copyright/check"], (req, res) => {
 });
 
 // ==========================================
-// DTI + SEC COMPANY NAME CHECKER ENDPOINTS
+// OFFICIAL DTI + SEC NAME CHECKER ENDPOINTS (PROVIDER ARCHITECTURE)
 // ==========================================
 
-// Endpoint to fetch registration sources and company list
+/**
+ * Primary Name-Check API
+ * Request Body:
+ * {
+ *   "name": "Sample Business Name",
+ *   "type": "business" | "company" | "all",
+ *   "provider": "DTI" | "SEC" (optional override),
+ *   "forceRefresh": boolean (optional, bypasses short-TTL cache)
+ * }
+ */
+app.post("/api/name-check", async (req, res) => {
+  try {
+    const { name, type = "business", provider, forceRefresh = false } = req.body || {};
+    const inputName = (name || "").trim();
+
+    if (!inputName) {
+      return res.status(400).json({
+        status: "ERROR",
+        message: "Please enter a business or company name to check.",
+        query: "",
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    const userId = req.user?.uid || req.body?.userId || "anonymous";
+    const result = await nameCheckerService.checkName({
+      name: inputName,
+      type,
+      provider,
+      forceRefresh: Boolean(forceRefresh),
+      userId,
+      firestoreInstance: adminFirestore
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error("❌ [/api/name-check] Unexpected error:", error);
+    return res.status(500).json({
+      status: "UNAVAILABLE",
+      message: "The name verification service encountered an unexpected error. Please verify directly via official government portals.",
+      officialSource: "https://bnrs.dti.gov.ph/search",
+      checkedAt: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Name-Check Service Status & Diagnostics
+ */
+app.get("/api/name-check/status", (req, res) => {
+  res.json(nameCheckerService.getStatus());
+});
+
+/**
+ * Official Registration Sources Information
+ */
 app.get(["/api/company-names", "/api/registration-sources"], (req, res) => {
-  const db = getCompanyNamesDB();
   res.json({
-    registrationSources: db.registrationSources || [
-      { type: "DTI", name: "Department of Trade and Industry" },
-      { type: "SEC", name: "Securities and Exchange Commission" }
+    registrationSources: [
+      {
+        type: "DTI",
+        name: "Department of Trade and Industry - Business Name Registration System (BNRS)",
+        officialPortal: "https://bnrs.dti.gov.ph/",
+        officialSearch: "https://bnrs.dti.gov.ph/search",
+        searchType: "Exact Business Name Search",
+        coverage: "Sole Proprietorships and Business Names"
+      },
+      {
+        type: "SEC",
+        name: "Securities and Exchange Commission (SEC) Philippines",
+        officialPortal: "https://esparc.sec.gov.ph/",
+        apiMarketplace: "https://dev-api.sec.gov.ph/",
+        searchType: "Company Information Lookup & eSPARC Registration",
+        coverage: "Corporations, Partnerships, and One Person Corporations (OPC)"
+      }
     ],
-    totalCount: db.companies ? db.companies.length : 0,
-    companies: db.companies || []
+    architecture: "Provider-based dynamic query against official government sources (no static local name database)"
   });
 });
 
-// Endpoint to check company name against DTI and SEC records
-app.post(["/api/check-company-name", "/api/company-name/check"], (req, res) => {
-  const { name, companyName } = req.body || {};
-  const inputName = (name || companyName || "").trim();
+/**
+ * Backward compatibility route for legacy /api/check-company-name callers
+ */
+app.post(["/api/check-company-name", "/api/company-name/check"], async (req, res) => {
+  try {
+    const { name, companyName, provider, type = "company", forceRefresh } = req.body || {};
+    const inputName = (name || companyName || "").trim();
 
-  const db = getCompanyNamesDB();
-  const companies = db.companies || [];
-
-  const disclaimer =
-    "Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system.";
-  const sourcesChecked = ["DTI", "SEC"];
-
-  if (!inputName) {
-    return res.json({
-      status: "empty",
-      resultText: "Please enter a company name to check.",
-      isAvailable: false,
-      matches: [],
-      sourcesChecked,
-      disclaimer
-    });
-  }
-
-  const normalize = (str) =>
-    (str || "")
-      .toLowerCase()
-      .replace(/[’'"]/g, "")
-      .replace(/[^a-z0-9]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const stripSuffixes = (str) =>
-    normalize(str)
-      .replace(/\b(inc|corp|corporation|incorporated|llc|co|company|enterprises|enterprise|trading|services|holdings|ventures|group|philippines|phil)\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const normInput = normalize(inputName);
-  const strippedInput = stripSuffixes(inputName);
-
-  // 1. Exact Match Check (case-insensitive, normalized)
-  const exactMatch = companies.find((c) => {
-    const cName = c.companyName || c.name || "";
-    return normalize(cName) === normInput;
-  });
-
-  if (exactMatch) {
-    return res.json({
-      status: "exact",
-      resultText: "Name Already Exists",
-      isAvailable: false,
-      message: `The company name "${inputName}" exactly matches an existing registered record in ${exactMatch.registrationSource || "DTI"}.`,
-      matches: [
-        {
-          name: exactMatch.companyName || exactMatch.name,
-          registrationSource: exactMatch.registrationSource || "DTI"
-        }
-      ],
-      sourcesChecked,
-      disclaimer
-    });
-  }
-
-  // 2. Similar Match Check
-  const similarMatches = [];
-  const seenNames = new Set();
-
-  for (const c of companies) {
-    const cName = c.companyName || c.name || "";
-    const normC = normalize(cName);
-    const strippedC = stripSuffixes(cName);
-
-    if (normC === normInput) continue;
-
-    let isSimilar = false;
-
-    // Substring containment
-    if (
-      (normInput.length >= 4 && normC.includes(normInput)) ||
-      (normC.length >= 4 && normInput.includes(normC))
-    ) {
-      isSimilar = true;
-    }
-
-    // Stripped suffix match
-    if (
-      strippedInput.length >= 3 &&
-      strippedC.length >= 3 &&
-      (strippedInput === strippedC ||
-        strippedC.includes(strippedInput) ||
-        strippedInput.includes(strippedC))
-    ) {
-      isSimilar = true;
-    }
-
-    // Significant token overlap (at least 2 matching words)
-    const inputTokens = normInput.split(" ").filter((w) => w.length >= 3);
-    const cTokens = normC.split(" ").filter((w) => w.length >= 3);
-    const matchingTokens = inputTokens.filter((t) => cTokens.includes(t));
-    if (inputTokens.length >= 2 && matchingTokens.length >= 2) {
-      isSimilar = true;
-    }
-
-    if (isSimilar && !seenNames.has(normC)) {
-      seenNames.add(normC);
-      similarMatches.push({
-        name: c.companyName || c.name,
-        registrationSource: c.registrationSource || "DTI"
+    if (!inputName) {
+      return res.json({
+        status: "empty",
+        resultText: "Please enter a company name to check.",
+        isAvailable: false,
+        matches: [],
+        sourcesChecked: ["DTI", "SEC"],
+        disclaimer:
+          "Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system."
       });
-      if (similarMatches.length >= 10) break;
     }
-  }
 
-  if (similarMatches.length > 0) {
+    const result = await nameCheckerService.checkName({
+      name: inputName,
+      type,
+      provider,
+      forceRefresh: Boolean(forceRefresh),
+      userId: req.user?.uid || "anonymous",
+      firestoreInstance: adminFirestore
+    });
+
+    const isFound = result.status === "FOUND";
+    const matches = (result.records || []).map((r) => ({
+      name: r.businessName || r.companyName || inputName,
+      registrationSource: result.provider || "SEC"
+    }));
+
     return res.json({
-      status: "similar",
-      resultText: "Similar Name Found",
+      status: isFound ? (result.matchType === "exact" ? "exact" : "similar") : "none",
+      resultText: isFound ? "Name Already Exists" : "No Match Found",
+      isAvailable: !isFound,
+      message: result.message,
+      matches,
+      sourcesChecked: [result.provider || "SEC"],
+      officialSource: result.officialSource,
+      checkedAt: result.checkedAt,
+      disclaimer: result.disclaimer
+    });
+  } catch (err) {
+    console.error("❌ [/api/check-company-name] Error:", err);
+    return res.status(500).json({
+      status: "error",
+      resultText: "Verification Unavailable",
       isAvailable: false,
-      message: `Found ${similarMatches.length} potentially similar registered name(s) in DTI / SEC.`,
-      matches: similarMatches,
-      sourcesChecked,
-      disclaimer
+      message: "External government verification unavailable. Please verify directly via official DTI BNRS or SEC eSPARC.",
+      matches: [],
+      sourcesChecked: ["DTI", "SEC"],
+      disclaimer: "Verification error. Please check official portals."
     });
   }
-
-  // 3. No Match Found
-  return res.json({
-    status: "none",
-    resultText: "No Match Found",
-    isAvailable: true,
-    message: `No exact or similar registered company name found for "${inputName}".`,
-    matches: [],
-    sourcesChecked,
-    disclaimer
-  });
 });
 
 // ==========================================
