@@ -2091,15 +2091,15 @@ return (
                           </span>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
-                              <AlertTriangle size={13} className="text-amber-400" />
+                            <span className="px-2.5 py-1 bg-red-500/20 text-red-200 border border-red-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
+                              <AlertTriangle size={13} className="text-red-400" />
                               Total: ₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Proposal: ₱{totalCap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
                             <button
                               type="button"
                               disabled={isCurrentMonthLocked}
                               onClick={handleAutoRebalanceContributors}
-                              className="px-2.5 py-1 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] font-black text-[10px] rounded-md shadow-sm transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] rounded-md shadow-sm transition-all cursor-pointer flex items-center gap-1 shrink-0"
                             >
                               <RefreshCw size={11} /> Auto-Balance
                             </button>
@@ -2217,17 +2217,17 @@ return (
 
             {/* CAPITAL MISMATCH WARNING BANNER */}
             {isCapitalMismatch && (
-              <div className="mb-6 p-4 sm:p-5 bg-amber-500/10 border-2 border-amber-400/80 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="mb-6 p-4 sm:p-5 bg-red-50 border-2 border-red-500 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md animate-in fade-in duration-200">
                 <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0 mt-0.5">
-                    <AlertTriangle size={20} className="text-amber-400" />
+                  <div className="w-10 h-10 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
+                    <AlertTriangle size={20} className="text-red-600" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-xs font-black text-amber-200 uppercase tracking-wider flex items-center gap-2">
+                    <h4 className="text-xs font-black text-red-700 uppercase tracking-wider flex items-center gap-2">
                       <span>Initial Capital Contributed Unbalanced — Input Module Locked</span>
                     </h4>
-                    <p className="text-xs text-amber-100/90 leading-relaxed max-w-3xl">
-                      Total contributed capital is <strong>₱{totalContributedSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>, which does not match the proposal capital requirement of <strong>₱{proposalCapRequirement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Editing and inputs in the financial module are locked until the contributions equal the total capital.
+                    <p className="text-xs text-red-800 leading-relaxed max-w-3xl font-medium">
+                      Total contributed capital is <strong className="text-red-950 font-black">₱{totalContributedSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>, which does not match the proposal capital requirement of <strong className="text-red-950 font-black">₱{proposalCapRequirement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Editing and inputs in the financial module are locked until the contributions equal the total capital.
                     </p>
                   </div>
                 </div>
@@ -2235,7 +2235,7 @@ return (
                   type="button"
                   disabled={isCurrentMonthLocked}
                   onClick={handleAutoRebalanceContributors}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] font-black text-xs rounded-xl shadow-md transition-all active:scale-95 shrink-0 self-end md:self-auto cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 shrink-0 self-end md:self-auto cursor-pointer"
                 >
                   <RefreshCw size={13} />
                   <span>Auto-Balance Capital</span>
@@ -3457,217 +3457,7 @@ return (
                   </div>
                 </div>
 
-                {/* === SECTION 3: STARTUP EQUIPMENT & ASSETS BREAKDOWN (CAPEX) === */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-[#c9a654] shadow-sm">
-                        <Package className="text-[#c9a654]" size={18} />
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
-                          Startup Equipment & Assets Breakdown (CapEx)
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Itemized startup equipment, machinery, and physical assets required for business launch
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200/70 flex items-center gap-2 shadow-sm">
-                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Total Equipment (CapEx):</span>
-                        <span className="text-base font-black text-[#122244]">₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      {!isInputsBlocked && (
-                        <button
-                          type="button"
-                          onClick={handleAddEquipmentItem}
-                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
-                        >
-                          <Plus size={14} className="text-[#c9a654]" /> Add Item
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead className="bg-gray-50/80 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                        <tr>
-                          <th className="p-3.5 pl-5 min-w-[220px]">Item / Asset name</th>
-                          <th className="p-3.5 w-28 text-center">QTY</th>
-                          <th className="p-3.5 w-40 text-right">UNIT PRICE</th>
-                          <th className="p-3.5 w-44 text-right pr-5">TOTAL</th>
-                          {!isInputsBlocked && <th className="p-3.5 w-14 text-center"></th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {financials.equipmentList && financials.equipmentList.map((item, index) => (
-                          <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="p-3 pl-5">
-                              <input
-                                type="text"
-                                disabled={isInputsBlocked}
-                                placeholder="e.g. Machine or Rent similar"
-                                value={item.name}
-                                onChange={(e) => handleUpdateEquipmentItem(index, { name: e.target.value })}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                              />
-                            </td>
-                            <td className="p-3 text-center">
-                              <input
-                                type="number"
-                                disabled={isInputsBlocked}
-                                min="1"
-                                placeholder="1"
-                                value={item.quantity !== undefined && item.quantity !== 0 ? item.quantity : ""}
-                                onKeyDown={handlePreventNegative}
-                                onPaste={handlePasteNonNegative}
-                                onChange={(e) => handleUpdateEquipmentItem(index, { quantity: e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)) })}
-                                onBlur={() => handleAutoSave()}
-                                className="w-full px-2 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] text-center focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <div className="relative">
-                                <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
-                                <input
-                                  type="number"
-                                  disabled={isInputsBlocked}
-                                  min="0"
-                                  placeholder="0.00"
-                                  value={item.unitPrice !== undefined && item.unitPrice !== 0 ? item.unitPrice : ""}
-                                  onKeyDown={handlePreventNegative}
-                                  onPaste={handlePasteNonNegative}
-                                  onChange={(e) => handleUpdateEquipmentItem(index, { unitPrice: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
-                                  onBlur={() => handleAutoSave()}
-                                  className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                />
-                              </div>
-                            </td>
-                            <td className="p-3 pr-5 text-right font-black text-xs text-[#122244]">
-                              ₱{(Number(item.total) || ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            {!isInputsBlocked && (
-                              <td className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveEquipmentItem(index)}
-                                  className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                  title="Delete item"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                        {(!financials.equipmentList || financials.equipmentList.length === 0) && (
-                          <tr>
-                            <td colSpan={isInputsBlocked ? 4 : 5} className="py-8 text-center text-gray-400 text-xs italic">
-                              No equipment or assets added yet. Click "+ Add Item" to itemize startup machinery and tools.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-
-                    <div className="p-4 bg-gray-50/90 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                      {!isInputsBlocked ? (
-                        <button
-                          type="button"
-                          onClick={handleAddEquipmentItem}
-                          className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
-                        >
-                          <Plus size={14} /> + Add Item
-                        </button>
-                      ) : <div />}
-                      <div className="flex items-center gap-2 text-right">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Total:</span>
-                        <span className="text-lg font-black text-[#122244]">
-                          ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Financing Options Section at bottom of CapEx */}
-                  <div className="bg-amber-50/50 p-4 sm:p-5 rounded-xl border border-amber-200/80 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          id="isCapitalBorrowed_capex"
-                          disabled={isInputsBlocked}
-                          checked={financials.isCapitalBorrowed}
-                          onChange={(e) => {
-                            const newState = {
-                              ...financials,
-                              isCapitalBorrowed: e.target.checked,
-                            };
-                            setFinancials(newState);
-                            const updatedRecords = [...monthlyRecords];
-                            if (updatedRecords[activeMonthIndex]) {
-                              updatedRecords[activeMonthIndex] = {
-                                ...updatedRecords[activeMonthIndex],
-                                financials: newState,
-                              };
-                              setMonthlyRecords(updatedRecords);
-                            }
-                            handleAutoSave(newState, updatedRecords);
-                          }}
-                          className="w-4 h-4 text-[#c9a654] rounded focus:ring-[#c9a654] mt-0.5 accent-[#c9a654] cursor-pointer disabled:cursor-not-allowed"
-                        />
-                        <label htmlFor="isCapitalBorrowed_capex" className="cursor-pointer">
-                          <p className="text-xs font-bold text-[#122244]">Is startup capital borrowed / loaned?</p>
-                          <p className="text-[11px] text-gray-500">Enable if equipment or startup capital is funded through a debt loan with interest</p>
-                        </label>
-                      </div>
-
-                      {financials.isCapitalBorrowed && (
-                        <div className="flex items-center gap-2 sm:self-center">
-                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                            Annual Interest Rate (%):
-                          </label>
-                          <div className="w-28 relative">
-                            <input
-                              type="number"
-                              disabled={isInputsBlocked}
-                              min="0"
-                              placeholder="e.g. 5"
-                              value={financials.interestRate}
-                              onKeyDown={handlePreventNegative}
-                              onPaste={handlePasteNonNegative}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val !== "" && Number(val) < 0) return;
-                                const newState = {
-                                  ...financials,
-                                  interestRate: val,
-                                };
-                                setFinancials(newState);
-                                const updatedRecords = [...monthlyRecords];
-                                if (updatedRecords[activeMonthIndex]) {
-                                  updatedRecords[activeMonthIndex] = {
-                                    ...updatedRecords[activeMonthIndex],
-                                    financials: newState,
-                                  };
-                                  setMonthlyRecords(updatedRecords);
-                                }
-                              }}
-                              onBlur={() => handleAutoSave()}
-                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600"
-                            />
-                            <span className="absolute right-2.5 top-1.5 text-xs text-gray-400 font-bold">%</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* === SECTION 4: MONTHLY OPERATING COSTS (OPEX) === */}
+                {/* === SECTION 3: MONTHLY OPERATING COSTS (OPEX) === */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                     <div className="flex items-center gap-3">
@@ -3894,6 +3684,216 @@ return (
                       <strong className="text-sm font-black text-emerald-800 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
                         ₱{safeFixedCosts.toLocaleString()}/mo
                       </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* === SECTION 4: STARTUP EQUIPMENT & ASSETS BREAKDOWN (CAPEX) === */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm space-y-6 text-[#122244]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-[#c9a654] shadow-sm">
+                        <Package className="text-[#c9a654]" size={18} />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-[#122244]">
+                          Startup Equipment & Assets Breakdown (CapEx)
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Itemized startup equipment, machinery, and physical assets required for business launch
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200/70 flex items-center gap-2 shadow-sm">
+                        <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Total Equipment (CapEx):</span>
+                        <span className="text-base font-black text-[#122244]">₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      {!isInputsBlocked && (
+                        <button
+                          type="button"
+                          onClick={handleAddEquipmentItem}
+                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#122244] hover:bg-[#1a3060] px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
+                        >
+                          <Plus size={14} className="text-[#c9a654]" /> Add Item
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead className="bg-gray-50/80 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                        <tr>
+                          <th className="p-3.5 pl-5 min-w-[220px]">Item / Asset name</th>
+                          <th className="p-3.5 w-28 text-center">QTY</th>
+                          <th className="p-3.5 w-40 text-right">UNIT PRICE</th>
+                          <th className="p-3.5 w-44 text-right pr-5">TOTAL</th>
+                          {!isInputsBlocked && <th className="p-3.5 w-14 text-center"></th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {financials.equipmentList && financials.equipmentList.map((item, index) => (
+                          <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="p-3 pl-5">
+                              <input
+                                type="text"
+                                disabled={isInputsBlocked}
+                                placeholder="e.g. Machine or Rent similar"
+                                value={item.name}
+                                onChange={(e) => handleUpdateEquipmentItem(index, { name: e.target.value })}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                              />
+                            </td>
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                disabled={isInputsBlocked}
+                                min="1"
+                                placeholder="1"
+                                value={item.quantity !== undefined && item.quantity !== 0 ? item.quantity : ""}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                onChange={(e) => handleUpdateEquipmentItem(index, { quantity: e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)) })}
+                                onBlur={() => handleAutoSave()}
+                                className="w-full px-2 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] text-center focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <div className="relative">
+                                <span className="absolute left-3 top-2 text-xs text-gray-400 font-bold">₱</span>
+                                <input
+                                  type="number"
+                                  disabled={isInputsBlocked}
+                                  min="0"
+                                  placeholder="0.00"
+                                  value={item.unitPrice !== undefined && item.unitPrice !== 0 ? item.unitPrice : ""}
+                                  onKeyDown={handlePreventNegative}
+                                  onPaste={handlePasteNonNegative}
+                                  onChange={(e) => handleUpdateEquipmentItem(index, { unitPrice: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                                  onBlur={() => handleAutoSave()}
+                                  className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-[#122244] text-right focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                />
+                              </div>
+                            </td>
+                            <td className="p-3 pr-5 text-right font-black text-xs text-[#122244]">
+                              ₱{(Number(item.total) || ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            {!isInputsBlocked && (
+                              <td className="p-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEquipmentItem(index)}
+                                  className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                  title="Delete item"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                        {(!financials.equipmentList || financials.equipmentList.length === 0) && (
+                          <tr>
+                            <td colSpan={isInputsBlocked ? 4 : 5} className="py-8 text-center text-gray-400 text-xs italic">
+                              No equipment or assets added yet. Click "+ Add Item" to itemize startup machinery and tools.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    <div className="p-4 bg-gray-50/90 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      {!isInputsBlocked ? (
+                        <button
+                          type="button"
+                          onClick={handleAddEquipmentItem}
+                          className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] uppercase tracking-wider transition-colors"
+                        >
+                          <Plus size={14} /> + Add Item
+                        </button>
+                      ) : <div />}
+                      <div className="flex items-center gap-2 text-right">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Total:</span>
+                        <span className="text-lg font-black text-[#122244]">
+                          ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Financing Options Section at bottom of CapEx */}
+                  <div className="bg-amber-50/50 p-4 sm:p-5 rounded-xl border border-amber-200/80 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="isCapitalBorrowed_capex"
+                          disabled={isInputsBlocked}
+                          checked={financials.isCapitalBorrowed}
+                          onChange={(e) => {
+                            const newState = {
+                              ...financials,
+                              isCapitalBorrowed: e.target.checked,
+                            };
+                            setFinancials(newState);
+                            const updatedRecords = [...monthlyRecords];
+                            if (updatedRecords[activeMonthIndex]) {
+                              updatedRecords[activeMonthIndex] = {
+                                ...updatedRecords[activeMonthIndex],
+                                financials: newState,
+                              };
+                              setMonthlyRecords(updatedRecords);
+                            }
+                            handleAutoSave(newState, updatedRecords);
+                          }}
+                          className="w-4 h-4 text-[#c9a654] rounded focus:ring-[#c9a654] mt-0.5 accent-[#c9a654] cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <label htmlFor="isCapitalBorrowed_capex" className="cursor-pointer">
+                          <p className="text-xs font-bold text-[#122244]">Is startup capital borrowed / loaned?</p>
+                          <p className="text-[11px] text-gray-500">Enable if equipment or startup capital is funded through a debt loan with interest</p>
+                        </label>
+                      </div>
+
+                      {financials.isCapitalBorrowed && (
+                        <div className="flex items-center gap-2 sm:self-center">
+                          <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                            Annual Interest Rate (%):
+                          </label>
+                          <div className="w-28 relative">
+                            <input
+                              type="number"
+                              disabled={isInputsBlocked}
+                              min="0"
+                              placeholder="e.g. 5"
+                              value={financials.interestRate}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val !== "" && Number(val) < 0) return;
+                                const newState = {
+                                  ...financials,
+                                  interestRate: val,
+                                };
+                                setFinancials(newState);
+                                const updatedRecords = [...monthlyRecords];
+                                if (updatedRecords[activeMonthIndex]) {
+                                  updatedRecords[activeMonthIndex] = {
+                                    ...updatedRecords[activeMonthIndex],
+                                    financials: newState,
+                                  };
+                                  setMonthlyRecords(updatedRecords);
+                                }
+                              }}
+                              onBlur={() => handleAutoSave()}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:border-[#c9a654] outline-none text-right disabled:bg-gray-100 disabled:text-gray-600"
+                            />
+                            <span className="absolute right-2.5 top-1.5 text-xs text-gray-400 font-bold">%</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

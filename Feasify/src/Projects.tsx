@@ -3230,755 +3230,63 @@ const Projects: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* SECTION 1: PRODUCT COSTING & YIELD (BATCH / PRODUCTION MODEL) */}
-                      <div className="space-y-6">
-                        {/* Hidden Excel File Input */}
-                        <input
-                          ref={excelFileInputRef}
-                          type="file"
-                          accept=".xlsx,.xls,.csv"
-                          className="hidden"
-                          onChange={handleImportCostingExcel}
-                        />
-
+                      {/* SECTION 1: PROPOSED PRODUCTS */}
+                      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 space-y-5 shadow-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
                             <div>
                               <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                                Product Costing & Yield (Batch / Production Model)
+                                Proposed Products
                               </h4>
                               <p className="text-[10px] text-gray-500 font-medium">
-                                Batch production recipe, direct costs, and mark-up pricing (100% batch output is assumed sold for proposal).
+                                List the product(s) or service offering(s) your business will produce and offer.
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                            {/* Download Excel Template */}
+                          {isEditingMode && (
                             <button
                               type="button"
-                              onClick={handleDownloadCostingTemplate}
-                              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#122244] bg-white px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
-                              title="Download structured Excel template (.xlsx)"
+                              onClick={handleAddProduct}
+                              className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs self-start sm:self-auto"
                             >
-                              <Download size={13} className="text-slate-500" /> Download Template
+                              <Plus size={13} /> Add Product
                             </button>
-
-                            {/* Import Excel */}
-                            {isEditingMode && (
-                              <button
-                                type="button"
-                                onClick={() => excelFileInputRef.current?.click()}
-                                className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-2xs"
-                                title="Import recipes and mark-up from Excel (.xlsx, .xls, .csv)"
-                              >
-                                <FileSpreadsheet size={13} className="text-emerald-600" /> Import Excel
-                              </button>
-                            )}
-
-                            {productsList.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const anyExpanded = productsList.some((p, idx) => expandedProducts[p.id || String(idx)]);
-                                  toggleAllProducts(!anyExpanded);
-                                }}
-                                className="flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#122244] bg-white px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-2xs"
-                              >
-                                {productsList.some((p, idx) => expandedProducts[p.id || String(idx)]) ? (
-                                  <>
-                                    <ChevronUp size={13} /> Fold All
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown size={13} /> Expand All
-                                  </>
-                                )}
-                              </button>
-                            )}
-                            {isEditingMode && (
-                              <button
-                                type="button"
-                                onClick={handleAddProduct}
-                                className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs"
-                              >
-                                <Plus size={13} /> Add Product
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
 
-                        {/* Excel Import Feedback Banner */}
-                        {excelImportFeedback && (
-                          <div
-                            className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs animate-in fade-in duration-200 ${excelImportFeedback.type === "success"
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                                : "bg-red-50 border-red-200 text-red-900"
-                              }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              {excelImportFeedback.type === "success" ? (
-                                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                              ) : (
-                                <AlertCircle size={16} className="text-red-600 shrink-0" />
-                              )}
-                              <span className="font-semibold">{excelImportFeedback.message}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setExcelImportFeedback(null)}
-                              className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-black/5 transition-colors"
-                              title="Dismiss"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        )}
-
                         {/* PRODUCTS LIST */}
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {productsList.map((product, prodIdx) => {
-                            const metrics = computeProductMetrics(product);
-                            const ingredients = product.ingredients || [];
                             const productKey = product.id || String(prodIdx);
-                            const isExpanded = !!expandedProducts[productKey];
 
                             return (
                               <div
                                 key={productKey}
-                                className={`bg-white rounded-2xl border transition-all duration-200 shadow-sm relative ${isExpanded ? "p-5 sm:p-6 space-y-5 border-gray-300 ring-1 ring-gray-200/60" : "p-4 sm:p-5 border-gray-200 hover:border-gray-300"
-                                  }`}
+                                className="flex items-center gap-3 p-3 sm:p-3.5 bg-gray-50/80 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
                               >
-                                {/* Product Header (Matches reference image) */}
-                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? "border-b border-gray-100 pb-4" : ""}`}>
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <span className="px-3 py-1 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider shadow-2xs shrink-0">
-                                      Product #{prodIdx + 1}
-                                    </span>
-                                    <div className="flex-1 max-w-md">
-                                      <input
-                                        disabled={!isEditingMode}
-                                        type="text"
-                                        placeholder={`Product ${prodIdx + 1} Name`}
-                                        value={product.name || ""}
-                                        onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
-                                        className="w-full px-3.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-extrabold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDuplicateProduct(prodIdx)}
-                                      className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200/90 transition-colors font-bold shadow-2xs"
-                                      title="Duplicate this product and all its ingredients"
-                                    >
-                                      <Copy size={13} className="text-blue-600" /> Duplicate
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleProductExpand(productKey)}
-                                      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all shadow-2xs ${isExpanded
-                                          ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
-                                          : "bg-amber-50 hover:bg-amber-100 text-[#b59545] border-amber-200/80"
-                                        }`}
-                                    >
-                                      {isExpanded ? (
-                                        <>
-                                          <ChevronUp size={13} /> Fold Details
-                                        </>
-                                      ) : (
-                                        <>
-                                          <ChevronDown size={13} className="text-[#c9a654]" /> Expand Inputs & Costing
-                                        </>
-                                      )}
-                                    </button>
-
-                                    {isEditingMode && productsList.length > 1 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRemoveProduct(prodIdx)}
-                                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors font-semibold"
-                                      >
-                                        <Trash2 size={13} /> Remove Product
-                                      </button>
-                                    )}
-                                  </div>
+                                <span className="px-3 py-1.5 bg-[#122244] text-white text-[11px] font-black rounded-lg uppercase tracking-wider shadow-2xs shrink-0">
+                                  Product #{prodIdx + 1}
+                                </span>
+                                <div className="flex-1">
+                                  <input
+                                    disabled={!isEditingMode}
+                                    type="text"
+                                    placeholder={`Enter Product #${prodIdx + 1} Name`}
+                                    value={product.name || ""}
+                                    onChange={(e) => handleUpdateProduct(prodIdx, { name: e.target.value })}
+                                    className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:border-[#c9a654] focus:ring-1 focus:ring-[#c9a654]/30 outline-none disabled:bg-gray-100 disabled:text-gray-600"
+                                  />
                                 </div>
-
-                                {/* COMPACT SUMMARY STRIP (WHEN FOLDED) */}
-                                {!isExpanded && (
-                                  <div className="pt-3.5 border-t border-gray-100">
-                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                                      {/* 1. Units per batch (Editable) */}
-                                      <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                                          Units per batch <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                          disabled={!isEditingMode}
-                                          type="number"
-                                          min="0"
-                                          placeholder="e.g. 50"
-                                          value={product.quantityYield !== undefined ? product.quantityYield : ""}
-                                          onKeyDown={handlePreventNegative}
-                                          onPaste={handlePasteNonNegative}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === "" || Number(val) >= 0) {
-                                              handleUpdateProduct(prodIdx, { quantityYield: val });
-                                            }
-                                          }}
-                                          className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#122244] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
-                                        />
-                                        <span className="text-[9px] text-gray-400 block mt-1">Batch Yield (finished pcs)</span>
-                                      </div>
-
-                                      {/* 2. Batches per Month (Editable) */}
-                                      <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-emerald-300/80 transition-colors">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                                          Batches / Mo
-                                        </label>
-                                        <input
-                                          disabled={!isEditingMode}
-                                          type="number"
-                                          min="1"
-                                          placeholder="1"
-                                          value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
-                                          onKeyDown={handlePreventNegative}
-                                          onPaste={handlePasteNonNegative}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === "" || Number(val) >= 0) {
-                                              handleUpdateProduct(prodIdx, { batchesPerMonth: val });
-                                            }
-                                          }}
-                                          className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-emerald-800 focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
-                                        />
-                                        <span className="text-[9px] text-emerald-600 font-semibold block mt-1">
-                                          {metrics.totalUnitsProduced.toLocaleString()} pcs (100% sold)
-                                        </span>
-                                      </div>
-
-                                      {/* 3. Cost per Batch */}
-                                      <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors flex flex-col justify-between">
-                                        <div>
-                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Batch</span>
-                                          <p className="text-sm font-black text-[#122244] mt-1.5">
-                                            ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </p>
-                                        </div>
-                                        <span className="text-[9px] text-gray-400 mt-1">{ingredients.length} items/costs</span>
-                                      </div>
-
-                                      {/* 4. Cost per Unit (COGS) & Target Price */}
-                                      <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/70 transition-colors flex flex-col justify-between">
-                                        <div>
-                                          <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">Cost / Unit (COGS)</span>
-                                          <p className="text-sm font-black text-blue-950 mt-1.5">
-                                            ₱{metrics.unitCost.toFixed(2)}
-                                          </p>
-                                        </div>
-                                        <span className="text-[9px] text-blue-700 font-semibold mt-1">
-                                          {metrics.sellingPrice > 0 ? `Target SRP: ₱${metrics.sellingPrice.toFixed(2)}` : "Unit cost"}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {metrics.totalUnitsProduced > 0 && (
-                                      <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-400">
-                                        <span className="text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
-                                          ✓ 100% Output Sold ({metrics.totalUnitsProduced.toLocaleString()} pcs / mo)
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* DETAILED INPUTS & COSTING (WHEN EXPANDED) */}
-                                {isExpanded && (
-                                  <div className="space-y-5 animate-in fade-in duration-200">
-                                    {/* Product Yield & Ingredients */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                                      {/* Yield Input & Calculation */}
-                                      <div className="lg:col-span-4 space-y-4">
-                                        <div className="space-y-3">
-                                          <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                              Batch Yield / Units per Batch <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                              disabled={!isEditingMode}
-                                              type="number"
-                                              min="0"
-                                              placeholder="e.g. 50"
-                                              value={product.quantityYield}
-                                              onKeyDown={handlePreventNegative}
-                                              onPaste={handlePasteNonNegative}
-                                              onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === "" || Number(val) >= 0) {
-                                                  handleUpdateProduct(prodIdx, { quantityYield: val });
-                                                }
-                                              }}
-                                              className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                                            />
-                                            <p className="text-[9px] text-gray-400 mt-0.5 italic">
-                                              Finished items made in 1 batch / recipe
-                                            </p>
-                                          </div>
-
-                                          <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                              Batches / Month (Production Frequency)
-                                            </label>
-                                            <input
-                                              disabled={!isEditingMode}
-                                              type="number"
-                                              min="1"
-                                              placeholder="1"
-                                              value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
-                                              onKeyDown={handlePreventNegative}
-                                              onPaste={handlePasteNonNegative}
-                                              onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === "" || Number(val) >= 0) {
-                                                  handleUpdateProduct(prodIdx, { batchesPerMonth: val });
-                                                }
-                                              }}
-                                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                                            />
-                                            <p className="text-[9px] text-emerald-700 font-bold mt-1">
-                                              Monthly Output: {metrics.totalUnitsProduced.toLocaleString()} pcs (100% assumed sold in proposal)
-                                            </p>
-                                          </div>
-                                        </div>
-
-                                        {/* Total Batch Cost & Unit Cost Preview */}
-                                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
-                                          {ingredients.some(i => i.category === "labor" || i.category === "miscellaneous") && (
-                                            <div className="space-y-1 pb-2 border-b border-gray-200/60 text-[11px]">
-                                              <div className="flex justify-between items-center text-gray-500">
-                                                <span>Direct Materials:</span>
-                                                <span className="font-bold text-gray-700">
-                                                  ₱{ingredients.filter(i => !i.category || i.category === "ingredient").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
-                                                </span>
-                                              </div>
-                                              <div className="flex justify-between items-center text-blue-800">
-                                                <span>Direct Labor & Misc:</span>
-                                                <span className="font-bold text-blue-900">
-                                                  ₱{ingredients.filter(i => i.category === "labor" || i.category === "miscellaneous").reduce((s, i) => s + (Number(i.price) || 0), 0).toFixed(2)}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          )}
-                                          <div className="flex justify-between items-center text-xs">
-                                            <span className="text-gray-500 font-medium">Cost / Batch:</span>
-                                            <span className="font-extrabold text-[#122244]">
-                                              ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </span>
-                                          </div>
-                                          <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
-                                            <span className="text-gray-500 font-medium">Monthly Output:</span>
-                                            <span className="font-bold text-gray-800">
-                                              {metrics.totalUnitsProduced.toLocaleString()} units ({metrics.batchesPerMonth} {metrics.batchesPerMonth === 1 ? "batch" : "batches"})
-                                            </span>
-                                          </div>
-                                          <div className="flex justify-between items-center text-xs pt-1.5 border-t border-gray-200/60">
-                                            <span className="text-[#122244] font-bold">Unit Cost (COGS):</span>
-                                            <span className="font-black text-[#122244] text-sm">
-                                              ₱{metrics.unitCost.toFixed(2)}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Ingredient & Direct Cost List */}
-                                      <div className="lg:col-span-8 space-y-3">
-                                        <div className="flex justify-between items-center gap-2 flex-wrap">
-                                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                            Direct Costs (Ingredients, Labor & Misc)
-                                          </label>
-                                          {isEditingMode && (
-                                            <div className="flex items-center gap-1.5">
-                                              <button
-                                                type="button"
-                                                onClick={() => handleAddIngredient(prodIdx, "ingredient")}
-                                                className="flex items-center gap-1 text-[11px] font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200/70 hover:bg-amber-100 transition-colors"
-                                              >
-                                                <Plus size={12} /> Add Ingredient
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleAddIngredient(prodIdx, "labor")}
-                                                className="flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200/70 hover:bg-blue-100 transition-colors"
-                                                title="Add Direct Labor (e.g. Barista, Baker) or Miscellaneous Overhead"
-                                              >
-                                                <Plus size={12} /> Add Labor / Misc
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-
-                                        {ingredients.length === 0 ? (
-                                          <div className="p-4 bg-gray-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-1.5">
-                                            <p className="text-xs text-gray-400 italic">No production costs or ingredients listed yet for this product.</p>
-                                            {isEditingMode && (
-                                              <div className="flex items-center justify-center gap-3 text-xs font-bold">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleAddIngredient(prodIdx, "ingredient")}
-                                                  className="text-[#c9a654] hover:underline"
-                                                >
-                                                  + Add Ingredient
-                                                </button>
-                                                <span className="text-gray-300">•</span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleAddIngredient(prodIdx, "labor")}
-                                                  className="text-blue-700 hover:underline"
-                                                >
-                                                  + Add Labor / Misc
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                            {ingredients.map((ing, ingIdx) => (
-                                              <div
-                                                key={ing.id || ingIdx}
-                                                className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100 text-xs"
-                                              >
-                                                <select
-                                                  disabled={!isEditingMode}
-                                                  value={ing.category || "ingredient"}
-                                                  onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
-                                                  className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${(ing.category === "labor")
-                                                      ? "bg-blue-50 text-blue-800 border-blue-200"
-                                                      : (ing.category === "miscellaneous")
-                                                        ? "bg-purple-50 text-purple-800 border-purple-200"
-                                                        : "bg-amber-50 text-[#b59545] border-amber-200"
-                                                    }`}
-                                                >
-                                                  <option value="ingredient">Material</option>
-                                                  <option value="labor">Labor</option>
-                                                  <option value="miscellaneous">Misc</option>
-                                                </select>
-
-                                                <input
-                                                  disabled={!isEditingMode}
-                                                  type="text"
-                                                  placeholder={
-                                                    ing.category === "labor"
-                                                      ? "Direct Labor (e.g. Barista, Baker, Prep)"
-                                                      : ing.category === "miscellaneous"
-                                                        ? "Misc Cost (e.g. Packaging, Cups, Foil)"
-                                                        : "Ingredient / Material Name"
-                                                  }
-                                                  value={ing.name}
-                                                  onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
-                                                  className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-gray-800 focus:border-[#c9a654] outline-none"
-                                                />
-                                                <div className="w-28 relative">
-                                                  <span className="absolute left-2 top-1.5 text-xs text-gray-400">₱</span>
-                                                  <input
-                                                    disabled={!isEditingMode}
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0.00"
-                                                    value={ing.price !== undefined ? ing.price : ""}
-                                                    onKeyDown={handlePreventNegative}
-                                                    onPaste={handlePasteNonNegative}
-                                                    onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { price: e.target.value === "" ? "" : Math.max(0, Number(e.target.value)) })}
-                                                    className="w-full pl-5 pr-2 py-1.5 bg-white border border-gray-200 rounded text-xs font-bold text-gray-800 focus:border-[#c9a654] outline-none text-right"
-                                                  />
-                                                </div>
-                                                {isEditingMode && (
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveIngredient(prodIdx, ingIdx)}
-                                                    className="p-1 text-gray-400 hover:text-red-500 rounded"
-                                                    title="Remove item"
-                                                  >
-                                                    <Trash2 size={13} />
-                                                  </button>
-                                                )}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* SECTION 2: MARK-UP STRATEGY & TARGET SELLING PRICE (PER PRODUCT) */}
-                                    <div className="pt-4 border-t border-gray-100 space-y-3">
-                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <span className="w-4 h-4 rounded-full bg-[#c9a654] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                                          <h5 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                                            Mark-up Strategy & Target Selling Price
-                                          </h5>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          {/* 12% VAT Toggle Button */}
-                                          {isEditingMode && (
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const nextVat = product.applyVat === false;
-                                                const compPrice = nextVat ? (metrics.computedBasePrice * 1.12) : metrics.computedBasePrice;
-                                                handleUpdateProduct(prodIdx, {
-                                                  applyVat: nextVat,
-                                                  sellingPrice: compPrice > 0 ? String(Math.round(compPrice)) : (product.sellingPrice || "")
-                                                });
-                                              }}
-                                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${product.applyVat !== false
-                                                  ? "bg-blue-900 text-white border-blue-900 shadow-sm"
-                                                  : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
-                                                }`}
-                                              title="Toggle Philippine 12% Value-Added Tax (VAT)"
-                                            >
-                                              <span className={`w-1.5 h-1.5 rounded-full ${product.applyVat !== false ? "bg-amber-400" : "bg-gray-400"}`} />
-                                              {product.applyVat !== false ? "12% VAT Applied" : "Non-VAT / Exempt"}
-                                            </button>
-                                          )}
-
-                                          {isEditingMode && (
-                                            <div className="flex gap-1.5 items-center">
-                                              <span className="text-[10px] text-gray-400 font-bold uppercase">Presets:</span>
-                                              {["50", "100", "120"].map((pct) => (
-                                                <button
-                                                  key={pct}
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const mPct = Number(pct);
-                                                    const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                                    const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
-                                                    handleUpdateProduct(prodIdx, {
-                                                      markupPercentage: pct,
-                                                      sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : ""
-                                                    });
-                                                  }}
-                                                  className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${String(product.markupPercentage) === pct
-                                                      ? "bg-[#c9a654] text-white border-[#c9a654]"
-                                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                                    }`}
-                                                >
-                                                  {pct}%
-                                                </button>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                        <div>
-                                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                            Mark-up Percentage (%)
-                                          </label>
-                                          <input
-                                            disabled={!isEditingMode}
-                                            type="number"
-                                            min="0"
-                                            placeholder="e.g. 100"
-                                            value={product.markupPercentage}
-                                            onKeyDown={handlePreventNegative}
-                                            onPaste={handlePasteNonNegative}
-                                            onChange={(e) => {
-                                              const newPct = e.target.value;
-                                              if (newPct !== "" && Number(newPct) < 0) return;
-                                              const mPct = Math.max(0, Number(newPct) || 0);
-                                              const compBase = metrics.unitCost + (metrics.unitCost * (mPct / 100));
-                                              const finalPrice = product.applyVat !== false ? compBase * 1.12 : compBase;
-                                              handleUpdateProduct(prodIdx, {
-                                                markupPercentage: newPct,
-                                                sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : (product.sellingPrice || "")
-                                              });
-                                            }}
-                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                                          />
-                                          <div className="mt-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/80 flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider">Markup Amount</span>
-                                            <span className="text-xs font-black text-[#122244]">+₱{metrics.markupAmount.toFixed(2)}</span>
-                                          </div>
-                                        </div>
-
-                                        <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-200/80 flex flex-col justify-between">
-                                          <div>
-                                            <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">Computed Base SRP</span>
-                                            <p className="text-sm font-black text-[#122244] mt-1">
-                                              ₱{metrics.computedBasePrice.toFixed(2)}
-                                            </p>
-                                          </div>
-                                          <p className="text-[9px] text-gray-500 italic mt-1">
-                                            Unit Cost (₱{metrics.unitCost.toFixed(2)}) + Mark-up
-                                          </p>
-                                        </div>
-
-                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${product.applyVat !== false ? "bg-blue-50/50 border-blue-200" : "bg-gray-50 border-gray-200"
-                                          }`}>
-                                          <div>
-                                            <div className="flex items-center justify-between">
-                                              <span className={`text-[10px] font-bold uppercase tracking-wider block ${product.applyVat !== false ? "text-blue-900" : "text-gray-500"
-                                                }`}>
-                                                12% VAT Impact
-                                              </span>
-                                              <span className="text-[9px] font-bold text-blue-700">
-                                                {product.applyVat !== false ? "+12%" : "Exempt"}
-                                              </span>
-                                            </div>
-                                            <p className={`text-sm font-black mt-1 ${product.applyVat !== false ? "text-blue-950" : "text-gray-400"}`}>
-                                              {product.applyVat !== false ? `₱${metrics.computedVatInclusivePrice.toFixed(2)}` : "—"}
-                                            </p>
-                                          </div>
-                                          <p className="text-[9px] text-gray-500 italic mt-1">
-                                            {product.applyVat !== false ? `Incl. ₱${metrics.unitVatAmount.toFixed(2)} VAT` : "Non-VAT / Exempt"}
-                                          </p>
-                                        </div>
-
-                                        <div>
-                                          <div className="flex justify-between items-center mb-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                              Target Selling Price (₱) <span className="text-red-500">*</span>
-                                            </label>
-                                            {metrics.computedVatInclusivePrice > 0 && isEditingMode && (
-                                              <button
-                                                type="button"
-                                                onClick={() => handleUpdateProduct(prodIdx, {
-                                                  sellingPrice: String(Math.round(product.applyVat !== false ? metrics.computedVatInclusivePrice : metrics.computedBasePrice))
-                                                })}
-                                                className="text-[9px] font-bold text-[#c9a654] hover:underline"
-                                              >
-                                                Use Suggestion
-                                              </button>
-                                            )}
-                                          </div>
-                                          <input
-                                            disabled={!isEditingMode}
-                                            type="number"
-                                            min="0"
-                                            placeholder={metrics.computedVatInclusivePrice > 0 ? String(Math.round(product.applyVat !== false ? metrics.computedVatInclusivePrice : metrics.computedBasePrice)) : "0.00"}
-                                            value={product.sellingPrice}
-                                            onKeyDown={handlePreventNegative}
-                                            onPaste={handlePasteNonNegative}
-                                            onChange={(e) => {
-                                              const val = e.target.value;
-                                              if (val === "" || Number(val) >= 0) {
-                                                handleUpdateProduct(prodIdx, { sellingPrice: val });
-                                              }
-                                            }}
-                                            className="w-full px-3 py-2 bg-white border-2 border-[#c9a654] rounded-lg text-xs font-black text-[#122244] focus:ring-2 focus:ring-[#c9a654]/20 outline-none"
-                                          />
-                                          <p className="text-[9px] text-gray-400 mt-1 italic">
-                                            {product.applyVat !== false ? "VAT-Inclusive consumer price" : "Net price (Non-VAT)"}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* DYNAMIC SUMMARY CARDS (PER PRODUCT) */}
-                                    <div className="pt-3 border-t border-gray-100">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                          Product Economics Summary ({product.name || `Product #${prodIdx + 1}`})
-                                        </span>
-                                        {product.applyVat !== false && (
-                                          <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                                            BIR 12% VAT Segregated from Revenue
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-[#122244]">
-                                        {/* Unit Cost (COGS) */}
-                                        <div className="bg-gray-50/90 p-3 rounded-xl border border-gray-200">
-                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Unit Cost (COGS)</span>
-                                          <p className="text-base font-black text-[#122244] mt-0.5">₱{metrics.unitCost.toFixed(2)}</p>
-                                          <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">Total Cost / Yield</p>
-                                        </div>
-
-                                        {/* Target Price */}
-                                        <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-200">
-                                          <span className="text-[10px] font-bold text-[#b59545] uppercase tracking-wider block">
-                                            Target Price {product.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
-                                          </span>
-                                          <p className="text-base font-black text-[#c9a654] mt-0.5">₱{metrics.sellingPrice.toFixed(2)}</p>
-                                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">
-                                            {product.applyVat !== false ? `Net: ₱${metrics.netSellingPrice.toFixed(2)}` : `+${metrics.markupPct}% Mark-up`}
-                                          </p>
-                                        </div>
-
-                                        {/* 12% Output VAT */}
-                                        <div className="bg-blue-50/40 p-3 rounded-xl border border-blue-200">
-                                          <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">12% Output VAT</span>
-                                          <p className="text-base font-black text-blue-900 mt-0.5">
-                                            ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </p>
-                                          <p className="text-[9px] text-blue-600 font-medium mt-0.5 truncate">
-                                            {product.applyVat !== false ? `₱{metrics.unitVatAmount.toFixed(2)}/unit (BIR Remittance)` : "Exempt (0%)"}
-                                          </p>
-                                        </div>
-
-                                        {/* Net Revenue */}
-                                        <div className="bg-green-50/40 p-3 rounded-xl border border-green-200">
-                                          <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Net Revenue</span>
-                                          <p className="text-base font-black text-green-700 mt-0.5">
-                                            ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </p>
-                                          <p className="text-[9px] text-green-600 font-medium mt-0.5">
-                                            {metrics.totalUnitsProduced.toLocaleString()} units sold ({product.applyVat !== false ? "Net Sales excl. VAT" : "Selling Price × Units Produced"})
-                                          </p>
-                                        </div>
-
-                                        {/* Gross Profit */}
-                                        <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-200 col-span-2 sm:col-span-1">
-                                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Gross Profit</span>
-                                          <p className={`text-base font-black mt-0.5 ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                            ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </p>
-                                          <p className="text-[9px] text-purple-600 font-medium mt-0.5">
-                                            Revenue - COGS (₱{metrics.cogsSold.toFixed(2)})
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Expanded Bottom Quick-Action Bar */}
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-gray-100">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleProductExpand(productKey)}
-                                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors self-start"
-                                      >
-                                        <ChevronUp size={13} />
-                                        <span>Fold Details</span>
-                                      </button>
-                                      <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-                                        {isEditingMode && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDuplicateProduct(prodIdx)}
-                                            className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200/90 transition-colors font-bold shadow-2xs"
-                                            title="Duplicate this product and all its ingredients"
-                                          >
-                                            <Copy size={13} className="text-blue-600" /> Duplicate Product
-                                          </button>
-                                        )}
-                                        {isEditingMode && productsList.length > 1 && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleRemoveProduct(prodIdx)}
-                                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors font-semibold"
-                                          >
-                                            <Trash2 size={13} /> Remove Product
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
+                                {isEditingMode && productsList.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveProduct(prodIdx)}
+                                    className="flex items-center justify-center p-2 text-gray-400 hover:text-red-500 bg-white hover:bg-red-50 border border-gray-200 rounded-lg transition-colors shrink-0"
+                                    title="Remove Product"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
                                 )}
                               </div>
                             );
@@ -4501,72 +3809,32 @@ const Projects: React.FC = () => {
                               <div className="space-y-4">
                                 <div className="flex items-center gap-2">
                                   <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
-                                  <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Product Costing & Yield Profiles</span>
+                                  <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Proposed Products ({products.length} {products.length === 1 ? 'Product' : 'Products'})</span>
                                 </div>
-                                {products.map((prod, pIdx) => {
-                                  const metrics = computeProductMetrics(prod);
-                                  const ingredients = prod.ingredients || [];
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {products.map((prod, pIdx) => {
+                                    const metrics = computeProductMetrics(prod);
+                                    const hasCosting = (prod.ingredients && prod.ingredients.length > 0) || metrics.unitCost > 0 || metrics.sellingPrice > 0;
 
-                                  return (
-                                    <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
-                                      <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
-                                        <span className="font-extrabold text-sm text-[#122244]">
-                                          {prod.name || `Product #${pIdx + 1}`}
+                                    return (
+                                      <div key={prod.id || pIdx} className="bg-gray-50/80 p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                                        <span className="px-2.5 py-1 bg-[#122244] text-white text-[11px] font-bold rounded-lg uppercase shrink-0">
+                                          #{pIdx + 1}
                                         </span>
-                                        <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
-                                          Yield: {metrics.batchYield || 0} units
-                                        </span>
-                                      </div>
-
-                                      {/* Per-Product Summary Cards */}
-                                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                                          <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                                          <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
-                                        </div>
-                                        <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
-                                          <span className="text-[9px] text-[#b59545] font-bold uppercase block">
-                                            Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                        <div className="min-w-0 flex-1">
+                                          <span className="font-extrabold text-xs text-[#122244] block truncate">
+                                            {prod.name || `Product #${pIdx + 1}`}
                                           </span>
-                                          <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
-                                        </div>
-                                        <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
-                                          <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
-                                          <span className="font-extrabold text-blue-900 text-sm">
-                                            ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
-                                        </div>
-                                        <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
-                                          <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
-                                          <span className="font-extrabold text-green-700 text-sm">
-                                            ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
-                                        </div>
-                                        <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
-                                          <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
-                                          <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                            ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                          </span>
+                                          {hasCosting && metrics.sellingPrice > 0 && (
+                                            <span className="text-[10px] font-semibold text-[#c9a654]">
+                                              Target: ₱{metrics.sellingPrice.toFixed(2)}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
-
-                                      {/* Ingredients list if present */}
-                                      {ingredients.length > 0 && (
-                                        <div className="space-y-1.5 pt-1">
-                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
-                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
-                                            {ingredients.map((ing, iIdx) => (
-                                              <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
-                                                <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
-                                                <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               {/* Equipment CapEx (if present) */}
