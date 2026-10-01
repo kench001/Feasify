@@ -67,7 +67,11 @@ import {
   Image as ImageIcon,
   ArrowUp,
   ShieldCheck,
+  FileSpreadsheet,
+  Download,
+  Copy,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
   fetchCopyrightDB,
@@ -116,74 +120,71 @@ const CustomDropdown: React.FC<{
   disabled = false,
   className = "",
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+    const selectedOption = options.find((opt) => opt.value === value);
 
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+    useEffect(() => {
+      const handleOutsideClick = (e: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+      if (isOpen) {
+        document.addEventListener("mousedown", handleOutsideClick);
       }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen]);
+      return () => {
+        document.removeEventListener("mousedown", handleOutsideClick);
+      };
+    }, [isOpen]);
 
-  return (
-    <div className={`relative w-full ${className}`} ref={dropdownRef}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setIsOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 border ${
-          isOpen
-            ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
-            : "border-gray-200 hover:border-gray-300"
-        } rounded-lg text-sm font-medium transition-all text-[#122244] text-left outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100/70`}
-      >
-        <span className={selectedOption && selectedOption.value ? "text-[#122244] font-medium" : "text-gray-400"}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-[#c9a654]" : ""
-          }`}
-        />
-      </button>
+    return (
+      <div className={`relative w-full ${className}`} ref={dropdownRef}>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && setIsOpen((prev) => !prev)}
+          className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 border ${isOpen
+              ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
+              : "border-gray-200 hover:border-gray-300"
+            } rounded-lg text-sm font-medium transition-all text-[#122244] text-left outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100/70`}
+        >
+          <span className={selectedOption && selectedOption.value ? "text-[#122244] font-medium" : "text-gray-400"}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180 text-[#c9a654]" : ""
+              }`}
+          />
+        </button>
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
-          {options.map((option) => {
-            const isSelected = option.value === value;
-            return (
-              <div
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={`px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${
-                  isSelected
-                    ? "bg-amber-50/80 text-[#c9a654] font-bold"
-                    : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
-                }`}
-              >
-                <span>{option.label}</span>
-                {isSelected && <Check className="w-4 h-4 text-[#c9a654]" />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+        {isOpen && (
+          <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <div
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${isSelected
+                      ? "bg-amber-50/80 text-[#c9a654] font-bold"
+                      : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
+                    }`}
+                >
+                  <span>{option.label}</span>
+                  {isSelected && <Check className="w-4 h-4 text-[#c9a654]" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
 const businessTypeDropdownOptions: DropdownOption[] = [
   { value: "", label: "Select category..." },
@@ -204,10 +205,10 @@ interface GroupData {
   section: string;
   isSetup?: boolean;
   status?:
-    | "Drafting"
-    | "Pending Review"
-    | "Approved Proposal"
-    | "Active Business";
+  | "Drafting"
+  | "Pending Review"
+  | "Approved Proposal"
+  | "Active Business";
   activeProposalId?: string;
   mission?: string;
   vision?: string;
@@ -230,194 +231,28 @@ export interface IngredientItem {
   category?: "ingredient" | "labor" | "miscellaneous" | string;
 }
 
-export interface ProductCostingItem {
-  id: string;
-  name: string;
-  quantityYield: string;
-  batchesPerMonth?: string;
-  unitsSold?: string;
-  ingredients: IngredientItem[];
-  markupPercentage: string;
-  sellingPrice?: string;
-  productionCost?: string;
-  unitCost?: string;
-  applyVat?: boolean;
-  vatRate?: number;
-}
+export {
+  type IngredientItem,
+  type ProductCostingItem,
+  type EquipmentItem,
+  type FinancialProposalData,
+  handlePreventNegative,
+  handlePasteNonNegative,
+  normalizeProposalProducts,
+} from "./utils/productCosting";
 
-export interface EquipmentItem {
-  id: string;
-  name: string;
-  quantity: number | string;
-  unitPrice: number | string;
-  total: number;
-}
+import {
+  type IngredientItem,
+  type ProductCostingItem,
+  type EquipmentItem,
+  type FinancialProposalData,
+  handlePreventNegative,
+  handlePasteNonNegative,
+  normalizeProposalProducts,
+  computeProductMetrics as computeProductMetricsBase,
+} from "./utils/productCosting";
 
-export interface FinancialProposalData {
-  products?: ProductCostingItem[];
-  equipmentList?: EquipmentItem[];
-  isCapitalBorrowed?: boolean;
-  interestRate?: string;
-  // Legacy fields for backward compatibility
-  productionCost?: string;
-  quantityYield?: string;
-  unitCost?: string;
-  markupPercentage?: string;
-  markupAmount?: string;
-  computedSellingPrice?: string;
-  sellingPrice?: string;
-  monthlySales?: string;
-  variableCost?: string;
-  fixedCosts?: string;
-  startupCapital?: string;
-  operatingDays?: string;
-  competitorCount?: number;
-  marketDemand?: string;
-  opexList?: { id: string; name: string; amount: number }[];
-}
-
-export const handlePreventNegative = (e: React.KeyboardEvent<HTMLInputElement>) => {
-  if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+") {
-    e.preventDefault();
-  }
-};
-
-export const handlePasteNonNegative = (e: React.ClipboardEvent<HTMLInputElement>) => {
-  const pasteData = e.clipboardData.getData("text");
-  if (Number(pasteData) < 0 || pasteData.includes("-")) {
-    e.preventDefault();
-  }
-};
-
-export const normalizeProposalProducts = (fin?: FinancialProposalData, fallbackName?: string): ProductCostingItem[] => {
-  if (fin?.products && fin.products.length > 0) {
-    return fin.products.map((p, idx) => ({
-      id: p.id || `prod-${idx + 1}`,
-      name: p.name !== undefined ? p.name : "",
-      quantityYield: p.quantityYield !== undefined ? String(p.quantityYield) : "",
-      batchesPerMonth: p.batchesPerMonth !== undefined ? String(p.batchesPerMonth) : "",
-      unitsSold: p.unitsSold !== undefined ? String(p.unitsSold) : "",
-      ingredients: p.ingredients || [],
-      markupPercentage: p.markupPercentage !== undefined ? String(p.markupPercentage) : "100",
-      sellingPrice: p.sellingPrice !== undefined ? String(p.sellingPrice) : "",
-      applyVat: p.applyVat !== undefined ? Boolean(p.applyVat) : true,
-      vatRate: p.vatRate !== undefined ? Number(p.vatRate) : 12,
-    }));
-  }
-  const pCost = Number(fin?.productionCost) || 0;
-  const qYield = fin?.quantityYield !== undefined ? String(fin.quantityYield) : "";
-  const sPrice = fin?.sellingPrice !== undefined ? String(fin.sellingPrice) : "";
-  const mPct = fin?.markupPercentage !== undefined ? String(fin.markupPercentage) : "100";
-  
-  return [{
-    id: "prod-1",
-    name: (fallbackName && fallbackName !== "Product 1") ? fallbackName : "",
-    quantityYield: qYield,
-    batchesPerMonth: "1",
-    unitsSold: "",
-    ingredients: pCost > 0 ? [{
-      id: "ing-1",
-      name: "Direct Production / Materials",
-      price: pCost,
-    }] : [],
-    markupPercentage: mPct,
-    sellingPrice: sPrice,
-    applyVat: true,
-    vatRate: 12,
-  }];
-};
-
-export const computeProductMetrics = (product: ProductCostingItem) => {
-  const ingredients = product.ingredients || [];
-  const totalIngredientCost = ingredients.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  const totalBatchCost = totalIngredientCost > 0 
-    ? totalIngredientCost 
-    : (Number(product.productionCost) || 0);
-  
-  const batchYield = Number(product.quantityYield) || 0;
-  const batchesPerMonth = (product.batchesPerMonth !== undefined && product.batchesPerMonth !== "" && !isNaN(Number(product.batchesPerMonth)) && Number(product.batchesPerMonth) > 0)
-    ? Number(product.batchesPerMonth)
-    : 1;
-
-  // Total items produced in the period (Ilan ang nagawa)
-  const totalUnitsProduced = batchYield * batchesPerMonth;
-
-  // Actual/Target items sold in the period (Ilan ang nabenta talaga - cannot exceed totalUnitsProduced)
-  const rawUnitsSold = (product.unitsSold !== undefined && product.unitsSold !== "" && !isNaN(Number(product.unitsSold)))
-    ? Number(product.unitsSold)
-    : totalUnitsProduced;
-  const unitsSold = (totalUnitsProduced > 0 && rawUnitsSold > totalUnitsProduced)
-    ? totalUnitsProduced
-    : Math.max(0, rawUnitsSold);
-  
-  const unitCost = batchYield > 0 ? totalBatchCost / batchYield : 0;
-  const totalMonthlyProductionCost = totalBatchCost * batchesPerMonth;
-  const cogsSold = unitCost * unitsSold;
-
-  const unsoldUnits = Math.max(0, totalUnitsProduced - unitsSold);
-  const endingInventoryValue = unsoldUnits * unitCost;
-  
-  const markupPct = Number(product.markupPercentage) || 0;
-  const markupAmount = unitCost * (markupPct / 100);
-  const computedBasePrice = unitCost + markupAmount; // VAT-exclusive base price
-  
-  const applyVat = product.applyVat !== false;
-  const vatRate = product.vatRate !== undefined ? Number(product.vatRate) : 12;
-  const vatMultiplier = applyVat ? (vatRate / 100) : 0;
-  
-  const vatAmountPerUnit = computedBasePrice * vatMultiplier;
-  const computedVatInclusivePrice = computedBasePrice + vatAmountPerUnit;
-  
-  const suggestedSellingPrice = applyVat ? computedVatInclusivePrice : computedBasePrice;
-  
-  const rawSellingPrice = (product.sellingPrice !== undefined && product.sellingPrice !== "" && !isNaN(Number(product.sellingPrice)))
-    ? Number(product.sellingPrice)
-    : (suggestedSellingPrice > 0 ? Number(suggestedSellingPrice.toFixed(2)) : 0);
-  
-  const sellingPrice = rawSellingPrice;
-  
-  // Consumer price is VAT-inclusive if VAT is applied (Philippine Price Tag Law / RA 7394)
-  const netSellingPrice = applyVat && vatMultiplier > 0
-    ? sellingPrice / (1 + vatMultiplier)
-    : sellingPrice;
-  
-  const unitVatAmount = sellingPrice - netSellingPrice;
-  const totalVat = unitVatAmount * unitsSold;
-  
-  // Total cash collected from customers (gross receipts)
-  const grossReceipts = sellingPrice * unitsSold;
-  
-  // Philippine GAAP & BIR Financial Management: Revenue is Net Sales of units sold (excluding 12% Output VAT)
-  const revenue = netSellingPrice * unitsSold;
-  const grossProfit = revenue - cogsSold;
-  
-  return {
-    totalBatchCost,
-    batchYield,
-    batchesPerMonth,
-    totalUnitsProduced,
-    unitsSold,
-    unsoldUnits,
-    endingInventoryValue,
-    totalMonthlyProductionCost,
-    cogsSold,
-    unitCost,
-    markupPct,
-    markupAmount,
-    computedBasePrice,
-    applyVat,
-    vatRate,
-    vatAmountPerUnit,
-    computedVatInclusivePrice,
-    sellingPrice,
-    netSellingPrice,
-    unitVatAmount,
-    totalVat,
-    grossReceipts,
-    revenue,
-    grossProfit,
-  };
-};
+export const computeProductMetrics = (product: ProductCostingItem) => computeProductMetricsBase(product, true);
 
 interface ProposalData {
   id?: string;
@@ -429,6 +264,7 @@ interface ProposalData {
   businessName: string;
   businessLogo?: string;
   totalCapital: string;
+  contributorsCount?: string;
   tagline: string;
   targetMarket: string;
   missionStatement: string;
@@ -455,6 +291,7 @@ const initialProposalState: ProposalData = {
   businessName: "",
   businessLogo: "",
   totalCapital: "",
+  contributorsCount: "1",
   tagline: "",
   targetMarket: "",
   missionStatement: "",
@@ -487,7 +324,7 @@ const formatDateTime = (timestamp: any) => {
     // Check if it's a Firebase Timestamp with a toDate method, otherwise assume it's a standard Date/string
     const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
     if (isNaN(date.getTime())) return "";
-    
+
     // en-GB locale formats to DD/MM/YYYY, HH:mm:ss natively
     return date.toLocaleString('en-GB', {
       day: '2-digit',
@@ -594,6 +431,11 @@ const Projects: React.FC = () => {
   const [copyrightDB, setCopyrightDB] = useState<CopyrightDB | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
+  const excelFileInputRef = useRef<HTMLInputElement>(null);
+  const [excelImportFeedback, setExcelImportFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const toggleProductExpand = (key: string) => {
     setExpandedProducts((prev) => ({
@@ -840,7 +682,7 @@ const Projects: React.FC = () => {
         setIsMember(member);
         if (member && g.joinedMembers && g.joinedMembers.includes(uid))
           setHasJoined(true);
-        
+
         const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
           ? g.companyName
           : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
@@ -967,18 +809,18 @@ const Projects: React.FC = () => {
       await signOutUser();
       localStorage.clear();
       sessionStorage.clear();
-    } catch (e) {}
+    } catch (e) { }
     navigate("/");
   };
 
   const getInitials = (name: string) =>
     name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "U";
 
   const handleJoinGroup = async () => {
@@ -1075,9 +917,8 @@ const Projects: React.FC = () => {
       (setupDtiResult?.status === "FOUND" && setupDtiResult.matchType === "exact") ||
       (setupSecResult?.status === "FOUND" && setupSecResult.matchType === "exact")
     ) {
-      errors.companyName = `An exact match for "${trimmedName}" was found in official records (${
-        setupDtiResult?.status === "FOUND" ? "DTI" : "SEC"
-      }). Please verify or select a unique proposed name.`;
+      errors.companyName = `An exact match for "${trimmedName}" was found in official records (${setupDtiResult?.status === "FOUND" ? "DTI" : "SEC"
+        }). Please verify or select a unique proposed name.`;
     }
     if (!setupMission.trim()) errors.mission = "Mission statement is required.";
     if (!setupVision.trim()) errors.vision = "Vision statement is required.";
@@ -1124,16 +965,16 @@ const Projects: React.FC = () => {
       setUserGroup((prev) =>
         prev
           ? {
-              ...prev,
-              companyName: finalCompanyName,
-              title: finalCompanyName,
-              companyLogo: finalLogoUrl || "",
-              isSetup: true,
-              status: "Drafting",
-              mission: setupMission.trim(),
-              vision: setupVision.trim(),
-              objectives: validObjectives,
-            }
+            ...prev,
+            companyName: finalCompanyName,
+            title: finalCompanyName,
+            companyLogo: finalLogoUrl || "",
+            isSetup: true,
+            status: "Drafting",
+            mission: setupMission.trim(),
+            vision: setupVision.trim(),
+            objectives: validObjectives,
+          }
           : null,
       );
       setShowSetupModal(false);
@@ -1149,7 +990,7 @@ const Projects: React.FC = () => {
   const updateFinancialData = (fieldUpdates: Partial<FinancialProposalData>, customProposal = currentProposal) => {
     const existingFin = customProposal.financialData || {};
     const updatedFin: FinancialProposalData = { ...existingFin, ...fieldUpdates };
-    
+
     // Normalize and sync products
     const products = normalizeProposalProducts(updatedFin, customProposal.businessName);
     if (products.length > 0) {
@@ -1166,7 +1007,7 @@ const Projects: React.FC = () => {
       updatedFin.sellingPrice = String(firstProduct.sellingPrice || "");
     }
 
-    // Preserve user entered total capital
+    // Preserve user entered total capital & contributors count
     let newTotalCapital = customProposal.totalCapital;
     if (fieldUpdates.startupCapital !== undefined) {
       newTotalCapital = String(fieldUpdates.startupCapital);
@@ -1175,9 +1016,18 @@ const Projects: React.FC = () => {
       updatedFin.startupCapital = customProposal.totalCapital;
     }
 
+    let newContributorsCount = customProposal.contributorsCount || "1";
+    if (fieldUpdates.contributorsCount !== undefined) {
+      newContributorsCount = String(fieldUpdates.contributorsCount);
+      updatedFin.contributorsCount = newContributorsCount;
+    } else if (customProposal.contributorsCount) {
+      updatedFin.contributorsCount = customProposal.contributorsCount;
+    }
+
     const updatedProposal: ProposalData = {
       ...customProposal,
       totalCapital: newTotalCapital,
+      contributorsCount: newContributorsCount,
       financialData: updatedFin,
     };
 
@@ -1209,6 +1059,31 @@ const Projects: React.FC = () => {
     const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
     if (products.length <= 1) return;
     const nextProducts = products.filter((_, i) => i !== index);
+    updateFinancialData({ products: nextProducts });
+  };
+
+  const handleDuplicateProduct = (index: number) => {
+    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
+    const sourceProd = products[index];
+    if (!sourceProd) return;
+
+    const newId = "prod-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6);
+    const duplicatedIngredients = (sourceProd.ingredients || []).map((ing) => ({
+      ...ing,
+      id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+    }));
+
+    const duplicatedProduct: ProductCostingItem = {
+      ...sourceProd,
+      id: newId,
+      name: sourceProd.name ? `${sourceProd.name} (Copy)` : "Product (Copy)",
+      ingredients: duplicatedIngredients,
+    };
+
+    const nextProducts = [...products];
+    nextProducts.splice(index + 1, 0, duplicatedProduct);
+
+    setExpandedProducts((prev) => ({ ...prev, [newId]: true }));
     updateFinancialData({ products: nextProducts });
   };
 
@@ -1261,6 +1136,318 @@ const Projects: React.FC = () => {
     updateFinancialData({ products: nextProducts });
   };
 
+  // Excel Costing & Mark-up Template Generator
+  const handleDownloadCostingTemplate = () => {
+    const headers = [
+      "Product Name",
+      "Units per Batch",
+      "Batches / Month",
+      "Cost Item / Ingredient",
+      "Category (Material / Labor / Misc)",
+      "Cost per Batch (₱)",
+      "Mark-up %",
+      "Apply 12% VAT (Yes/No)",
+      "Target Selling Price (₱)",
+    ];
+
+    const sampleRows = [
+      // Product 1
+      ["Signature Cold Brew Coffee (500ml)", 50, 4, "Arabica Dark Roast Coffee Beans (1kg)", "Material", 450, 100, "Yes", ""],
+      ["", "", "", "Purified Water & Brewing Filter", "Material", 60, "", "", ""],
+      ["", "", "", "500ml Glass Bottles & Caps (50 pcs)", "Misc", 400, "", "", ""],
+      ["", "", "", "Custom Waterproof Vinyl Labels (50 pcs)", "Misc", 150, "", "", ""],
+      ["", "", "", "Barista Cold Brewing & Bottling Labor", "Labor", 250, "", "", ""],
+      // Product 2
+      ["Caramel Macchiato (16oz)", 40, 4, "Espresso Roast Coffee Beans", "Material", 380, 80, "Yes", ""],
+      ["", "", "", "Fresh Full Cream Milk (5L)", "Material", 420, "", "", ""],
+      ["", "", "", "Artisan Caramel Sauce / Syrup", "Material", 200, "", "", ""],
+      ["", "", "", "16oz Cups, Dome Lids & Straws (40 pcs)", "Misc", 200, "", "", ""],
+      ["", "", "", "Barista Preparation Labor", "Labor", 200, "", "", ""]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+
+    ws["!cols"] = [
+      { wch: 36 }, // Product Name
+      { wch: 16 }, // Units per Batch
+      { wch: 16 }, // Batches / Month
+      { wch: 42 }, // Cost Item / Ingredient
+      { wch: 34 }, // Category
+      { wch: 20 }, // Cost per Batch (₱)
+      { wch: 14 }, // Mark-up %
+      { wch: 22 }, // Apply 12% VAT
+      { wch: 24 }, // Target Selling Price
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Product Costing & Markup");
+    XLSX.writeFile(wb, "Product_Costing_and_Markup_Template.xlsx");
+  };
+
+  // Excel Costing & Mark-up File Parser & Importer
+  const handleImportCostingExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so the same file can be re-imported if edited
+    e.target.value = "";
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const buffer = evt.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          throw new Error("No worksheets found in the uploaded workbook.");
+        }
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: "" });
+
+        if (!rawRows || rawRows.length === 0) {
+          throw new Error("The uploaded Excel file is empty.");
+        }
+
+        // Detect header row and column mappings
+        let headerRowIndex = -1;
+        let colMap: Record<string, number> = {};
+
+        for (let r = 0; r < Math.min(10, rawRows.length); r++) {
+          const row = rawRows[r].map((cell: any) => String(cell || "").trim().toLowerCase());
+          const hasProduct = row.some((c: string) => c.includes("product") || c === "name");
+          const hasCostOrIngredient = row.some((c: string) =>
+            c.includes("ingredient") || c.includes("cost") || c.includes("yield") ||
+            c.includes("batch") || c.includes("markup") || c.includes("mark-up") ||
+            c.includes("vat") || c.includes("price") || c.includes("category") || c.includes("item")
+          );
+
+          if (hasProduct || hasCostOrIngredient) {
+            headerRowIndex = r;
+            row.forEach((rawName: string, colIdx: number) => {
+              const colName = rawName.trim().toLowerCase();
+              if (!colName) return;
+
+              // 1. Category (MUST check before material/labor/misc/ingredient)
+              if (colName.includes("category") || colName.includes("cost type") || colName === "type") {
+                colMap["category"] = colIdx;
+              }
+              // 2. Product Name
+              else if (colName.includes("product") || colName === "product name" || colName === "name") {
+                colMap["product"] = colIdx;
+              }
+              // 3. Batches per Month (batches / month, batches/mo, frequency)
+              else if (colName.includes("batch") && (colName.includes("mo") || colName.includes("month") || colName.includes("freq") || colName.includes("/"))) {
+                colMap["batches"] = colIdx;
+              }
+              // 4. Units per batch / Yield (yield, units per batch, pcs, qty yield)
+              else if (colName.includes("yield") || colName.includes("units per batch") || colName.includes("unit per batch") || colName.includes("units/batch") || colName.includes("batch yield") || colName === "pcs" || colName === "units") {
+                colMap["yield"] = colIdx;
+              }
+              // 5. Target Selling Price (must check before general price/cost)
+              else if (colName.includes("selling") || colName.includes("srp") || colName.includes("target price") || colName.includes("target selling")) {
+                colMap["sellingPrice"] = colIdx;
+              }
+              // 6. Cost per Batch (₱) / Price / Amount
+              else if (colName.includes("cost per batch") || colName.includes("cost/batch") || colName.includes("batch cost") || (colName.includes("cost") && !colName.includes("item")) || colName === "price" || colName === "amount") {
+                colMap["cost"] = colIdx;
+              }
+              // 7. Cost Item / Ingredient Name
+              else if (colName.includes("ingredient") || colName.includes("cost item") || colName.includes("item name") || colName.includes("direct cost") || colName.includes("material") || colName.includes("recipe") || colName.includes("desc") || colName === "item") {
+                colMap["ingredient"] = colIdx;
+              }
+              // 8. Markup %
+              else if (colName.includes("markup") || colName.includes("mark-up") || colName.includes("margin") || colName.includes("%")) {
+                colMap["markup"] = colIdx;
+              }
+              // 9. VAT
+              else if (colName.includes("vat") || colName.includes("tax")) {
+                colMap["vat"] = colIdx;
+              }
+            });
+            break;
+          }
+        }
+
+        if (headerRowIndex === -1) {
+          headerRowIndex = 0;
+          colMap = {
+            product: 0,
+            yield: 1,
+            batches: 2,
+            ingredient: 3,
+            category: 4,
+            cost: 5,
+            markup: 6,
+            vat: 7,
+            sellingPrice: 8,
+          };
+        }
+
+        const parsedProducts: ProductCostingItem[] = [];
+        let currentProduct: ProductCostingItem | null = null;
+        let totalCostItemsCount = 0;
+
+        for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
+          const row = rawRows[r];
+          if (!row || row.every((c: any) => c === "" || c === null || c === undefined)) {
+            continue;
+          }
+
+          const rawProductName = colMap.product !== undefined ? String(row[colMap.product] || "").trim() : "";
+          const rawYield = colMap.yield !== undefined ? String(row[colMap.yield] || "").trim() : "";
+          const rawBatches = colMap.batches !== undefined ? String(row[colMap.batches] || "").trim() : "";
+          const rawIngredientName = colMap.ingredient !== undefined ? String(row[colMap.ingredient] || "").trim() : "";
+          const rawCategory = colMap.category !== undefined ? String(row[colMap.category] || "").trim().toLowerCase() : "";
+          const rawCost = colMap.cost !== undefined ? String(row[colMap.cost] || "").trim().replace(/[₱,$\s]/g, "") : "";
+          const rawMarkup = colMap.markup !== undefined ? String(row[colMap.markup] || "").trim().replace(/%/g, "") : "";
+          const rawVat = colMap.vat !== undefined ? String(row[colMap.vat] || "").trim().toLowerCase() : "";
+          const rawSellingPrice = colMap.sellingPrice !== undefined ? String(row[colMap.sellingPrice] || "").trim().replace(/[₱,$\s]/g, "") : "";
+
+          // If product name is provided and different from current product, create new product
+          if (rawProductName && (!currentProduct || currentProduct.name.toLowerCase() !== rawProductName.toLowerCase())) {
+            let parsedVat = true;
+            if (rawVat) {
+              if (rawVat === "no" || rawVat === "n" || rawVat === "false" || rawVat === "0" || rawVat === "exempt" || rawVat.includes("non")) {
+                parsedVat = false;
+              }
+            }
+
+            let parsedMarkup = "100";
+            if (rawMarkup !== "") {
+              const numMarkup = Number(rawMarkup);
+              if (!isNaN(numMarkup)) {
+                if (numMarkup > 0 && numMarkup <= 1) {
+                  parsedMarkup = String(Math.round(numMarkup * 100));
+                } else {
+                  parsedMarkup = String(numMarkup);
+                }
+              }
+            }
+
+            const newProdId = "prod-" + Date.now() + "-" + parsedProducts.length;
+            currentProduct = {
+              id: newProdId,
+              name: rawProductName,
+              quantityYield: rawYield !== "" && !isNaN(Number(rawYield)) ? String(Math.max(0, Number(rawYield))) : (rawYield || "50"),
+              batchesPerMonth: rawBatches !== "" && !isNaN(Number(rawBatches)) && Number(rawBatches) > 0 ? String(Number(rawBatches)) : "1",
+              markupPercentage: parsedMarkup,
+              sellingPrice: rawSellingPrice !== "" && !isNaN(Number(rawSellingPrice)) ? String(Number(rawSellingPrice)) : "",
+              applyVat: parsedVat,
+              vatRate: 12,
+              ingredients: [],
+            };
+            parsedProducts.push(currentProduct);
+          }
+
+          // If no product initialized yet, create initial product
+          if (!currentProduct) {
+            const newProdId = "prod-" + Date.now() + "-0";
+            currentProduct = {
+              id: newProdId,
+              name: currentProposal.businessName || "Product 1",
+              quantityYield: rawYield || "50",
+              batchesPerMonth: rawBatches || "1",
+              markupPercentage: "100",
+              sellingPrice: "",
+              applyVat: true,
+              vatRate: 12,
+              ingredients: [],
+            };
+            parsedProducts.push(currentProduct);
+          }
+
+          // Backfill product metadata if row has values and product has defaults
+          if (rawYield && !currentProduct.quantityYield) {
+            currentProduct.quantityYield = rawYield;
+          }
+          if (rawBatches && currentProduct.batchesPerMonth === "1") {
+            currentProduct.batchesPerMonth = rawBatches;
+          }
+          if (rawMarkup && currentProduct.markupPercentage === "100") {
+            const numMarkup = Number(rawMarkup);
+            if (!isNaN(numMarkup)) {
+              currentProduct.markupPercentage = (numMarkup > 0 && numMarkup <= 1) ? String(Math.round(numMarkup * 100)) : String(numMarkup);
+            }
+          }
+          if (rawSellingPrice && !currentProduct.sellingPrice) {
+            currentProduct.sellingPrice = rawSellingPrice;
+          }
+          if (rawVat) {
+            if (rawVat === "no" || rawVat === "n" || rawVat === "false" || rawVat === "0" || rawVat === "exempt" || rawVat.includes("non")) {
+              currentProduct.applyVat = false;
+            } else {
+              currentProduct.applyVat = true;
+            }
+          }
+
+          // Add ingredient / direct cost item if present
+          const costVal = Number(rawCost);
+          if (rawIngredientName || (!isNaN(costVal) && costVal > 0)) {
+            let cat: "ingredient" | "labor" | "miscellaneous" = "ingredient";
+            const catLower = rawCategory.toLowerCase();
+            if (catLower.includes("labor") || catLower.includes("worker") || catLower.includes("salary") || catLower.includes("staff")) {
+              cat = "labor";
+            } else if (catLower.includes("misc") || catLower.includes("overhead") || catLower.includes("pack") || catLower.includes("util") || catLower.includes("cup") || catLower.includes("bottle") || catLower.includes("sticker") || catLower.includes("label") || catLower.includes("box") || catLower.includes("pouch")) {
+              cat = "miscellaneous";
+            } else {
+              cat = "ingredient";
+            }
+
+            currentProduct.ingredients.push({
+              id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+              name: rawIngredientName || "Direct Material / Cost Item",
+              price: !isNaN(costVal) && costVal > 0 ? costVal : (rawCost || ""),
+              category: cat,
+            });
+            totalCostItemsCount++;
+          }
+        }
+
+        if (parsedProducts.length === 0) {
+          throw new Error("No product costing data could be extracted. Please check the Excel column format.");
+        }
+
+        // Automatically assign suggested selling price if not provided in Excel
+        parsedProducts.forEach((prod) => {
+          const metrics = computeProductMetrics(prod);
+          if (!prod.sellingPrice && metrics.suggestedSellingPrice > 0) {
+            prod.sellingPrice = String(Math.round(prod.applyVat !== false ? metrics.computedVatInclusivePrice : metrics.computedBasePrice));
+          }
+        });
+
+        // Expand all imported products for immediate review
+        const nextExpanded: Record<string, boolean> = {};
+        parsedProducts.forEach((p, idx) => {
+          nextExpanded[p.id || String(idx)] = true;
+        });
+        setExpandedProducts(nextExpanded);
+
+        // Update financial data in Firestore / state
+        updateFinancialData({ products: parsedProducts });
+
+        setExcelImportFeedback({
+          type: "success",
+          message: `Successfully imported ${parsedProducts.length} product${parsedProducts.length > 1 ? "s" : ""} with ${totalCostItemsCount} direct cost & recipe items from "${file.name}".`,
+        });
+      } catch (err: any) {
+        console.error("Excel import error:", err);
+        setExcelImportFeedback({
+          type: "error",
+          message: err?.message || "Failed to import Excel file. Please ensure it follows the recommended template structure.",
+        });
+      }
+    };
+
+    reader.onerror = () => {
+      setExcelImportFeedback({
+        type: "error",
+        message: "Failed to read the file. Please check file permissions and try again.",
+      });
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
   // Equipment (CapEx) handlers
   const handleAddEquipmentItem = () => {
     const eqList = currentProposal.financialData?.equipmentList || [];
@@ -1295,7 +1482,7 @@ const Projects: React.FC = () => {
     if (!userGroup) return;
     // Only auto-save if we are in editing mode
     if (!isEditingMode) return;
-    
+
     // Don't auto-save if business name and type are both empty (avoiding empty drafts)
     if (!dataToSave.businessName && !dataToSave.businessType) return;
 
@@ -1318,7 +1505,7 @@ const Projects: React.FC = () => {
         groupId: userGroup.id,
         status: dataToSave.status || "Draft",
       });
-      
+
       if (dataToSave.id) {
         await updateDoc(doc(db, "proposals", dataToSave.id), {
           ...proposalData,
@@ -1588,7 +1775,7 @@ const Projects: React.FC = () => {
   const handleDeleteProposal = async (proposalId: string) => {
     try {
       await deleteDoc(doc(db, "proposals", proposalId));
-      
+
       // If the deleted proposal was the active business, clear it from the group
       if (userGroup && userGroup.activeProposalId === proposalId) {
         await updateDoc(doc(db, "groups", userGroup.id), {
@@ -1596,7 +1783,7 @@ const Projects: React.FC = () => {
           status: "Drafting",
           title: "Feasibility Project"
         });
-        
+
         setUserGroup(prev => prev ? {
           ...prev,
           activeProposalId: "",
@@ -1628,13 +1815,13 @@ const Projects: React.FC = () => {
       setUserGroup((prev) =>
         prev
           ? {
-              ...prev,
-              status: "Active Business",
-              activeProposalId: currentProposal.id,
-              businessName: currentProposal.businessName,
-              businessLogo: currentProposal.businessLogo || "",
-              title: currentProposal.businessName,
-            }
+            ...prev,
+            status: "Active Business",
+            activeProposalId: currentProposal.id,
+            businessName: currentProposal.businessName,
+            businessLogo: currentProposal.businessLogo || "",
+            title: currentProposal.businessName,
+          }
           : null,
       );
 
@@ -1732,6 +1919,7 @@ const Projects: React.FC = () => {
         businessLogo: editBasicData.businessLogo || "",
         businessType: editBasicData.businessType,
         totalCapital: editBasicData.totalCapital,
+        contributorsCount: editBasicData.contributorsCount || "1",
         tagline: editBasicData.tagline,
         missionStatement: editBasicData.missionStatement,
         visionStatement: editBasicData.visionStatement,
@@ -1784,93 +1972,93 @@ const Projects: React.FC = () => {
       <aside
         className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-      <div className="p-6 flex items-center gap-3 border-b border-white/10">
-        <img
-          src="/dashboard logo.png"
-          alt="FeasiFy"
-          className="w-70 h-20 object-contain"
-        />
-      </div>
-      <nav className="flex-1 p-4 space-y-4 mt-2">
-        <div className="space-y-1">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <LayoutDashboard className="w-4 h-4" /> Dashboard
-          </button>
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-            <Folder className="w-4 h-4" /> Business Proposal
-          </button>
-          <button
-            onClick={() => navigate("/financial-input")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <FileEdit className="w-4 h-4" /> Financial Input
-          </button>
-          <button
-            onClick={() => navigate("/ai-analysis")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <Zap className="w-4 h-4" /> AI Feasibility Analysis
-          </button>
-          <button
-            onClick={() => navigate("/reports")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <BarChart3 className="w-4 h-4" /> Reports
-          </button>
-          <button
-            onClick={() => navigate("/messages")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <MessageCircle className="w-4 h-4" /> Message
-          </button>
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="w-70 h-20 object-contain"
+          />
         </div>
+        <nav className="flex-1 p-4 space-y-4 mt-2">
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <LayoutDashboard className="w-4 h-4" /> Dashboard
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
+              <Folder className="w-4 h-4" /> Business Proposal
+            </button>
+            <button
+              onClick={() => navigate("/financial-input")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <FileEdit className="w-4 h-4" /> Financial Input
+            </button>
+            <button
+              onClick={() => navigate("/ai-analysis")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Zap className="w-4 h-4" /> AI Feasibility Analysis
+            </button>
+            <button
+              onClick={() => navigate("/reports")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <BarChart3 className="w-4 h-4" /> Reports
+            </button>
+            <button
+              onClick={() => navigate("/messages")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <MessageCircle className="w-4 h-4" /> Message
+            </button>
+          </div>
 
-        <div className="pt-4 border-t border-white/10 space-y-1">
+          <div className="pt-4 border-t border-white/10 space-y-1">
+            <button
+              onClick={() => navigate("/profile")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <User className="w-4 h-4" /> Profile
+            </button>
+            <button
+              onClick={() => navigate("/settings")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Settings className="w-4 h-4" /> Settings
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <ShieldAlert className="w-4 h-4" /> Logout
+            </button>
+          </div>
+        </nav>
+        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
+            {getInitials(userName)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate text-white">
+              {userName || "User"}
+            </p>
+            <p className="text-[10px] text-gray-400 truncate">Student</p>
+          </div>
           <button
-            onClick={() => navigate("/profile")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            onClick={() => navigate("/notifications")}
+            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
+            title="Notifications"
           >
-            <User className="w-4 h-4" /> Profile
-          </button>
-          <button
-            onClick={() => navigate("/settings")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <Settings className="w-4 h-4" /> Settings
-          </button>
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <ShieldAlert className="w-4 h-4" /> Logout
+            <Bell className="w-5 h-5" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            )}
           </button>
         </div>
-      </nav>
-      <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-          {getInitials(userName)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate text-white">
-            {userName || "User"}
-          </p>
-          <p className="text-[10px] text-gray-400 truncate">Student</p>
-        </div>
-        <button
-          onClick={() => navigate("/notifications")}
-          className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-          title="Notifications"
-        >
-          <Bell className="w-5 h-5" />
-          {unreadNotificationCount > 0 && (
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-          )}
-        </button>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 
@@ -1878,9 +2066,9 @@ const Projects: React.FC = () => {
     dashboardTab === "All Proposals"
       ? proposals
       : proposals.filter(
-          (p) =>
-            p.status === (dashboardTab === "Drafts" ? "Draft" : dashboardTab),
-        );
+        (p) =>
+          p.status === (dashboardTab === "Drafts" ? "Draft" : dashboardTab),
+      );
 
   if (activeView === "loading") {
     const cachedCount = parseInt(sessionStorage.getItem('projectsProposalCount') || '3', 10) || 3;
@@ -1894,36 +2082,36 @@ const Projects: React.FC = () => {
             <span className="font-semibold text-gray-900">Projects</span>
           </div>
           <div className="p-6 md:p-8 max-w-6xl mx-auto">
-             <Skeleton width={250} height={36} className="mb-2" />
-             <div className="bg-[#122244] rounded-xl mb-6 flex items-center p-6 gap-6">
-                <Skeleton width={80} height={80} borderRadius={16} highlightColor="#2a3c5a" baseColor="#1a2942" />
-                <div>
-                   <Skeleton width={120} height={16} className="mb-2" highlightColor="#2a3c5a" baseColor="#1a2942" />
-                   <Skeleton width={200} height={24} className="mb-1" highlightColor="#2a3c5a" baseColor="#1a2942" />
-                   <Skeleton width={150} height={12} highlightColor="#2a3c5a" baseColor="#1a2942" />
-                </div>
-             </div>
-             <div className="flex justify-between items-center mb-6">
-               <Skeleton width={200} height={28} />
-               <Skeleton width={120} height={36} borderRadius={8} />
-             </div>
-             <div className="flex space-x-6 border-b border-gray-200 mb-6">
-               <Skeleton width={400} height={24} />
-             </div>
-             <div className="space-y-4">
-               {Array.from({length: cachedCount}).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-5 flex items-center justify-between">
-                     <div className="flex gap-4 items-center">
-                        <Skeleton width={48} height={48} borderRadius={8} />
-                        <div>
-                           <Skeleton width={180} height={20} className="mb-1" />
-                           <Skeleton width={100} height={12} />
-                        </div>
-                     </div>
-                     <Skeleton width={150} height={36} borderRadius={8} />
+            <Skeleton width={250} height={36} className="mb-2" />
+            <div className="bg-[#122244] rounded-xl mb-6 flex items-center p-6 gap-6">
+              <Skeleton width={80} height={80} borderRadius={16} highlightColor="#2a3c5a" baseColor="#1a2942" />
+              <div>
+                <Skeleton width={120} height={16} className="mb-2" highlightColor="#2a3c5a" baseColor="#1a2942" />
+                <Skeleton width={200} height={24} className="mb-1" highlightColor="#2a3c5a" baseColor="#1a2942" />
+                <Skeleton width={150} height={12} highlightColor="#2a3c5a" baseColor="#1a2942" />
+              </div>
+            </div>
+            <div className="flex justify-between items-center mb-6">
+              <Skeleton width={200} height={28} />
+              <Skeleton width={120} height={36} borderRadius={8} />
+            </div>
+            <div className="flex space-x-6 border-b border-gray-200 mb-6">
+              <Skeleton width={400} height={24} />
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: cachedCount }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-5 flex items-center justify-between">
+                  <div className="flex gap-4 items-center">
+                    <Skeleton width={48} height={48} borderRadius={8} />
+                    <div>
+                      <Skeleton width={180} height={20} className="mb-1" />
+                      <Skeleton width={100} height={12} />
+                    </div>
                   </div>
-               ))}
-             </div>
+                  <Skeleton width={150} height={36} borderRadius={8} />
+                </div>
+              ))}
+            </div>
           </div>
         </main>
       </div>
@@ -2153,11 +2341,10 @@ const Projects: React.FC = () => {
                     <h2 className="text-2xl font-bold text-[#122244]">
                       Business Proposals
                     </h2>
-                    <span className={`px-3 py-1 text-xs font-black rounded-full border ${
-                      proposals.length >= 3 
+                    <span className={`px-3 py-1 text-xs font-black rounded-full border ${proposals.length >= 3
                         ? "bg-amber-50 text-amber-800 border-amber-300"
                         : "bg-blue-50 text-[#4285F4] border-blue-200"
-                    }`}>
+                      }`}>
                       Proposals: {proposals.length} / 3
                     </span>
                     {proposals.length >= 3 && (
@@ -2185,11 +2372,10 @@ const Projects: React.FC = () => {
                         setActiveView("form");
                       }}
                       disabled={!!activeBusiness || proposals.length >= 3}
-                      className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        activeBusiness || proposals.length >= 3
-                          ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
+                      className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${activeBusiness || proposals.length >= 3
+                          ? "bg-gray-400 cursor-not-allowed opacity-70 text-white"
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
-                      }`}
+                        }`}
                     >
                       + New Proposal
                     </button>
@@ -2244,25 +2430,23 @@ const Projects: React.FC = () => {
                       return (
                         <div
                           key={proposal.id}
-                          className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${
-                            isApproved ? "border-green-400" : 
-                            isRejected ? "border-red-300" : 
-                            isRevision ? "border-orange-300" : "border-gray-200"
-                          }`}
+                          className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isApproved ? "border-green-400" :
+                              isRejected ? "border-red-300" :
+                                isRevision ? "border-orange-300" : "border-gray-200"
+                            }`}
                         >
                           <div className="flex gap-4 items-center w-full sm:w-auto flex-1">
                             <div
-                              className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${
-                                proposal.businessLogo
+                              className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${proposal.businessLogo
                                   ? "border-gray-200 bg-white"
                                   : isApproved
-                                  ? "bg-green-50 border-green-200 text-green-600"
-                                  : isRejected
-                                  ? "bg-red-50 border-red-200 text-red-600"
-                                  : isRevision
-                                  ? "bg-orange-50 border-orange-200 text-orange-600"
-                                  : "bg-blue-50 border-blue-100 text-[#4285F4]"
-                              }`}
+                                    ? "bg-green-50 border-green-200 text-green-600"
+                                    : isRejected
+                                      ? "bg-red-50 border-red-200 text-red-600"
+                                      : isRevision
+                                        ? "bg-orange-50 border-orange-200 text-orange-600"
+                                        : "bg-blue-50 border-blue-100 text-[#4285F4]"
+                                }`}
                             >
                               {proposal.businessLogo ? (
                                 <img src={proposal.businessLogo} alt="Logo" className="w-full h-full object-cover" />
@@ -2278,14 +2462,13 @@ const Projects: React.FC = () => {
                                 <h3 className="font-bold text-[#122244] text-base truncate max-w-[280px]">
                                   {proposal.businessName || "Untitled Proposal"}
                                 </h3>
-                                <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                                  proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                  proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                  proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
-                                  proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
-                                  proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>
+                                <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                    proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                      proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
+                                        proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                                          proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-gray-100 text-gray-600'
+                                  }`}>
                                   {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
                                 </span>
                               </div>
@@ -2308,113 +2491,111 @@ const Projects: React.FC = () => {
                               )}
                             </div>
                           </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                          {isApproved ? (
-                            userGroup?.activeProposalId === proposal.id ? (
-                              <button
-                                onClick={() => setActiveView("active-business")}
-                                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
-                              >
-                                <FileText className="w-4 h-4" /> View Details
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setCurrentProposal(proposal);
-                                  setShowLockInModal(true);
-                                }}
-                                disabled={!!activeBusiness}
-                                className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${
-                                  activeBusiness 
-                                    ? "bg-gray-400 cursor-not-allowed opacity-70" 
-                                    : "bg-green-600 hover:bg-green-700 shadow-md"
-                                }`}
-                                title={activeBusiness ? "Another business is already setup" : ""}
-                              >
-                                Setup Approved Business
-                              </button>
-                            )
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setCurrentProposal(proposal);
-                                  setHighlightMissingFields(false);
-                                  setShowSubmissionFailureModal(false);
-                                  setSubmissionFailureReasons([]);
-                                  setIsEditingMode(false);
-                                  setActiveView("form");
-                                }}
-                                className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
-                              >
-                                <FileText className="w-4 h-4" /> Open
-                              </button>
-                              {!isRejected && (
-                                <div className="relative group">
-                                  <button
-                                    onClick={() => {
-                                      setCurrentProposal(proposal);
-                                      setHighlightMissingFields(false);
-                                      setShowSubmissionFailureModal(false);
-                                      setSubmissionFailureReasons([]);
-                                      setIsEditingMode(true);
-                                      setSaveStatus("All changes saved");
-                                      setActiveView("form");
-                                    }}
-                                    disabled={proposal.status === 'Pending'}
-                                    className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
-                                      proposal.status === 'Pending'
-                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
-                                        : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
-                                    }`}
-                                  >
-                                    <Edit className="w-4 h-4" /> Edit
-                                  </button>
-                                  {proposal.status === 'Pending' && (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                                      Wait for Revision
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                          <div className="relative">
-                            <button
-                              onClick={() =>
-                                setOpenDropdownId(
-                                  openDropdownId === proposal.id
-                                    ? null
-                                    : proposal.id || null,
-                                )
-                              }
-                              className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {openDropdownId === proposal.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
+                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            {isApproved ? (
+                              userGroup?.activeProposalId === proposal.id ? (
+                                <button
+                                  onClick={() => setActiveView("active-business")}
+                                  className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
+                                >
+                                  <FileText className="w-4 h-4" /> View Details
+                                </button>
+                              ) : (
                                 <button
                                   onClick={() => {
-                                    setProposalToDelete(proposal);
-                                    setShowDeleteConfirmModal(true);
-                                    setOpenDropdownId(null);
+                                    setCurrentProposal(proposal);
+                                    setShowLockInModal(true);
                                   }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  disabled={!!activeBusiness}
+                                  className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${activeBusiness
+                                      ? "bg-gray-400 cursor-not-allowed opacity-70"
+                                      : "bg-green-600 hover:bg-green-700 shadow-md"
+                                    }`}
+                                  title={activeBusiness ? "Another business is already setup" : ""}
                                 >
-                                  Delete
+                                  Setup Approved Business
                                 </button>
-                              </div>
+                              )
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setCurrentProposal(proposal);
+                                    setHighlightMissingFields(false);
+                                    setShowSubmissionFailureModal(false);
+                                    setSubmissionFailureReasons([]);
+                                    setIsEditingMode(false);
+                                    setActiveView("form");
+                                  }}
+                                  className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                                >
+                                  <FileText className="w-4 h-4" /> Open
+                                </button>
+                                {!isRejected && (
+                                  <div className="relative group">
+                                    <button
+                                      onClick={() => {
+                                        setCurrentProposal(proposal);
+                                        setHighlightMissingFields(false);
+                                        setShowSubmissionFailureModal(false);
+                                        setSubmissionFailureReasons([]);
+                                        setIsEditingMode(true);
+                                        setSaveStatus("All changes saved");
+                                        setActiveView("form");
+                                      }}
+                                      disabled={proposal.status === 'Pending'}
+                                      className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${proposal.status === 'Pending'
+                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
+                                          : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
+                                        }`}
+                                    >
+                                      <Edit className="w-4 h-4" /> Edit
+                                    </button>
+                                    {proposal.status === 'Pending' && (
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                                        Wait for Revision
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
                             )}
+                            <div className="relative">
+                              <button
+                                onClick={() =>
+                                  setOpenDropdownId(
+                                    openDropdownId === proposal.id
+                                      ? null
+                                      : proposal.id || null,
+                                  )
+                                }
+                                className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                              {openDropdownId === proposal.id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
+                                  <button
+                                    onClick={() => {
+                                      setProposalToDelete(proposal);
+                                      setShowDeleteConfirmModal(true);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })()}
 
@@ -2427,8 +2608,8 @@ const Projects: React.FC = () => {
               0
             );
 
-            const monthlyLoanInterest = fin.isCapitalBorrowed && Number(fin.interestRate) > 0 
-              ? (calculatedEquipmentTotal * (Number(fin.interestRate) / 100)) / 12 
+            const monthlyLoanInterest = fin.isCapitalBorrowed && Number(fin.interestRate) > 0
+              ? (calculatedEquipmentTotal * (Number(fin.interestRate) / 100)) / 12
               : 0;
 
             return (
@@ -2463,20 +2644,18 @@ const Projects: React.FC = () => {
                   </div>
 
                   <div className="p-8 space-y-10 max-w-4xl mx-auto text-[#122244]">
-                    
+
                     {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
                     {currentProposal.feedbackHistory && currentProposal.feedbackHistory.length > 0 && (
-                      <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 ${
-                        currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
-                        currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
-                        'bg-blue-50 border-blue-200'
-                      }`}>
+                      <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 ${currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
+                          currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                            'bg-blue-50 border-blue-200'
+                        }`}>
                         <div className="flex justify-between items-center mb-4">
-                          <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${
-                            currentProposal.status === 'Rejected' ? 'text-red-700' :
-                            currentProposal.status === 'Approved' ? 'text-green-700' :
-                            'text-blue-700'
-                          }`}>
+                          <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${currentProposal.status === 'Rejected' ? 'text-red-700' :
+                              currentProposal.status === 'Approved' ? 'text-green-700' :
+                                'text-blue-700'
+                            }`}>
                             <MessageCircle className="w-4 h-4" /> Adviser Feedback {currentProposal.feedbackHistory.length > 1 && !showAllFeedback ? "(Latest)" : "History"}
                           </h4>
                           {currentProposal.feedbackHistory.length > 1 && (
@@ -2521,8 +2700,8 @@ const Projects: React.FC = () => {
                               !currentProposal.businessType
                                 ? ""
                                 : ["Food & Beverage", "Services"].includes(currentProposal.businessType)
-                                ? currentProposal.businessType
-                                : "Other"
+                                  ? currentProposal.businessType
+                                  : "Other"
                             }
                             options={businessTypeDropdownOptions}
                             onChange={(newValue) => {
@@ -2551,11 +2730,10 @@ const Projects: React.FC = () => {
                                     setCurrentProposal(updatedProposal);
                                   }}
                                   onBlur={() => handleAutoSave()}
-                                  className={`w-full px-4 py-2.5 bg-white border ${
-                                    highlightMissingFields && currentProposal.businessType === "Other"
+                                  className={`w-full px-4 py-2.5 bg-white border ${highlightMissingFields && currentProposal.businessType === "Other"
                                       ? "border-red-500 ring-1 ring-red-500/20"
                                       : "border-[#c9a654]/40 focus:border-[#c9a654]"
-                                  } rounded-lg outline-none text-sm font-medium transition-all shadow-sm`}
+                                    } rounded-lg outline-none text-sm font-medium transition-all shadow-sm`}
                                 />
                               </div>
                             )}
@@ -2592,9 +2770,8 @@ const Projects: React.FC = () => {
                                   }
                                   onBlur={() => handleAutoSave()}
                                   placeholder="e.g. EggSarap"
-                                  className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
+                                  className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                    } rounded-lg outline-none text-sm font-medium transition-colors`}
                                 />
                                 {check.isCopyrighted && (
                                   <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2675,66 +2852,90 @@ const Projects: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <div className={highlightMissingFields && !currentProposal.totalCapital?.trim() ? "field-has-error" : ""}>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                            Total Capital (₱) <span className="text-red-500">*</span>
-                          </label>
-                          {(() => {
-                            const check = checkTotalCapital(currentProposal.totalCapital);
-                            const isMissing = highlightMissingFields && !currentProposal.totalCapital?.trim();
-                            return (
-                              <>
-                                <input
-                                  disabled={!isEditingMode}
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={currentProposal.totalCapital}
-                                  onKeyDown={(e) => {
-                                    if (
-                                      !/[0-9]/.test(e.key) &&
-                                      e.key !== "Backspace" &&
-                                      e.key !== "Delete" &&
-                                      e.key !== "Tab" &&
-                                      e.key !== "ArrowLeft" &&
-                                      e.key !== "ArrowRight" &&
-                                      e.key !== "Home" &&
-                                      e.key !== "End" &&
-                                      !(e.key === "." && !(currentProposal.totalCapital || "").includes(".")) &&
-                                      !e.ctrlKey &&
-                                      !e.metaKey
-                                    ) {
-                                      e.preventDefault();
-                                    }
-                                  }}
-                                  onChange={(e) => {
-                                    let val = e.target.value.replace(/[^0-9.]/g, "");
-                                    const parts = val.split(".");
-                                    if (parts.length > 2) {
-                                      val = parts[0] + "." + parts.slice(1).join("");
-                                    }
-                                    updateFinancialData({ startupCapital: val });
-                                  }}
-                                  onBlur={() => handleAutoSave()}
-                                  placeholder="0.00"
-                                  className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isNegative || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
-                                />
-                                {check.isNegative && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>{check.errorMessage}</span>
-                                  </p>
-                                )}
-                                {!check.isNegative && isMissing && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>Total Capital is required before submitting.</span>
-                                  </p>
-                                )}
-                              </>
-                            );
-                          })()}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className={highlightMissingFields && !currentProposal.totalCapital?.trim() ? "field-has-error" : ""}>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                              Total Capital (₱) <span className="text-red-500">*</span>
+                            </label>
+                            {(() => {
+                              const check = checkTotalCapital(currentProposal.totalCapital);
+                              const isMissing = highlightMissingFields && !currentProposal.totalCapital?.trim();
+                              return (
+                                <>
+                                  <input
+                                    disabled={!isEditingMode}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={currentProposal.totalCapital}
+                                    onKeyDown={(e) => {
+                                      if (
+                                        !/[0-9]/.test(e.key) &&
+                                        e.key !== "Backspace" &&
+                                        e.key !== "Delete" &&
+                                        e.key !== "Tab" &&
+                                        e.key !== "ArrowLeft" &&
+                                        e.key !== "ArrowRight" &&
+                                        e.key !== "Home" &&
+                                        e.key !== "End" &&
+                                        !(e.key === "." && !(currentProposal.totalCapital || "").includes(".")) &&
+                                        !e.ctrlKey &&
+                                        !e.metaKey
+                                      ) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      let val = e.target.value.replace(/[^0-9.]/g, "");
+                                      const parts = val.split(".");
+                                      if (parts.length > 2) {
+                                        val = parts[0] + "." + parts.slice(1).join("");
+                                      }
+                                      updateFinancialData({ startupCapital: val });
+                                    }}
+                                    onBlur={() => handleAutoSave()}
+                                    placeholder="0.00"
+                                    className={`w-full px-4 py-3 bg-gray-50 border ${check.isNegative || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                      } rounded-lg outline-none text-sm font-medium transition-colors`}
+                                  />
+                                  {check.isNegative && (
+                                    <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                      <span>{check.errorMessage}</span>
+                                    </p>
+                                  )}
+                                  {!check.isNegative && isMissing && (
+                                    <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                      <span>Total Capital is required before submitting.</span>
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                              Number of Contributors / Investors
+                            </label>
+                            <input
+                              disabled={!isEditingMode}
+                              type="number"
+                              min="1"
+                              max="50"
+                              value={currentProposal.contributorsCount || "1"}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateFinancialData({ contributorsCount: val });
+                              }}
+                              onBlur={() => handleAutoSave()}
+                              placeholder="1"
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium transition-colors focus:border-[#c9a654]"
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">Number of partners contributing to initial startup capital</p>
+                          </div>
                         </div>
                         <div className={highlightMissingFields && !currentProposal.tagline?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -2756,9 +2957,8 @@ const Projects: React.FC = () => {
                                     })
                                   }
                                   onBlur={() => handleAutoSave()}
-                                  className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
+                                  className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                    } rounded-lg outline-none text-sm font-medium transition-colors`}
                                 />
                                 {check.isCopyrighted && (
                                   <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2793,9 +2993,8 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className={`w-full px-4 py-3 bg-gray-50 border ${
-                            highlightMissingFields && !currentProposal.targetMarket?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg outline-none text-sm resize-none font-medium`}
+                          className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.targetMarket?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                         />
                         {highlightMissingFields && !currentProposal.targetMarket?.trim() && (
                           <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2827,9 +3026,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.missionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.missionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.missionStatement?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2853,9 +3051,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.visionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.visionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.visionStatement?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2891,9 +3088,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.productDescription?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.productDescription?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.productDescription?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2918,9 +3114,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.priceRanges?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.priceRanges?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.priceRanges?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -2954,7 +3149,7 @@ const Projects: React.FC = () => {
                       </div>
 
                       {/* TOTAL CAPITAL HERO CARD */}
-                      <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
+                      <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden space-y-4">
                         <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
                           <div className="space-y-1">
@@ -2979,18 +3174,108 @@ const Projects: React.FC = () => {
                             </span>
                           </div>
                         </div>
+
+                        {/* Contributor Count & Allocation Strip */}
+                        <div className="pt-3 border-t border-[#c9a654]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 bg-gradient-to-r from-[#c9a654]/25 via-[#c9a654]/15 to-[#c9a654]/25 p-4 rounded-xl border border-[#c9a654]/50 shadow-sm backdrop-blur-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-[#c9a654] text-[#122244] flex items-center justify-center font-bold shrink-0 shadow-sm">
+                              <Users className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#fce8a6] block drop-shadow-xs">
+                                How many contributors / investors?
+                              </label>
+                              <p className="text-[10px] text-[#edd59b] font-medium mt-0.5">
+                                Number of partners sharing the initial startup capital
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end sm:self-auto">
+                            <div className="flex items-center gap-2 bg-[#122244]/85 px-3 py-1.5 rounded-lg border border-[#c9a654]/60 shadow-inner">
+                              <span className="text-xs text-[#edd59b] font-bold">Contributors:</span>
+                              <input
+                                disabled={!isEditingMode}
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={currentProposal.contributorsCount || "1"}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  updateFinancialData({ contributorsCount: val });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                placeholder="1"
+                                className="w-16 px-2 py-1 bg-white text-[#122244] font-black text-center text-xs rounded border-2 border-[#c9a654] outline-none focus:ring-2 focus:ring-[#c9a654]/30 disabled:bg-gray-100 disabled:text-gray-600"
+                              />
+                            </div>
+                            {(() => {
+                              const numContrib = Math.max(1, Number(currentProposal.contributorsCount) || 1);
+                              const totalCap = Number(String(currentProposal.totalCapital || "").replace(/,/g, "")) || 0;
+                              const share = totalCap > 0 ? (totalCap / numContrib) : 0;
+                              return (
+                                <div className="text-right bg-[#122244]/85 px-3.5 py-1.5 rounded-lg border border-[#c9a654]/60 shadow-inner">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#edd59b] block">
+                                    Est. Share / Contributor
+                                  </span>
+                                  <span className="text-sm font-black text-[#ffe89c]">
+                                    ₱{share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
                       </div>
 
                       {/* SECTION 1: PRODUCT COSTING & YIELD (BATCH / PRODUCTION MODEL) */}
                       <div className="space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        {/* Hidden Excel File Input */}
+                        <input
+                          ref={excelFileInputRef}
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          className="hidden"
+                          onChange={handleImportCostingExcel}
+                        />
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
-                            <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
-                              Product Costing & Yield (Batch / Production Model)
-                            </h4>
+                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+                            <div>
+                              <h4 className="font-bold text-xs uppercase tracking-wider text-[#122244]">
+                                Product Costing & Yield (Batch / Production Model)
+                              </h4>
+                              <p className="text-[10px] text-gray-500 font-medium">
+                                Batch production recipe, direct costs, and mark-up pricing (100% batch output is assumed sold for proposal).
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                            {/* Download Excel Template */}
+                            <button
+                              type="button"
+                              onClick={handleDownloadCostingTemplate}
+                              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#122244] bg-white px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+                              title="Download structured Excel template (.xlsx)"
+                            >
+                              <Download size={13} className="text-slate-500" /> Download Template
+                            </button>
+
+                            {/* Import Excel */}
+                            {isEditingMode && (
+                              <button
+                                type="button"
+                                onClick={() => excelFileInputRef.current?.click()}
+                                className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-2xs"
+                                title="Import recipes and mark-up from Excel (.xlsx, .xls, .csv)"
+                              >
+                                <FileSpreadsheet size={13} className="text-emerald-600" /> Import Excel
+                              </button>
+                            )}
+
                             {productsList.length > 0 && (
                               <button
                                 type="button"
@@ -2998,7 +3283,7 @@ const Projects: React.FC = () => {
                                   const anyExpanded = productsList.some((p, idx) => expandedProducts[p.id || String(idx)]);
                                   toggleAllProducts(!anyExpanded);
                                 }}
-                                className="flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#122244] bg-white px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-2xs"
+                                className="flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#122244] bg-white px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-2xs"
                               >
                                 {productsList.some((p, idx) => expandedProducts[p.id || String(idx)]) ? (
                                   <>
@@ -3015,13 +3300,40 @@ const Projects: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={handleAddProduct}
-                                className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs"
                               >
                                 <Plus size={13} /> Add Product
                               </button>
                             )}
                           </div>
                         </div>
+
+                        {/* Excel Import Feedback Banner */}
+                        {excelImportFeedback && (
+                          <div
+                            className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs animate-in fade-in duration-200 ${excelImportFeedback.type === "success"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                : "bg-red-50 border-red-200 text-red-900"
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {excelImportFeedback.type === "success" ? (
+                                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                              ) : (
+                                <AlertCircle size={16} className="text-red-600 shrink-0" />
+                              )}
+                              <span className="font-semibold">{excelImportFeedback.message}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setExcelImportFeedback(null)}
+                              className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-black/5 transition-colors"
+                              title="Dismiss"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
 
                         {/* PRODUCTS LIST */}
                         <div className="space-y-4">
@@ -3034,9 +3346,8 @@ const Projects: React.FC = () => {
                             return (
                               <div
                                 key={productKey}
-                                className={`bg-white rounded-2xl border transition-all duration-200 shadow-sm relative ${
-                                  isExpanded ? "p-5 sm:p-6 space-y-5 border-gray-300 ring-1 ring-gray-200/60" : "p-4 sm:p-5 border-gray-200 hover:border-gray-300"
-                                }`}
+                                className={`bg-white rounded-2xl border transition-all duration-200 shadow-sm relative ${isExpanded ? "p-5 sm:p-6 space-y-5 border-gray-300 ring-1 ring-gray-200/60" : "p-4 sm:p-5 border-gray-200 hover:border-gray-300"
+                                  }`}
                               >
                                 {/* Product Header (Matches reference image) */}
                                 <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? "border-b border-gray-100 pb-4" : ""}`}>
@@ -3059,12 +3370,20 @@ const Projects: React.FC = () => {
                                   <div className="flex items-center gap-2 self-end sm:self-auto">
                                     <button
                                       type="button"
+                                      onClick={() => handleDuplicateProduct(prodIdx)}
+                                      className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200/90 transition-colors font-bold shadow-2xs"
+                                      title="Duplicate this product and all its ingredients"
+                                    >
+                                      <Copy size={13} className="text-blue-600" /> Duplicate
+                                    </button>
+
+                                    <button
+                                      type="button"
                                       onClick={() => toggleProductExpand(productKey)}
-                                      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all shadow-2xs ${
-                                        isExpanded
+                                      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all shadow-2xs ${isExpanded
                                           ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
                                           : "bg-amber-50 hover:bg-amber-100 text-[#b59545] border-amber-200/80"
-                                      }`}
+                                        }`}
                                     >
                                       {isExpanded ? (
                                         <>
@@ -3092,7 +3411,7 @@ const Projects: React.FC = () => {
                                 {/* COMPACT SUMMARY STRIP (WHEN FOLDED) */}
                                 {!isExpanded && (
                                   <div className="pt-3.5 border-t border-gray-100">
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                                       {/* 1. Units per batch (Editable) */}
                                       <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
                                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
@@ -3139,46 +3458,11 @@ const Projects: React.FC = () => {
                                           className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-emerald-800 focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
                                         />
                                         <span className="text-[9px] text-emerald-600 font-semibold block mt-1">
-                                          {metrics.totalUnitsProduced.toLocaleString()} pcs nagawa
+                                          {metrics.totalUnitsProduced.toLocaleString()} pcs (100% sold)
                                         </span>
                                       </div>
 
-                                      {/* 3. Units Sold / Mo (Editable) */}
-                                      <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                                          Units Sold / Mo
-                                        </label>
-                                        <input
-                                          disabled={!isEditingMode}
-                                          type="number"
-                                          min="0"
-                                          max={metrics.totalUnitsProduced > 0 ? metrics.totalUnitsProduced : undefined}
-                                          placeholder={String(metrics.totalUnitsProduced || "0")}
-                                          value={product.unitsSold !== undefined ? product.unitsSold : ""}
-                                          onKeyDown={handlePreventNegative}
-                                          onPaste={handlePasteNonNegative}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === "") {
-                                              handleUpdateProduct(prodIdx, { unitsSold: "" });
-                                              return;
-                                            }
-                                            const numVal = Math.max(0, Number(val));
-                                            const maxProduced = metrics.totalUnitsProduced;
-                                            if (maxProduced > 0 && numVal > maxProduced) {
-                                              handleUpdateProduct(prodIdx, { unitsSold: String(maxProduced) });
-                                            } else {
-                                              handleUpdateProduct(prodIdx, { unitsSold: val });
-                                            }
-                                          }}
-                                          className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#c9a654] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
-                                        />
-                                        <span className="text-[9px] text-[#b59545] font-semibold block mt-1">
-                                          {metrics.unitsSold.toLocaleString()} pcs nabenta
-                                        </span>
-                                      </div>
-
-                                      {/* 4. Cost per Batch */}
+                                      {/* 3. Cost per Batch */}
                                       <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors flex flex-col justify-between">
                                         <div>
                                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Batch</span>
@@ -3189,8 +3473,8 @@ const Projects: React.FC = () => {
                                         <span className="text-[9px] text-gray-400 mt-1">{ingredients.length} items/costs</span>
                                       </div>
 
-                                      {/* 5. Cost per Unit (COGS) */}
-                                      <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/70 transition-colors col-span-2 sm:col-span-1 flex flex-col justify-between">
+                                      {/* 4. Cost per Unit (COGS) & Target Price */}
+                                      <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/70 transition-colors flex flex-col justify-between">
                                         <div>
                                           <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">Cost / Unit (COGS)</span>
                                           <p className="text-sm font-black text-blue-950 mt-1.5">
@@ -3203,27 +3487,13 @@ const Projects: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-400">
-                                      <div className="flex items-center gap-2">
-                                        {metrics.unsoldUnits > 0 ? (
-                                          <span className="text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
-                                            📦 {metrics.unsoldUnits.toLocaleString()} unsold (₱{metrics.endingInventoryValue.toFixed(2)})
-                                          </span>
-                                        ) : metrics.unitsSold === metrics.totalUnitsProduced && metrics.totalUnitsProduced > 0 ? (
-                                          <span className="text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
-                                            ✓ 100% Sold ({metrics.unitsSold.toLocaleString()} pcs)
-                                          </span>
-                                        ) : null}
+                                    {metrics.totalUnitsProduced > 0 && (
+                                      <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-400">
+                                        <span className="text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md font-bold text-[10px]">
+                                          ✓ 100% Output Sold ({metrics.totalUnitsProduced.toLocaleString()} pcs / mo)
+                                        </span>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleProductExpand(productKey)}
-                                        className="flex items-center gap-1.5 text-[#c9a654] hover:text-[#b59545] font-bold self-end sm:self-auto hover:underline"
-                                      >
-                                        <span>Customize ingredients recipe, labor & mark-up</span>
-                                        <ChevronDown size={13} />
-                                      </button>
-                                    </div>
+                                    )}
                                   </div>
                                 )}
 
@@ -3260,65 +3530,29 @@ const Projects: React.FC = () => {
                                             </p>
                                           </div>
 
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                                Batches / Mo.
-                                              </label>
-                                              <input
-                                                disabled={!isEditingMode}
-                                                type="number"
-                                                min="1"
-                                                placeholder="1"
-                                                value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
-                                                onKeyDown={handlePreventNegative}
-                                                onPaste={handlePasteNonNegative}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  if (val === "" || Number(val) >= 0) {
-                                                    handleUpdateProduct(prodIdx, { batchesPerMonth: val });
-                                                  }
-                                                }}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                                              />
-                                              <p className="text-[8px] text-emerald-700 font-bold mt-0.5">
-                                                Made: {metrics.totalUnitsProduced.toLocaleString()} pcs
-                                              </p>
-                                            </div>
-
-                                            <div>
-                                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                                                Units Sold / Mo.
-                                              </label>
-                                              <input
-                                                disabled={!isEditingMode}
-                                                type="number"
-                                                min="0"
-                                                max={metrics.totalUnitsProduced > 0 ? metrics.totalUnitsProduced : undefined}
-                                                placeholder={String(metrics.totalUnitsProduced || "")}
-                                                value={product.unitsSold !== undefined ? product.unitsSold : ""}
-                                                onKeyDown={handlePreventNegative}
-                                                onPaste={handlePasteNonNegative}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  if (val === "") {
-                                                    handleUpdateProduct(prodIdx, { unitsSold: "" });
-                                                    return;
-                                                  }
-                                                  const numVal = Math.max(0, Number(val));
-                                                  const maxProduced = metrics.totalUnitsProduced;
-                                                  if (maxProduced > 0 && numVal > maxProduced) {
-                                                    handleUpdateProduct(prodIdx, { unitsSold: String(maxProduced) });
-                                                  } else {
-                                                    handleUpdateProduct(prodIdx, { unitsSold: val });
-                                                  }
-                                                }}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
-                                              />
-                                              <p className="text-[8px] text-[#c9a654] font-bold mt-0.5">
-                                                Sold: {metrics.unitsSold.toLocaleString()} pcs
-                                              </p>
-                                            </div>
+                                          <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                              Batches / Month (Production Frequency)
+                                            </label>
+                                            <input
+                                              disabled={!isEditingMode}
+                                              type="number"
+                                              min="1"
+                                              placeholder="1"
+                                              value={product.batchesPerMonth !== undefined ? product.batchesPerMonth : "1"}
+                                              onKeyDown={handlePreventNegative}
+                                              onPaste={handlePasteNonNegative}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === "" || Number(val) >= 0) {
+                                                  handleUpdateProduct(prodIdx, { batchesPerMonth: val });
+                                                }
+                                              }}
+                                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none"
+                                            />
+                                            <p className="text-[9px] text-emerald-700 font-bold mt-1">
+                                              Monthly Output: {metrics.totalUnitsProduced.toLocaleString()} pcs (100% assumed sold in proposal)
+                                            </p>
                                           </div>
                                         </div>
 
@@ -3412,7 +3646,7 @@ const Projects: React.FC = () => {
                                             )}
                                           </div>
                                         ) : (
-                                          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                                             {ingredients.map((ing, ingIdx) => (
                                               <div
                                                 key={ing.id || ingIdx}
@@ -3422,13 +3656,12 @@ const Projects: React.FC = () => {
                                                   disabled={!isEditingMode}
                                                   value={ing.category || "ingredient"}
                                                   onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
-                                                  className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${
-                                                    (ing.category === "labor")
+                                                  className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${(ing.category === "labor")
                                                       ? "bg-blue-50 text-blue-800 border-blue-200"
                                                       : (ing.category === "miscellaneous")
-                                                      ? "bg-purple-50 text-purple-800 border-purple-200"
-                                                      : "bg-amber-50 text-[#b59545] border-amber-200"
-                                                  }`}
+                                                        ? "bg-purple-50 text-purple-800 border-purple-200"
+                                                        : "bg-amber-50 text-[#b59545] border-amber-200"
+                                                    }`}
                                                 >
                                                   <option value="ingredient">Material</option>
                                                   <option value="labor">Labor</option>
@@ -3442,8 +3675,8 @@ const Projects: React.FC = () => {
                                                     ing.category === "labor"
                                                       ? "Direct Labor (e.g. Barista, Baker, Prep)"
                                                       : ing.category === "miscellaneous"
-                                                      ? "Misc Cost (e.g. Packaging, Cups, Foil)"
-                                                      : "Ingredient / Material Name"
+                                                        ? "Misc Cost (e.g. Packaging, Cups, Foil)"
+                                                        : "Ingredient / Material Name"
                                                   }
                                                   value={ing.name}
                                                   onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { name: e.target.value })}
@@ -3502,11 +3735,10 @@ const Projects: React.FC = () => {
                                                   sellingPrice: compPrice > 0 ? String(Math.round(compPrice)) : (product.sellingPrice || "")
                                                 });
                                               }}
-                                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${
-                                                product.applyVat !== false
+                                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-xs ${product.applyVat !== false
                                                   ? "bg-blue-900 text-white border-blue-900 shadow-sm"
                                                   : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
-                                              }`}
+                                                }`}
                                               title="Toggle Philippine 12% Value-Added Tax (VAT)"
                                             >
                                               <span className={`w-1.5 h-1.5 rounded-full ${product.applyVat !== false ? "bg-amber-400" : "bg-gray-400"}`} />
@@ -3530,11 +3762,10 @@ const Projects: React.FC = () => {
                                                       sellingPrice: finalPrice > 0 ? String(Math.round(finalPrice)) : ""
                                                     });
                                                   }}
-                                                  className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${
-                                                    String(product.markupPercentage) === pct
+                                                  className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${String(product.markupPercentage) === pct
                                                       ? "bg-[#c9a654] text-white border-[#c9a654]"
                                                       : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                                  }`}
+                                                    }`}
                                                 >
                                                   {pct}%
                                                 </button>
@@ -3588,14 +3819,12 @@ const Projects: React.FC = () => {
                                           </p>
                                         </div>
 
-                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${
-                                          product.applyVat !== false ? "bg-blue-50/50 border-blue-200" : "bg-gray-50 border-gray-200"
-                                        }`}>
+                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${product.applyVat !== false ? "bg-blue-50/50 border-blue-200" : "bg-gray-50 border-gray-200"
+                                          }`}>
                                           <div>
                                             <div className="flex items-center justify-between">
-                                              <span className={`text-[10px] font-bold uppercase tracking-wider block ${
-                                                product.applyVat !== false ? "text-blue-900" : "text-gray-500"
-                                              }`}>
+                                              <span className={`text-[10px] font-bold uppercase tracking-wider block ${product.applyVat !== false ? "text-blue-900" : "text-gray-500"
+                                                }`}>
                                                 12% VAT Impact
                                               </span>
                                               <span className="text-[9px] font-bold text-blue-700">
@@ -3700,7 +3929,7 @@ const Projects: React.FC = () => {
                                             ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </p>
                                           <p className="text-[9px] text-green-600 font-medium mt-0.5">
-                                            {metrics.unitsSold.toLocaleString()} units sold ({product.applyVat !== false ? "Net Sales excl. VAT" : "Selling Price × Units Sold"})
+                                            {metrics.totalUnitsProduced.toLocaleString()} units sold ({product.applyVat !== false ? "Net Sales excl. VAT" : "Selling Price × Units Produced"})
                                           </p>
                                         </div>
 
@@ -3714,6 +3943,39 @@ const Projects: React.FC = () => {
                                             Revenue - COGS (₱{metrics.cogsSold.toFixed(2)})
                                           </p>
                                         </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Expanded Bottom Quick-Action Bar */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-gray-100">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleProductExpand(productKey)}
+                                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors self-start"
+                                      >
+                                        <ChevronUp size={13} />
+                                        <span>Fold Details</span>
+                                      </button>
+                                      <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+                                        {isEditingMode && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDuplicateProduct(prodIdx)}
+                                            className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200/90 transition-colors font-bold shadow-2xs"
+                                            title="Duplicate this product and all its ingredients"
+                                          >
+                                            <Copy size={13} className="text-blue-600" /> Duplicate Product
+                                          </button>
+                                        )}
+                                        {isEditingMode && productsList.length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveProduct(prodIdx)}
+                                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors font-semibold"
+                                          >
+                                            <Trash2 size={13} /> Remove Product
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -3906,9 +4168,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.proposedLocation?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.proposedLocation?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.proposedLocation?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -3949,9 +4210,8 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className={`w-full px-4 py-3 bg-gray-50 border ${
-                              highlightMissingFields && !currentProposal.promotionalStrategy?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                            } rounded-lg outline-none text-sm resize-none font-medium`}
+                            className={`w-full px-4 py-3 bg-gray-50 border ${highlightMissingFields && !currentProposal.promotionalStrategy?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
                           {highlightMissingFields && !currentProposal.promotionalStrategy?.trim() && (
                             <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
@@ -4013,9 +4273,8 @@ const Projects: React.FC = () => {
                           type="button"
                           onClick={() => handleSaveProposal("Pending")}
                           disabled={isSubmitting}
-                          className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                            isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
-                          }`}
+                          className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
+                            }`}
                           title={isSubmitting ? "Submitting..." : "Submit proposal to adviser for review"}
                         >
                           {isSubmitting ? (
@@ -4053,405 +4312,405 @@ const Projects: React.FC = () => {
                 </button>
               </div>
             ) : (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <button
-                  onClick={() => setActiveView("dashboard")}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Back to Proposals List
-                </button>
-                <button
-                  onClick={() => navigate("/financial-input")}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all"
-                >
-                  <FileEdit className="w-4 h-4" /> Proceed to Financial Input
-                </button>
-              </div>
-
-              <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
-                <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-                  <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654] overflow-hidden">
-                    {activeBusiness.businessLogo ? (
-                      <img src={activeBusiness.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
-                    ) : (
-                      getInitials(activeBusiness.businessName)
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
-                      </span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
-                        <User className="w-3 h-3" /> SECTION: {userGroup?.section}
-                      </span>
-                    </div>
-                    <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
-                      {activeBusiness.businessName}
-                    </h1>
-                    <p className="text-sm text-gray-300 font-medium">
-                      {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
-                    </p>
-                  </div>
-                </div>
-                {isLeader && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
                   <button
-                    onClick={() => {
-                      setEditBasicData({ ...activeBusiness });
-                      setShowEditBasicModal(true);
-                    }}
-                    className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
+                    onClick={() => setActiveView("dashboard")}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-lg hover:bg-gray-50 shadow-sm transition-all"
                   >
-                    <Pencil className="w-4 h-4" /> Edit Basic Info
+                    <ChevronLeft className="w-4 h-4" /> Back to Proposals List
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => navigate("/financial-input")}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md transition-all"
+                  >
+                    <FileEdit className="w-4 h-4" /> Proceed to Financial Input
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6 text-[#122244]">
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-                    <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
-                          <FileText className="w-6 h-6 text-blue-500" />
+                <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-8 text-white relative">
+                  <div className="flex items-center gap-6 z-10 w-full md:w-auto">
+                    <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl border border-white/10 shadow-inner flex-shrink-0 text-[#c9a654] overflow-hidden">
+                      {activeBusiness.businessLogo ? (
+                        <img src={activeBusiness.businessLogo} alt="Business Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        getInitials(activeBusiness.businessName)
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
+                          <User className="w-3 h-3" /> SECTION: {userGroup?.section}
+                        </span>
+                      </div>
+                      <h1 className="text-4xl font-extrabold mb-1 tracking-tight">
+                        {activeBusiness.businessName}
+                      </h1>
+                      <p className="text-sm text-gray-300 font-medium">
+                        {activeBusiness.businessType} • Adviser: Prof. {adviserData ? adviserData.lastName : "Cruz"}
+                      </p>
+                    </div>
+                  </div>
+                  {isLeader && (
+                    <button
+                      onClick={() => {
+                        setEditBasicData({ ...activeBusiness });
+                        setShowEditBasicModal(true);
+                      }}
+                      className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 border border-white/20 hover:bg-white/10 rounded-xl text-sm font-bold transition-all z-10"
+                    >
+                      <Pencil className="w-4 h-4" /> Edit Basic Info
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-6 text-[#122244]">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+                      <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
+                            <FileText className="w-6 h-6 text-blue-500" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-extrabold text-[#122244]">
+                              Complete Project Overview
+                            </h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              Approved Business Charter
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-extrabold text-[#122244]">
-                            Complete Project Overview
-                          </h3>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            Approved Business Charter
+                      </div>
+
+                      <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
+                        <div className="flex-1 pr-6">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Total Capital
+                          </p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₱{activeBusiness.totalCapital || "0"}
+                          </p>
+                        </div>
+                        <div className="flex-1 pl-6">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                            Business Type
+                          </p>
+                          <p className="text-xl font-bold text-[#122244]">
+                            {activeBusiness.businessType || "Uncategorized"}
                           </p>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8 flex divide-x divide-gray-200 text-center border border-gray-100">
-                      <div className="flex-1 pr-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Total Capital
-                        </p>
-                        <p className="text-2xl font-bold text-green-600">
-                          ₱{activeBusiness.totalCapital || "0"}
-                        </p>
-                      </div>
-                      <div className="flex-1 pl-6">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                          Business Type
-                        </p>
-                        <p className="text-xl font-bold text-[#122244]">
-                          {activeBusiness.businessType || "Uncategorized"}
-                        </p>
-                      </div>
-                    </div>
+                      <div className="space-y-6">
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Tagline
+                          </p>
+                          <p className="text-black font-bold text-lg">
+                            {activeBusiness.tagline || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Mission Statement
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.missionStatement || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Vision Statement
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.visionStatement || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Target Market
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.targetMarket || "None Provided"}
+                          </p>
+                        </div>
 
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Tagline
-                        </p>
-                        <p className="text-black font-bold text-lg">
-                          {activeBusiness.tagline || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Mission Statement
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.missionStatement || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Vision Statement
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.visionStatement || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Target Market
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.targetMarket || "None Provided"}
-                        </p>
-                      </div>
+                        <div className="h-px bg-gray-100 my-4"></div>
 
-                      <div className="h-px bg-gray-100 my-4"></div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Product Description
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.productDescription || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Specific Pricing
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.priceRanges || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Location
+                          </p>
+                          <p className="text-black font-medium">
+                            {activeBusiness.proposedLocation || "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                            Promotional Strategy
+                          </p>
+                          <p className="text-black text-sm leading-relaxed">
+                            {activeBusiness.promotionalStrategy ||
+                              "None Provided"}
+                          </p>
+                        </div>
 
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Product Description
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.productDescription || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Specific Pricing
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.priceRanges || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Location
-                        </p>
-                        <p className="text-black font-medium">
-                          {activeBusiness.proposedLocation || "None Provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
-                          Promotional Strategy
-                        </p>
-                        <p className="text-black text-sm leading-relaxed">
-                          {activeBusiness.promotionalStrategy ||
-                            "None Provided"}
-                        </p>
-                      </div>
+                        {(() => {
+                          const proposalFin = activeBusiness.originalProposalFinancials || activeBusiness.financialData;
+                          if (!proposalFin) return null;
 
-                      {(() => {
-                        const proposalFin = activeBusiness.originalProposalFinancials || activeBusiness.financialData;
-                        if (!proposalFin) return null;
+                          const products = normalizeProposalProducts(proposalFin, activeBusiness.businessName);
+                          const equipmentList = proposalFin.equipmentList || [];
+                          const calculatedEquipmentTotal = equipmentList.reduce(
+                            (s: number, e: any) => s + (Number(e.total) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
+                            0
+                          );
 
-                        const products = normalizeProposalProducts(proposalFin, activeBusiness.businessName);
-                        const equipmentList = proposalFin.equipmentList || [];
-                        const calculatedEquipmentTotal = equipmentList.reduce(
-                          (s: number, e: any) => s + (Number(e.total) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
-                          0
-                        );
-
-                        return (
-                          <div className="space-y-6 pt-4 border-t border-gray-100">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
-                                <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
-                              </p>
-                              <span className="text-[9px] font-black uppercase bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
-                                Proposal Record
-                              </span>
-                            </div>
-
-                            {/* Products Breakdown */}
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
-                                <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Product Costing & Yield Profiles</span>
+                          return (
+                            <div className="space-y-6 pt-4 border-t border-gray-100">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5">
+                                  <Calculator className="w-3.5 h-3.5" /> Original Financial Proposal Inputs (Approved Charter)
+                                </p>
+                                <span className="text-[9px] font-black uppercase bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                                  Proposal Record
+                                </span>
                               </div>
-                              {products.map((prod, pIdx) => {
-                                const metrics = computeProductMetrics(prod);
-                                const ingredients = prod.ingredients || [];
 
-                                return (
-                                  <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
-                                    <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
-                                      <span className="font-extrabold text-sm text-[#122244]">
-                                        {prod.name || `Product #${pIdx + 1}`}
-                                      </span>
-                                      <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
-                                        Yield: {metrics.batchYield || 0} units
-                                      </span>
-                                    </div>
+                              {/* Products Breakdown */}
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                                  <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Product Costing & Yield Profiles</span>
+                                </div>
+                                {products.map((prod, pIdx) => {
+                                  const metrics = computeProductMetrics(prod);
+                                  const ingredients = prod.ingredients || [];
 
-                                    {/* Per-Product Summary Cards */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
-                                        <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
-                                      </div>
-                                      <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
-                                        <span className="text-[9px] text-[#b59545] font-bold uppercase block">
-                                          Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                  return (
+                                    <div key={prod.id || pIdx} className="bg-gray-50/70 p-4 rounded-xl border border-gray-100 space-y-3 text-xs">
+                                      <div className="flex justify-between items-center border-b border-gray-200/60 pb-2">
+                                        <span className="font-extrabold text-sm text-[#122244]">
+                                          {prod.name || `Product #${pIdx + 1}`}
                                         </span>
-                                        <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
-                                      </div>
-                                      <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
-                                        <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
-                                        <span className="font-extrabold text-blue-900 text-sm">
-                                          ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        <span className="text-[11px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
+                                          Yield: {metrics.batchYield || 0} units
                                         </span>
                                       </div>
-                                      <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
-                                        <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
-                                        <span className="font-extrabold text-green-700 text-sm">
-                                          ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                      <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
-                                        <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
-                                        <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
-                                          ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      </div>
-                                    </div>
 
-                                    {/* Ingredients list if present */}
-                                    {ingredients.length > 0 && (
-                                      <div className="space-y-1.5 pt-1">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
-                                          {ingredients.map((ing, iIdx) => (
-                                            <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
-                                              <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
-                                              <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
-                                            </div>
-                                          ))}
+                                      {/* Per-Product Summary Cards */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                                          <span className="text-[9px] text-gray-400 font-bold uppercase block">Unit Cost (COGS)</span>
+                                          <span className="font-extrabold text-[#122244] text-sm">₱{metrics.unitCost.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200">
+                                          <span className="text-[9px] text-[#b59545] font-bold uppercase block">
+                                            Target Price {prod.applyVat !== false && <span className="text-[8px] text-blue-700">(VAT-Inc.)</span>}
+                                          </span>
+                                          <span className="font-extrabold text-[#c9a654] text-sm">₱{metrics.sellingPrice.toFixed(2)}</span>
+                                        </div>
+                                        <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
+                                          <span className="text-[9px] text-blue-800 font-bold uppercase block">12% Output VAT</span>
+                                          <span className="font-extrabold text-blue-900 text-sm">
+                                            ₱{metrics.totalVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                        </div>
+                                        <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-200">
+                                          <span className="text-[9px] text-green-700 font-bold uppercase block">Net Revenue</span>
+                                          <span className="font-extrabold text-green-700 text-sm">
+                                            ₱{metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                        </div>
+                                        <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
+                                          <span className="text-[9px] text-purple-700 font-bold uppercase block">Gross Profit</span>
+                                          <span className={`font-extrabold text-sm ${metrics.grossProfit >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                                            ₱{metrics.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
                                         </div>
                                       </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
 
-                            {/* Equipment CapEx (if present) */}
-                            {equipmentList.length > 0 && (
-                              <div className="space-y-2 pt-2">
-                                <div className="flex justify-between items-center">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
-                                    <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Startup Equipment & Assets Breakdown (CapEx)</span>
+                                      {/* Ingredients list if present */}
+                                      {ingredients.length > 0 && (
+                                        <div className="space-y-1.5 pt-1">
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Ingredients Breakdown:</span>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto pr-1">
+                                            {ingredients.map((ing, iIdx) => (
+                                              <div key={iIdx} className="flex justify-between text-xs bg-white px-2.5 py-1 rounded border border-gray-100">
+                                                <span className="text-gray-700 truncate">{ing.name || 'Ingredient'}</span>
+                                                <span className="font-semibold text-gray-900 ml-2">₱{Number(ing.price || 0).toFixed(2)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Equipment CapEx (if present) */}
+                              {equipmentList.length > 0 && (
+                                <div className="space-y-2 pt-2">
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-5 h-5 rounded-full bg-[#122244] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                                      <span className="text-xs font-bold text-[#122244] uppercase tracking-wider">Startup Equipment & Assets Breakdown (CapEx)</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-[#122244]">
+                                      Total: ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
                                   </div>
-                                  <span className="text-xs font-bold text-[#122244]">
-                                    Total: ₱{calculatedEquipmentTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
-                                  <table className="w-full text-left text-xs">
-                                    <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
-                                      <tr>
-                                        <th className="p-2">Item / Asset name</th>
-                                        <th className="p-2 text-center w-12">QTY</th>
-                                        <th className="p-2 text-right w-20">UNIT PRICE</th>
-                                        <th className="p-2 text-right w-24">TOTAL</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                      {equipmentList.map((eq: any, idx: number) => (
-                                        <tr key={idx}>
-                                          <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
-                                          <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
-                                          <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
-                                          <td className="p-2 text-right font-bold text-[#122244]">₱{(Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))).toLocaleString()}</td>
+                                  <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
+                                    <table className="w-full text-left text-xs">
+                                      <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
+                                        <tr>
+                                          <th className="p-2">Item / Asset name</th>
+                                          <th className="p-2 text-center w-12">QTY</th>
+                                          <th className="p-2 text-right w-20">UNIT PRICE</th>
+                                          <th className="p-2 text-right w-24">TOTAL</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-50">
+                                        {equipmentList.map((eq: any, idx: number) => (
+                                          <tr key={idx}>
+                                            <td className="p-2 text-gray-800 font-medium">{eq.name || '-'}</td>
+                                            <td className="p-2 text-center text-gray-600">{eq.quantity || 1}</td>
+                                            <td className="p-2 text-right text-gray-600">₱{Number(eq.unitPrice || 0).toLocaleString()}</td>
+                                            <td className="p-2 text-right font-bold text-[#122244]">₱{(Number(eq.total) || ((Number(eq.quantity) || 0) * (Number(eq.unitPrice) || 0))).toLocaleString()}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {proposalFin.isCapitalBorrowed && (
-                              <div className="flex justify-between items-center text-xs text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200/70">
-                                <span className="font-semibold">Startup Capital Loan Financing:</span>
-                                <span className="font-black">{proposalFin.interestRate || '0'}% Annual Interest Rate</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-1">
-                  <div className="space-y-6 sticky top-24">
-                    {/* PROJECT ROSTER */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
-                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
-                        Project Roster
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-6">
-                        {(userGroup?.memberIds.length || 0) + 1} Members Total
-                      </p>
-                      
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                              {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
+                              {proposalFin.isCapitalBorrowed && (
+                                <div className="flex justify-between items-center text-xs text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200/70">
+                                  <span className="font-semibold">Startup Capital Loan Financing:</span>
+                                  <span className="font-black">{proposalFin.interestRate || '0'}% Annual Interest Rate</span>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
-                              <p className="text-[10px] text-blue-600">Faculty</p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-2">
-                          <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                            {getInitials(userGroup?.leaderName || "")}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
-                              <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {groupMembersData.map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 p-2">
-                            <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                              {getInitials(member.firstName)}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">
-                                {member.firstName} {member.lastName}
-                              </p>
-                              <p className="text-[10px] text-gray-500">{member.studentId}</p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })()}
                       </div>
                     </div>
+                  </div>
 
-                    {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                          <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                  <div className="lg:col-span-1">
+                    <div className="space-y-6 sticky top-24">
+                      {/* PROJECT ROSTER */}
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-[#122244]">
+                        <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest mb-1">
+                          Project Roster
                         </h3>
-                        {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
-                          <button
-                            onClick={() => setShowAllFeedback(!showAllFeedback)}
-                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
-                          >
-                            {showAllFeedback ? "Show Less" : "View All History"}
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                        {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
-                          <div className="text-center py-6 text-gray-400">
-                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-xs italic">No feedback provided yet.</p>
-                          </div>
-                        ) : (
-                          (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
-                            <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
-                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
-                                </div>
+                        <p className="text-xs text-gray-500 mb-6">
+                          {(userGroup?.memberIds.length || 0) + 1} Members Total
+                        </p>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
                               </div>
-                              <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              <div>
+                                <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
+                                <p className="text-[10px] text-blue-600">Faculty</p>
+                              </div>
                             </div>
-                          ))
-                        )}
+                            <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
+                          </div>
+
+                          <div className="flex items-center gap-3 p-2">
+                            <div className="w-10 h-10 bg-purple-600 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                              {getInitials(userGroup?.leaderName || "")}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-gray-900">{userGroup?.leaderName}</p>
+                                <span className="text-[9px] font-bold uppercase text-[#c9a654] bg-[#c9a654]/10 px-1.5 py-0.5 rounded">Leader</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {groupMembersData.map((member) => (
+                            <div key={member.id} className="flex items-center gap-3 p-2">
+                              <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                {getInitials(member.firstName)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {member.firstName} {member.lastName}
+                                </p>
+                                <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* === ADVISER FEEDBACK CARD IN ACTIVE BUSINESS VIEW === */}
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4 text-blue-500" /> ADVISER FEEDBACK
+                          </h3>
+                          {activeBusiness.feedbackHistory && activeBusiness.feedbackHistory.length > 1 && (
+                            <button
+                              onClick={() => setShowAllFeedback(!showAllFeedback)}
+                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                            >
+                              {showAllFeedback ? "Show Less" : "View All History"}
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                          {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
+                            <div className="text-center py-6 text-gray-400">
+                              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-xs italic">No feedback provided yet.</p>
+                            </div>
+                          ) : (
+                            (showAllFeedback ? activeBusiness.feedbackHistory : activeBusiness.feedbackHistory.slice(-1)).map(item => (
+                              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-500 flex flex-col gap-2">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
             )
@@ -4511,11 +4770,10 @@ const Projects: React.FC = () => {
                           if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
                         }}
                         placeholder="Enter proposed company or business name..."
-                        className={`w-full px-4 py-3 bg-gray-50 border ${
-                          setupErrors.companyName
+                        className={`w-full px-4 py-3 bg-gray-50 border ${setupErrors.companyName
                             ? "border-red-400 bg-red-50/20"
                             : "border-gray-200"
-                        } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
+                          } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
                       />
                     </div>
 
@@ -4536,205 +4794,202 @@ const Projects: React.FC = () => {
                     />
                   </div>
 
-                    {/* Company Logo */}
-                    <div>
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                        Company Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
-                      </label>
-                      <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl bg-gray-50/50">
-                        <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-xs">
-                          {setupLogoPreview ? (
-                            <>
-                              <img src={setupLogoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => { setSetupLogoPreview(""); setSetupLogoFile(null); }}
-                                className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove Logo"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <ImageIcon className="w-6 h-6 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="file"
-                            id="logo-file-input"
-                            accept="image/*"
-                            onChange={handleLogoFileChange}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="logo-file-input"
-                            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
-                          >
-                            <Upload className="w-4 h-4 text-[#c9a654]" />
-                            {setupLogoPreview ? "Change Logo" : "Upload Logo Image"}
-                          </label>
-                          <p className="text-[11px] text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Members Review */}
-                    <div>
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-2">
-                        Assigned Team Members ({groupMembersData.length + 1})
-                      </label>
-                      <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
-                        <div className="flex items-center gap-3 p-3 border border-yellow-100 rounded-xl bg-yellow-50/40">
-                          <div className="w-9 h-9 bg-[#c9a654] rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                            {getInitials(userName)}
-                          </div>
-                          <div>
-                            <p className="font-bold text-[#122244] text-sm">{userName}</p>
-                            <p className="text-[10px] font-black uppercase text-[#c9a654] tracking-wider">Team Leader</p>
-                          </div>
-                        </div>
-                        {groupMembersData.length > 0 ? (
-                          groupMembersData.map((member) => (
-                            <div key={member.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-gray-50/50">
-                              <div className="w-9 h-9 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                {getInitials(`${member.firstName} ${member.lastName}`)}
-                              </div>
-                              <div>
-                                <p className="font-bold text-[#122244] text-sm">{member.firstName} {member.lastName}</p>
-                                <p className="text-[10px] font-black uppercase text-green-600 tracking-wider">Team Member</p>
-                              </div>
-                            </div>
-                          ))
+                  {/* Company Logo */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                      Company Logo <span className="text-gray-400 font-normal normal-case">(Optional)</span>
+                    </label>
+                    <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                      <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group shadow-xs">
+                        {setupLogoPreview ? (
+                          <>
+                            <img src={setupLogoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => { setSetupLogoPreview(""); setSetupLogoFile(null); }}
+                              className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Remove Logo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         ) : (
-                          <div className="text-center py-3">
-                            <p className="text-gray-400 text-xs italic">No other members assigned yet.</p>
-                          </div>
+                          <ImageIcon className="w-6 h-6 text-gray-400" />
                         )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ─── SECTION: Mission & Vision ─── */}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#122244] mb-3 pb-1 border-b border-gray-100">Mission &amp; Vision</p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                        Company Mission <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={setupMission}
-                        onChange={(e) => {
-                          setSetupMission(e.target.value);
-                          if (setupErrors.mission) setSetupErrors(prev => ({ ...prev, mission: "" }));
-                        }}
-                        placeholder="What is your company's mission? (e.g., To provide quality products and services to every customer.)"
-                        className={`w-full px-4 py-3 bg-gray-50 border ${
-                          setupErrors.mission ? "border-red-400 bg-red-50/20" : "border-gray-200"
-                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
-                      />
-                      {setupErrors.mission && (
-                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />{setupErrors.mission}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
-                        Company Vision <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={setupVision}
-                        onChange={(e) => {
-                          setSetupVision(e.target.value);
-                          if (setupErrors.vision) setSetupErrors(prev => ({ ...prev, vision: "" }));
-                        }}
-                        placeholder="What is your company's vision? (e.g., To be the most trusted business in the region.)"
-                        className={`w-full px-4 py-3 bg-gray-50 border ${
-                          setupErrors.vision ? "border-red-400 bg-red-50/20" : "border-gray-200"
-                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
-                      />
-                      {setupErrors.vision && (
-                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />{setupErrors.vision}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ─── SECTION: Company Objectives ─── */}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-3 pb-1 border-b border-gray-100">Company Objectives</p>
-                  <div className="space-y-2">
-                    {setupObjectives.map((obj, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className="mt-3 text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}.</span>
+                      <div className="flex-1">
                         <input
-                          type="text"
-                          value={obj}
-                          onChange={(e) => {
-                            const updated = [...setupObjectives];
-                            updated[idx] = e.target.value;
-                            setSetupObjectives(updated);
-                            if (setupErrors.objectives) setSetupErrors(prev => ({ ...prev, objectives: "" }));
-                          }}
-                          placeholder={`Objective ${idx + 1}...`}
-                          className={`flex-1 px-3 py-2.5 bg-gray-50 border ${
-                            setupErrors.objectives && obj.trim() === "" ? "border-red-300" : "border-gray-200"
-                          } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400/30 focus:border-green-400 transition-all`}
+                          type="file"
+                          id="logo-file-input"
+                          accept="image/*"
+                          onChange={handleLogoFileChange}
+                          className="hidden"
                         />
-                        {setupObjectives.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = setupObjectives.filter((_, i) => i !== idx);
-                              setSetupObjectives(updated);
-                            }}
-                            className="mt-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            title="Remove objective"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
+                        <label
+                          htmlFor="logo-file-input"
+                          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                        >
+                          <Upload className="w-4 h-4 text-[#c9a654]" />
+                          {setupLogoPreview ? "Change Logo" : "Upload Logo Image"}
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB.</p>
                       </div>
-                    ))}
-                    {setupErrors.objectives && (
-                      <p className="text-red-500 text-[11px] font-semibold flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />{setupErrors.objectives}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setSetupObjectives([...setupObjectives, ""])}
-                      className="mt-2 flex items-center gap-2 px-4 py-2 border border-dashed border-green-400 text-green-600 rounded-xl text-xs font-bold hover:bg-green-50 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add Objective
-                    </button>
+                    </div>
+                  </div>
+
+                  {/* Members Review */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-2">
+                      Assigned Team Members ({groupMembersData.length + 1})
+                    </label>
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+                      <div className="flex items-center gap-3 p-3 border border-yellow-100 rounded-xl bg-yellow-50/40">
+                        <div className="w-9 h-9 bg-[#c9a654] rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                          {getInitials(userName)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#122244] text-sm">{userName}</p>
+                          <p className="text-[10px] font-black uppercase text-[#c9a654] tracking-wider">Team Leader</p>
+                        </div>
+                      </div>
+                      {groupMembersData.length > 0 ? (
+                        groupMembersData.map((member) => (
+                          <div key={member.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-gray-50/50">
+                            <div className="w-9 h-9 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                              {getInitials(`${member.firstName} ${member.lastName}`)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#122244] text-sm">{member.firstName} {member.lastName}</p>
+                              <p className="text-[10px] font-black uppercase text-green-600 tracking-wider">Team Member</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-3">
+                          <p className="text-gray-400 text-xs italic">No other members assigned yet.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-              </div>{/* end scrollable body */}
-
-              {/* Footer */}
-              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-                <button
-                  onClick={handleFinishTeamSetup}
-                  disabled={isUploadingLogo}
-                  className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {userGroup?.isSetup ? "Save Changes" : "Finish Setup"}
-                </button>
               </div>
 
+              {/* ─── SECTION: Mission & Vision ─── */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#122244] mb-3 pb-1 border-b border-gray-100">Mission &amp; Vision</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                      Company Mission <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={setupMission}
+                      onChange={(e) => {
+                        setSetupMission(e.target.value);
+                        if (setupErrors.mission) setSetupErrors(prev => ({ ...prev, mission: "" }));
+                      }}
+                      placeholder="What is your company's mission? (e.g., To provide quality products and services to every customer.)"
+                      className={`w-full px-4 py-3 bg-gray-50 border ${setupErrors.mission ? "border-red-400 bg-red-50/20" : "border-gray-200"
+                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
+                    />
+                    {setupErrors.mission && (
+                      <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />{setupErrors.mission}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                      Company Vision <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={setupVision}
+                      onChange={(e) => {
+                        setSetupVision(e.target.value);
+                        if (setupErrors.vision) setSetupErrors(prev => ({ ...prev, vision: "" }));
+                      }}
+                      placeholder="What is your company's vision? (e.g., To be the most trusted business in the region.)"
+                      className={`w-full px-4 py-3 bg-gray-50 border ${setupErrors.vision ? "border-red-400 bg-red-50/20" : "border-gray-200"
+                        } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all resize-none leading-relaxed`}
+                    />
+                    {setupErrors.vision && (
+                      <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />{setupErrors.vision}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── SECTION: Company Objectives ─── */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-3 pb-1 border-b border-gray-100">Company Objectives</p>
+                <div className="space-y-2">
+                  {setupObjectives.map((obj, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <span className="mt-3 text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={obj}
+                        onChange={(e) => {
+                          const updated = [...setupObjectives];
+                          updated[idx] = e.target.value;
+                          setSetupObjectives(updated);
+                          if (setupErrors.objectives) setSetupErrors(prev => ({ ...prev, objectives: "" }));
+                        }}
+                        placeholder={`Objective ${idx + 1}...`}
+                        className={`flex-1 px-3 py-2.5 bg-gray-50 border ${setupErrors.objectives && obj.trim() === "" ? "border-red-300" : "border-gray-200"
+                          } rounded-xl text-sm text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400/30 focus:border-green-400 transition-all`}
+                      />
+                      {setupObjectives.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = setupObjectives.filter((_, i) => i !== idx);
+                            setSetupObjectives(updated);
+                          }}
+                          className="mt-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Remove objective"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {setupErrors.objectives && (
+                    <p className="text-red-500 text-[11px] font-semibold flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{setupErrors.objectives}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSetupObjectives([...setupObjectives, ""])}
+                    className="mt-2 flex items-center gap-2 px-4 py-2 border border-dashed border-green-400 text-green-600 rounded-xl text-xs font-bold hover:bg-green-50 transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Objective
+                  </button>
+                </div>
+              </div>
+
+            </div>{/* end scrollable body */}
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+              <button
+                onClick={handleFinishTeamSetup}
+                disabled={isUploadingLogo}
+                className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {userGroup?.isSetup ? "Save Changes" : "Finish Setup"}
+              </button>
             </div>
+
           </div>
-        )}
+        </div>
+      )}
 
       {/* ROSTER MODAL */}
       {showRosterModal && (
@@ -4951,9 +5206,8 @@ const Projects: React.FC = () => {
                               businessName: e.target.value,
                             })
                           }
-                          className={`w-full px-4 py-2 bg-gray-50 border ${
-                            check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg outline-none text-sm font-medium`}
+                          className={`w-full px-4 py-2 bg-gray-50 border ${check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm font-medium`}
                         />
                         {check.isCopyrighted && (
                           <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-start gap-1">
@@ -5025,8 +5279,8 @@ const Projects: React.FC = () => {
                       !editBasicData.businessType
                         ? ""
                         : ["Food & Beverage", "Services"].includes(editBasicData.businessType)
-                        ? editBasicData.businessType
-                        : "Other"
+                          ? editBasicData.businessType
+                          : "Other"
                     }
                     options={businessTypeDropdownOptions}
                     onChange={(newValue) =>
@@ -5057,60 +5311,82 @@ const Projects: React.FC = () => {
                       </div>
                     )}
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Total Capital <span className="text-red-500">*</span>
-                  </label>
-                  {(() => {
-                    const check = checkTotalCapital(editBasicData.totalCapital);
-                    return (
-                      <>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={editBasicData.totalCapital}
-                          onKeyDown={(e) => {
-                            if (
-                              !/[0-9]/.test(e.key) &&
-                              e.key !== "Backspace" &&
-                              e.key !== "Delete" &&
-                              e.key !== "Tab" &&
-                              e.key !== "ArrowLeft" &&
-                              e.key !== "ArrowRight" &&
-                              e.key !== "Home" &&
-                              e.key !== "End" &&
-                              !(e.key === "." && !(editBasicData.totalCapital || "").includes(".")) &&
-                              !e.ctrlKey &&
-                              !e.metaKey
-                            ) {
-                              e.preventDefault();
-                            }
-                          }}
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/[^0-9.]/g, "");
-                            const parts = val.split(".");
-                            if (parts.length > 2) {
-                              val = parts[0] + "." + parts.slice(1).join("");
-                            }
-                            setEditBasicData({
-                              ...editBasicData,
-                              totalCapital: val,
-                            });
-                          }}
-                          placeholder="0.00"
-                          className={`w-full px-4 py-2 bg-gray-50 border ${
-                            check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg text-sm font-medium transition-colors outline-none`}
-                        />
-                        {check.isNegative && (
-                          <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                            <span>{check.errorMessage}</span>
-                          </p>
-                        )}
-                      </>
-                    );
-                  })()}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                      Total Capital <span className="text-red-500">*</span>
+                    </label>
+                    {(() => {
+                      const check = checkTotalCapital(editBasicData.totalCapital);
+                      return (
+                        <>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={editBasicData.totalCapital}
+                            onKeyDown={(e) => {
+                              if (
+                                !/[0-9]/.test(e.key) &&
+                                e.key !== "Backspace" &&
+                                e.key !== "Delete" &&
+                                e.key !== "Tab" &&
+                                e.key !== "ArrowLeft" &&
+                                e.key !== "ArrowRight" &&
+                                e.key !== "Home" &&
+                                e.key !== "End" &&
+                                !(e.key === "." && !(editBasicData.totalCapital || "").includes(".")) &&
+                                !e.ctrlKey &&
+                                !e.metaKey
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^0-9.]/g, "");
+                              const parts = val.split(".");
+                              if (parts.length > 2) {
+                                val = parts[0] + "." + parts.slice(1).join("");
+                              }
+                              setEditBasicData({
+                                ...editBasicData,
+                                totalCapital: val,
+                              });
+                            }}
+                            placeholder="0.00"
+                            className={`w-full px-4 py-2 bg-gray-50 border ${check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                              } rounded-lg text-sm font-medium transition-colors outline-none`}
+                          />
+                          {check.isNegative && (
+                            <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>{check.errorMessage}</span>
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                      Contributors Count
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={editBasicData.contributorsCount || "1"}
+                      onKeyDown={handlePreventNegative}
+                      onPaste={handlePasteNonNegative}
+                      onChange={(e) => {
+                        setEditBasicData({
+                          ...editBasicData,
+                          contributorsCount: e.target.value,
+                        });
+                      }}
+                      placeholder="1"
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium transition-colors outline-none"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
@@ -5129,9 +5405,8 @@ const Projects: React.FC = () => {
                               tagline: e.target.value,
                             })
                           }
-                          className={`w-full px-4 py-2 bg-gray-50 border ${
-                            check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                          } rounded-lg text-sm font-medium transition-colors`}
+                          className={`w-full px-4 py-2 bg-gray-50 border ${check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg text-sm font-medium transition-colors`}
                         />
                         {check.isCopyrighted && (
                           <p className="text-red-500 text-xs font-semibold mt-1 flex items-start gap-1">
@@ -5338,13 +5613,12 @@ const Projects: React.FC = () => {
               {submissionFailureReasons.map((reason, idx) => (
                 <div
                   key={idx}
-                  className={`p-4 rounded-xl border text-left ${
-                    reason.type === "missing"
+                  className={`p-4 rounded-xl border text-left ${reason.type === "missing"
                       ? "bg-amber-50/70 border-amber-200 text-amber-900"
                       : reason.type === "quota"
-                      ? "bg-blue-50/70 border-blue-200 text-blue-900"
-                      : "bg-red-50/70 border-red-200 text-red-900"
-                  }`}
+                        ? "bg-blue-50/70 border-blue-200 text-blue-900"
+                        : "bg-red-50/70 border-red-200 text-red-900"
+                    }`}
                 >
                   <div className="flex items-center gap-2 font-bold text-sm mb-1">
                     {reason.type === "missing" ? (
@@ -5406,16 +5680,14 @@ const Projects: React.FC = () => {
         </div>
       )}
       {showToast && (
-        <div className={`fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 ${
-          toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
+        <div className={`fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 ${toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
             ? "border-red-500"
             : "border-[#c9a654]"
-        } shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-start gap-4 w-11/12 max-w-lg`}>
-          <AlertCircle className={`w-7 h-7 shrink-0 ${
-            toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
+          } shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-start gap-4 w-11/12 max-w-lg`}>
+          <AlertCircle className={`w-7 h-7 shrink-0 ${toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
               ? "text-red-500"
               : "text-[#c9a654]"
-          }`} />
+            }`} />
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-gray-900 text-base">
               {toastTitle}

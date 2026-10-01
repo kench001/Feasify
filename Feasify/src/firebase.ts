@@ -4,6 +4,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
+  sendPasswordResetEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -72,6 +75,45 @@ export async function loginUser(email: string, password: string) {
 
 export async function signOutUser() {
   return await fbSignOut(auth);
+}
+
+// --- PASSWORD RESET FUNCTIONS ---
+export async function sendResetPasswordEmail(email: string) {
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://feasify-ten.vercel.app";
+
+  const actionCodeSettings = {
+    // This redirects the user from the email link directly back to our website!
+    url: `${origin}/reset-password`,
+    handleCodeInApp: false,
+  };
+
+  try {
+    return await sendPasswordResetEmail(auth, email.trim(), actionCodeSettings);
+  } catch (err: any) {
+    // If customized continue URL is not in Authorized Domains, fallback to default
+    if (
+      err?.code === "auth/unauthorized-continue-uri" ||
+      err?.code === "auth/invalid-continue-uri"
+    ) {
+      console.warn("Unauthorized continue URL in Firebase Console. Falling back:", err);
+      return await sendPasswordResetEmail(auth, email.trim());
+    }
+    throw err;
+  }
+}
+
+export async function verifyResetCode(actionCode: string): Promise<string> {
+  return await verifyPasswordResetCode(auth, actionCode);
+}
+
+export async function confirmResetPassword(
+  actionCode: string,
+  newPassword: string,
+): Promise<void> {
+  return await confirmPasswordReset(auth, actionCode, newPassword);
 }
 
 // 💥 THE MAGIC FUNCTION: Creates Auth user without logging Admin out

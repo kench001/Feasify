@@ -12,7 +12,7 @@ import {
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
   Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
 } from "lucide-react";
-import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
+import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
 import { logAuditEvent } from "./services/auditLogger";
 
 interface StudentData {
@@ -1157,9 +1157,9 @@ const AdviserDashboard: React.FC = () => {
                   <h4 className="text-xs font-bold text-[#122244] uppercase tracking-wider">Itemized Operating Expenses</h4>
                   <span className="text-xs font-bold text-red-600">Total: ₱{safeFixedCosts.toLocaleString()}/mo</span>
                 </div>
-                {fin.opexList && fin.opexList.length > 0 ? (
+                {fin.opexList && fin.opexList.filter((item: any) => Number(item.amount) > 0).length > 0 ? (
                   <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-                    {fin.opexList.map((item: any, idx: number) => (
+                    {fin.opexList.filter((item: any) => Number(item.amount) > 0).map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-xs bg-gray-50 px-3 py-1.5 rounded border border-gray-100">
                         <span className="text-gray-700">{item.name || "Expense Item"}</span>
                         <span className="font-semibold text-gray-900">₱{Number(item.amount || 0).toLocaleString()}</span>
@@ -1167,7 +1167,7 @@ const AdviserDashboard: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 italic">No itemized OpEx provided. Default fixed overhead applied.</p>
+                  <p className="text-xs text-gray-400 italic">No itemized OpEx allocated. Default fixed overhead applied.</p>
                 )}
               </div>
 
@@ -1665,6 +1665,15 @@ const AdviserDashboard: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Team Leader & Members brief (Positioned above Team Proposals) */}
+                      <div className="flex items-center justify-between text-xs text-gray-600 bg-gray-50/80 p-2.5 rounded-xl border border-gray-200/70">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : 'bg-[#122244]'}`}>{getInitials(group.leaderName)}</div>
+                          <span className="truncate font-semibold text-gray-800 text-[11px]">{group.leaderName} (Leader)</span>
+                        </div>
+                        <span className="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
+                      </div>
+
                       {/* Proposals 1, 2, 3 Section */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-[11px] font-black text-gray-500 uppercase tracking-wider">
@@ -1717,15 +1726,6 @@ const AdviserDashboard: React.FC = () => {
                             </div>
                           );
                         })}
-                      </div>
-
-                      {/* Team Leader & Members brief */}
-                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : 'bg-[#122244]'}`}>{getInitials(group.leaderName)}</div>
-                          <span className="truncate font-semibold text-gray-800 text-[11px]">{group.leaderName} (Leader)</span>
-                        </div>
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
                       </div>
                     </div>
 
@@ -2988,16 +2988,16 @@ const AdviserDashboard: React.FC = () => {
                       <Edit2 className="w-3.5 h-3.5" /> Needs Revision
                     </button>
                     <button
-                      onClick={() => handleProposalAction(viewingProposal, 'Approved')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 text-white font-bold text-xs rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                    </button>
-                    <button
                       onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
                       disabled={isSaving}
                       className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-red-600 border-2 border-red-200 font-bold text-xs rounded-xl hover:bg-red-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
                       <X className="w-3.5 h-3.5" /> Reject
+                    </button>
+                    <button
+                      onClick={() => handleProposalAction(viewingProposal, 'Approved')}
+                      disabled={isSaving}
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 text-white font-bold text-xs rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                     </button>
                     <button
                       onClick={() => handleProposalAction(viewingProposal, 'Save Remarks')}

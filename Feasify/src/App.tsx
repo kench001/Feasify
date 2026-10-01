@@ -24,6 +24,7 @@ import AdviserProfile from "./AdviserProfile";
 import ChairpersonProfile from "./ChairpersonProfile";
 import AdviserAuditTrail from "./AdviserAuditTrail";
 import ChairpersonAuditTrail from "./ChairpersonAuditTrail";
+import ResetPassword from "./ResetPassword";
 
 function App() {
   return (
@@ -32,6 +33,11 @@ function App() {
       <Routes>
         {/* This is the starting page (Login/Signup) */}
         <Route path="/" element={<Auth />} />
+
+        {/* Password Reset Handlers */}
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/action" element={<ResetPassword />} />
+        <Route path="/__/auth/action" element={<ResetPassword />} />
 
         {/* This is the Dashboard page users see after signing in */}
         <Route path="/dashboard" element={<Dashboard />} />
