@@ -102,3 +102,34 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #b59545;
 }
+
+/* ========================================================================= */
+/* LEAFLET MAP & PIN STYLES                                                  */
+/* ========================================================================= */
+.leaflet-container {
+  font-family: inherit;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  background-color: #f8fafc !important;
+}
+
+.feasify-map-pin,
+.leaflet-div-icon.feasify-map-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background-color: #ffffff !important;
+  color: #122244 !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 12px !important;
+  padding: 2px !important;
+}
+
+.leaflet-popup-tip {
+  background-color: #ffffff !important;
+}
+

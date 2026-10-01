@@ -195,6 +195,28 @@ const getCopyrightDB = () => {
   }
 };
 
+// Official Government Registration Authority Checker Service (DTI + SEC)
+const nameCheckerService = require("./services/nameChecker");
+
+// In-memory cache/store for team proposal counts (guarantees backend 3-limit enforcement)
+const teamProposalsStore = new Map();
+
+// Helper to get group proposal count (checks Firestore if available, falls back to store)
+const getGroupProposalCount = async (groupId) => {
+  if (adminFirestore) {
+    try {
+      const snap = await adminFirestore.collection("proposals").where("groupId", "==", groupId).get();
+      const count = snap.size;
+      teamProposalsStore.set(groupId, count);
+      return count;
+    } catch (e) {
+      console.warn("[Backend proposal count] Firestore query failed, falling back to local store:", e.message);
+    }
+  }
+  return teamProposalsStore.get(groupId) || 0;
+};
+
+
 // Retry wrapper with exponential backoff + jitter for Gemini API calls
 async function callGeminiWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -397,6 +419,282 @@ app.post(["/api/copyright-check", "/api/copyright/check"], (req, res) => {
     matchedName,
     isTaglineCopyrighted,
     matchedTagline,
+  });
+});
+
+// ==========================================
+// OFFICIAL DTI + SEC NAME CHECKER ENDPOINTS (PROVIDER ARCHITECTURE)
+// ==========================================
+
+/**
+ * Primary Name-Check API
+ * Request Body:
+ * {
+ *   "name": "Sample Business Name",
+ *   "type": "business" | "company" | "all",
+ *   "provider": "DTI" | "SEC" (optional override),
+ *   "forceRefresh": boolean (optional, bypasses short-TTL cache)
+ * }
+ */
+app.post("/api/name-check", async (req, res) => {
+  try {
+    const { name, type = "business", provider, forceRefresh = false } = req.body || {};
+    const inputName = (name || "").trim();
+
+    if (!inputName) {
+      return res.status(400).json({
+        status: "ERROR",
+        message: "Please enter a business or company name to check.",
+        query: "",
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    const userId = req.user?.uid || req.body?.userId || "anonymous";
+    const result = await nameCheckerService.checkName({
+      name: inputName,
+      type,
+      provider,
+      forceRefresh: Boolean(forceRefresh),
+      userId,
+      firestoreInstance: adminFirestore
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error("❌ [/api/name-check] Unexpected error:", error);
+    return res.status(500).json({
+      status: "UNAVAILABLE",
+      message: "The name verification service encountered an unexpected error. Please verify directly via official government portals.",
+      officialSource: "https://bnrs.dti.gov.ph/search",
+      checkedAt: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Name-Check Service Status & Diagnostics
+ */
+app.get("/api/name-check/status", (req, res) => {
+  res.json(nameCheckerService.getStatus());
+});
+
+/**
+ * Official Registration Sources Information
+ */
+app.get(["/api/company-names", "/api/registration-sources"], (req, res) => {
+  res.json({
+    registrationSources: [
+      {
+        type: "DTI",
+        name: "Department of Trade and Industry - Business Name Registration System (BNRS)",
+        officialPortal: "https://bnrs.dti.gov.ph/",
+        officialSearch: "https://bnrs.dti.gov.ph/search",
+        searchType: "Exact Business Name Search",
+        coverage: "Sole Proprietorships and Business Names"
+      },
+      {
+        type: "SEC",
+        name: "Securities and Exchange Commission (SEC) Philippines",
+        officialPortal: "https://esparc.sec.gov.ph/",
+        apiMarketplace: "https://dev-api.sec.gov.ph/",
+        searchType: "Company Information Lookup & eSPARC Registration",
+        coverage: "Corporations, Partnerships, and One Person Corporations (OPC)"
+      }
+    ],
+    architecture: "Provider-based dynamic query against official government sources (no static local name database)"
+  });
+});
+
+/**
+ * Backward compatibility route for legacy /api/check-company-name callers
+ */
+app.post(["/api/check-company-name", "/api/company-name/check"], async (req, res) => {
+  try {
+    const { name, companyName, provider, type = "company", forceRefresh } = req.body || {};
+    const inputName = (name || companyName || "").trim();
+
+    if (!inputName) {
+      return res.json({
+        status: "empty",
+        resultText: "Please enter a company name to check.",
+        isAvailable: false,
+        matches: [],
+        sourcesChecked: ["DTI", "SEC"],
+        disclaimer:
+          "Preliminary name check only. Final registration availability must be verified through the official DTI/SEC system."
+      });
+    }
+
+    const result = await nameCheckerService.checkName({
+      name: inputName,
+      type,
+      provider,
+      forceRefresh: Boolean(forceRefresh),
+      userId: req.user?.uid || "anonymous",
+      firestoreInstance: adminFirestore
+    });
+
+    const isFound = result.status === "FOUND";
+    const matches = (result.records || []).map((r) => ({
+      name: r.businessName || r.companyName || inputName,
+      registrationSource: result.provider || "SEC"
+    }));
+
+    return res.json({
+      status: isFound ? (result.matchType === "exact" ? "exact" : "similar") : "none",
+      resultText: isFound ? "Name Already Exists" : "No Match Found",
+      isAvailable: !isFound,
+      message: result.message,
+      matches,
+      sourcesChecked: [result.provider || "SEC"],
+      officialSource: result.officialSource,
+      checkedAt: result.checkedAt,
+      disclaimer: result.disclaimer
+    });
+  } catch (err) {
+    console.error("❌ [/api/check-company-name] Error:", err);
+    return res.status(500).json({
+      status: "error",
+      resultText: "Verification Unavailable",
+      isAvailable: false,
+      message: "External government verification unavailable. Please verify directly via official DTI BNRS or SEC eSPARC.",
+      matches: [],
+      sourcesChecked: ["DTI", "SEC"],
+      disclaimer: "Verification error. Please check official portals."
+    });
+  }
+});
+
+// ==========================================
+// PROPOSALS MANAGEMENT & 3-PROPOSAL LIMIT ENDPOINTS
+// ==========================================
+
+// Endpoint to validate/check team proposal limit
+app.all(["/api/teams/:groupId/proposals/count", "/api/proposals/validate-limit"], async (req, res) => {
+  const groupId = req.params.groupId || req.body?.groupId || req.query?.groupId;
+  if (!groupId) {
+    return res.status(400).json({ error: "groupId is required." });
+  }
+
+  const count = await getGroupProposalCount(groupId);
+  const maxProposals = 3;
+  const allowed = count < maxProposals;
+
+  res.json({
+    groupId,
+    count,
+    max: maxProposals,
+    allowed,
+    message: allowed
+      ? `Proposals: ${count} / ${maxProposals}`
+      : "Maximum of 3 proposals reached."
+  });
+});
+
+// Endpoint to create a proposal with STRICT server-side enforcement of maximum 3 proposals per team
+app.post(["/api/teams/:groupId/proposals", "/api/proposals"], async (req, res) => {
+  const groupId = req.params.groupId || req.body?.groupId;
+  if (!groupId) {
+    return res.status(400).json({ error: "groupId is required." });
+  }
+
+  const existingCount = await getGroupProposalCount(groupId);
+  const maxProposals = 3;
+
+  if (existingCount >= maxProposals) {
+    return res.status(400).json({
+      error: "Maximum of 3 proposals reached.",
+      message: "Maximum of 3 proposals reached per team. Further submissions are blocked.",
+      proposalLimitReached: true,
+      currentCount: existingCount,
+      maxProposals
+    });
+  }
+
+  const proposalNumber = existingCount + 1;
+  const now = new Date().toISOString();
+  const proposalData = {
+    ...req.body,
+    groupId,
+    proposalNumber,
+    status: req.body.status || "Draft",
+    submissionDate: req.body.submissionDate || now,
+    adviserRemarks: req.body.adviserRemarks || "",
+    createdAt: now,
+    updatedAt: now
+  };
+
+  let createdId = `prop_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  if (adminFirestore) {
+    try {
+      const docRef = await adminFirestore.collection("proposals").add(proposalData);
+      createdId = docRef.id;
+    } catch (e) {
+      console.warn("[Backend proposal creation] Firestore add failed, proceeding with generated ID:", e.message);
+    }
+  }
+
+  teamProposalsStore.set(groupId, existingCount + 1);
+
+  return res.status(201).json({
+    success: true,
+    message: `Proposal ${proposalNumber} created successfully.`,
+    proposalId: createdId,
+    proposalNumber,
+    currentCount: existingCount + 1,
+    proposal: {
+      id: createdId,
+      ...proposalData
+    }
+  });
+});
+
+// Endpoint to update individual proposal status and adviser remarks
+app.put("/api/proposals/:proposalId/status", async (req, res) => {
+  const { proposalId } = req.params;
+  const { status, adviserRemarks } = req.body || {};
+
+  const validStatuses = [
+    "Draft",
+    "Submitted",
+    "Under Review",
+    "Revision Required",
+    "Approved",
+    "Rejected",
+    "Pending",
+    "Revision"
+  ];
+
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({
+      error: `Invalid status "${status}". Supported statuses: Draft, Submitted, Under Review, Revision Required, Approved, Rejected.`
+    });
+  }
+
+  if (adminFirestore) {
+    try {
+      const updatePayload = {
+        updatedAt: new Date().toISOString()
+      };
+      if (status) updatePayload.status = status;
+      if (adviserRemarks !== undefined) updatePayload.adviserRemarks = adviserRemarks;
+
+      await adminFirestore.collection("proposals").doc(proposalId).update(updatePayload);
+    } catch (e) {
+      console.error("[Backend update proposal status] Error:", e.message);
+      return res.status(500).json({ error: "Failed to update proposal in Firestore: " + e.message });
+    }
+  }
+
+  res.json({
+    success: true,
+    proposalId,
+    status,
+    adviserRemarks,
+    updatedAt: new Date().toISOString()
   });
 });
 

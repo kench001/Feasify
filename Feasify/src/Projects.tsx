@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import companyNamesData from "./data/companyNames.json";
 import Skeleton from "react-loading-skeleton";
+import { OfficialNameChecker } from "./components/OfficialNameChecker";
+import { LocationPickerMap } from "./components/LocationPickerMap";
+import {
+  checkDTI,
+  checkSEC,
+  checkName,
+  OFFICIAL_SOURCES,
+  type NameCheckResult
+} from "./services/nameCheckerService";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -58,6 +66,7 @@ import {
   Upload,
   Image as ImageIcon,
   ArrowUp,
+  ShieldCheck,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
@@ -413,6 +422,9 @@ export const computeProductMetrics = (product: ProductCostingItem) => {
 interface ProposalData {
   id?: string;
   groupId: string;
+  proposalNumber?: number;
+  teamName?: string;
+  facultyId?: string;
   businessType: string;
   businessName: string;
   businessLogo?: string;
@@ -426,11 +438,15 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
-  status: "Draft" | "Pending" | "Approved" | "Rejected" | "Revision";
+  status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Rejected" | "Pending" | "Revision";
+  adviserRemarks?: string;
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
+  submissionDate?: string;
   financialData?: FinancialProposalData;
+  originalProposalFinancials?: any;
   createdAt?: any;
+  updatedAt?: any;
 }
 
 const initialProposalState: ProposalData = {
@@ -487,6 +503,22 @@ const formatDateTime = (timestamp: any) => {
   }
 };
 
+// Strips any undefined fields recursively to prevent Firestore 'Unsupported field value: undefined' errors
+const cleanFirestoreData = (obj: any): any => {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanFirestoreData);
+  }
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanFirestoreData(value);
+    }
+  }
+  return cleaned;
+};
+
 const Projects: React.FC = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -528,8 +560,9 @@ const Projects: React.FC = () => {
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const companyNameRef = useRef<HTMLDivElement>(null);
 
-  // DTI company names list
-  const dtiCompanies: string[] = (companyNamesData as any).companies.map((c: any) => c.name as string);
+  // Official Government Name Verification state (DTI & SEC)
+  const [setupDtiResult, setSetupDtiResult] = useState<NameCheckResult | null>(null);
+  const [setupSecResult, setSetupSecResult] = useState<NameCheckResult | null>(null);
 
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [showLockInModal, setShowLockInModal] = useState(false);
@@ -548,6 +581,15 @@ const Projects: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+
+  const [showSubmissionFailureModal, setShowSubmissionFailureModal] = useState(false);
+  const [submissionFailureReasons, setSubmissionFailureReasons] = useState<{
+    type: "missing" | "copyright" | "capital" | "quota" | "error";
+    title: string;
+    description: string;
+    items?: string[];
+  }[]>([]);
+  const [highlightMissingFields, setHighlightMissingFields] = useState(false);
 
   const [copyrightDB, setCopyrightDB] = useState<CopyrightDB | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -882,7 +924,7 @@ const Projects: React.FC = () => {
       const advSnaps = await getDocs(advQ);
       advSnaps.forEach((d) => {
         if (d.data().section && d.data().section.includes(group.section))
-          setAdviserData(d.data());
+          setAdviserData({ id: d.id, ...d.data() });
       });
     } catch (err) {
       console.error(err);
@@ -1022,16 +1064,20 @@ const Projects: React.FC = () => {
     // Validation
     const errors: Record<string, string> = {};
     const trimmedName = setupCompanyName.trim();
+    const trademarkCheck = checkBusinessName(trimmedName, copyrightDB || undefined);
     if (!trimmedName) {
       errors.companyName = "Company name is required.";
-    } else {
-      // Block names that exactly match a DTI-registered entry (case-insensitive)
-      const isDtiRegistered = dtiCompanies.some(
-        (n) => n.toLowerCase() === trimmedName.toLowerCase()
-      );
-      if (isDtiRegistered) {
-        errors.companyName = "This business name is already registered in the DTI list. Please enter a unique company name.";
-      }
+    } else if (trademarkCheck.isCopyrighted) {
+      errors.companyName =
+        trademarkCheck.errorMessage ||
+        `"${trimmedName}" is a protected trademark or well-known brand. Please choose an original proposed name.`;
+    } else if (
+      (setupDtiResult?.status === "FOUND" && setupDtiResult.matchType === "exact") ||
+      (setupSecResult?.status === "FOUND" && setupSecResult.matchType === "exact")
+    ) {
+      errors.companyName = `An exact match for "${trimmedName}" was found in official records (${
+        setupDtiResult?.status === "FOUND" ? "DTI" : "SEC"
+      }). Please verify or select a unique proposed name.`;
     }
     if (!setupMission.trim()) errors.mission = "Mission statement is required.";
     if (!setupVision.trim()) errors.vision = "Vision statement is required.";
@@ -1258,14 +1304,20 @@ const Projects: React.FC = () => {
     if (checkBusinessName(dataToSave.businessName, copyrightDB || undefined).isCopyrighted) return;
     if (checkTagline(dataToSave.tagline, copyrightDB || undefined).isCopyrighted) return;
 
+    // Enforce 3 proposals maximum on auto-save
+    if (!dataToSave.id && proposals.length >= 3) return;
+
     setIsSaving(true);
     setSaveStatus("Saving...");
     try {
-      const proposalData = {
+      const assignedProposalNumber = dataToSave.proposalNumber || (proposals.length + 1);
+      const proposalData = cleanFirestoreData({
         ...dataToSave,
+        proposalNumber: assignedProposalNumber,
+        teamName: userGroup.companyName || userGroup.title || "",
         groupId: userGroup.id,
         status: dataToSave.status || "Draft",
-      };
+      });
       
       if (dataToSave.id) {
         await updateDoc(doc(db, "proposals", dataToSave.id), {
@@ -1277,7 +1329,7 @@ const Projects: React.FC = () => {
           ...proposalData,
           createdAt: serverTimestamp(),
         });
-        setCurrentProposal(prev => ({ ...prev, id: docRef.id }));
+        setCurrentProposal(prev => ({ ...prev, id: docRef.id, proposalNumber: assignedProposalNumber }));
         // Refresh local proposals list to include the new ID
         fetchProposals(userGroup.id);
       }
@@ -1291,77 +1343,200 @@ const Projects: React.FC = () => {
   };
 
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
-    if (!userGroup) return;
-
-    // Capital & Copyright Validation
-    const capitalVal = checkTotalCapital(currentProposal.totalCapital);
-    if (capitalVal.isNegative) {
-      setToastTitle("Invalid Capital Amount");
-      setToastMessage(capitalVal.errorMessage || "Total capital cannot be negative.");
+    if (!userGroup) {
+      setToastTitle("Submission Failed");
+      setToastMessage("Team information not found. Please ensure you are logged into an active student team.");
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      setTimeout(() => setShowToast(false), 5000);
       return;
     }
 
-    const nameVal = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
-    if (nameVal.isCopyrighted) {
-      setToastTitle("Copyright Warning");
-      setToastMessage(nameVal.errorMessage || "Business name matches a copyrighted name.");
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
-      return;
-    }
-
-    const taglineVal = checkTagline(currentProposal.tagline, copyrightDB || undefined);
-    if (taglineVal.isCopyrighted) {
-      setToastTitle("Copyright Warning");
-      setToastMessage(taglineVal.errorMessage || "Tagline matches a copyrighted tagline.");
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
-      return;
-    }
-
-    // Validation for Pending status (Submit to Adviser)
-    if (status === "Pending") {
-      const requiredFields: (keyof ProposalData)[] = [
-        "businessType",
-        "businessName",
-        "totalCapital",
-        "tagline",
-        "targetMarket",
-        "missionStatement",
-        "visionStatement",
-        "productDescription",
-        "priceRanges",
-        "proposedLocation",
-        "promotionalStrategy",
-      ];
-
-      const missingFields = requiredFields.filter((field) => {
-        const value = currentProposal[field];
-        return !value || (typeof value === "string" && value.trim() === "");
-      });
-
-      if (missingFields.length > 0) {
-        setToastTitle("Incomplete Proposal");
-        setToastMessage("Please fill in all required fields before submitting to the adviser.");
+    if (status === "Draft") {
+      // Enforce 3-proposal limit for new draft proposals
+      if (!currentProposal.id && proposals.length >= 3) {
+        setToastTitle("Proposal Limit Reached");
+        setToastMessage("Maximum of 3 proposals reached. Each team can submit at most 3 proposals.");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 4000);
         return;
       }
 
-      setIsSubmitting(true);
-    } else {
+      // Capital & Copyright Validation for drafts
+      const capitalVal = checkTotalCapital(currentProposal.totalCapital);
+      if (capitalVal.isNegative) {
+        setToastTitle("Invalid Capital Amount");
+        setToastMessage(capitalVal.errorMessage || "Total capital cannot be negative.");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
+
+      const nameVal = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+      if (nameVal.isCopyrighted) {
+        setToastTitle("Copyright Warning");
+        setToastMessage(nameVal.errorMessage || "Business name matches a copyrighted name.");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
+
+      const taglineVal = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+      if (taglineVal.isCopyrighted) {
+        setToastTitle("Copyright Warning");
+        setToastMessage(taglineVal.errorMessage || "Tagline matches a copyrighted tagline.");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        return;
+      }
+
       setIsSaving(true);
+    } else {
+      // status === "Pending" (Submit to Adviser)
+      const reasons: {
+        type: "missing" | "copyright" | "capital" | "quota" | "error";
+        title: string;
+        description: string;
+        items?: string[];
+      }[] = [];
+
+      // 1. Quota Check
+      if (!currentProposal.id && proposals.length >= 3) {
+        reasons.push({
+          type: "quota",
+          title: "Proposal Limit Reached (Max 3 Allowed)",
+          description: "Your team already has 3 proposals on file. Each team can submit at most 3 proposals. Please delete an existing proposal before creating or submitting a new one.",
+        });
+      }
+
+      // 2. Required Fields Check
+      const missingLabels: string[] = [];
+
+      const requiredFieldConfigs: { key: keyof ProposalData; label: string }[] = [
+        { key: "businessType", label: "Business Type" },
+        { key: "businessName", label: "Business / Company Name" },
+        { key: "totalCapital", label: "Total Capital" },
+        { key: "tagline", label: "Tagline" },
+        { key: "targetMarket", label: "Target Market" },
+        { key: "missionStatement", label: "Mission Statement" },
+        { key: "visionStatement", label: "Vision Statement" },
+        { key: "productDescription", label: "Product Description" },
+        { key: "priceRanges", label: "Price Ranges" },
+        { key: "proposedLocation", label: "Proposed Location" },
+        { key: "promotionalStrategy", label: "Promotional Strategy" },
+      ];
+
+      requiredFieldConfigs.forEach(({ key, label }) => {
+        const val = currentProposal[key];
+        const isEmpty = !val || (typeof val === "string" && val.trim() === "");
+        if (isEmpty) {
+          missingLabels.push(label);
+        } else if (key === "businessType" && val === "Other") {
+          // If 'Other' was selected without specifying a custom business type
+          missingLabels.push("Business Type (Specify Custom Type)");
+        }
+      });
+
+      if (missingLabels.length > 0) {
+        reasons.push({
+          type: "missing",
+          title: `Incomplete Fields (${missingLabels.length} Missing)`,
+          description: "All required sections of the proposal must be filled out before submitting to your adviser for review.",
+          items: missingLabels,
+        });
+      }
+
+      // 3. Capital Validation
+      const capitalVal = checkTotalCapital(currentProposal.totalCapital);
+      if (capitalVal.isNegative) {
+        reasons.push({
+          type: "capital",
+          title: "Invalid Capital Amount",
+          description: capitalVal.errorMessage || "Total capital cannot be negative. Please enter a valid non-negative amount.",
+        });
+      }
+
+      // 4. Business Name Conflict / Copyright Check
+      const nameVal = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+      if (nameVal.isCopyrighted) {
+        reasons.push({
+          type: "copyright",
+          title: "Business Name Trademark / Brand Conflict",
+          description: nameVal.errorMessage || `The proposed name "${currentProposal.businessName}" matches a protected brand or registered entity. Please choose an original name.`,
+        });
+      }
+
+      // 5. Tagline Conflict / Copyright Check
+      const taglineVal = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+      if (taglineVal.isCopyrighted) {
+        reasons.push({
+          type: "copyright",
+          title: "Tagline Trademark / Brand Conflict",
+          description: taglineVal.errorMessage || `The proposed tagline "${currentProposal.tagline}" matches a protected slogan. Please create an original tagline.`,
+        });
+      }
+
+      // If any validation reasons exist, show them clearly!
+      if (reasons.length > 0) {
+        setHighlightMissingFields(true);
+        setSubmissionFailureReasons(reasons);
+        setShowSubmissionFailureModal(true);
+
+        const summaryText = reasons
+          .map((r) => r.type === "missing" ? `${r.title}: ${r.items?.join(", ")}` : `${r.title}: ${r.description}`)
+          .join(" • ");
+
+        setToastTitle("Proposal Submission Failed");
+        setToastMessage(`Cannot submit proposal:\n${summaryText}`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 7000);
+        return;
+      }
+
+      setIsSubmitting(true);
+    }
+
+    // Optional server validation of proposal limit
+    try {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || "http://localhost:10000";
+      const limitRes = await fetch(`${backendUrl}/api/teams/${userGroup.id}/proposals/count`);
+      if (limitRes.ok) {
+        const limitData = await limitRes.json();
+        if (!currentProposal.id && !limitData.allowed) {
+          const quotaReason = {
+            type: "quota" as const,
+            title: "Proposal Limit Reached (Server Verified)",
+            description: "Server verification confirmed that your team has reached the maximum of 3 proposals. Further submissions are blocked.",
+          };
+          setSubmissionFailureReasons([quotaReason]);
+          setShowSubmissionFailureModal(true);
+          setToastTitle("Proposal Submission Failed");
+          setToastMessage(quotaReason.description);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 7000);
+          setIsSubmitting(false);
+          setIsSaving(false);
+          return;
+        }
+      }
+    } catch {
+      // If backend network call fails, proceed with client limit check
     }
 
     try {
-      const proposalData = {
+      const assignedProposalNumber = currentProposal.proposalNumber || (proposals.length + 1);
+      const nowIso = new Date().toISOString();
+      const resolvedFacultyId = adviserData?.id || adviserData?.facultyId || userGroup?.facultyId || currentProposal?.facultyId || "";
+      const proposalData = cleanFirestoreData({
         ...currentProposal,
+        proposalNumber: assignedProposalNumber,
+        teamName: userGroup.companyName || userGroup.title || "",
+        facultyId: resolvedFacultyId || "",
         groupId: userGroup.id,
-        status,
+        status: status === "Pending" ? "Submitted" : status,
+        submissionDate: currentProposal.submissionDate || nowIso,
+        adviserRemarks: currentProposal.adviserRemarks || "",
         originalProposalFinancials: currentProposal.originalProposalFinancials || currentProposal.financialData || null,
-      };
+      });
       if (currentProposal.id) {
         await updateDoc(doc(db, "proposals", currentProposal.id), {
           ...proposalData,
@@ -1384,12 +1559,26 @@ const Projects: React.FC = () => {
       await fetchProposals(userGroup.id);
       setActiveView("dashboard");
       setCurrentProposal(initialProposalState);
-    } catch (error) {
-      console.error(error);
-      setToastTitle("Error");
-      setToastMessage("Failed to save proposal.");
+      setHighlightMissingFields(false);
+      setShowSubmissionFailureModal(false);
+      setSubmissionFailureReasons([]);
+      setToastTitle("Proposal Submitted");
+      setToastMessage("Your proposal has been successfully submitted to your adviser for review!");
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      setTimeout(() => setShowToast(false), 5000);
+    } catch (error: any) {
+      console.error(error);
+      const dbErrorReason = {
+        type: "error" as const,
+        title: "Database Save Failed",
+        description: error?.message || "Failed to save proposal to the database. Please check your internet connection or team permissions.",
+      };
+      setSubmissionFailureReasons([dbErrorReason]);
+      setShowSubmissionFailureModal(true);
+      setToastTitle("Proposal Submission Failed");
+      setToastMessage(`Failed to save proposal.\nReason: ${error?.message || "Database connection error."}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 7000);
     } finally {
       setIsSaving(false);
       setIsSubmitting(false);
@@ -1508,10 +1697,24 @@ const Projects: React.FC = () => {
     });
 
     if (missingFields.length > 0) {
-      setToastTitle("Required Fields");
-      setToastMessage("Please fill in all required fields.");
+      const fieldLabels: Record<string, string> = {
+        businessType: "Business Type",
+        businessName: "Business / Company Name",
+        totalCapital: "Total Capital",
+        tagline: "Tagline",
+        targetMarket: "Target Market",
+        missionStatement: "Mission Statement",
+        visionStatement: "Vision Statement",
+        productDescription: "Product Description",
+        priceRanges: "Price Ranges",
+        proposedLocation: "Proposed Location",
+        promotionalStrategy: "Promotional Strategy",
+      };
+      const missingLabels = missingFields.map((f) => fieldLabels[f] || f);
+      setToastTitle("Incomplete Information");
+      setToastMessage(`Please fill in all required fields: ${missingLabels.join(", ")}.`);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      setTimeout(() => setShowToast(false), 5000);
       return;
     }
 
@@ -1538,6 +1741,7 @@ const Projects: React.FC = () => {
         proposedLocation: editBasicData.proposedLocation,
         promotionalStrategy: editBasicData.promotionalStrategy,
         otherDetails: editBasicData.otherDetails,
+        updatedAt: serverTimestamp(),
       });
 
       setUserGroup((prev) =>
@@ -1557,12 +1761,12 @@ const Projects: React.FC = () => {
       );
 
       setShowEditBasicModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating info:", error);
-      setToastTitle("Error");
-      setToastMessage("Failed to update information.");
+      setToastTitle("Update Failed");
+      setToastMessage(`Failed to update proposal information. Reason: ${error?.message || "Database connection error."}`);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      setTimeout(() => setShowToast(false), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -1944,30 +2148,54 @@ const Projects: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-[#122244]">
-                    Business Proposals
-                  </h2>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-[#122244]">
+                      Business Proposals
+                    </h2>
+                    <span className={`px-3 py-1 text-xs font-black rounded-full border ${
+                      proposals.length >= 3 
+                        ? "bg-amber-50 text-amber-800 border-amber-300"
+                        : "bg-blue-50 text-[#4285F4] border-blue-200"
+                    }`}>
+                      Proposals: {proposals.length} / 3
+                    </span>
+                    {proposals.length >= 3 && (
+                      <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md">
+                        Maximum of 3 proposals reached.
+                      </span>
+                    )}
+                  </div>
                   <div className="relative group">
                     <button
                       onClick={() => {
+                        if (proposals.length >= 3) {
+                          setToastTitle("Proposal Limit Reached");
+                          setToastMessage("Maximum of 3 proposals reached. Each team can submit at most 3 proposals.");
+                          setShowToast(true);
+                          setTimeout(() => setShowToast(false), 4000);
+                          return;
+                        }
                         setCurrentProposal(initialProposalState);
+                        setHighlightMissingFields(false);
+                        setShowSubmissionFailureModal(false);
+                        setSubmissionFailureReasons([]);
                         setIsEditingMode(true);
                         setSaveStatus("All changes saved");
                         setActiveView("form");
                       }}
-                      disabled={!!activeBusiness}
+                      disabled={!!activeBusiness || proposals.length >= 3}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        activeBusiness 
+                        activeBusiness || proposals.length >= 3
                           ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                       }`}
                     >
                       + New Proposal
                     </button>
-                    {activeBusiness && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                        Already has Approved Business
+                    {(activeBusiness || proposals.length >= 3) && (
+                      <div className="absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
+                        {activeBusiness ? "Already has Approved Business" : "Maximum of 3 proposals reached."}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
                       </div>
                     )}
@@ -2008,10 +2236,10 @@ const Projects: React.FC = () => {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {filteredProposals.map((proposal) => {
+                    {filteredProposals.map((proposal, idx) => {
                       let isApproved = proposal.status === "Approved";
                       let isRejected = proposal.status === "Rejected";
-                      let isRevision = proposal.status === "Revision";
+                      let isRevision = proposal.status === "Revision" || proposal.status === "Revision Required";
 
                       return (
                         <div
@@ -2022,7 +2250,7 @@ const Projects: React.FC = () => {
                             isRevision ? "border-orange-300" : "border-gray-200"
                           }`}
                         >
-                          <div className="flex gap-4 items-center w-full sm:w-auto">
+                          <div className="flex gap-4 items-center w-full sm:w-auto flex-1">
                             <div
                               className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${
                                 proposal.businessLogo
@@ -2044,14 +2272,18 @@ const Projects: React.FC = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2.5 mb-1 flex-wrap">
+                                <span className="px-2 py-0.5 bg-[#122244] text-white text-[10px] font-black rounded uppercase tracking-wider">
+                                  Proposal {proposal.proposalNumber || idx + 1}
+                                </span>
                                 <h3 className="font-bold text-[#122244] text-base truncate max-w-[280px]">
                                   {proposal.businessName || "Untitled Proposal"}
                                 </h3>
                                 <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
                                   proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
                                   proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                  proposal.status === 'Revision' ? 'bg-orange-100 text-orange-700' :
-                                  proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
+                                  proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                                  proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
                                   'bg-gray-100 text-gray-600'
                                 }`}>
                                   {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
@@ -2060,12 +2292,18 @@ const Projects: React.FC = () => {
                               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider truncate">
                                 {proposal.businessType || "No Category Selected"}
                               </p>
-                              {proposal.createdAt && (
+                              {(proposal.createdAt || proposal.submissionDate) && (
                                 <div className="flex items-center text-gray-400 mt-1.5 gap-1.5 text-xs font-medium">
                                   <Clock className="w-3.5 h-3.5" />
                                   <span>
-                                    Submitted: {formatDateTime(proposal.createdAt)}
+                                    Submitted: {formatDateTime(proposal.createdAt || proposal.submissionDate)}
                                   </span>
+                                </div>
+                              )}
+                              {proposal.adviserRemarks && (
+                                <div className="mt-2 text-xs text-blue-900 bg-blue-50/80 border border-blue-100 rounded-lg p-2 flex items-start gap-1.5">
+                                  <span className="font-bold uppercase tracking-wider text-[10px] text-blue-600 flex-shrink-0">Remarks:</span>
+                                  <span className="line-clamp-2">{proposal.adviserRemarks}</span>
                                 </div>
                               )}
                             </div>
@@ -2101,6 +2339,9 @@ const Projects: React.FC = () => {
                               <button
                                 onClick={() => {
                                   setCurrentProposal(proposal);
+                                  setHighlightMissingFields(false);
+                                  setShowSubmissionFailureModal(false);
+                                  setSubmissionFailureReasons([]);
                                   setIsEditingMode(false);
                                   setActiveView("form");
                                 }}
@@ -2113,6 +2354,9 @@ const Projects: React.FC = () => {
                                   <button
                                     onClick={() => {
                                       setCurrentProposal(proposal);
+                                      setHighlightMissingFields(false);
+                                      setShowSubmissionFailureModal(false);
+                                      setSubmissionFailureReasons([]);
                                       setIsEditingMode(true);
                                       setSaveStatus("All changes saved");
                                       setActiveView("form");
@@ -2200,36 +2444,13 @@ const Projects: React.FC = () => {
                   </div>
                   <div className="flex gap-3 w-full sm:w-auto items-center">
                     {isEditingMode && (
-                      <div className="flex items-center gap-2 px-4">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-100 shadow-2xs">
                         <span
                           className={`text-xs font-bold flex items-center gap-1.5 ${isSaving ? "text-gray-400 animate-pulse" : "text-green-600"}`}
                         >
                           {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />} {saveStatus}
                         </span>
                       </div>
-                    )}
-                    {isEditingMode && (
-                      <button
-                        onClick={() => handleSaveProposal("Pending")}
-                        disabled={
-                          isSubmitting ||
-                          checkBusinessName(currentProposal.businessName, copyrightDB || undefined).isCopyrighted ||
-                          checkTagline(currentProposal.tagline, copyrightDB || undefined).isCopyrighted ||
-                          checkTotalCapital(currentProposal.totalCapital).isNegative
-                        }
-                        className={`flex-1 sm:flex-none px-5 py-2.5 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                          isSubmitting ? "opacity-80 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            <span>Submitting to Adviser...</span>
-                          </>
-                        ) : (
-                          "Submit to Adviser"
-                        )}
-                      </button>
                     )}
                   </div>
                 </div>
@@ -2290,7 +2511,7 @@ const Projects: React.FC = () => {
                         OVERVIEW
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
+                        <div className={highlightMissingFields && (!currentProposal.businessType || currentProposal.businessType === "Other") ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             Business Type <span className="text-red-500">*</span>
                           </label>
@@ -2330,17 +2551,33 @@ const Projects: React.FC = () => {
                                     setCurrentProposal(updatedProposal);
                                   }}
                                   onBlur={() => handleAutoSave()}
-                                  className="w-full px-4 py-2.5 bg-white border border-[#c9a654]/40 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 rounded-lg outline-none text-sm font-medium transition-all shadow-sm"
+                                  className={`w-full px-4 py-2.5 bg-white border ${
+                                    highlightMissingFields && currentProposal.businessType === "Other"
+                                      ? "border-red-500 ring-1 ring-red-500/20"
+                                      : "border-[#c9a654]/40 focus:border-[#c9a654]"
+                                  } rounded-lg outline-none text-sm font-medium transition-all shadow-sm`}
                                 />
                               </div>
                             )}
+                          {highlightMissingFields && (!currentProposal.businessType || currentProposal.businessType === "Other") && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{currentProposal.businessType === "Other" ? "Please specify your custom business type." : "Business Type is required before submitting."}</span>
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                            Business Name <span className="text-red-500">*</span>
-                          </label>
+                        <div className={highlightMissingFields && !currentProposal.businessName?.trim() ? "field-has-error" : ""}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                              Business / Company Name <span className="text-red-500">*</span>
+                            </label>
+                            <span className="text-[10px] font-semibold text-gray-500">
+                              Official Verification: DTI & SEC
+                            </span>
+                          </div>
                           {(() => {
                             const check = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+                            const isMissing = highlightMissingFields && !currentProposal.businessName?.trim();
                             return (
                               <>
                                 <input
@@ -2356,7 +2593,7 @@ const Projects: React.FC = () => {
                                   onBlur={() => handleAutoSave()}
                                   placeholder="e.g. EggSarap"
                                   className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                    check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
                                   } rounded-lg outline-none text-sm font-medium transition-colors`}
                                 />
                                 {check.isCopyrighted && (
@@ -2365,9 +2602,22 @@ const Projects: React.FC = () => {
                                     <span>{check.errorMessage}</span>
                                   </p>
                                 )}
+                                {!check.isCopyrighted && isMissing && (
+                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                    <span>Business / Company Name is required before submitting.</span>
+                                  </p>
+                                )}
                               </>
                             );
                           })()}
+
+                          {/* Official DTI & SEC Name Checker Integration */}
+                          <div className="mt-2.5">
+                            <OfficialNameChecker
+                              currentName={currentProposal.businessName}
+                            />
+                          </div>
                         </div>
 
                         <div>
@@ -2425,12 +2675,13 @@ const Projects: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.totalCapital?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             Total Capital (₱) <span className="text-red-500">*</span>
                           </label>
                           {(() => {
                             const check = checkTotalCapital(currentProposal.totalCapital);
+                            const isMissing = highlightMissingFields && !currentProposal.totalCapital?.trim();
                             return (
                               <>
                                 <input
@@ -2466,7 +2717,7 @@ const Projects: React.FC = () => {
                                   onBlur={() => handleAutoSave()}
                                   placeholder="0.00"
                                   className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isNegative ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                    check.isNegative || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
                                   } rounded-lg outline-none text-sm font-medium transition-colors`}
                                 />
                                 {check.isNegative && (
@@ -2475,16 +2726,23 @@ const Projects: React.FC = () => {
                                     <span>{check.errorMessage}</span>
                                   </p>
                                 )}
+                                {!check.isNegative && isMissing && (
+                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                    <span>Total Capital is required before submitting.</span>
+                                  </p>
+                                )}
                               </>
                             );
                           })()}
                         </div>
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.tagline?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             Tagline <span className="text-red-500">*</span>
                           </label>
                           {(() => {
                             const check = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+                            const isMissing = highlightMissingFields && !currentProposal.tagline?.trim();
                             return (
                               <>
                                 <input
@@ -2499,7 +2757,7 @@ const Projects: React.FC = () => {
                                   }
                                   onBlur={() => handleAutoSave()}
                                   className={`w-full px-4 py-3 bg-gray-50 border ${
-                                    check.isCopyrighted ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                    check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
                                   } rounded-lg outline-none text-sm font-medium transition-colors`}
                                 />
                                 {check.isCopyrighted && (
@@ -2508,12 +2766,18 @@ const Projects: React.FC = () => {
                                     <span>{check.errorMessage}</span>
                                   </p>
                                 )}
+                                {!check.isCopyrighted && isMissing && (
+                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                    <span>Tagline is required before submitting.</span>
+                                  </p>
+                                )}
                               </>
                             );
                           })()}
                         </div>
                       </div>
-                      <div>
+                      <div className={highlightMissingFields && !currentProposal.targetMarket?.trim() ? "field-has-error" : ""}>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Target Market <span className="text-red-500">*</span>
                         </label>
@@ -2529,8 +2793,16 @@ const Projects: React.FC = () => {
                             })
                           }
                           onBlur={() => handleAutoSave()}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                          className={`w-full px-4 py-3 bg-gray-50 border ${
+                            highlightMissingFields && !currentProposal.targetMarket?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                          } rounded-lg outline-none text-sm resize-none font-medium`}
                         />
+                        {highlightMissingFields && !currentProposal.targetMarket?.trim() && (
+                          <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>Target Market is required before submitting.</span>
+                          </p>
+                        )}
                       </div>
                     </section>
 
@@ -2540,7 +2812,7 @@ const Projects: React.FC = () => {
                         MISSION & VISION
                       </h3>
                       <div className="space-y-6">
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.missionStatement?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Mission Statement <span className="text-red-500">*</span>
                           </label>
@@ -2555,10 +2827,18 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.missionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.missionStatement?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Mission Statement is required before submitting.</span>
+                            </p>
+                          )}
                         </div>
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.visionStatement?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Vision Statement <span className="text-red-500">*</span>
                           </label>
@@ -2573,8 +2853,16 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.visionStatement?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.visionStatement?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Vision Statement is required before submitting.</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </section>
@@ -2587,7 +2875,7 @@ const Projects: React.FC = () => {
                         PRODUCT & PRICING
                       </h3>
                       <div className="space-y-6">
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.productDescription?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Product Description <span className="text-red-500">*</span>
                           </label>
@@ -2603,10 +2891,18 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.productDescription?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.productDescription?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Product Description is required before submitting.</span>
+                            </p>
+                          )}
                         </div>
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.priceRanges?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Price Ranges <span className="text-red-500">*</span>
                           </label>
@@ -2622,8 +2918,16 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.priceRanges?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.priceRanges?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Price Ranges is required before submitting.</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </section>
@@ -3586,7 +3890,7 @@ const Projects: React.FC = () => {
                         PLACE AND PROMOTION
                       </h3>
                       <div className="space-y-6">
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.proposedLocation?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Proposed Location <span className="text-red-500">*</span>
                           </label>
@@ -3602,10 +3906,34 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.proposedLocation?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.proposedLocation?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Proposed Location is required before submitting.</span>
+                            </p>
+                          )}
+
+                          {/* Interactive Map Picker */}
+                          <div className="mt-3">
+                            <LocationPickerMap
+                              value={currentProposal.proposedLocation || ""}
+                              disabled={!isEditingMode}
+                              onChange={(newAddress) => {
+                                const updated = {
+                                  ...currentProposal,
+                                  proposedLocation: newAddress,
+                                };
+                                setCurrentProposal(updated);
+                                handleAutoSave(updated);
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div>
+                        <div className={highlightMissingFields && !currentProposal.promotionalStrategy?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                             Promotional Strategy <span className="text-red-500">*</span>
                           </label>
@@ -3621,8 +3949,16 @@ const Projects: React.FC = () => {
                               })
                             }
                             onBlur={() => handleAutoSave()}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none font-medium"
+                            className={`w-full px-4 py-3 bg-gray-50 border ${
+                              highlightMissingFields && !currentProposal.promotionalStrategy?.trim() ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                            } rounded-lg outline-none text-sm resize-none font-medium`}
                           />
+                          {highlightMissingFields && !currentProposal.promotionalStrategy?.trim() && (
+                            <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>Promotional Strategy is required before submitting.</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </section>
@@ -3653,6 +3989,46 @@ const Projects: React.FC = () => {
                         />
                       </div>
                     </section>
+
+                    {/* === BOTTOM SUBMIT & ACTION BAR === */}
+                    {isEditingMode && (
+                      <div className="pt-8 border-t-2 border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setActiveView("dashboard")}
+                            className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors"
+                          >
+                            <ChevronLeft className="w-4 h-4" /> Back to Proposals
+                          </button>
+                          <div className="flex items-center gap-2 px-3 border-l border-gray-200">
+                            <span
+                              className={`text-xs font-bold flex items-center gap-1.5 ${isSaving ? "text-gray-400 animate-pulse" : "text-green-600"}`}
+                            >
+                              {isSaving ? <Save size={14} /> : <CheckCircle2 size={14} />} {saveStatus}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveProposal("Pending")}
+                          disabled={isSubmitting}
+                          className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                            isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
+                          }`}
+                          title={isSubmitting ? "Submitting..." : "Submit proposal to adviser for review"}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin text-white" />
+                              <span>Submitting to Adviser...</span>
+                            </>
+                          ) : (
+                            "Submit to Adviser"
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3772,34 +4148,34 @@ const Projects: React.FC = () => {
 
                     <div className="space-y-6">
                       <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Tagline
                         </p>
-                        <p className="text-gray-800 font-bold text-lg">
+                        <p className="text-black font-bold text-lg">
                           {activeBusiness.tagline || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Mission Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.missionStatement || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Vision Statement
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.visionStatement || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Target Market
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.targetMarket || "None Provided"}
                         </p>
                       </div>
@@ -3807,34 +4183,34 @@ const Projects: React.FC = () => {
                       <div className="h-px bg-gray-100 my-4"></div>
 
                       <div>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Product Description
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.productDescription || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Specific Pricing
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.priceRanges || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Location
                         </p>
-                        <p className="text-gray-800 font-medium">
+                        <p className="text-black font-medium">
                           {activeBusiness.proposedLocation || "None Provided"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
                           Promotional Strategy
                         </p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-black text-sm leading-relaxed">
                           {activeBusiness.promotionalStrategy ||
                             "None Provided"}
                         </p>
@@ -4084,103 +4460,81 @@ const Projects: React.FC = () => {
       </main>
 
       {/* SETUP MODAL */}
-      {showSetupModal && (() => {
-        const nameSuggestions = companyNameQuery.trim().length >= 1
-          ? dtiCompanies.filter((n) =>
-              n.toLowerCase().includes(companyNameQuery.trim().toLowerCase())
-            ).slice(0, 8)
-          : [];
+      {showSetupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-
-              {/* Header */}
-              <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
-                <div className="w-full">
-                  <h2 className="text-2xl font-extrabold">Team Setup</h2>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
-                    {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowSetupModal(false)}
-                  className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
+              <div className="w-full">
+                <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
+                  {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
+                </p>
               </div>
+              <button
+                onClick={() => setShowSetupModal(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              <div className="p-6 overflow-y-auto space-y-7 flex-1 custom-scrollbar">
+            <div className="p-6 overflow-y-auto space-y-7 flex-1 custom-scrollbar">
 
-                {/* ─── SECTION: Team Information ─── */}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
-                  <div className="space-y-4">
+              {/* ─── SECTION: Team Information ─── */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#c9a654] mb-3 pb-1 border-b border-gray-100">Team Information</p>
+                <div className="space-y-4">
 
-                    {/* Company Name with autocomplete */}
-                    <div ref={companyNameRef} className="relative">
-                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider mb-1.5">
+                  {/* Company Name with live DTI & SEC Checker */}
+                  <div ref={companyNameRef} className="space-y-3">
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <label className="block text-xs font-bold text-[#122244] uppercase tracking-wider">
                         Company Name <span className="text-red-500">*</span>
                       </label>
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
+                        <span className="text-gray-500 font-semibold">Official Registries:</span>
+                        <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">DTI BNRS</span>
+                        <span className="text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">SEC eSPARC</span>
+                      </div>
+                    </div>
+
+                    <div className="relative">
                       <input
                         type="text"
                         value={companyNameQuery}
                         onChange={(e) => {
-                          setCompanyNameQuery(e.target.value);
-                          setSetupCompanyName(e.target.value);
-                          setShowNameSuggestions(true);
+                          const val = e.target.value;
+                          setCompanyNameQuery(val);
+                          setSetupCompanyName(val);
                           if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
                         }}
-                        onFocus={() => setShowNameSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowNameSuggestions(false), 150)}
-                        placeholder="Type to search or enter a unique business name..."
+                        placeholder="Enter proposed company or business name..."
                         className={`w-full px-4 py-3 bg-gray-50 border ${
                           setupErrors.companyName
                             ? "border-red-400 bg-red-50/20"
-                            : (!setupErrors.companyName && companyNameQuery.trim().length > 0 && dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()))
-                              ? "border-amber-400 bg-amber-50/20"
-                              : "border-gray-200"
+                            : "border-gray-200"
                         } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
                       />
-                      {/* Submit-time error */}
-                      {setupErrors.companyName && (
-                        <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />{setupErrors.companyName}
-                        </p>
-                      )}
-                      {/* Real-time duplicate warning (live, before submit) */}
-                      {!setupErrors.companyName && companyNameQuery.trim().length > 0 &&
-                        dtiCompanies.some(n => n.toLowerCase() === companyNameQuery.trim().toLowerCase()) && (
-                        <p className="text-amber-600 text-[11px] font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                          This business name is already registered in the DTI list. You cannot use this name — please enter a unique one.
-                        </p>
-                      )}
-                      {/* Suggestions dropdown */}
-                      {showNameSuggestions && nameSuggestions.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
-                          {nameSuggestions.map((name) => (
-                            <button
-                              key={name}
-                              type="button"
-                              onMouseDown={() => {
-                                setSetupCompanyName(name);
-                                setCompanyNameQuery(name);
-                                setShowNameSuggestions(false);
-                                if (setupErrors.companyName) setSetupErrors(prev => ({ ...prev, companyName: "" }));
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-[#122244] hover:bg-amber-50 hover:text-[#c9a654] font-medium transition-colors"
-                            >
-                              {name}
-                            </button>
-                          ))}
-                          <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-50 italic">
-                            Data reference: DTI Business Name Registration System
-                          </div>
-                        </div>
-                      )}
                     </div>
+
+                    {/* Submit-time error */}
+                    {setupErrors.companyName && (
+                      <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />{setupErrors.companyName}
+                      </p>
+                    )}
+
+                    {/* Official Live Name Verification Widget */}
+                    <OfficialNameChecker
+                      currentName={companyNameQuery}
+                      onCheckComplete={(provider, res) => {
+                        if (provider === "DTI") setSetupDtiResult(res);
+                        if (provider === "SEC") setSetupSecResult(res);
+                      }}
+                    />
+                  </div>
 
                     {/* Company Logo */}
                     <div>
@@ -4380,8 +4734,7 @@ const Projects: React.FC = () => {
 
             </div>
           </div>
-        );
-      })()}
+        )}
 
       {/* ROSTER MODAL */}
       {showRosterModal && (
@@ -4577,9 +4930,14 @@ const Projects: React.FC = () => {
                   </h4>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-                    Business Name <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block">
+                      Business / Company Name <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[9px] font-semibold text-gray-500">
+                      Official DTI & SEC Check
+                    </span>
+                  </div>
                   {(() => {
                     const check = checkBusinessName(editBasicData.businessName, copyrightDB || undefined);
                     return (
@@ -4606,6 +4964,12 @@ const Projects: React.FC = () => {
                       </>
                     );
                   })()}
+
+                  <div className="mt-2">
+                    <OfficialNameChecker
+                      currentName={editBasicData.businessName}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
@@ -4943,20 +5307,127 @@ const Projects: React.FC = () => {
           </div>
         </div>
       )}
+      {/* SUBMISSION FAILURE MODAL */}
+      {showSubmissionFailureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 sm:p-8 animate-in zoom-in-95 duration-200 border border-red-100 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-extrabold text-red-600 tracking-tight">
+                  Proposal Submission Failed
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Your proposal could not be submitted to the adviser due to the following reason{submissionFailureReasons.length > 1 ? "s" : ""}:
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSubmissionFailureModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Reasons List */}
+            <div className="overflow-y-auto space-y-3.5 pr-1 my-2 flex-1">
+              {submissionFailureReasons.map((reason, idx) => (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-xl border text-left ${
+                    reason.type === "missing"
+                      ? "bg-amber-50/70 border-amber-200 text-amber-900"
+                      : reason.type === "quota"
+                      ? "bg-blue-50/70 border-blue-200 text-blue-900"
+                      : "bg-red-50/70 border-red-200 text-red-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold text-sm mb-1">
+                    {reason.type === "missing" ? (
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    ) : reason.type === "quota" ? (
+                      <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    )}
+                    <span>{reason.title}</span>
+                  </div>
+                  <p className="text-xs leading-relaxed opacity-90">
+                    {reason.description}
+                  </p>
+
+                  {/* If items array exists (e.g. missing fields list), render clean chips */}
+                  {reason.items && reason.items.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-amber-200/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-2">
+                        Missing Required Field{reason.items.length > 1 ? "s" : ""}:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {reason.items.map((item, itemIdx) => (
+                          <span
+                            key={itemIdx}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white border border-amber-300 text-amber-900 shadow-2xs"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="pt-4 mt-2 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSubmissionFailureModal(false);
+                  setTimeout(() => {
+                    const firstMissing = document.querySelector(".field-has-error");
+                    if (firstMissing) {
+                      firstMissing.scrollIntoView({ behavior: "smooth", block: "center" });
+                      const input = firstMissing.querySelector("input, textarea, select") as HTMLElement | null;
+                      if (input) input.focus();
+                    }
+                  }, 150);
+                }}
+                className="w-full sm:w-auto px-6 py-2.5 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-sm rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Review & Complete Proposal</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showToast && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
-          <AlertCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
-          <div className="flex-1">
+        <div className={`fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 ${
+          toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
+            ? "border-red-500"
+            : "border-[#c9a654]"
+        } shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-start gap-4 w-11/12 max-w-lg`}>
+          <AlertCircle className={`w-7 h-7 shrink-0 ${
+            toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
+              ? "text-red-500"
+              : "text-[#c9a654]"
+          }`} />
+          <div className="flex-1 min-w-0">
             <h4 className="font-bold text-gray-900 text-base">
               {toastTitle}
             </h4>
-            <p className="text-gray-600 text-sm mt-1">
+            <p className="text-gray-600 text-sm mt-1 whitespace-pre-line break-words">
               {toastMessage}
             </p>
           </div>
           <button
             onClick={() => setShowToast(false)}
-            className="text-gray-400 hover:text-gray-600 self-start mt-1"
+            className="text-gray-400 hover:text-gray-600 self-start mt-1 p-1"
+            aria-label="Dismiss notification"
           >
             <X className="w-5 h-5" />
           </button>
