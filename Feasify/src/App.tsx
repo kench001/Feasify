@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 // Import your modules
@@ -9,7 +9,6 @@ import Financial_input from "./Financial_input";
 import AI_Analysis from "./AI_Analysis";
 import Reports from "./Reports";
 import Messages from "./Messages";
-import Profile from "./Profile";
 import SettingsPage from "./Settings";
 import ChairpersonSettings from "./ChairpersonSettings";
 import Notifications from "./Notifications";
@@ -20,10 +19,6 @@ import ChairpersonFeasib from "./ChairpersonFeasib";
 import AdviserDashboard from "./AdviserDashboard";
 import AdviserSettings from "./AdviserSettings";
 import AdviserAIRules from "./AdviserAIRules";
-import AdviserProfile from "./AdviserProfile";
-import ChairpersonProfile from "./ChairpersonProfile";
-import AdviserAuditTrail from "./AdviserAuditTrail";
-import ChairpersonAuditTrail from "./ChairpersonAuditTrail";
 import ResetPassword from "./ResetPassword";
 
 function App() {
@@ -57,33 +52,28 @@ function App() {
         {/* Messages module */}
         <Route path="/messages" element={<Messages />} />
 
-        {/* Profile module */}
-        <Route path="/profile" element={<Profile />} />
-
-        {/* Settings module */}
-        <Route path="/settings" element={<SettingsPage />} />
-        
-        {/* Chairperson Settings module */}
-        <Route path="/admin/chairpersonsettings" element={<ChairpersonSettings />} />
-        
+        {/* Student Profile / Settings module (combined in Settings with tabs) */}
+        <Route path="/profile" element={<SettingsPage defaultTab="profile" />} />
+        <Route path="/settings" element={<SettingsPage defaultTab="profile" />} />
+        <Route path="/audit-trail" element={<SettingsPage defaultTab="audit" />} />
         <Route path="/notifications" element={<Notifications />} />
 
-        {/* Admin Modules */}
+        {/* Admin / Chairperson Modules */}
         <Route path="/admin/users" element={<ChairpersonModule />} />
-        <Route path="/admin/projects" element={<ChairpersonFeasib />} /> {/* <-- Add this route */}
+        <Route path="/admin/projects" element={<ChairpersonFeasib />} />
         <Route path="/admin/chairpersonnotification" element={<ChairpersonNotifications />} />
-        <Route path="/admin/audit-trail" element={<ChairpersonAuditTrail />} />
+        <Route path="/admin/chairpersonsettings" element={<ChairpersonSettings defaultTab="profile" />} />
+        <Route path="/admin/settings" element={<ChairpersonSettings defaultTab="profile" />} />
+        <Route path="/admin/profile" element={<ChairpersonSettings defaultTab="profile" />} />
+        <Route path="/admin/audit-trail" element={<ChairpersonSettings defaultTab="audit" />} />
 
         {/* Adviser Modules */}
         <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
-        <Route path="/adviser/profile" element={<AdviserProfile />} />
-        <Route path="/adviser/settings" element={<AdviserSettings />} />
+        <Route path="/adviser/profile" element={<AdviserSettings defaultTab="profile" />} />
+        <Route path="/adviser/settings" element={<AdviserSettings defaultTab="profile" />} />
+        <Route path="/adviser/audit-trail" element={<AdviserSettings defaultTab="audit" />} />
         <Route path="/adviser/airules" element={<AdviserAIRules />} />
         <Route path="/adviser/notifications" element={<AdviserNotifications />} />
-        <Route path="/adviser/audit-trail" element={<AdviserAuditTrail />} />
-        
-        {/* Chairperson Profile */}
-        <Route path="/admin/profile" element={<ChairpersonProfile />} />
       </Routes>
     </Router>
     </SkeletonTheme>

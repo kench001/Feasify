@@ -272,18 +272,12 @@ const ChairpersonFeasib: React.FC = () => {
               <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">
                 <FileText className="w-5 h-5" /> Business Feasibility Management
               </button>
-              <button onClick={() => navigate('/admin/audit-trail')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Clock className="w-5 h-5" /> Audit Trail
-              </button>
             </div>
           </div>
 
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button onClick={() => navigate('/admin/profile')}className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <User className="w-5 h-5" /> Profile
-              </button>
               <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
                 <Settings className="w-5 h-5" /> Settings
               </button>
