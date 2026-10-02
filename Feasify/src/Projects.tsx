@@ -2495,20 +2495,35 @@ const Projects: React.FC = () => {
                                   <FileText className="w-4 h-4" /> View Details
                                 </button>
                               ) : (
-                                <button
-                                  onClick={() => {
-                                    setCurrentProposal(proposal);
-                                    setShowLockInModal(true);
-                                  }}
-                                  disabled={!!activeBusiness}
-                                  className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${activeBusiness
-                                      ? "bg-gray-400 cursor-not-allowed opacity-70"
-                                      : "bg-green-600 hover:bg-green-700 shadow-md"
-                                    }`}
-                                  title={activeBusiness ? "Another business is already setup" : ""}
-                                >
-                                  Setup Approved Business
-                                </button>
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                  <button
+                                    onClick={() => {
+                                      setCurrentProposal(proposal);
+                                      setHighlightMissingFields(false);
+                                      setShowSubmissionFailureModal(false);
+                                      setSubmissionFailureReasons([]);
+                                      setIsEditingMode(false);
+                                      setActiveView("form");
+                                    }}
+                                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-lg flex items-center gap-1.5 transition-colors"
+                                  >
+                                    <FileText className="w-4 h-4" /> View
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setCurrentProposal(proposal);
+                                      setShowLockInModal(true);
+                                    }}
+                                    disabled={!!activeBusiness}
+                                    className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto flex items-center justify-center gap-1.5 transition-all ${activeBusiness
+                                        ? "bg-gray-400 cursor-not-allowed opacity-70"
+                                        : "bg-green-600 hover:bg-green-700 shadow-md"
+                                      }`}
+                                    title={activeBusiness ? "Another business is already setup" : "Activate this approved proposal as the official business"}
+                                  >
+                                    <Zap className="w-4 h-4" /> Activate Business
+                                  </button>
+                                </div>
                               )
                             ) : (
                               <>
@@ -2738,58 +2753,6 @@ const Projects: React.FC = () => {
                             </p>
                           )}
                         </div>
-                        <div className={highlightMissingFields && !currentProposal.businessName?.trim() ? "field-has-error" : ""}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                              Business / Company Name <span className="text-red-500">*</span>
-                            </label>
-                            <span className="text-[10px] font-semibold text-gray-500">
-                              Official Verification: DTI & SEC
-                            </span>
-                          </div>
-                          {(() => {
-                            const check = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
-                            const isMissing = highlightMissingFields && !currentProposal.businessName?.trim();
-                            return (
-                              <>
-                                <input
-                                  disabled={!isEditingMode}
-                                  type="text"
-                                  value={currentProposal.businessName}
-                                  onChange={(e) =>
-                                    setCurrentProposal({
-                                      ...currentProposal,
-                                      businessName: e.target.value,
-                                    })
-                                  }
-                                  onBlur={() => handleAutoSave()}
-                                  placeholder="e.g. EggSarap"
-                                  className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                    } rounded-lg outline-none text-sm font-medium transition-colors`}
-                                />
-                                {check.isCopyrighted && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>{check.errorMessage}</span>
-                                  </p>
-                                )}
-                                {!check.isCopyrighted && isMissing && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>Business / Company Name is required before submitting.</span>
-                                  </p>
-                                )}
-                              </>
-                            );
-                          })()}
-
-                          {/* Official DTI & SEC Name Checker Integration */}
-                          <div className="mt-2.5">
-                            <OfficialNameChecker
-                              currentName={currentProposal.businessName}
-                            />
-                          </div>
-                        </div>
 
                         <div>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -2846,91 +2809,121 @@ const Projects: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className={highlightMissingFields && !currentProposal.totalCapital?.trim() ? "field-has-error" : ""}>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                              Total Capital (₱) <span className="text-red-500">*</span>
-                            </label>
-                            {(() => {
-                              const check = checkTotalCapital(currentProposal.totalCapital);
-                              const isMissing = highlightMissingFields && !currentProposal.totalCapital?.trim();
-                              return (
-                                <>
-                                  <input
-                                    disabled={!isEditingMode}
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={currentProposal.totalCapital}
-                                    onKeyDown={(e) => {
-                                      if (
-                                        !/[0-9]/.test(e.key) &&
-                                        e.key !== "Backspace" &&
-                                        e.key !== "Delete" &&
-                                        e.key !== "Tab" &&
-                                        e.key !== "ArrowLeft" &&
-                                        e.key !== "ArrowRight" &&
-                                        e.key !== "Home" &&
-                                        e.key !== "End" &&
-                                        !(e.key === "." && !(currentProposal.totalCapital || "").includes(".")) &&
-                                        !e.ctrlKey &&
-                                        !e.metaKey
-                                      ) {
-                                        e.preventDefault();
-                                      }
-                                    }}
-                                    onChange={(e) => {
-                                      let val = e.target.value.replace(/[^0-9.]/g, "");
-                                      const parts = val.split(".");
-                                      if (parts.length > 2) {
-                                        val = parts[0] + "." + parts.slice(1).join("");
-                                      }
-                                      updateFinancialData({ startupCapital: val });
-                                    }}
-                                    onBlur={() => handleAutoSave()}
-                                    placeholder="0.00"
-                                    className={`w-full px-4 py-3 bg-gray-50 border ${check.isNegative || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                      } rounded-lg outline-none text-sm font-medium transition-colors`}
-                                  />
-                                  {check.isNegative && (
-                                    <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                      <span>{check.errorMessage}</span>
-                                    </p>
-                                  )}
-                                  {!check.isNegative && isMissing && (
-                                    <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                      <span>Total Capital is required before submitting.</span>
-                                    </p>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
+                      </div>
 
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                              Number of Contributors / Investors
-                            </label>
-                            <input
-                              disabled={!isEditingMode}
-                              type="number"
-                              min="1"
-                              max="50"
-                              value={currentProposal.contributorsCount || "1"}
-                              onKeyDown={handlePreventNegative}
-                              onPaste={handlePasteNonNegative}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                updateFinancialData({ contributorsCount: val });
-                              }}
-                              onBlur={() => handleAutoSave()}
-                              placeholder="1"
-                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm font-medium transition-colors focus:border-[#c9a654]"
-                            />
-                            <p className="text-[10px] text-gray-400 mt-1">Number of partners contributing to initial startup capital</p>
-                          </div>
+                      <div className={`mb-6 ${highlightMissingFields && !currentProposal.businessName?.trim() ? "field-has-error" : ""}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                            Business Name <span className="text-red-500">*</span>
+                          </label>
+                          <span className="text-[10px] font-semibold text-gray-500">
+                            Official Verification: DTI & SEC
+                          </span>
                         </div>
+                        {(() => {
+                          const check = checkBusinessName(currentProposal.businessName, copyrightDB || undefined);
+                          const isMissing = highlightMissingFields && !currentProposal.businessName?.trim();
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.businessName}
+                                onChange={(e) =>
+                                  setCurrentProposal({
+                                    ...currentProposal,
+                                    businessName: e.target.value,
+                                  })
+                                }
+                                onBlur={() => handleAutoSave()}
+                                placeholder="e.g. EggSarap"
+                                className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isCopyrighted && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                              {!check.isCopyrighted && isMissing && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>Business Name is required before submitting.</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {/* Official DTI & SEC Name Checker Integration */}
+                        <div className="mt-3">
+                          <OfficialNameChecker
+                            currentName={currentProposal.businessName}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={`mb-6 ${highlightMissingFields && !currentProposal.totalCapital?.trim() ? "field-has-error" : ""}`}>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                          Total Capital (₱) <span className="text-red-500">*</span>
+                        </label>
+                        {(() => {
+                          const check = checkTotalCapital(currentProposal.totalCapital);
+                          const isMissing = highlightMissingFields && !currentProposal.totalCapital?.trim();
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                inputMode="decimal"
+                                value={currentProposal.totalCapital}
+                                onKeyDown={(e) => {
+                                  if (
+                                    !/[0-9]/.test(e.key) &&
+                                    e.key !== "Backspace" &&
+                                    e.key !== "Delete" &&
+                                    e.key !== "Tab" &&
+                                    e.key !== "ArrowLeft" &&
+                                    e.key !== "ArrowRight" &&
+                                    e.key !== "Home" &&
+                                    e.key !== "End" &&
+                                    !(e.key === "." && !(currentProposal.totalCapital || "").includes(".")) &&
+                                    !e.ctrlKey &&
+                                    !e.metaKey
+                                  ) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  let val = e.target.value.replace(/[^0-9.]/g, "");
+                                  const parts = val.split(".");
+                                  if (parts.length > 2) {
+                                    val = parts[0] + "." + parts.slice(1).join("");
+                                  }
+                                  updateFinancialData({ startupCapital: val });
+                                }}
+                                onBlur={() => handleAutoSave()}
+                                placeholder="0.00"
+                                className={`w-full px-4 py-3 bg-gray-50 border ${check.isNegative || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isNegative && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                              {!check.isNegative && isMissing && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>Total Capital is required before submitting.</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                         <div className={highlightMissingFields && !currentProposal.tagline?.trim() ? "field-has-error" : ""}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                             Tagline <span className="text-red-500">*</span>
@@ -2970,8 +2963,7 @@ const Projects: React.FC = () => {
                             );
                           })()}
                         </div>
-                      </div>
-                      <div className={highlightMissingFields && !currentProposal.targetMarket?.trim() ? "field-has-error" : ""}>
+                        <div className={highlightMissingFields && !currentProposal.targetMarket?.trim() ? "field-has-error" : ""}>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Target Market <span className="text-red-500">*</span>
                         </label>
@@ -4342,33 +4334,45 @@ const Projects: React.FC = () => {
         </div>
       )}
 
-      {/* LOCK-IN MODAL */}
+      {/* LOCK-IN / ACTIVATE BUSINESS MODAL */}
       {showLockInModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm text-[#122244]">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center">
-            <Zap className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Zap className="w-8 h-8 text-green-600" />
+            </div>
             <h2 className="text-2xl font-extrabold mb-2">
-              Set as Active Business?
+              Activate Business?
             </h2>
-            <p className="text-sm text-gray-500 mb-8">
-              Lock in{" "}
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to activate{" "}
               <span className="font-bold text-[#122244]">
-                {currentProposal.businessName}
+                "{currentProposal.businessName}"
               </span>{" "}
-              as official business?
+              as your group's official active business?
             </p>
+            <div className="p-3 bg-green-50/80 border border-green-200 rounded-lg text-left text-xs text-green-900 mb-6 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                What happens next:
+              </p>
+              <ul className="list-disc pl-4 text-[11px] text-green-800 space-y-0.5">
+                <li>Locks in this proposal as your active feasibility workspace.</li>
+                <li>Unlocks complete financial inputs and AI feasibility analysis.</li>
+              </ul>
+            </div>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLockInModal(false)}
-                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg"
+                className="px-5 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLockInBusiness}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-md transition-colors"
+                className="px-5 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg shadow-md hover:bg-green-700 transition-colors flex items-center gap-1.5"
               >
-                Proceed
+                <Zap className="w-4 h-4" /> Activate Business
               </button>
             </div>
           </div>

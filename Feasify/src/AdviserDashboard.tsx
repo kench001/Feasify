@@ -837,27 +837,15 @@ const AdviserDashboard: React.FC = () => {
         }
         await updateDoc(doc(db, "groups", targetGroup.id), {
           status: newGroupStatus,
-          businessName: proposal.businessName,
-          businessLogo: proposal.businessLogo || "",
-          title: proposal.businessName,
-          activeProposalId: proposal.id
         });
         setGroups(prev => prev.map(g => g.id === targetGroup.id ? {
           ...g,
           status: newGroupStatus,
-          businessName: proposal.businessName,
-          businessLogo: proposal.businessLogo || "",
-          title: proposal.businessName,
-          activeProposalId: proposal.id
         } : g));
         if (selectedGroup && selectedGroup.id === targetGroup.id) {
           setSelectedGroup(prev => prev ? {
             ...prev,
             status: newGroupStatus,
-            businessName: proposal.businessName,
-            businessLogo: proposal.businessLogo || "",
-            title: proposal.businessName,
-            activeProposalId: proposal.id
           } : null);
         }
       }
@@ -1054,25 +1042,25 @@ const AdviserDashboard: React.FC = () => {
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-4 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-xl border-l-4 border-l-emerald-500 p-4 shadow-sm border border-gray-100">
                 <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Revenue</span>
-                <p className="text-xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
+                <p className="text-xl font-black text-emerald-600">₱{monthlyRevenue.toLocaleString()}</p>
               </div>
               <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100">
                 <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Expenses</span>
-                <p className="text-xl font-black text-[#122244]">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
+                <p className="text-xl font-black text-red-600">₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl border-l-4 border-l-[#c9a654] p-4 shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-gray-400 uppercase block">Break-Even Point</span>
+                <p className="text-xl font-black text-[#c9a654]">{breakEvenUnits} <span className="text-[10px] text-gray-400 font-normal">units</span></p>
               </div>
               <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100">
-                <span className="text-[9px] font-bold text-gray-400 uppercase block">Break-Even Point</span>
-                <p className="text-xl font-black text-[#122244]">{breakEvenUnits} <span className="text-[10px] text-gray-400 font-normal">units</span></p>
-              </div>
-              <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-4 shadow-sm border border-gray-100">
                 <span className="text-[9px] font-bold text-gray-400 uppercase block">Gross Margin</span>
-                <p className="text-xl font-black text-purple-700">{grossProfitMargin.toFixed(1)}%</p>
+                <p className={`text-xl font-black ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}>{grossProfitMargin.toFixed(1)}%</p>
               </div>
-              <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-[#c9a654]" : "border-l-red-500"}`}>
+              <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
                 <span className="text-[9px] font-bold text-gray-400 uppercase block">Net Profit / Mo</span>
-                <p className={`text-xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-[#122244]"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
+                <p className={`text-xl font-black ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}>₱{netMonthlyProfit.toLocaleString()}</p>
               </div>
             </div>
 

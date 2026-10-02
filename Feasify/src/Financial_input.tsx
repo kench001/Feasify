@@ -2545,12 +2545,12 @@ return (
                 {/* HERO METRIC CARDS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
                   {/* 1. Monthly Revenue */}
-                  <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                  <div className="bg-white rounded-xl border-l-4 border-l-emerald-500 p-5 shadow-sm text-center flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         Monthly Revenue
                       </span>
-                      <p className="text-2xl font-black text-green-700 mt-1">
+                      <p className="text-2xl font-black text-emerald-600 mt-1">
                         ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
@@ -2603,12 +2603,12 @@ return (
                   </div>
 
                   {/* 3. Break-Even Point */}
-                  <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                  <div className="bg-white rounded-xl border-l-4 border-l-[#c9a654] p-5 shadow-sm text-center flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         Break-Even Point
                       </span>
-                      <p className="text-2xl font-black text-blue-700 mt-1">
+                      <p className="text-2xl font-black text-[#c9a654] mt-1">
                         {typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits}{" "}
                         <span className="text-xs text-gray-400 font-bold">units</span>
                       </p>
@@ -2622,12 +2622,12 @@ return (
                   </div>
 
                   {/* 4. Gross Margin */}
-                  <div className="bg-white rounded-xl border-l-4 border-l-purple-500 p-5 shadow-sm text-center flex flex-col justify-between">
+                  <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-5 shadow-sm text-center flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         Gross Margin
                       </span>
-                      <p className={`text-2xl font-black mt-1 ${grossProfitMargin >= 0 ? "text-purple-700" : "text-red-500"}`}>
+                      <p className={`text-2xl font-black mt-1 ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}>
                         {grossProfitMargin.toFixed(1)}%
                       </p>
                     </div>
@@ -2640,16 +2640,13 @@ return (
                   </div>
 
                   {/* 5. Net Profit / Month */}
-                  <div
-                    className={`bg-white rounded-xl border-l-4 p-5 shadow-sm text-center flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"
-                      }`}
-                  >
+                  <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm text-center flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
                     <div>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         Net Profit / mo
                       </span>
                       <p
-                        className={`text-2xl font-black mt-1 ${netMonthlyProfit < 0 ? "text-red-600" : "text-emerald-700"
+                        className={`text-2xl font-black mt-1 ${netMonthlyProfit < 0 ? "text-red-600" : "text-emerald-600"
                           }`}
                       >
                         {netMonthlyProfit < 0 ? "-" : ""}₱{Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -2815,7 +2812,7 @@ return (
                                 </div>
 
                                 {/* 2. Batches per Month (Editable) */}
-                                <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-emerald-300/80 transition-colors">
+                                <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
                                     Batches / Mo
                                   </label>
@@ -2834,9 +2831,9 @@ return (
                                       }
                                     }}
                                     onBlur={() => handleAutoSave()}
-                                    className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-emerald-800 focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                    className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#c9a654] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
                                   />
-                                  <span className="text-[9px] text-emerald-600 font-semibold block mt-1">
+                                  <span className="text-[9px] text-[#b59545] font-semibold block mt-1">
                                     {metrics.totalUnitsProduced.toLocaleString()} pcs nagawa
                                   </span>
                                 </div>
@@ -2889,14 +2886,14 @@ return (
                                 </div>
 
                                 {/* 5. Cost per Unit (COGS) */}
-                                <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200/70 transition-colors col-span-2 sm:col-span-1 flex flex-col justify-between">
+                                <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors col-span-2 sm:col-span-1 flex flex-col justify-between">
                                   <div>
-                                    <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">Cost / Unit (COGS)</span>
-                                    <p className="text-sm font-black text-blue-950 mt-1.5">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Unit (COGS)</span>
+                                    <p className="text-sm font-black text-[#122244] mt-1.5">
                                       ₱{metrics.unitCost.toFixed(2)}
                                     </p>
                                   </div>
-                                  <span className="text-[9px] text-blue-700 font-semibold mt-1">
+                                  <span className="text-[9px] text-gray-500 font-semibold mt-1">
                                     {metrics.sellingPrice > 0 ? `Target SRP: ₱${metrics.sellingPrice.toFixed(2)}` : "Unit cost"}
                                   </span>
                                 </div>
@@ -3518,35 +3515,12 @@ return (
                       <tbody className="divide-y divide-gray-100">
                         {financials.opexList && financials.opexList.map((item, index) => {
                           const isPositive = Number(item.amount) > 0;
-                          const categoryBadgeStyle = (() => {
-                            switch (item.category) {
-                              case "Facility & Lease":
-                                return "bg-amber-50 text-amber-800 border-amber-200";
-                              case "Payroll & Labor":
-                                return "bg-blue-50 text-blue-800 border-blue-200";
-                              case "Utilities":
-                                return "bg-cyan-50 text-cyan-800 border-cyan-200";
-                              case "Utilities & Tech":
-                                return "bg-indigo-50 text-indigo-800 border-indigo-200";
-                              case "Marketing & Growth":
-                                return "bg-purple-50 text-purple-800 border-purple-200";
-                              case "Logistics":
-                                return "bg-orange-50 text-orange-800 border-orange-200";
-                              case "Consumables":
-                                return "bg-emerald-50 text-emerald-800 border-emerald-200";
-                              case "Facility Upkeep":
-                                return "bg-slate-100 text-slate-800 border-slate-200";
-                              case "Admin & Misc":
-                                return "bg-gray-100 text-gray-800 border-gray-200";
-                              default:
-                                return "bg-teal-50 text-teal-800 border-teal-200";
-                            }
-                          })();
+                          const categoryBadgeStyle = "bg-amber-50 text-amber-800 border-amber-200";
 
                           return (
                             <tr
                               key={item.id || index}
-                              className={`transition-colors ${isPositive ? "bg-blue-50/20 hover:bg-blue-50/40" : "hover:bg-gray-50/50"}`}
+                              className="transition-colors hover:bg-gray-50/50"
                             >
                               <td className="p-3 pl-5 align-middle">
                                 <span className={`inline-block px-2.5 py-1 text-[10px] font-extrabold rounded-md border uppercase tracking-wider ${categoryBadgeStyle}`}>
@@ -3580,7 +3554,7 @@ return (
                               </td>
                               <td className="p-3 align-middle">
                                 <div className="relative">
-                                  <span className={`absolute left-3 top-2 text-xs font-bold ${isPositive ? "text-emerald-600" : "text-gray-400"}`}>
+                                  <span className="absolute left-3 top-2 text-xs font-bold text-gray-400">
                                     ₱
                                   </span>
                                   <input
@@ -3608,11 +3582,8 @@ return (
                                       }
                                     }}
                                     onBlur={() => handleAutoSave()}
-                                    className={`w-full pl-7 pr-3 py-2 border rounded-lg text-xs font-black text-right outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed ${isPositive
-                                        ? "bg-emerald-50/40 border-emerald-300 text-emerald-950 focus:border-emerald-500"
-                                        : "bg-white border-gray-200 text-gray-600 focus:border-[#c9a654]"
-                                      }`}
-                                    />
+                                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black text-right text-[#122244] focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                  />
                                 </div>
                               </td>
                               {!isInputsBlocked && (
