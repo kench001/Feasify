@@ -27,6 +27,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { logAuditEvent } from "./services/auditLogger";
+import { sendNotification } from "./services/notificationService";
 import {
   LayoutDashboard,
   Folder,
@@ -362,7 +363,7 @@ const Projects: React.FC = () => {
   const [userUid, setUserUid] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [unreadNotificationCount, _setUnreadNotificationCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [userGroup, setUserGroup] = useState<GroupData | null>(null);
   const [isLeader, setIsLeader] = useState(false);
@@ -488,11 +489,13 @@ const Projects: React.FC = () => {
   useEffect(() => {
     let unsubGroup: (() => void) | undefined;
     let unsubProposals: (() => void) | undefined;
+    let unsubNotif: (() => void) | undefined;
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       // Clean up previous listeners when auth state changes
       if (unsubGroup) { unsubGroup(); unsubGroup = undefined; }
       if (unsubProposals) { unsubProposals(); unsubProposals = undefined; }
+      if (unsubNotif) { unsubNotif(); unsubNotif = undefined; }
 
       if (!u) {
         navigate("/");
@@ -518,12 +521,23 @@ const Projects: React.FC = () => {
         setIsLoading(false);
         setActiveView("no-group");
       }
+
+      // Real-time unread notification count
+      const notifQ = query(
+        collection(db, "notifications"),
+        where("userId", "==", u.uid),
+        where("isRead", "==", false)
+      );
+      unsubNotif = onSnapshot(notifQ, (snap) => {
+        setUnreadNotificationCount(snap.size);
+      }, (err) => console.error("Notification badge error:", err));
     });
 
     return () => {
       unsubAuth();
       if (unsubGroup) unsubGroup();
       if (unsubProposals) unsubProposals();
+      if (unsubNotif) unsubNotif();
     };
   }, [navigate]);
 
@@ -1742,6 +1756,33 @@ const Projects: React.FC = () => {
         setUserGroup((prev) =>
           prev ? { ...prev, status: "Pending Review" } : null,
         );
+
+        // Send Notification to Adviser
+        try {
+          let targetFacultyId = resolvedFacultyId;
+          if (!targetFacultyId && userGroup.section) {
+            const advQ = query(collection(db, "users"), where("role", "==", "Adviser"));
+            const advSnap = await getDocs(advQ);
+            advSnap.forEach((d) => {
+              const advData = d.data();
+              if (advData.section && advData.section.split(",").map((s: string) => s.trim()).includes(userGroup.section)) {
+                targetFacultyId = d.id;
+              }
+            });
+          }
+          if (targetFacultyId) {
+            sendNotification({
+              userId: targetFacultyId,
+              title: "New Proposal Submitted",
+              message: `Team "${userGroup.companyName || userGroup.title}" submitted proposal "${proposalData.businessName}" for review.`,
+              type: "proposal",
+              link: "/adviser/dashboard",
+              senderName: userName
+            }).catch(err => console.error("Adviser notification failed:", err));
+          }
+        } catch (notifErr) {
+          console.error("Adviser notification query failed:", notifErr);
+        }
       }
       await fetchProposals(userGroup.id);
       setActiveView("dashboard");
@@ -1824,6 +1865,33 @@ const Projects: React.FC = () => {
           }
           : null,
       );
+
+      // Notify Adviser of Business Activation
+      try {
+        let targetFacultyId = adviserData?.id || adviserData?.facultyId || userGroup?.facultyId || "";
+        if (!targetFacultyId && userGroup.section) {
+          const advQ = query(collection(db, "users"), where("role", "==", "Adviser"));
+          const advSnap = await getDocs(advQ);
+          advSnap.forEach((d) => {
+            const advData = d.data();
+            if (advData.section && advData.section.split(",").map((s: string) => s.trim()).includes(userGroup.section)) {
+              targetFacultyId = d.id;
+            }
+          });
+        }
+        if (targetFacultyId) {
+          sendNotification({
+            userId: targetFacultyId,
+            title: "Business Activated",
+            message: `Team "${userGroup.companyName || userGroup.title}" has officially activated their business "${currentProposal.businessName}".`,
+            type: "group",
+            link: "/adviser/dashboard",
+            senderName: userName
+          }).catch(err => console.error("Adviser activation notification failed:", err));
+        }
+      } catch (notifErr) {
+        console.error("Adviser activation notification query failed:", notifErr);
+      }
 
       setShowLockInModal(false);
       setActiveView("active-business");

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
 import { logAuditEvent } from "./services/auditLogger";
+import { sendNotification, sendBatchNotification } from "./services/notificationService";
 
 interface StudentData {
   id: string;
@@ -592,6 +593,18 @@ const AdviserDashboard: React.FC = () => {
         newValue: { section: activeSection, leaderName: `${leader.firstName} ${leader.lastName}` }
       });
 
+      // Send Notification to all group members
+      const allMembers = Array.from(new Set([leader.id, ...selectedMemberIds].filter(Boolean)));
+      if (allMembers.length > 0) {
+        sendBatchNotification(allMembers, {
+          title: "Assigned to New Team",
+          message: `You have been added to ${leader.firstName}'s team in section ${activeSection} by adviser ${userName}.`,
+          type: "group",
+          link: "/projects",
+          senderName: userName
+        }).catch(err => console.error("Notification failed:", err));
+      }
+
       setShowCreateMembersModal(false);
       setSelectedLeaderId("");
       setSelectedMemberIds([]);
@@ -884,6 +897,36 @@ const AdviserDashboard: React.FC = () => {
         await fetchGroupProposals(targetGroup.id);
       }
 
+      // Send Notification to student team
+      const studentRecipients = Array.from(new Set([targetGroup.leaderId, ...(targetGroup.memberIds || [])].filter(Boolean)));
+      if (studentRecipients.length > 0) {
+        let notifTitle = "Proposal Status Updated";
+        let notifType: any = "feedback";
+        let notifMessage = `Adviser ${userName} updated proposal "${proposal.businessName || targetGroup.title}" to ${newStatus}.`;
+
+        if (newStatus === "Approved") {
+          notifTitle = "Proposal Approved! 🎉";
+          notifType = "approval";
+          notifMessage = `Your business proposal "${proposal.businessName || targetGroup.title}" has been approved by ${userName}. You can now activate your business in the Business Proposal section.`;
+        } else if (newStatus === "Revision Required") {
+          notifTitle = "Proposal Revision Requested";
+          notifType = "feedback";
+          notifMessage = `Adviser ${userName} requested revisions for "${proposal.businessName || targetGroup.title}". Remarks: ${feedbackInput.trim() || 'Please check feedback.'}`;
+        } else if (newStatus === "Rejected") {
+          notifTitle = "Proposal Rejected";
+          notifType = "feedback";
+          notifMessage = `Proposal "${proposal.businessName || targetGroup.title}" was not approved by ${userName}. Remarks: ${feedbackInput.trim() || 'Please check feedback.'}`;
+        }
+
+        sendBatchNotification(studentRecipients, {
+          title: notifTitle,
+          message: notifMessage,
+          type: notifType,
+          link: "/projects",
+          senderName: userName
+        }).catch(err => console.error("Proposal notification failed:", err));
+      }
+
       if (action !== 'Save Remarks') {
         setViewingProposal(null);
       }
@@ -912,6 +955,21 @@ const AdviserDashboard: React.FC = () => {
       await updateDoc(doc(db, "proposals", activeProposal.id), {
         feedbackHistory: arrayUnion(newFeedback)
       });
+
+      // Send notification to group members
+      const targetGroup = groups.find(g => g.id === activeProposal.groupId);
+      if (targetGroup) {
+        const studentRecipients = Array.from(new Set([targetGroup.leaderId, ...(targetGroup.memberIds || [])].filter(Boolean)));
+        if (studentRecipients.length > 0) {
+          sendBatchNotification(studentRecipients, {
+            title: "New Adviser Feedback",
+            message: `${userName} left new feedback on "${activeProposal.businessName}": "${feedbackInput.trim()}"`,
+            type: "feedback",
+            link: "/projects",
+            senderName: userName
+          }).catch(err => console.error("Feedback notification failed:", err));
+        }
+      }
 
       setActiveProposal(prev => prev ? {
         ...prev,
