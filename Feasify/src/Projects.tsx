@@ -225,13 +225,6 @@ interface FeedbackItem {
   date: string;
 }
 
-export interface IngredientItem {
-  id: string;
-  name: string;
-  price: number | string;
-  category?: "ingredient" | "labor" | "miscellaneous" | string;
-}
-
 export {
   type IngredientItem,
   type ProductCostingItem,
@@ -338,6 +331,17 @@ const formatDateTime = (timestamp: any) => {
     });
   } catch (e) {
     return "";
+  }
+};
+
+const formatFeedbackDate = (timestamp: any) => {
+  if (!timestamp) return "";
+  try {
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (isNaN(date.getTime())) return typeof timestamp === "string" ? timestamp : "";
+    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return typeof timestamp === "string" ? timestamp : "";
   }
 };
 
@@ -762,7 +766,7 @@ const Projects: React.FC = () => {
     try {
       const leaderSnap = await getDoc(doc(db, "users", group.leaderId));
       if (leaderSnap.exists()) setLeaderData(leaderSnap.data());
-      if (group.memberIds.length > 0) {
+      if (group.memberIds && Array.isArray(group.memberIds) && group.memberIds.length > 0) {
         const memberPromises = group.memberIds.map((id) =>
           getDoc(doc(db, "users", id)),
         );
@@ -2344,7 +2348,7 @@ const Projects: React.FC = () => {
                     onClick={() => setShowRosterModal(true)}
                     className="mt-6 md:mt-0 flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 hover:bg-white/20 rounded-lg text-sm font-bold transition-all z-10"
                   >
-                    <Users className="w-4 h-4" /> {userGroup.memberIds.length + 1}{" "}
+                    <Users className="w-4 h-4" /> {(userGroup?.memberIds?.length || 0) + 1}{" "}
                     Members{" "}
                     <span className="text-[10px] uppercase ml-1">View Team</span>
                   </button>
@@ -2752,7 +2756,7 @@ const Projects: React.FC = () => {
                                   <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
                                   <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
                                 </div>
-                                <span className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <span className="text-[10px] text-gray-500 font-medium">{formatFeedbackDate(item.date)}</span>
                               </div>
                               <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
                             </div>
@@ -3949,7 +3953,7 @@ const Projects: React.FC = () => {
                           Project Roster
                         </h3>
                         <p className="text-xs text-gray-500 mb-6">
-                          {(userGroup?.memberIds.length || 0) + 1} Members Total
+                          {(userGroup?.memberIds?.length || 0) + 1} Members Total
                         </p>
 
                         <div className="space-y-4">
@@ -3978,16 +3982,16 @@ const Projects: React.FC = () => {
                             </div>
                           </div>
 
-                          {groupMembersData.map((member) => (
+                          {(groupMembersData || []).map((member) => (
                             <div key={member.id} className="flex items-center gap-3 p-2">
                               <div className="w-10 h-10 bg-green-500 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                                {getInitials(member.firstName)}
+                                {getInitials(member.firstName || member.name || "")}
                               </div>
                               <div>
                                 <p className="text-sm font-bold text-gray-900">
-                                  {member.firstName} {member.lastName}
+                                  {member.firstName || ""} {member.lastName || ""}
                                 </p>
-                                <p className="text-[10px] text-gray-500">{member.studentId}</p>
+                                <p className="text-[10px] text-gray-500">{member.studentId || ""}</p>
                               </div>
                             </div>
                           ))}
@@ -4024,7 +4028,7 @@ const Projects: React.FC = () => {
                                     <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
                                   </div>
                                 </div>
-                                <span className="text-[10px] text-gray-400 font-medium">{new Date(item.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <span className="text-[10px] text-gray-400 font-medium">{formatFeedbackDate(item.date)}</span>
                                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
                               </div>
                             ))
@@ -4321,7 +4325,7 @@ const Projects: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-extrabold">Project Roster</h2>
                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
-                  Group {userGroup?.id.slice(-1) || "1"} Team Members
+                  Group {userGroup?.id ? userGroup.id.slice(-1) : "1"} Team Members
                 </p>
               </div>
               <button
@@ -4421,7 +4425,7 @@ const Projects: React.FC = () => {
             </p>
             <div className="p-3 bg-green-50/80 border border-green-200 rounded-lg text-left text-xs text-green-900 mb-6 space-y-1">
               <p className="font-bold flex items-center gap-1.5">
-                <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-600 shrink-0" />
                 What happens next:
               </p>
               <ul className="list-disc pl-4 text-[11px] text-green-800 space-y-0.5">

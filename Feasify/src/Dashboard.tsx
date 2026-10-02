@@ -725,7 +725,7 @@ const Dashboard: React.FC = () => {
 
         {showWelcomeToast && (
           <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-50 animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
-            <CheckCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
+            <CheckCircle2 className="w-7 h-7 text-[#c9a654] shrink-0" />
             <div className="flex-1">
               <h4 className="font-bold text-gray-900 text-base">
                 Login Successful
