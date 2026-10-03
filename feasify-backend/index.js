@@ -844,6 +844,12 @@ SUBMITTED FINANCIAL DATA:
 - Annual Revenue: PHP ${annualRevenue}
 - Annual Net Profit (After Tax): PHP ${annualNetProfitAfterTax}
 - Payback Period: ${paybackPeriodStr}
+- Direct Competitors: ${Array.isArray(financials.directCompetitors) && financials.directCompetitors.length > 0 ? financials.directCompetitors.join(', ') : 'None specified'}
+- Other / Indirect Competitors: ${Array.isArray(financials.otherCompetitors) && financials.otherCompetitors.length > 0 ? financials.otherCompetitors.join(', ') : 'None specified'}
+- Nearby Demand Drivers / Establishments (ROI Factors): ${Array.isArray(financials.nearbyEstablishments) && financials.nearbyEstablishments.length > 0 ? financials.nearbyEstablishments.join(', ') : 'None specified'}
+- Peak Foot Traffic Schedule: ${financials.footTrafficPeak || 'Standard flow'}
+- Target Demographics: ${Array.isArray(financials.targetDemographics) && financials.targetDemographics.length > 0 ? financials.targetDemographics.join(', ') : 'General public'}
+- Market Demand & ROI Context Notes: ${financials.marketDemandNotes || financials.competitorNotes || financials.marketDemand || 'None provided'}
 
 MANDATORY OUTPUT VALUE ENFORCEMENT:
 Your generated JSON object MUST contain exactly these calculated metrics:

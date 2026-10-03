@@ -29,6 +29,11 @@ import {
   Lightbulb,
   DollarSign,
   Bell,
+  Target,
+  Store,
+  Layers,
+  Building2,
+  MapPin,
 } from "lucide-react";
 import {
   LineChart,
@@ -70,6 +75,13 @@ const AI_Analysis: React.FC = () => {
     startupCapital: 0,
     competitorCount: 0,
     marketDemand: "Medium",
+    directCompetitors: [] as string[],
+    otherCompetitors: [] as string[],
+    competitorNotes: "",
+    nearbyEstablishments: [] as string[],
+    targetDemographics: [] as string[],
+    footTrafficPeak: "",
+    marketDemandNotes: "",
     operatingDays: 300,
     equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
     opexList: [] as { id: string; name: string; amount: number }[],
@@ -232,8 +244,15 @@ const AI_Analysis: React.FC = () => {
         variableCost: Number(data?.variableCost) || 0,
         fixedCosts: Number(data?.fixedCosts) || 0,
         startupCapital: Number(data?.startupCapital) || 0,
-        competitorCount: Number(data?.competitorCount) || 0,
+        competitorCount: Number(data?.competitorCount) || (Array.isArray(data?.directCompetitors) ? data.directCompetitors.length + (data.otherCompetitors?.length || 0) : 0),
         marketDemand: data?.marketDemand || "Medium",
+        directCompetitors: Array.isArray(data?.directCompetitors) ? data.directCompetitors : [],
+        otherCompetitors: Array.isArray(data?.otherCompetitors) ? data.otherCompetitors : [],
+        competitorNotes: data?.competitorNotes || "",
+        nearbyEstablishments: Array.isArray(data?.nearbyEstablishments) ? data.nearbyEstablishments : [],
+        targetDemographics: Array.isArray(data?.targetDemographics) ? data.targetDemographics : [],
+        footTrafficPeak: data?.footTrafficPeak || "",
+        marketDemandNotes: data?.marketDemandNotes || "",
         operatingDays: Number(data?.operatingDays) || 300,
         equipmentList: data?.equipmentList || [],
         opexList: data?.opexList || [],
@@ -855,6 +874,123 @@ const AI_Analysis: React.FC = () => {
                 </div>
               )}
 
+              {/* Market Environment & Competitive Landscape */}
+              {((financials.directCompetitors && financials.directCompetitors.length > 0) ||
+                (financials.otherCompetitors && financials.otherCompetitors.length > 0) ||
+                (financials.nearbyEstablishments && financials.nearbyEstablishments.length > 0) ||
+                financials.footTrafficPeak ||
+                financials.marketDemandNotes) && (
+                  <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8 space-y-5">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-gray-100 gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#c9a654]/15 border border-[#c9a654]/30 flex items-center justify-center text-[#c9a654] shrink-0">
+                          <Target className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-extrabold text-[#122244]">
+                            Market Indicators & Competitive Landscape
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            Audited competitor density, nearby establishment foot traffic & business ROI drivers
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black rounded-lg shrink-0">
+                        {financials.marketDemand || "Medium"} Demand Profile
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Direct Competitors */}
+                      <div className="p-4 bg-gray-50/70 border border-gray-200/80 rounded-xl space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                            <Store size={14} className="text-[#c9a654]" /> Direct Competitors
+                          </span>
+                          <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+                            {financials.directCompetitors?.length || 0} Listed
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {financials.directCompetitors && financials.directCompetitors.length > 0 ? (
+                            financials.directCompetitors.map((comp, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2.5 py-1 bg-white border border-amber-200 text-amber-900 text-xs font-bold rounded-lg shadow-2xs"
+                              >
+                                {comp}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">None specified in financial input.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Other Competitors (Indirect & Substitutes) */}
+                      <div className="p-4 bg-gray-50/70 border border-gray-200/80 rounded-xl space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers size={14} className="text-sky-600" /> Other / Indirect Competitors
+                          </span>
+                          <span className="text-[10px] font-black text-sky-700 bg-sky-100 px-2 py-0.5 rounded">
+                            {financials.otherCompetitors?.length || 0} Listed
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {financials.otherCompetitors && financials.otherCompetitors.length > 0 ? (
+                            financials.otherCompetitors.map((comp, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2.5 py-1 bg-white border border-sky-200 text-sky-900 text-xs font-bold rounded-lg shadow-2xs"
+                              >
+                                {comp}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">None specified in financial input.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Nearby Establishments Driving ROI */}
+                    <div className="p-4 bg-emerald-50/40 border border-emerald-200/80 rounded-xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Building2 size={14} className="text-emerald-600" /> Nearby Establishments Affecting ROI (Foot Traffic Drivers)
+                        </span>
+                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                          {financials.nearbyEstablishments?.length || 0} Establishments
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {financials.nearbyEstablishments && financials.nearbyEstablishments.length > 0 ? (
+                          financials.nearbyEstablishments.map((est, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-1 bg-white border border-emerald-300 text-emerald-950 text-xs font-bold rounded-lg shadow-2xs flex items-center gap-1"
+                            >
+                              <MapPin size={11} className="text-emerald-600" /> {est}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No nearby establishments listed.</span>
+                        )}
+                      </div>
+                      {financials.footTrafficPeak && (
+                        <p className="text-xs text-emerald-800 pt-1">
+                          <strong>Foot Traffic Pattern:</strong> {financials.footTrafficPeak}
+                        </p>
+                      )}
+                      {financials.marketDemandNotes && (
+                        <p className="text-xs text-gray-600 italic bg-white/70 p-2.5 rounded-lg border border-emerald-100 mt-2">
+                          "{financials.marketDemandNotes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               {/* 5-Year Pro Forma Financial Statement */}
               <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm mb-8 overflow-hidden">

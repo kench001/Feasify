@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -59,6 +59,13 @@ import {
   Clock,
   Users,
   RefreshCw,
+  Store,
+  MapPin,
+  Building2,
+  GraduationCap,
+  Briefcase,
+  Tag,
+  Compass,
 } from "lucide-react";
 import {
   normalizeProposalProducts,
@@ -75,6 +82,13 @@ import {
   autoDistributeContributors,
 } from "./utils/productCosting";
 import { logAuditEvent } from "./services/auditLogger";
+import {
+  getDynamicCompetitorsFromLocation,
+  parseTargetMarketDemographics,
+  type DynamicCompetitorResult,
+  type DynamicDemographicResult,
+  type NearbyEstablishmentItem,
+} from "./services/marketCompetitorService";
 
 export const cleanFirestoreData = (obj: any): any => {
   if (obj === undefined) return null;
@@ -122,6 +136,13 @@ export interface MonthlyDraft {
     utilitiesPayable: string;
     competitorCount: number;
     marketDemand: string;
+    directCompetitors?: string[];
+    otherCompetitors?: string[];
+    competitorNotes?: string;
+    nearbyEstablishments?: string[];
+    targetDemographics?: string[];
+    footTrafficPeak?: string;
+    marketDemandNotes?: string;
     operatingDays: string;
     equipmentList: { id: string; name: string; quantity: number; unitPrice: number; total: number }[];
     opexList: OpexItem[];
@@ -155,6 +176,13 @@ export interface MonthlyFinancialRecord {
     utilitiesPayable: string;
     competitorCount: number;
     marketDemand: string;
+    directCompetitors?: string[];
+    otherCompetitors?: string[];
+    competitorNotes?: string;
+    nearbyEstablishments?: string[];
+    targetDemographics?: string[];
+    footTrafficPeak?: string;
+    marketDemandNotes?: string;
     operatingDays: string;
     equipmentList: { id: string; name: string; quantity: number; unitPrice: number; total: number }[];
     opexList: OpexItem[];
@@ -177,9 +205,6 @@ const Financial_input: React.FC = () => {
   const [userSection, setUserSection] = useState("");
   const [userGroupId, setUserGroupId] = useState("");
   const [isLeader, setIsLeader] = useState(false);
-  const [showAuditTrailModal, setShowAuditTrailModal] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
@@ -197,7 +222,7 @@ const Financial_input: React.FC = () => {
   const [taxTab, setTaxTab] = useState<"log" | "math">("math");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  const [activeModuleTab, setActiveModuleTab] = useState<"operations" | "balance-sheet">("operations");
+  const [activeModuleTab, setActiveModuleTab] = useState<"operations" | "market" | "balance-sheet">("operations");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
@@ -227,6 +252,13 @@ const Financial_input: React.FC = () => {
         utilitiesPayable: "",
         competitorCount: 0,
         marketDemand: "Medium",
+        directCompetitors: [] as string[],
+        otherCompetitors: [] as string[],
+        competitorNotes: "",
+        nearbyEstablishments: [] as string[],
+        targetDemographics: [] as string[],
+        footTrafficPeak: "",
+        marketDemandNotes: "",
         operatingDays: "300",
         equipmentList: [],
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
@@ -236,6 +268,14 @@ const Financial_input: React.FC = () => {
     },
   ]);
   const [activeMonthIndex, setActiveMonthIndex] = useState(0);
+
+  const [marketIndicatorsTab, setMarketIndicatorsTab] = useState<"competitors" | "demand" | "all">("competitors");
+  const [directCompetitorInput, setDirectCompetitorInput] = useState("");
+  const [otherCompetitorInput, setOtherCompetitorInput] = useState("");
+  const [nearbyEstablishmentInput, setNearbyEstablishmentInput] = useState("");
+  const [targetDemographicsInput, setTargetDemographicsInput] = useState("");
+  const [dynamicCompetitorData, setDynamicCompetitorData] = useState<DynamicCompetitorResult | null>(null);
+  const [isDetectingCompetitors, setIsDetectingCompetitors] = useState(false);
 
   const [financials, setFinancials] = useState({
     products: [] as ProductCostingItem[],
@@ -255,6 +295,13 @@ const Financial_input: React.FC = () => {
     utilitiesPayable: "",
     competitorCount: 0,
     marketDemand: "Medium",
+    directCompetitors: [] as string[],
+    otherCompetitors: [] as string[],
+    competitorNotes: "",
+    nearbyEstablishments: [] as string[],
+    targetDemographics: [] as string[],
+    footTrafficPeak: "",
+    marketDemandNotes: "",
     operatingDays: "300",
     equipmentList: [] as { id: string; name: string; quantity: number; unitPrice: number; total: number }[],
     opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
@@ -268,6 +315,8 @@ const Financial_input: React.FC = () => {
 
   const currentProject = projects.find((p) => p.id === selectedProjectId);
   const activeProjName = currentProject?.name || "Active Business Projections";
+  const rawTargetMarket = currentProject?.targetMarket || currentProject?.rawProposalData?.targetMarket || "";
+  const dynamicDemographics = useMemo(() => parseTargetMarketDemographics(rawTargetMarket), [rawTargetMarket]);
   const proposalCapRequirement = Number(currentProject?.proposalCapital || financials.startupCapital || 0);
   const currentContribList = (financials.contributorsList && financials.contributorsList.length > 0)
     ? financials.contributorsList
@@ -630,6 +679,13 @@ const Financial_input: React.FC = () => {
         utilitiesPayable: "",
         competitorCount: 0,
         marketDemand: "Medium",
+        directCompetitors: [],
+        otherCompetitors: [],
+        competitorNotes: "",
+        nearbyEstablishments: [],
+        targetDemographics: [],
+        footTrafficPeak: "",
+        marketDemandNotes: "",
         operatingDays: "300",
         equipmentList: [],
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
@@ -1045,34 +1101,6 @@ const Financial_input: React.FC = () => {
     return () => unsub();
   }, [navigate]);
 
-  useEffect(() => {
-    if (!selectedProjectId || !isLeader) {
-      setAuditLogs([]);
-      return;
-    }
-    try {
-      const q = query(
-        collection(db, "audit_logs"),
-        where("recordId", "==", selectedProjectId)
-      );
-      const unsub = onSnapshot(q, (snapshot) => {
-        const logs = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        logs.sort((a: any, b: any) => {
-          const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-          const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-          return tB - tA;
-        });
-        setAuditLogs(logs);
-      });
-      return () => unsub();
-    } catch (err) {
-      console.error("Audit log subscription error:", err);
-    }
-  }, [selectedProjectId, isLeader]);
-
   const loadUserGroup = async (uid: string, section: string) => {
     try {
       const groupQ = query(
@@ -1122,6 +1150,9 @@ const Financial_input: React.FC = () => {
               proposalCapital: data.totalCapital || "0",
               financialData: data.financialData || null,
               rawProposalData: data,
+              proposedLocation: data.proposedLocation || "",
+              businessType: data.businessType || "",
+              targetMarket: data.targetMarket || "",
               products: data.products || data.financialData?.products || [],
             };
           });
@@ -1202,8 +1233,15 @@ const Financial_input: React.FC = () => {
             salariesExpenseInitial: getVal(fin.salariesExpenseInitial),
             accountsPayable: getVal(fin.accountsPayable),
             utilitiesPayable: getVal(fin.utilitiesPayable),
-            competitorCount: fin.competitorCount || 0,
+            competitorCount: fin.competitorCount || (Array.isArray(fin.directCompetitors) ? fin.directCompetitors.length + (fin.otherCompetitors?.length || 0) : 0),
             marketDemand: fin.marketDemand || "Medium",
+            directCompetitors: Array.isArray(fin.directCompetitors) ? fin.directCompetitors : [],
+            otherCompetitors: Array.isArray(fin.otherCompetitors) ? fin.otherCompetitors : [],
+            competitorNotes: fin.competitorNotes || "",
+            nearbyEstablishments: Array.isArray(fin.nearbyEstablishments) ? fin.nearbyEstablishments : [],
+            targetDemographics: Array.isArray(fin.targetDemographics) ? fin.targetDemographics : [],
+            footTrafficPeak: fin.footTrafficPeak || "",
+            marketDemandNotes: fin.marketDemandNotes || "",
             operatingDays: String(fin.operatingDays || "300"),
             equipmentList: fin.equipmentList || [],
             opexList: loadedOpex,
@@ -1293,8 +1331,15 @@ const Financial_input: React.FC = () => {
           salariesExpenseInitial: getVal(finData.salariesExpenseInitial),
           accountsPayable: getVal(finData.accountsPayable),
           utilitiesPayable: getVal(finData.utilitiesPayable),
-          competitorCount: finData.competitorCount || 0,
+          competitorCount: finData.competitorCount || (Array.isArray(finData.directCompetitors) ? finData.directCompetitors.length + (finData.otherCompetitors?.length || 0) : 0),
           marketDemand: finData.marketDemand || "Medium",
+          directCompetitors: Array.isArray(finData.directCompetitors) ? finData.directCompetitors : [],
+          otherCompetitors: Array.isArray(finData.otherCompetitors) ? finData.otherCompetitors : [],
+          competitorNotes: finData.competitorNotes || "",
+          nearbyEstablishments: Array.isArray(finData.nearbyEstablishments) ? finData.nearbyEstablishments : [],
+          targetDemographics: Array.isArray(finData.targetDemographics) ? finData.targetDemographics : [],
+          footTrafficPeak: finData.footTrafficPeak || "",
+          marketDemandNotes: finData.marketDemandNotes || "",
           operatingDays: String(finData.operatingDays || "300"),
           equipmentList: finData.equipmentList || [],
           opexList: loadedOpex,
@@ -1343,6 +1388,13 @@ const Financial_input: React.FC = () => {
         utilitiesPayable: "",
         competitorCount: 0,
         marketDemand: "Medium",
+        directCompetitors: [],
+        otherCompetitors: [],
+        competitorNotes: "",
+        nearbyEstablishments: [],
+        targetDemographics: [],
+        footTrafficPeak: "",
+        marketDemandNotes: "",
         operatingDays: "300",
         equipmentList: [],
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
@@ -1607,6 +1659,337 @@ const Financial_input: React.FC = () => {
       setMonthlyRecords(updatedRecords);
     }
     handleAutoSave(newState, updatedRecords);
+  };
+
+  // --- MARKET & COMPETITIVE INDICATOR HANDLERS ---
+  const handleAddDirectCompetitor = (nameToAdd?: string) => {
+    if (isInputsBlocked) return;
+    const name = (nameToAdd !== undefined ? nameToAdd : directCompetitorInput).trim();
+    if (!name) return;
+    const currentList = Array.isArray(financials.directCompetitors) ? financials.directCompetitors : [];
+    if (currentList.some((c) => c.toLowerCase() === name.toLowerCase())) {
+      setDirectCompetitorInput("");
+      return;
+    }
+    const updatedList = [...currentList, name];
+    const totalCompetitors = updatedList.length + (financials.otherCompetitors?.length || 0);
+    const newState = {
+      ...financials,
+      directCompetitors: updatedList,
+      competitorCount: totalCompetitors,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    setDirectCompetitorInput("");
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleRemoveDirectCompetitor = (indexToRemove: number) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.directCompetitors) ? financials.directCompetitors : [];
+    const updatedList = currentList.filter((_, idx) => idx !== indexToRemove);
+    const totalCompetitors = updatedList.length + (financials.otherCompetitors?.length || 0);
+    const newState = {
+      ...financials,
+      directCompetitors: updatedList,
+      competitorCount: totalCompetitors,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleAddOtherCompetitor = (nameToAdd?: string) => {
+    if (isInputsBlocked) return;
+    const name = (nameToAdd !== undefined ? nameToAdd : otherCompetitorInput).trim();
+    if (!name) return;
+    const currentList = Array.isArray(financials.otherCompetitors) ? financials.otherCompetitors : [];
+    if (currentList.some((c) => c.toLowerCase() === name.toLowerCase())) {
+      setOtherCompetitorInput("");
+      return;
+    }
+    const updatedList = [...currentList, name];
+    const totalCompetitors = (financials.directCompetitors?.length || 0) + updatedList.length;
+    const newState = {
+      ...financials,
+      otherCompetitors: updatedList,
+      competitorCount: totalCompetitors,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    setOtherCompetitorInput("");
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleRemoveOtherCompetitor = (indexToRemove: number) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.otherCompetitors) ? financials.otherCompetitors : [];
+    const updatedList = currentList.filter((_, idx) => idx !== indexToRemove);
+    const totalCompetitors = (financials.directCompetitors?.length || 0) + updatedList.length;
+    const newState = {
+      ...financials,
+      otherCompetitors: updatedList,
+      competitorCount: totalCompetitors,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleToggleDirectCompetitor = (name: string) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.directCompetitors) ? financials.directCompetitors : [];
+    const existingIndex = currentList.findIndex((c) => c.toLowerCase() === name.toLowerCase());
+    if (existingIndex !== -1) {
+      handleRemoveDirectCompetitor(existingIndex);
+    } else {
+      handleAddDirectCompetitor(name);
+    }
+  };
+
+  const handleToggleOtherCompetitor = (name: string) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.otherCompetitors) ? financials.otherCompetitors : [];
+    const existingIndex = currentList.findIndex((c) => c.toLowerCase() === name.toLowerCase());
+    if (existingIndex !== -1) {
+      handleRemoveOtherCompetitor(existingIndex);
+    } else {
+      handleAddOtherCompetitor(name);
+    }
+  };
+
+  const loadDynamicCompetitors = useCallback(async (forceRefresh = false) => {
+    if (!currentProject) return;
+    const loc = currentProject.proposedLocation || currentProject.rawProposalData?.proposedLocation || "";
+    const bName = currentProject.rawProposalData?.businessName || currentProject.name || "";
+    const bType = currentProject.businessType || currentProject.rawProposalData?.businessType || "";
+    const prods = currentProject.products || financials.products || [];
+
+    setIsDetectingCompetitors(true);
+    try {
+      const res = await getDynamicCompetitorsFromLocation(loc, bName, bType, prods, forceRefresh);
+      setDynamicCompetitorData(res);
+    } catch (err) {
+      console.warn("Map competitor detection warning:", err);
+    } finally {
+      setIsDetectingCompetitors(false);
+    }
+  }, [currentProject, financials.products]);
+
+  useEffect(() => {
+    if (activeModuleTab === "market" && currentProject) {
+      loadDynamicCompetitors();
+    }
+  }, [activeModuleTab, currentProject?.id, loadDynamicCompetitors]);
+
+  const handleToggleNearbyEstablishment = (estName: string) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.nearbyEstablishments) ? financials.nearbyEstablishments : [];
+    let updatedList: string[] = [];
+    if (currentList.includes(estName)) {
+      updatedList = currentList.filter((e) => e !== estName);
+    } else {
+      updatedList = [...currentList, estName];
+    }
+    let derivedDemand = "Medium";
+    if (updatedList.length >= 3) {
+      derivedDemand = "High";
+    } else if (updatedList.length === 0) {
+      derivedDemand = "Low";
+    }
+
+    const newState = {
+      ...financials,
+      nearbyEstablishments: updatedList,
+      marketDemand: derivedDemand,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleAddCustomEstablishment = (nameToAdd?: string) => {
+    if (isInputsBlocked) return;
+    const name = (nameToAdd !== undefined ? nameToAdd : nearbyEstablishmentInput).trim();
+    if (!name) return;
+    const currentList = Array.isArray(financials.nearbyEstablishments) ? financials.nearbyEstablishments : [];
+    if (currentList.some((e) => e.toLowerCase() === name.toLowerCase())) {
+      setNearbyEstablishmentInput("");
+      return;
+    }
+    const updatedList = [...currentList, name];
+    let derivedDemand = "Medium";
+    if (updatedList.length >= 3) {
+      derivedDemand = "High";
+    } else if (updatedList.length === 0) {
+      derivedDemand = "Low";
+    }
+
+    const newState = {
+      ...financials,
+      nearbyEstablishments: updatedList,
+      marketDemand: derivedDemand,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    setNearbyEstablishmentInput("");
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleRemoveNearbyEstablishment = (indexToRemove: number) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.nearbyEstablishments) ? financials.nearbyEstablishments : [];
+    const updatedList = currentList.filter((_, idx) => idx !== indexToRemove);
+    let derivedDemand = "Medium";
+    if (updatedList.length >= 3) {
+      derivedDemand = "High";
+    } else if (updatedList.length === 0) {
+      derivedDemand = "Low";
+    }
+
+    const newState = {
+      ...financials,
+      nearbyEstablishments: updatedList,
+      marketDemand: derivedDemand,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleToggleTargetDemographic = (demo: string) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.targetDemographics) ? financials.targetDemographics : [];
+    const updatedList = currentList.includes(demo)
+      ? currentList.filter((d) => d !== demo)
+      : [...currentList, demo];
+
+    const newState = {
+      ...financials,
+      targetDemographics: updatedList,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleAddCustomDemographic = (nameToAdd?: string) => {
+    if (isInputsBlocked) return;
+    const name = (nameToAdd !== undefined ? nameToAdd : targetDemographicsInput).trim();
+    if (!name) return;
+    const currentList = Array.isArray(financials.targetDemographics) ? financials.targetDemographics : [];
+    if (currentList.some((d) => d.toLowerCase() === name.toLowerCase())) {
+      setTargetDemographicsInput("");
+      return;
+    }
+    const updatedList = [...currentList, name];
+    const newState = {
+      ...financials,
+      targetDemographics: updatedList,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    setTargetDemographicsInput("");
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleRemoveTargetDemographic = (indexToRemove: number) => {
+    if (isInputsBlocked) return;
+    const currentList = Array.isArray(financials.targetDemographics) ? financials.targetDemographics : [];
+    const updatedList = currentList.filter((_, idx) => idx !== indexToRemove);
+    const newState = {
+      ...financials,
+      targetDemographics: updatedList,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleMarketFieldChange = (field: "footTrafficPeak" | "competitorNotes" | "marketDemandNotes", value: string) => {
+    const newState = {
+      ...financials,
+      [field]: value,
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
   };
 
   const handleSwitchMonthTab = (targetIndex: number) => {
@@ -1899,18 +2282,6 @@ return (
                   {saveStatus}
                 </span>
 
-                {/* LEADER-ONLY AUDIT TRAIL BUTTON */}
-                {isLeader && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAuditTrailModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#122244] rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95"
-                    title="View Team Audit Trail & History"
-                  >
-                    <History size={14} className="text-[#c9a654]" /> Audit History
-                  </button>
-                )}
-
                 {/* EXPORT FILE BUTTON */}
                 <button
                   type="button"
@@ -1998,210 +2369,106 @@ return (
                 const estShare = totalCap > 0 ? totalCap / numContrib : 0;
 
                 return (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10 items-stretch">
-                    {/* LEFT COLUMN: Initial Capital Contributed (1 Column List) */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 backdrop-blur-sm space-y-4 flex flex-col justify-between">
-                      <div className="space-y-4">
-                        {/* Header */}
-                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654]">
-                              <DollarSign size={18} />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                                Initial Capital Contributed
-                              </h4>
-                              <p className="text-[10px] text-slate-300">Direct cash contribution from owners/partners</p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={isCurrentMonthLocked}
-                            onClick={handleAddContributor}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] font-black text-xs rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                            title="Add new investor or partner"
-                          >
-                            <Plus size={14} /> Add Contributor
-                          </button>
+                  <div className="relative z-10 bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 backdrop-blur-sm space-y-4">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654]">
+                          <DollarSign size={18} />
                         </div>
-
-                        {/* 1-COLUMN INVESTORS LIST */}
-                        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1 select-none">
-                          {currentContribList.map((contrib, idx) => (
-                            <div
-                              key={contrib.id || idx}
-                              className="flex items-center gap-3 bg-black/25 p-2.5 rounded-xl border border-white/10 hover:border-[#c9a654]/50 transition-all"
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-[#122244] border border-[#c9a654]/40 flex items-center justify-center text-[10px] font-black text-[#c9a654] shrink-0">
-                                #{idx + 1}
-                              </div>
-                              <input
-                                type="text"
-                                disabled={isCurrentMonthLocked}
-                                value={contrib.name || `Investor / Partner ${idx + 1}`}
-                                onChange={(e) => handleContributorItemChange(idx, "name", e.target.value)}
-                                onBlur={() => handleAutoSave()}
-                                placeholder={`Investor ${idx + 1}`}
-                                className="flex-1 px-3 py-1.5 bg-white/10 border border-white/15 rounded-lg text-xs font-semibold text-white focus:bg-white/20 focus:border-[#c9a654] outline-none disabled:opacity-60"
-                              />
-                              <div className="relative w-36 sm:w-44 shrink-0">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#c9a654]">₱</span>
-                                <input
-                                  type="number"
-                                  disabled={isCurrentMonthLocked}
-                                  min="0"
-                                  value={contrib.amount !== undefined ? contrib.amount : ""}
-                                  onKeyDown={handlePreventNegative}
-                                  onPaste={handlePasteNonNegative}
-                                  onChange={(e) => handleContributorItemChange(idx, "amount", e.target.value)}
-                                  onBlur={() => handleAutoSave()}
-                                  placeholder="0.00"
-                                  className="w-full pl-6 pr-2.5 py-1.5 bg-white text-[#122244] font-black text-xs rounded-lg border border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/40 outline-none disabled:bg-gray-200"
-                                />
-                              </div>
-                              {currentContribList.length > 1 && (
-                                <button
-                                  type="button"
-                                  disabled={isCurrentMonthLocked}
-                                  onClick={() => handleRemoveContributor(idx)}
-                                  className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-40"
-                                  title="Remove this contributor"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                            Initial Capital Contributed
+                          </h4>
+                          <p className="text-[10px] text-slate-300">Direct cash equity contributions from owners & founding partners</p>
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        disabled={isCurrentMonthLocked}
+                        onClick={handleAddContributor}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] font-black text-xs rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+                        title="Add new investor or partner"
+                      >
+                        <Plus size={14} /> Add Contributor
+                      </button>
+                    </div>
 
-                      {/* Status indicator */}
-                      <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
-                        {isBalanced ? (
-                          <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
-                            <CheckCircle2 size={13} className="text-emerald-400" />
-                            Total: ₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (100% Balanced with Proposal)
-                          </span>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2.5 py-1 bg-red-500/20 text-red-200 border border-red-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
-                              <AlertTriangle size={13} className="text-red-400" />
-                              Total: ₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Proposal: ₱{totalCap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                            </span>
+                    {/* INVESTORS / PARTNERS LIST (Responsive Multi-column Grid) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1 select-none">
+                      {currentContribList.map((contrib, idx) => (
+                        <div
+                          key={contrib.id || idx}
+                          className="flex items-center gap-2.5 bg-black/25 p-2.5 rounded-xl border border-white/10 hover:border-[#c9a654]/50 transition-all"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-[#122244] border border-[#c9a654]/40 flex items-center justify-center text-[10px] font-black text-[#c9a654] shrink-0">
+                            #{idx + 1}
+                          </div>
+                          <input
+                            type="text"
+                            disabled={isCurrentMonthLocked}
+                            value={contrib.name || `Investor / Partner ${idx + 1}`}
+                            onChange={(e) => handleContributorItemChange(idx, "name", e.target.value)}
+                            onBlur={() => handleAutoSave()}
+                            placeholder={`Investor ${idx + 1}`}
+                            className="flex-1 min-w-0 px-3 py-1.5 bg-white/10 border border-white/15 rounded-lg text-xs font-semibold text-white focus:bg-white/20 focus:border-[#c9a654] outline-none disabled:opacity-60"
+                          />
+                          <div className="relative w-32 shrink-0">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-[#c9a654]">₱</span>
+                            <input
+                              type="number"
+                              disabled={isCurrentMonthLocked}
+                              min="0"
+                              value={contrib.amount !== undefined ? contrib.amount : ""}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              onChange={(e) => handleContributorItemChange(idx, "amount", e.target.value)}
+                              onBlur={() => handleAutoSave()}
+                              placeholder="0.00"
+                              className="w-full pl-5 pr-2 py-1.5 bg-white text-[#122244] font-black text-xs rounded-lg border border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/40 outline-none disabled:bg-gray-200"
+                            />
+                          </div>
+                          {currentContribList.length > 1 && (
                             <button
                               type="button"
                               disabled={isCurrentMonthLocked}
-                              onClick={handleAutoRebalanceContributors}
-                              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] rounded-md shadow-sm transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                              onClick={() => handleRemoveContributor(idx)}
+                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-40"
+                              title="Remove this contributor"
                             >
-                              <RefreshCw size={11} /> Auto-Balance
+                              <Trash2 size={15} />
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
 
-                    {/* RIGHT COLUMN: Market Indicators */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 backdrop-blur-sm space-y-6 flex flex-col justify-between">
-                      <div className="space-y-6">
-                        {/* Header */}
-                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654]">
-                              <Target size={18} />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                                Market Indicators
-                              </h4>
-                              <p className="text-[10px] text-slate-300">Market demand & competitive density baseline</p>
-                            </div>
-                          </div>
+                    {/* Status indicator */}
+                    <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+                      {isBalanced ? (
+                        <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
+                          <CheckCircle2 size={13} className="text-emerald-400" />
+                          Total: ₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (100% Balanced with Proposal Requirement)
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-1 bg-red-500/20 text-red-200 border border-red-500/40 rounded-lg font-bold flex items-center gap-1.5 text-[11px]">
+                            <AlertTriangle size={13} className="text-red-400" />
+                            Total: ₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Proposal: ₱{totalCap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isCurrentMonthLocked}
+                            onClick={handleAutoRebalanceContributors}
+                            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] rounded-md shadow-sm transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <RefreshCw size={11} /> Auto-Balance
+                          </button>
                         </div>
+                      )}
 
-                        {/* Competitor Count Slider */}
-                        <div className="space-y-3 bg-[#122244]/80 p-4 rounded-xl border border-white/10">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-                              Direct Competitor Count:
-                            </label>
-                            <span className="px-3 py-1 bg-[#c9a654] text-[#122244] font-black text-xs rounded-md shadow-sm">
-                              {financials.competitorCount} Competitors
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            disabled={isInputsBlocked}
-                            min="0"
-                            max="20"
-                            value={financials.competitorCount}
-                            onChange={(e) => {
-                              const newState = {
-                                ...financials,
-                                competitorCount: Number(e.target.value),
-                              };
-                              setFinancials(newState);
-                              const updatedRecords = [...monthlyRecords];
-                              if (updatedRecords[activeMonthIndex]) {
-                                updatedRecords[activeMonthIndex] = {
-                                  ...updatedRecords[activeMonthIndex],
-                                  financials: newState,
-                                };
-                                setMonthlyRecords(updatedRecords);
-                              }
-                            }}
-                            onMouseUp={() => handleAutoSave()}
-                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#c9a654] disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                          <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                            <span>0 (Low Saturation)</span>
-                            <span>10 (Moderate)</span>
-                            <span>20 (High Rivalry)</span>
-                          </div>
-                        </div>
-
-                        {/* Market Demand Level */}
-                        <div className="space-y-3 bg-[#122244]/80 p-4 rounded-xl border border-white/10">
-                          <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-                            Market Demand Level
-                          </label>
-                          <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
-                            {["Low", "Medium", "High"].map((level) => (
-                              <button
-                                key={level}
-                                type="button"
-                                disabled={isInputsBlocked}
-                                onClick={() => {
-                                  const newState = {
-                                    ...financials,
-                                    marketDemand: level,
-                                  };
-                                  setFinancials(newState);
-                                  const updatedRecords = [...monthlyRecords];
-                                  if (updatedRecords[activeMonthIndex]) {
-                                    updatedRecords[activeMonthIndex] = {
-                                      ...updatedRecords[activeMonthIndex],
-                                      financials: newState,
-                                    };
-                                    setMonthlyRecords(updatedRecords);
-                                  }
-                                  handleAutoSave(newState, updatedRecords);
-                                }}
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${financials.marketDemand === level
-                                  ? "bg-[#c9a654] text-[#122244] shadow-md font-black"
-                                  : "text-slate-300 hover:text-white"
-                                  } ${isInputsBlocked ? "cursor-not-allowed opacity-50" : ""}`}
-                              >
-                                {level} Demand
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <p className="text-[10px] text-slate-400 italic pt-2 border-t border-white/10">
-                        Indicators automatically inform AI Feasibility Risk Scoring and Market Viability Assessment.
+                      <p className="text-[10px] text-slate-400 italic">
+                        {currentContribList.length} Partner{currentContribList.length > 1 ? "s" : ""} participating in initial venture capitalization.
                       </p>
                     </div>
                   </div>
@@ -2525,6 +2792,17 @@ return (
               >
                 <Package className={`w-4 h-4 ${activeModuleTab === "operations" ? "text-[#c9a654]" : "text-gray-400"}`} />
                 Operational Inputs & Costing
+              </button>
+
+              <button
+                onClick={() => setActiveModuleTab("market")}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${activeModuleTab === "market"
+                  ? "bg-[#122244] text-white border-[#122244] shadow-md"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                  }`}
+              >
+                <Target className={`w-4 h-4 ${activeModuleTab === "market" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                Market & Competitive Indicators
               </button>
 
               <button
@@ -3967,7 +4245,785 @@ return (
               </div>
             )}
 
-            {/* === TAB 2: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
+            {/* === TAB 2: MARKET & COMPETITIVE INDICATORS === */}
+            {activeModuleTab === "market" && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* EXECUTIVE HEADER BANNER */}
+                <div className="bg-gradient-to-br from-[#122244] via-[#1a3060] to-[#122244] rounded-2xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden border border-white/10">
+                  <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-[#c9a654]/15 to-transparent pointer-events-none" />
+                  
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                    <div className="flex items-start sm:items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654] font-black text-2xl shrink-0 shadow-inner">
+                        <Target className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="px-2.5 py-0.5 bg-[#c9a654]/20 text-[#c9a654] text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-[#c9a654]/30">
+                            Market Environment & Demographics
+                          </span>
+                          <span className="text-xs text-white/40">•</span>
+                          <span className="text-xs text-slate-300 font-semibold">
+                            {activeProjName}
+                          </span>
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                          Market & Competitive Indicators
+                        </h3>
+                        <p className="text-xs text-slate-300 font-medium max-w-2xl mt-0.5">
+                          Map out direct competitors, indirect substitutes, surrounding high foot-traffic establishments, and demand patterns that drive sales velocity and business ROI.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Stats Strip */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-sm self-start lg:self-auto shrink-0 w-full sm:w-auto">
+                      <div className="flex flex-col items-center justify-center px-3 py-2 bg-[#c9a654]/15 border border-[#c9a654]/40 rounded-xl text-center min-w-[78px] sm:min-w-[95px] h-[54px]">
+                        <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wider block leading-none mb-1">
+                          Direct
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-white leading-none">
+                          {financials.directCompetitors?.length || 0}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center px-3 py-2 bg-[#c9a654]/15 border border-[#c9a654]/40 rounded-xl text-center min-w-[78px] sm:min-w-[95px] h-[54px]">
+                        <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wider block leading-none mb-1">
+                          Indirect
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-white leading-none">
+                          {financials.otherCompetitors?.length || 0}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center px-3 py-2 bg-[#122244]/90 border border-white/20 rounded-xl text-center min-w-[78px] sm:min-w-[95px] h-[54px]">
+                        <span className="text-[10px] text-slate-300 font-extrabold uppercase tracking-wider block leading-none mb-1">
+                          Establishments
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-[#c9a654] leading-none">
+                          {financials.nearbyEstablishments?.length || 0}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center px-3 py-2 bg-[#c9a654] border border-[#c9a654] rounded-xl text-center min-w-[78px] sm:min-w-[95px] h-[54px] shadow-sm">
+                        <span className="text-[10px] text-[#122244] font-extrabold uppercase tracking-wider block leading-none mb-1 opacity-90">
+                          Demand
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-[#122244] leading-none">
+                          {financials.marketDemand || "Medium"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-COLUMN MAIN CONTENT GRID */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  
+                  {/* ========================================================= */}
+                  {/* LEFT COLUMN: COMPETITIVE LANDSCAPE & STRATEGY             */}
+                  {/* ========================================================= */}
+                  <div className="bg-white rounded-2xl p-6 sm:p-7 shadow-sm border border-gray-200 text-[#122244] space-y-6">
+                    
+                    {/* Header */}
+                    <div className="border-b border-gray-100 pb-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-amber-50 text-[#c9a654] rounded-xl border border-amber-100">
+                            <Store className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-base font-bold text-[#122244]">Competitive Landscape</h4>
+                              {(currentProject?.proposedLocation || currentProject?.rawProposalData?.proposedLocation) && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#122244]/10 text-[#122244] border border-[#122244]/20" title={currentProject?.proposedLocation || currentProject?.rawProposalData?.proposedLocation}>
+                                  <MapPin size={10} className="text-[#c9a654] shrink-0" />
+                                  <span className="max-w-[180px] sm:max-w-[240px] truncate">{currentProject?.proposedLocation || currentProject?.rawProposalData?.proposedLocation}</span>
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">Document active rivals and substitute offerings within your market radius</p>
+                          </div>
+                        </div>
+
+                        {/* Re-scan Map button */}
+                        <button
+                          type="button"
+                          onClick={() => loadDynamicCompetitors(true)}
+                          disabled={isDetectingCompetitors}
+                          className="px-2.5 py-1.5 rounded-xl border border-gray-200 hover:border-[#c9a654] bg-white hover:bg-amber-50/50 text-[11px] font-bold text-[#122244] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50 shrink-0"
+                          title="Re-scan map around proposal location for active competitors"
+                        >
+                          <RefreshCw size={12} className={isDetectingCompetitors ? "animate-spin text-[#c9a654]" : "text-[#c9a654]"} />
+                          <span className="hidden sm:inline">Re-scan Map</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 1: DIRECT COMPETITORS */}
+                    <div className="space-y-3.5 p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#c9a654]" />
+                          <label className="text-xs font-extrabold uppercase tracking-wider text-[#122244]">
+                            Direct Competitors
+                          </label>
+                        </div>
+                        <span className="px-2.5 py-0.5 bg-amber-50 text-[#c9a654] border border-amber-200 font-extrabold text-[11px] rounded-lg">
+                          {financials.directCompetitors?.length || 0} Listed
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        Businesses offering the same or very similar products/services in your location targeting the exact same customer need.
+                      </p>
+
+                      {/* Direct Competitors Capsules Cloud */}
+                      <div className="min-h-12 p-3 bg-white rounded-xl border border-gray-200 flex flex-wrap items-center gap-2 shadow-inner">
+                        {financials.directCompetitors && financials.directCompetitors.length > 0 ? (
+                          financials.directCompetitors.map((comp, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-sm transition-all"
+                            >
+                              <Tag size={12} className="text-[#c9a654] shrink-0" />
+                              <span>{comp}</span>
+                              <button
+                                type="button"
+                                disabled={isInputsBlocked}
+                                onClick={() => handleRemoveDirectCompetitor(idx)}
+                                className="text-gray-400 hover:text-red-600 p-0.5 rounded-full hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                                title={`Remove ${comp}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic px-1">
+                            No direct competitors added yet. Click from the map rivals below or enter a business name.
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dynamic Direct Competitors from Map */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#122244] flex items-center gap-1.5">
+                            <MapPin size={12} className="text-[#c9a654]" />
+                            {dynamicCompetitorData?.locationName ? (
+                              <span>
+                                Direct Rivals from Map ({dynamicCompetitorData.detectedCity || dynamicCompetitorData.locationName}):
+                              </span>
+                            ) : (
+                              <span>Direct Rivals from Map (Click to add):</span>
+                            )}
+                            {dynamicCompetitorData?.source === "live_osm_map" && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                Live Map
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {isDetectingCompetitors ? (
+                          <div className="flex items-center gap-2 py-2 px-3 bg-amber-50/40 rounded-xl border border-amber-200/50 text-xs text-[#122244]">
+                            <RefreshCw size={12} className="animate-spin text-[#c9a654]" />
+                            <span className="font-medium">Reading map for direct competitors near proposal location...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {(dynamicCompetitorData?.directCompetitors || [
+                              "Local Rival Shop",
+                              "Direct Brand Rival",
+                              "Nearby Franchise",
+                              "Specialty Store",
+                              "Independent Seller",
+                            ]).map((cat) => {
+                              const isAdded = (financials.directCompetitors || []).some(
+                                (c) => c.toLowerCase() === cat.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  disabled={isInputsBlocked}
+                                  onClick={() => handleToggleDirectCompetitor(cat)}
+                                  className={`px-2.5 py-1 border rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
+                                    isAdded
+                                      ? "bg-[#c9a654] text-[#122244] border-[#c9a654] font-bold shadow-xs"
+                                      : "bg-white hover:bg-amber-50 border-gray-200 hover:border-[#c9a654] text-gray-700 hover:text-[#122244]"
+                                  }`}
+                                >
+                                  <span>{isAdded ? "✓" : "+"}</span>
+                                  <span>{cat}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input Box */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          disabled={isInputsBlocked}
+                          value={directCompetitorInput}
+                          onChange={(e) => setDirectCompetitorInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddDirectCompetitor();
+                            }
+                          }}
+                          placeholder="Type direct competitor name & press Enter..."
+                          className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          disabled={isInputsBlocked || !directCompetitorInput.trim()}
+                          onClick={() => handleAddDirectCompetitor()}
+                          className="px-4 py-2 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0 active:scale-95"
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: OTHER COMPETITORS (INDIRECT & SUBSTITUTES) */}
+                    <div className="space-y-3.5 p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#c9a654]" />
+                          <label className="text-xs font-extrabold uppercase tracking-wider text-[#122244]">
+                            Other Competitors (Indirect & Substitutes)
+                          </label>
+                        </div>
+                        <span className="px-2.5 py-0.5 bg-amber-50 text-[#c9a654] border border-amber-200 font-extrabold text-[11px] rounded-lg">
+                          {financials.otherCompetitors?.length || 0} Listed
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        Alternative options, retail chains, convenience stores, or substitute snacks/meals competing for customer budget.
+                      </p>
+
+                      {/* Other Competitors Capsules Cloud */}
+                      <div className="min-h-12 p-3 bg-white rounded-xl border border-gray-200 flex flex-wrap items-center gap-2 shadow-inner">
+                        {financials.otherCompetitors && financials.otherCompetitors.length > 0 ? (
+                          financials.otherCompetitors.map((comp, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-sm transition-all"
+                            >
+                              <Tag size={12} className="text-[#c9a654] shrink-0" />
+                              <span>{comp}</span>
+                              <button
+                                type="button"
+                                disabled={isInputsBlocked}
+                                onClick={() => handleRemoveOtherCompetitor(idx)}
+                                className="text-gray-400 hover:text-red-600 p-0.5 rounded-full hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                                title={`Remove ${comp}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic px-1">
+                            No other/indirect competitors added yet. (e.g., 7-Eleven, Fast food, Online sellers).
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dynamic Other Competitors from Map */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#122244] flex items-center gap-1.5">
+                            <MapPin size={12} className="text-[#c9a654]" />
+                            {dynamicCompetitorData?.locationName ? (
+                              <span>
+                                Substitutes from Map ({dynamicCompetitorData.detectedCity || dynamicCompetitorData.locationName}):
+                              </span>
+                            ) : (
+                              <span>Substitutes & Chains from Map (Click to add):</span>
+                            )}
+                            {dynamicCompetitorData?.source === "live_osm_map" && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                Live Map
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {isDetectingCompetitors ? (
+                          <div className="flex items-center gap-2 py-2 px-3 bg-amber-50/40 rounded-xl border border-amber-200/50 text-xs text-[#122244]">
+                            <RefreshCw size={12} className="animate-spin text-[#c9a654]" />
+                            <span className="font-medium">Reading map for indirect competitors & substitute outlets...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {(dynamicCompetitorData?.otherCompetitors || [
+                              "Convenience Stores (7-Eleven / Uncle John's)",
+                              "Fast Food Chains",
+                              "Supermarkets & Groceries",
+                              "Online / Social Media Sellers",
+                              "Street Food / School Canteens",
+                            ]).map((cat) => {
+                              const isAdded = (financials.otherCompetitors || []).some(
+                                (c) => c.toLowerCase() === cat.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  disabled={isInputsBlocked}
+                                  onClick={() => handleToggleOtherCompetitor(cat)}
+                                  className={`px-2.5 py-1 border rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
+                                    isAdded
+                                      ? "bg-[#c9a654] text-[#122244] border-[#c9a654] font-bold shadow-xs"
+                                      : "bg-white hover:bg-amber-50 border-gray-200 hover:border-[#c9a654] text-gray-700 hover:text-[#122244]"
+                                  }`}
+                                >
+                                  <span>{isAdded ? "✓" : "+"}</span>
+                                  <span>{cat}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input Box */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          disabled={isInputsBlocked}
+                          value={otherCompetitorInput}
+                          onChange={(e) => setOtherCompetitorInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddOtherCompetitor();
+                            }
+                          }}
+                          placeholder="Type other/indirect competitor name & press Enter..."
+                          className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          disabled={isInputsBlocked || !otherCompetitorInput.trim()}
+                          onClick={() => handleAddOtherCompetitor()}
+                          className="px-4 py-2 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0 active:scale-95"
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 3: COMPETITIVE ADVANTAGE & STRATEGY */}
+                    <div className="space-y-2.5 p-4 rounded-xl bg-amber-50/40 border border-amber-200/60">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-[#c9a654]" />
+                        <label className="text-xs font-bold text-[#122244] uppercase tracking-wider block">
+                          Competitive Advantage & Differentiation Strategy
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Describe what makes your offering unique and why customers will choose your business over competitors (pricing, taste/recipe, speed, loyalty rewards, packaging).
+                      </p>
+                      <textarea
+                        rows={3}
+                        disabled={isInputsBlocked}
+                        value={financials.competitorNotes || ""}
+                        onChange={(e) => handleMarketFieldChange("competitorNotes", e.target.value)}
+                        onBlur={() => handleAutoSave()}
+                        placeholder="e.g., We offer 15% lower student-friendly pricing, customized meal bundles, localized flavor combinations, and loyalty punch cards that retain repeat walk-in customers..."
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:opacity-60 resize-none leading-relaxed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ========================================================= */}
+                  {/* RIGHT COLUMN: MARKET DEMAND & ROI ENVIRONMENT             */}
+                  {/* ========================================================= */}
+                  <div className="bg-white rounded-2xl p-6 sm:p-7 shadow-sm border border-gray-200 text-[#122244] space-y-6">
+                    
+                    {/* Header */}
+                    <div className="border-b border-gray-100 pb-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-[#122244]/10 text-[#122244] rounded-xl border border-[#122244]/20">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-base font-bold text-[#122244]">Market Demand & ROI Drivers</h4>
+                            <p className="text-xs text-gray-500">Identify surrounding establishments and demographic dynamics driving customer volume</p>
+                          </div>
+                        </div>
+
+                        {/* Re-scan Map button */}
+                        <button
+                          type="button"
+                          onClick={() => loadDynamicCompetitors(true)}
+                          disabled={isDetectingCompetitors}
+                          className="px-2.5 py-1.5 rounded-xl border border-gray-200 hover:border-[#122244] bg-white hover:bg-blue-50/50 text-[11px] font-bold text-[#122244] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50 shrink-0"
+                          title="Re-scan map around proposal location for nearby establishments & traffic generators"
+                        >
+                          <RefreshCw size={12} className={isDetectingCompetitors ? "animate-spin text-[#122244]" : "text-[#122244]"} />
+                          <span className="hidden sm:inline">Re-scan Map</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 1: NEARBY ESTABLISHMENTS AFFECTING ROI */}
+                    <div className="space-y-3.5 p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#122244]" />
+                          <label className="text-xs font-extrabold uppercase tracking-wider text-[#122244]">
+                            Nearby Establishments Affecting Business ROI
+                          </label>
+                        </div>
+                        <span className="px-2.5 py-0.5 bg-[#122244]/10 text-[#122244] border border-[#122244]/20 font-extrabold text-[11px] rounded-lg">
+                          {financials.nearbyEstablishments?.length || 0} Listed
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        Surrounding hubs (schools, corporate towers, residential clusters, transport stations) generating regular customer foot traffic.
+                      </p>
+
+                      {/* Active Establishments Capsules Cloud */}
+                      <div className="min-h-12 p-3 bg-white rounded-xl border border-gray-200 flex flex-wrap items-center gap-2 shadow-inner">
+                        {financials.nearbyEstablishments && financials.nearbyEstablishments.length > 0 ? (
+                          financials.nearbyEstablishments.map((est, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#122244]/10 border border-[#122244]/20 text-[#122244] text-xs font-bold shadow-xs transition-all"
+                            >
+                              <MapPin size={12} className="text-[#122244] shrink-0" />
+                              <span>{est}</span>
+                              <button
+                                type="button"
+                                disabled={isInputsBlocked}
+                                onClick={() => handleRemoveNearbyEstablishment(idx)}
+                                className="text-gray-400 hover:text-red-600 p-0.5 rounded-full hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                                title={`Remove ${est}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic px-1">
+                            No nearby establishments added yet. Click map landmarks below or type custom landmarks.
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dynamic Nearby Establishments from Map */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#122244] flex items-center gap-1.5">
+                            <MapPin size={12} className="text-[#122244]" />
+                            {dynamicCompetitorData?.locationName ? (
+                              <span>
+                                Surrounding Establishments from Map ({dynamicCompetitorData.detectedCity || dynamicCompetitorData.locationName}):
+                              </span>
+                            ) : (
+                              <span>Surrounding Establishments from Map (Click to add):</span>
+                            )}
+                            {dynamicCompetitorData?.source === "live_osm_map" && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                Live Map POIs
+                              </span>
+                            )}
+                            {dynamicCompetitorData?.nearbyEstablishmentItems && dynamicCompetitorData.nearbyEstablishmentItems.some((i) => i.distanceKm !== undefined) && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
+                                GPS Proximity
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {isDetectingCompetitors ? (
+                          <div className="flex items-center gap-2 py-2 px-3 bg-blue-50/50 rounded-xl border border-blue-200/50 text-xs text-[#122244]">
+                            <RefreshCw size={12} className="animate-spin text-[#122244]" />
+                            <span className="font-medium">Reading map for nearby schools, hospitals, commercial hubs & transit points...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {((dynamicCompetitorData?.nearbyEstablishmentItems && dynamicCompetitorData.nearbyEstablishmentItems.length > 0)
+                              ? dynamicCompetitorData.nearbyEstablishmentItems
+                              : (dynamicCompetitorData?.nearbyEstablishments || [
+                                  "Local High School / University",
+                                  "City Public Hospital & Clinic",
+                                  "Shopping Mall & Hypermarket",
+                                  "Bus & Jeepney Transit Terminal",
+                                  "Municipal / City Hall Complex",
+                                  "Parish Church & Worship Center",
+                                  "Corporate & BPO Offices",
+                                ]).map((name) => ({ name, category: "Establishment" as const, icon: "📍" }))
+                            ).map((item) => {
+                              const isAdded = (financials.nearbyEstablishments || []).some(
+                                (e) => e.toLowerCase() === item.name.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  key={item.name}
+                                  type="button"
+                                  disabled={isInputsBlocked}
+                                  onClick={() => handleToggleNearbyEstablishment(item.name)}
+                                  className={`px-2.5 py-1.5 border rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${
+                                    isAdded
+                                      ? "bg-[#122244] text-white border-[#122244] font-bold shadow-xs"
+                                      : "bg-white hover:bg-blue-50 border-gray-200 hover:border-[#122244]/40 text-gray-700 hover:text-[#122244]"
+                                  }`}
+                                >
+                                  <span className="text-xs">{item.icon || "📍"}</span>
+                                  <span>{isAdded ? "✓" : "+"}</span>
+                                  <span>{item.name}</span>
+                                  {item.distanceKm !== undefined && (
+                                    <span
+                                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                        isAdded ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                                      }`}
+                                    >
+                                      {item.distanceKm} km
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Custom Establishment Input Bar */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          disabled={isInputsBlocked}
+                          value={nearbyEstablishmentInput}
+                          onChange={(e) => setNearbyEstablishmentInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddCustomEstablishment();
+                            }
+                          }}
+                          placeholder="Type specific nearby landmark (e.g. Fatima University, SM Grand Central) & press Enter..."
+                          className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#122244] focus:ring-2 focus:ring-[#122244]/20 outline-none disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          disabled={isInputsBlocked || !nearbyEstablishmentInput.trim()}
+                          onClick={() => handleAddCustomEstablishment()}
+                          className="px-4 py-2 bg-[#122244] hover:bg-[#1a3060] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0 active:scale-95"
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: PRIMARY TARGET DEMOGRAPHICS */}
+                    <div className="space-y-3.5 p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#122244]" />
+                            <label className="text-xs font-extrabold uppercase tracking-wider text-[#122244]">
+                              Primary Target Demographics
+                            </label>
+                            {rawTargetMarket && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#122244]/10 text-[#122244] border border-[#122244]/20" title={`Proposal Target Market: ${rawTargetMarket}`}>
+                                <Users size={10} className="text-[#122244] shrink-0" />
+                                <span className="max-w-[180px] sm:max-w-[240px] truncate">{rawTargetMarket}</span>
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
+                            Identify priority customer profiles and consumer segments patronizing your business location.
+                          </p>
+                        </div>
+                        <span className="self-start sm:self-auto px-2.5 py-0.5 bg-blue-50 text-[#122244] border border-blue-200 font-extrabold text-[11px] rounded-lg shrink-0">
+                          {financials.targetDemographics?.length || 0} Identified
+                        </span>
+                      </div>
+
+                      {/* Target Demographics Capsules Cloud */}
+                      <div className="min-h-12 p-3 bg-white rounded-xl border border-gray-200 flex flex-wrap items-center gap-2 shadow-inner">
+                        {financials.targetDemographics && financials.targetDemographics.length > 0 ? (
+                          financials.targetDemographics.map((demo, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[#122244] text-xs font-bold shadow-sm transition-all"
+                            >
+                              <Users size={12} className="text-[#122244] shrink-0" />
+                              <span>{demo}</span>
+                              <button
+                                type="button"
+                                disabled={isInputsBlocked}
+                                onClick={() => handleRemoveTargetDemographic(idx)}
+                                className="text-gray-400 hover:text-red-600 p-0.5 rounded-full hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                                title={`Remove ${demo}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic px-1">
+                            No target demographics added yet. Use the presets below or enter customer groups.
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dynamic Target Demographics from Proposal */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#122244] flex items-center gap-1.5">
+                            <Users size={12} className="text-[#122244]" />
+                            {dynamicDemographics.hasDetectedProfile ? (
+                              <span>
+                                Demographics Matched from Proposal Target Market ({dynamicDemographics.detectedLabel}):
+                              </span>
+                            ) : (
+                              <span>Quick Presets (Click to add / toggle):</span>
+                            )}
+                            {dynamicDemographics.hasDetectedProfile && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-[#122244] border border-blue-200 uppercase tracking-wider">
+                                Proposal Matched
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {dynamicDemographics.demographics.map((demo) => {
+                            const isSelected = (financials.targetDemographics || []).includes(demo);
+                            return (
+                              <button
+                                key={demo}
+                                type="button"
+                                disabled={isInputsBlocked}
+                                onClick={() => handleToggleTargetDemographic(demo)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border shadow-2xs ${isSelected
+                                  ? "bg-[#122244] text-white border-[#122244] shadow-xs font-bold"
+                                  : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-[#122244]/40"
+                                  }`}
+                              >
+                                {isSelected ? "✓ " : "+ "}{demo}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Text Input for Custom Demographic */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          disabled={isInputsBlocked}
+                          value={targetDemographicsInput}
+                          onChange={(e) => setTargetDemographicsInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddCustomDemographic();
+                            }
+                          }}
+                          placeholder="Add custom target demographic (e.g. Senior Citizens, Night Shift Workers, Freelancers)..."
+                          className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#122244] focus:ring-2 focus:ring-[#122244]/20 outline-none disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          disabled={isInputsBlocked || !targetDemographicsInput.trim()}
+                          onClick={() => handleAddCustomDemographic()}
+                          className="px-4 py-2 bg-[#122244] hover:bg-[#1a3060] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0 active:scale-95"
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 3: DETAILED MARKET DEMAND & ROI CONTEXT NOTES */}
+                    <div className="space-y-2.5 p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider block">
+                          Detailed Market Demand Context (Directly Affecting ROI):
+                        </label>
+                        <select
+                          disabled={isInputsBlocked}
+                          value={financials.marketDemand || "Medium"}
+                          onChange={(e) => {
+                            const newDemand = e.target.value;
+                            const newState = { ...financials, marketDemand: newDemand };
+                            setFinancials(newState);
+                            const updatedRecords = [...monthlyRecords];
+                            if (updatedRecords[activeMonthIndex]) {
+                              updatedRecords[activeMonthIndex] = {
+                                ...updatedRecords[activeMonthIndex],
+                                financials: newState,
+                              };
+                              setMonthlyRecords(updatedRecords);
+                            }
+                            handleAutoSave(newState, updatedRecords);
+                          }}
+                          className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] outline-none cursor-pointer"
+                        >
+                          <option value="High">🔥 High Demand</option>
+                          <option value="Medium">📈 Medium Demand</option>
+                          <option value="Low">⚖️ Low Demand</option>
+                        </select>
+                      </div>
+                      <textarea
+                        rows={3}
+                        disabled={isInputsBlocked}
+                        value={financials.marketDemandNotes || ""}
+                        onChange={(e) => handleMarketFieldChange("marketDemandNotes", e.target.value)}
+                        onBlur={() => handleAutoSave()}
+                        placeholder="e.g., Proximity to 2 universities within 250m generates ~1,200 daily student foot traffic, driving 70% of snack/merienda revenue during 11:30 AM - 1:30 PM and 4:00 PM - 6:00 PM, shortening our investment payback period to under 12 months..."
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none disabled:opacity-60 resize-none leading-relaxed"
+                      />
+                    </div>
+
+                    {/* SECTION 4: MARKET VIABILITY ASSESSMENT CARD */}
+                    <div className="p-4 bg-gradient-to-r from-amber-500/10 via-[#c9a654]/15 to-[#122244]/10 rounded-2xl border border-[#c9a654]/40 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654] shrink-0">
+                          <TrendingUp size={20} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black uppercase text-[#122244] block">
+                            Market Viability Potential
+                          </span>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            {(financials.nearbyEstablishments?.length || 0) >= 3
+                              ? "🔥 High Demand Potential — Strong multi-establishment foot traffic drivers boosting revenue velocity and short ROI payback."
+                              : (financials.nearbyEstablishments?.length || 0) >= 1
+                                ? "📈 Moderate Demand Potential — Key customer establishment generator active supporting steady daily turnover."
+                                : "⚖️ Baseline Local Trade Area — Dependent on direct walk-ins and local promotions."}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-3.5 py-1.5 bg-[#122244] text-[#c9a654] font-black text-xs rounded-xl shadow-sm shrink-0 border border-white/10">
+                        {financials.marketDemand || "Medium"} Demand
+                      </span>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Footer Guidance Note */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-[#c9a654] shrink-0" />
+                    <span>All market and competitive indicators are automatically integrated into your AI Feasibility Analysis and Executive Summary.</span>
+                  </div>
+                  <span className="font-bold text-[#122244] shrink-0">
+                    {(financials.directCompetitors?.length || 0) + (financials.otherCompetitors?.length || 0)} Competitors • {financials.nearbyEstablishments?.length || 0} Establishments Mapped
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* === TAB 3: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
             {activeModuleTab === "balance-sheet" && (
               <div className="space-y-6 animate-in fade-in duration-200 text-[#122244]">
                 {/* BALANCE CHECK HEADER BANNER */}
@@ -4432,84 +5488,7 @@ return (
         </div>
       )}
 
-      {/* LEADER-ONLY AUDIT TRAIL MODAL */}
-      {isLeader && showAuditTrailModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowAuditTrailModal(false)}
-          />
-          <div className="bg-white rounded-2xl p-6 z-10 w-full max-w-2xl shadow-2xl relative text-[#122244] max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-50 text-[#c9a654] rounded-xl border border-amber-100">
-                  <History className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-[#122244]">Audit Trail & Change History</h3>
-                  <p className="text-xs text-gray-500">Live activity logs recorded for this financial model (Leader Access Only)</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAuditTrailModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
-              {auditLogs.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <Clock className="w-10 h-10 mx-auto mb-2 opacity-40 text-[#c9a654]" />
-                  <p className="text-sm font-semibold">No audit logs recorded yet</p>
-                  <p className="text-xs text-gray-400 mt-1">Changes made to financial inputs will appear here automatically.</p>
-                </div>
-              ) : (
-                auditLogs.map((log) => {
-                  const dateStr = log.createdAt?.toDate
-                    ? log.createdAt.toDate().toLocaleString()
-                    : log.createdAt
-                    ? new Date(log.createdAt).toLocaleString()
-                    : "Just now";
-                  return (
-                    <div
-                      key={log.id}
-                      className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 flex items-start justify-between gap-4 hover:border-gray-200 transition-all"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wider border border-blue-100">
-                            {log.action || "UPDATE"}
-                          </span>
-                          <span className="text-xs font-bold text-gray-800">{log.userName || "User"}</span>
-                          <span className="text-[10px] text-gray-400">•</span>
-                          <span className="text-[10px] text-gray-500">{log.userRole || "Member"}</span>
-                        </div>
-                        <p className="text-xs text-gray-700 font-medium">{log.description}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] text-gray-400 font-mono block">{dateStr}</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-gray-100 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowAuditTrailModal(false)}
-                className="px-5 py-2.5 bg-[#122244] text-white text-xs font-bold rounded-xl shadow-md hover:bg-[#1a3060] transition-all"
-              >
-                Close History
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
 
     {/* ========================================================= */}
     {/* DEDICATED PRINTABLE EXECUTIVE FINANCIAL FEASIBILITY REPORT */}

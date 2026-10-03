@@ -198,6 +198,13 @@ export interface FinancialProposalData {
   operatingDays?: string;
   competitorCount?: number;
   marketDemand?: string;
+  directCompetitors?: string[];
+  otherCompetitors?: string[];
+  competitorNotes?: string;
+  nearbyEstablishments?: string[];
+  targetDemographics?: string[];
+  footTrafficPeak?: string;
+  marketDemandNotes?: string;
   opexList?: OpexItem[];
 }
 
