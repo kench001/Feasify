@@ -1,5 +1,14 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+// Process-level resilience against crashes
+process.on("uncaughtException", (err) => {
+  console.error("🚨 [Uncaught Exception]:", err.message, err.stack);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("🚨 [Unhandled Rejection]:", reason);
+});
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -116,6 +125,16 @@ const proposalLimiter = rateLimit({
 // Middlewares
 app.use(cors());
 app.use(express.json()); // Allows parsing of incoming JSON payloads
+
+// Health check endpoint for connectivity tests
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    backend: "Feasify Backend Engine",
+    geminiKeyConfigured: Boolean(process.env.GEMINI_API_KEY),
+  });
+});
 
 // Create HTTP server from Express app
 const server = http.createServer(app);
@@ -336,6 +355,38 @@ const mapScoreToPerformanceMatrix = (score, performanceMatrix) => {
     performanceStatus: "FAIL",
     performanceRecommendation: "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot."
   };
+};
+
+// Sanitizer to guarantee user-friendly language without internal criteria codes like "DF-02", "DF-01", etc.
+const sanitizeUserFacingText = (data) => {
+  if (typeof data === "string") {
+    return data
+      .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
+      .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
+      .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
+      .replace(/\bDF-\d+\s+margin\s+test\b/gi, "gross margin test")
+      .replace(/\bpasses\s+(?:the\s+)?DF-\d+\s+test\b/gi, "maintains a positive gross profit margin")
+      .replace(/\bfails\s+(?:the\s+)?DF-\d+\s+test\b/gi, "has a negative or zero gross profit margin")
+      .replace(/\bpasses\s+DF-\d+\b/gi, "maintains positive gross profit")
+      .replace(/\bfails\s+DF-\d+\b/gi, "has negative gross profit")
+      .replace(/\bRule\s+DF-\d+[:\s]*/gi, "Gross Margin Rule: ")
+      .replace(/\bcapital reconciliation \(DF-\d+ balance\)/gi, "capital reconciliation balance")
+      .replace(/\(DF-\d+\)/gi, "")
+      .replace(/\bDF-\d+[:\s-]*/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+  if (Array.isArray(data)) {
+    return data.map(sanitizeUserFacingText);
+  }
+  if (data && typeof data === "object") {
+    const cleaned = {};
+    for (const key of Object.keys(data)) {
+      cleaned[key] = sanitizeUserFacingText(data[key]);
+    }
+    return cleaned;
+  }
+  return data;
 };
 
 // ==========================================
@@ -821,9 +872,10 @@ APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples):
 ${JSON.stringify(kb.financial_input_examples, null, 2)}
 
 EVALUATION RULES:
-1. Rule DF-02 (Gross Margin): Selling Price - COGS/Unit > 0. If fails, status must be NOT_FEASIBLE and score must be 15.
+1. Gross Profit Margin Rule: Selling Price - COGS/Unit > 0 (The unit selling price must strictly exceed the direct unit production cost). If fails, status must be NOT_FEASIBLE and score must be 15.
 2. Profitability Check: A business must have positive Net Profit/Month and positive Annual Net Profit (After Tax) to be feasible. If Net Profit is less than or equal to 0, status must be NOT_FEASIBLE and score must be 30.
-3. Realism Audit: Compare the submitted financial data (startup capital, unit selling price, COGS/unit, and monthly OPEX) against the approved university feasibility studies under APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples). Focus on comparing the startup capital scale and the COGS-to-price ratios. Warn if they are extremely unrealistic, but DO NOT check or criticize for capital reconciliation (DF-03 balance) or cash reserve buffer quantities since those are NOT evaluated in this phase.
+3. Realism Audit: Compare the submitted financial data (startup capital, unit selling price, COGS/unit, and monthly OPEX) against the approved university feasibility studies under APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples). Focus on comparing the startup capital scale and the COGS-to-price ratios. Warn if they are extremely unrealistic, but DO NOT check or criticize for total capital reconciliation balance or cash reserve buffer quantities since those are NOT evaluated in this phase.
+4. STRICT JARGON BAN: Do NOT output or refer to internal code names like "DF-01", "DF-02", "DF-03", or "DF" anywhere in your text. Explain concepts in everyday business terms that students easily understand (such as "unit gross profit margin", "direct cost coverage", "profitability margin", etc.).
 
 ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
 - Tone & Style: ${req.body.customAIRules?.tone || 'Default academic and constructive tone.'}
@@ -879,7 +931,7 @@ Your response must be a single stringified JSON object matching this structure:
     "market": 80
   },
   "explanations": {
-    "feasibility": "Overall numeric audit verdict explanation. Must explicitly mention unit gross margins, net profit, and whether it passes the DF-02 test. Assess whether the startup capital scale and pricing seem realistic based on the baseline university exemplars. Do not mention or audit capital reconciliation (DF-03) or cash reserves.",
+    "feasibility": "Overall numeric audit verdict explanation written in simple, clear business language without any internal technical codes (NEVER write 'DF-02', 'DF-01', or 'DF-03'). Explicitly mention unit gross profit margin, net profit, and whether unit pricing covers direct product costs. Assess whether the startup capital scale and pricing seem realistic based on baseline university exemplars.",
     "financial": "Detailed analysis of unit margins, OPEX coverage, and net profit.",
     "risk": "Breakdown of cash flow risks, capital recovery duration (payback period), and general budget stability.",
     "market": "Assessment of volume adequacy, gross margins, and general price realism."
@@ -919,12 +971,15 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
 
       const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
-      const parsedResponse = cleanAndParseJSON(textResponse);
+      let parsedResponse = cleanAndParseJSON(textResponse);
       
       // Enforce the exact performance matrix fields programmatically
       parsedResponse.performanceGrade = performanceInfo.performanceGrade;
       parsedResponse.performanceStatus = performanceInfo.performanceStatus;
       parsedResponse.performanceRecommendation = performanceInfo.performanceRecommendation;
+
+      // Sanitize user-facing text to remove any residual internal DF codes
+      parsedResponse = sanitizeUserFacingText(parsedResponse);
 
       res.json(parsedResponse);
 
@@ -1131,7 +1186,8 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
 
       const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
-      res.json(cleanAndParseJSON(textResponse));
+      const parsedProposal = cleanAndParseJSON(textResponse);
+      res.json(sanitizeUserFacingText(parsedProposal));
 
     } catch (error) {
       console.error("AI Evaluation Error:", error);
@@ -1312,8 +1368,28 @@ io.on("connection", (socket) => {
   });
 });
 
+// Global Express Error Handler for body-parser or route failures
+app.use((err, req, res, next) => {
+  console.error("❌ [Express Error Handler]:", err.message || err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
+    details: "An unexpected error occurred on the backend.",
+  });
+});
+
 // Port handling
 const PORT = process.env.PORT || 10000;
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`❌ Port ${PORT} is already in use by another process. Please free port ${PORT} or check running Node processes.`);
+  } else {
+    console.error("❌ Server error:", err);
+  }
+});
+
 server.listen(PORT, () => {
   console.log(`🚀 Feasify-Backend live on port ${PORT}`);
 });
