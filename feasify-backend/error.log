@@ -135,3 +135,23 @@ Error: AbortError: This operation was aborted
     at async callGeminiWithRetry (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:205:22)
     at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:622:22
 
+[2026-10-03T01:12:01.523Z] AI Analysis Error:
+Request: {
+  "projectId": "test-project",
+  "financialData": {
+    "sellingPrice": 50,
+    "variableCost": 20,
+    "monthlySales": 1500,
+    "startupCapital": 250000,
+    "fixedCosts": 15000,
+    "operatingDays": 300
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:939:22
+

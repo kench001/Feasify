@@ -3,19 +3,19 @@
         "gateway_phase": {
             "rules": [
                 {
-                    "id": "DF-01",
+                    "id": "RULE-LEGALITY",
                     "name": "Legality & Ethical Compliance",
                     "description": "The business concept must represent a legal, ethical, and safe enterprise under Philippine law. No scams, unregistered schemes, or deceptive trade practices.",
                     "verification": "Check that the product and business type do not violate local or national laws."
                 },
                 {
-                    "id": "DF-02",
+                    "id": "RULE-GROSS-MARGIN",
                     "name": "Gross Margin Test",
                     "description": "The selling price per unit must be strictly greater than the unit cost of goods sold (COGS).",
                     "verification": "Selling Price - COGS > 0"
                 },
                 {
-                    "id": "DF-03",
+                    "id": "RULE-CAPITAL-RECONCILIATION",
                     "name": "Capital Reconciliation Test",
                     "description": "The sum of all startup equipment, inventory, licenses, and initial working capital reserve must match the declared total capital.",
                     "verification": "Sum of Startup Costs + Cash Reserve = Declared Total Capital."
