@@ -155,3 +155,710 @@ Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generative
     at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
     at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:939:22
 
+[2026-10-03T16:58:26.260Z] AI Analysis Error:
+Request: {
+  "projectId": "c9dGBscGrjzUibQkNkZb",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "tests",
+        "quantityYield": "50",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "id": "ing-1790988777770-hzx2",
+            "name": "asd",
+            "price": 100000,
+            "category": "ingredient"
+          }
+        ],
+        "markupPercentage": "50",
+        "sellingPrice": "33600",
+        "applyVat": true,
+        "vatRate": 12
+      },
+      {
+        "id": "prod-1791022535194-oe91",
+        "name": "tests (Copy)",
+        "quantityYield": "50",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "category": "ingredient",
+            "id": "ing-1791022535195-fvde",
+            "name": "asd",
+            "price": 100000
+          }
+        ],
+        "markupPercentage": "50",
+        "sellingPrice": "3360",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": "33600",
+    "monthlySales": "50",
+    "variableCost": "2000",
+    "fixedCosts": "1000000",
+    "startupCapital": "123123",
+    "cashInvested": "123123.00000000001",
+    "contributorsList": [
+      {
+        "id": "contrib-10",
+        "name": "Investor / Partner 10",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-2",
+        "name": "Investor / Partner 2",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-3",
+        "name": "Investor / Partner 3",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-4",
+        "name": "Investor / Partner 4",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-5",
+        "name": "Investor / Partner 5",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-6",
+        "name": "Investor / Partner 6",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-7",
+        "name": "Investor / Partner 7",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-8",
+        "name": "Investor / Partner 8",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-9",
+        "name": "Investor / Partner 9",
+        "amount": 12312.3
+      },
+      {
+        "id": "contrib-10",
+        "name": "Investor / Partner 10",
+        "amount": 12312.3
+      }
+    ],
+    "contributorsCount": "10",
+    "rentAdvanceDeposit": "",
+    "trainingsPrograms": "",
+    "advertisingExpense": "",
+    "salariesExpenseInitial": "",
+    "accountsPayable": "",
+    "utilitiesPayable": "",
+    "competitorCount": 5,
+    "marketDemand": "High",
+    "directCompetitors": [
+      "Jollibee (Manila)",
+      "McDonald's (Manila)",
+      "Chowking (Manila)"
+    ],
+    "otherCompetitors": [
+      "Andok's / Baliwag Lechon Manok",
+      "Uncle John's Fried Chicken (Manila)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [
+      "Pamantasan ng Lungsod ng Maynila (PLM)",
+      "Embassy of the United States"
+    ],
+    "targetDemographics": [
+      "Students & Youth",
+      "Young Working Professionals",
+      "Daily Commuters",
+      "Local Families & Residents",
+      "Health & Fitness Enthusiasts",
+      "Office & BPO Workers"
+    ],
+    "footTrafficPeak": "Steady All-Day Foot Traffic",
+    "marketDemandNotes": "",
+    "operatingDays": "300",
+    "equipmentList": [
+      {
+        "name": "tests",
+        "unitPrice": 1230,
+        "id": "eq-1790783483224",
+        "quantity": 1,
+        "total": 1230
+      },
+      {
+        "quantity": 1,
+        "unitPrice": 0,
+        "total": 0,
+        "id": "eq-1791045509002",
+        "name": ""
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "category": "Consumables",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 100000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc",
+        "amount": 100000,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "productionCost": "100000",
+    "quantityYield": "50",
+    "unitCost": "2000",
+    "markupPercentage": "50",
+    "markupAmount": "1000",
+    "computedSellingPrice": "3000",
+    "monthlyRecords": [
+      {
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "isLocked": false,
+        "activeDraftId": "draft-1",
+        "drafts": [
+          {
+            "id": "draft-1",
+            "name": "Draft 1 (Primary)",
+            "createdAt": "2026-10-03T00:51:35.857Z",
+            "updatedAt": "2026-10-03T16:43:27.528Z",
+            "financials": {
+              "products": [
+                {
+                  "id": "prod-1",
+                  "name": "tests",
+                  "quantityYield": "50",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "id": "ing-1790988777770-hzx2",
+                      "name": "asd",
+                      "price": 100000,
+                      "category": "ingredient"
+                    }
+                  ],
+                  "markupPercentage": "50",
+                  "sellingPrice": "33600",
+                  "applyVat": true,
+                  "vatRate": 12
+                },
+                {
+                  "id": "prod-1791022535194-oe91",
+                  "name": "tests (Copy)",
+                  "quantityYield": "50",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1791022535195-fvde",
+                      "name": "asd",
+                      "price": 100000
+                    }
+                  ],
+                  "markupPercentage": "50",
+                  "sellingPrice": "3360",
+                  "applyVat": true,
+                  "vatRate": 12
+                }
+              ],
+              "sellingPrice": "123123",
+              "monthlySales": "",
+              "variableCost": "",
+              "fixedCosts": "",
+              "startupCapital": "123123",
+              "cashInvested": "123123.00000000001",
+              "contributorsList": [
+                {
+                  "id": "contrib-10",
+                  "name": "Investor / Partner 10",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Investor / Partner 2",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-3",
+                  "name": "Investor / Partner 3",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-4",
+                  "name": "Investor / Partner 4",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-5",
+                  "name": "Investor / Partner 5",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Investor / Partner 6",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-7",
+                  "name": "Investor / Partner 7",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-8",
+                  "name": "Investor / Partner 8",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-9",
+                  "name": "Investor / Partner 9",
+                  "amount": 12312.3
+                },
+                {
+                  "id": "contrib-10",
+                  "name": "Investor / Partner 10",
+                  "amount": 12312.3
+                }
+              ],
+              "contributorsCount": "10",
+              "rentAdvanceDeposit": "",
+              "trainingsPrograms": "",
+              "advertisingExpense": "",
+              "salariesExpenseInitial": "",
+              "accountsPayable": "",
+              "utilitiesPayable": "",
+              "competitorCount": 5,
+              "marketDemand": "High",
+              "directCompetitors": [
+                "Jollibee (Manila)",
+                "McDonald's (Manila)",
+                "Chowking (Manila)"
+              ],
+              "otherCompetitors": [
+                "Andok's / Baliwag Lechon Manok",
+                "Uncle John's Fried Chicken (Manila)"
+              ],
+              "competitorNotes": "",
+              "nearbyEstablishments": [
+                "Pamantasan ng Lungsod ng Maynila (PLM)",
+                "Embassy of the United States"
+              ],
+              "targetDemographics": [
+                "Students & Youth",
+                "Young Working Professionals",
+                "Daily Commuters",
+                "Local Families & Residents",
+                "Health & Fitness Enthusiasts",
+                "Office & BPO Workers"
+              ],
+              "footTrafficPeak": "Steady All-Day Foot Traffic",
+              "marketDemandNotes": "",
+              "operatingDays": "300",
+              "equipmentList": [
+                {
+                  "name": "tests",
+                  "unitPrice": 1230,
+                  "id": "eq-1790783483224",
+                  "quantity": 1,
+                  "total": 1230
+                },
+                {
+                  "quantity": 1,
+                  "unitPrice": 0,
+                  "total": 0,
+                  "id": "eq-1791045509002",
+                  "name": ""
+                }
+              ],
+              "opexList": [
+                {
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "category": "Payroll & Labor",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-electricity",
+                  "name": "Electricity & Power",
+                  "category": "Utilities",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-water",
+                  "name": "Water & Sanitation",
+                  "category": "Utilities",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-internet",
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-marketing",
+                  "name": "Marketing, Signage & Promotions",
+                  "category": "Marketing & Growth",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Store, Office & Packaging Supplies",
+                  "category": "Consumables",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "amount": 100000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc",
+                  "amount": 100000,
+                  "isPreset": true
+                }
+              ],
+              "isCapitalBorrowed": false,
+              "interestRate": ""
+            }
+          }
+        ],
+        "financials": {
+          "products": [
+            {
+              "id": "prod-1",
+              "name": "tests",
+              "quantityYield": "50",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "id": "ing-1790988777770-hzx2",
+                  "name": "asd",
+                  "price": 100000,
+                  "category": "ingredient"
+                }
+              ],
+              "markupPercentage": "50",
+              "sellingPrice": "33600",
+              "applyVat": true,
+              "vatRate": 12
+            },
+            {
+              "id": "prod-1791022535194-oe91",
+              "name": "tests (Copy)",
+              "quantityYield": "50",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "category": "ingredient",
+                  "id": "ing-1791022535195-fvde",
+                  "name": "asd",
+                  "price": 100000
+                }
+              ],
+              "markupPercentage": "50",
+              "sellingPrice": "3360",
+              "applyVat": true,
+              "vatRate": 12
+            }
+          ],
+          "sellingPrice": "123123",
+          "monthlySales": "",
+          "variableCost": "",
+          "fixedCosts": "",
+          "startupCapital": "123123",
+          "cashInvested": "123123.00000000001",
+          "contributorsList": [
+            {
+              "id": "contrib-10",
+              "name": "Investor / Partner 10",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-2",
+              "name": "Investor / Partner 2",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-3",
+              "name": "Investor / Partner 3",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-4",
+              "name": "Investor / Partner 4",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-5",
+              "name": "Investor / Partner 5",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-6",
+              "name": "Investor / Partner 6",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-7",
+              "name": "Investor / Partner 7",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-8",
+              "name": "Investor / Partner 8",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-9",
+              "name": "Investor / Partner 9",
+              "amount": 12312.3
+            },
+            {
+              "id": "contrib-10",
+              "name": "Investor / Partner 10",
+              "amount": 12312.3
+            }
+          ],
+          "contributorsCount": "10",
+          "rentAdvanceDeposit": "",
+          "trainingsPrograms": "",
+          "advertisingExpense": "",
+          "salariesExpenseInitial": "",
+          "accountsPayable": "",
+          "utilitiesPayable": "",
+          "competitorCount": 5,
+          "marketDemand": "High",
+          "directCompetitors": [
+            "Jollibee (Manila)",
+            "McDonald's (Manila)",
+            "Chowking (Manila)"
+          ],
+          "otherCompetitors": [
+            "Andok's / Baliwag Lechon Manok",
+            "Uncle John's Fried Chicken (Manila)"
+          ],
+          "competitorNotes": "",
+          "nearbyEstablishments": [
+            "Pamantasan ng Lungsod ng Maynila (PLM)",
+            "Embassy of the United States"
+          ],
+          "targetDemographics": [
+            "Students & Youth",
+            "Young Working Professionals",
+            "Daily Commuters",
+            "Local Families & Residents",
+            "Health & Fitness Enthusiasts",
+            "Office & BPO Workers"
+          ],
+          "footTrafficPeak": "Steady All-Day Foot Traffic",
+          "marketDemandNotes": "",
+          "operatingDays": "300",
+          "equipmentList": [
+            {
+              "name": "tests",
+              "unitPrice": 1230,
+              "id": "eq-1790783483224",
+              "quantity": 1,
+              "total": 1230
+            },
+            {
+              "quantity": 1,
+              "unitPrice": 0,
+              "total": 0,
+              "id": "eq-1791045509002",
+              "name": ""
+            }
+          ],
+          "opexList": [
+            {
+              "id": "opex-rent",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "category": "Facility & Lease",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-salaries",
+              "name": "Salaries & Wages (Operating Staff)",
+              "category": "Payroll & Labor",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-electricity",
+              "name": "Electricity & Power",
+              "category": "Utilities",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-water",
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "category": "Utilities & Tech",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-marketing",
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-supplies",
+              "name": "Store, Office & Packaging Supplies",
+              "category": "Consumables",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "name": "Equipment Maintenance & Repairs",
+              "category": "Facility Upkeep",
+              "amount": 100000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "category": "Admin & Misc",
+              "amount": 100000,
+              "isPreset": true
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "interestRate": ""
+        }
+      }
+    ],
+    "activeMonthIndex": 0,
+    "totalMonths": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791045807,
+      "nanoseconds": 674000000
+    }
+  }
+}
+Error: AbortError: This operation was aborted
+
