@@ -66,6 +66,11 @@ import {
   Briefcase,
   Tag,
   Compass,
+  Calculator,
+  Percent,
+  Award,
+  Sparkles,
+  BookOpen,
 } from "lucide-react";
 import {
   normalizeProposalProducts,
@@ -81,6 +86,7 @@ import {
   normalizeContributors,
   autoDistributeContributors,
 } from "./utils/productCosting";
+import { MR_CABBAGE_BENCHMARK } from "./utils/cabbageBenchmark";
 import { logAuditEvent } from "./services/auditLogger";
 import {
   getDynamicCompetitorsFromLocation,
@@ -148,6 +154,16 @@ export interface MonthlyDraft {
     opexList: OpexItem[];
     isCapitalBorrowed: boolean;
     interestRate: string;
+    propertyInvested?: string;
+    propertyInvestedNote?: string;
+    renovationCosts?: string;
+    permitsLicensesInitial?: string;
+    salesDiscountPercent?: string;
+    salesReturnsPercent?: string;
+    endingSuppliesPercent?: string;
+    accountsReceivable?: string;
+    salariesPayable?: string;
+    taxesPayable?: string;
   };
 }
 
@@ -188,6 +204,16 @@ export interface MonthlyFinancialRecord {
     opexList: OpexItem[];
     isCapitalBorrowed: boolean;
     interestRate: string;
+    propertyInvested?: string;
+    propertyInvestedNote?: string;
+    renovationCosts?: string;
+    permitsLicensesInitial?: string;
+    salesDiscountPercent?: string;
+    salesReturnsPercent?: string;
+    endingSuppliesPercent?: string;
+    accountsReceivable?: string;
+    salariesPayable?: string;
+    taxesPayable?: string;
   };
 }
 
@@ -223,6 +249,9 @@ const Financial_input: React.FC = () => {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [activeModuleTab, setActiveModuleTab] = useState<"operations" | "market" | "balance-sheet">("operations");
+  const [balanceSheetSubTab, setBalanceSheetSubTab] = useState<"position" | "performance" | "startup" | "ratios">("position");
+  const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
+  const [benchmarkNotification, setBenchmarkNotification] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
@@ -264,6 +293,16 @@ const Financial_input: React.FC = () => {
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
         isCapitalBorrowed: false,
         interestRate: "",
+        propertyInvested: "",
+        propertyInvestedNote: "",
+        renovationCosts: "",
+        permitsLicensesInitial: "",
+        salesDiscountPercent: "5",
+        salesReturnsPercent: "2",
+        endingSuppliesPercent: "30",
+        accountsReceivable: "",
+        salariesPayable: "",
+        taxesPayable: "",
       },
     },
   ]);
@@ -307,6 +346,16 @@ const Financial_input: React.FC = () => {
     opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
     isCapitalBorrowed: false,
     interestRate: "",
+    propertyInvested: "",
+    propertyInvestedNote: "",
+    renovationCosts: "",
+    permitsLicensesInitial: "",
+    salesDiscountPercent: "5",
+    salesReturnsPercent: "2",
+    endingSuppliesPercent: "30",
+    accountsReceivable: "",
+    salariesPayable: "",
+    taxesPayable: "",
   });
 
   const isCurrentMonthLocked = monthlyRecords[activeMonthIndex]?.isLocked || false;
@@ -691,6 +740,16 @@ const Financial_input: React.FC = () => {
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
         isCapitalBorrowed: false,
         interestRate: "",
+        propertyInvested: "",
+        propertyInvestedNote: "",
+        renovationCosts: "",
+        permitsLicensesInitial: "",
+        salesDiscountPercent: "5",
+        salesReturnsPercent: "2",
+        endingSuppliesPercent: "30",
+        accountsReceivable: "",
+        salariesPayable: "",
+        taxesPayable: "",
       };
 
     // Update current active draft with latest values
@@ -877,7 +936,7 @@ const Financial_input: React.FC = () => {
       ? breakEvenUnits * safeSellingPrice
       : (grossProfitMargin > 0 ? safeFixedCosts / (grossProfitMargin / 100) : 0);
 
-  // --- BALANCE SHEET ENGINE (feasify_financial_input_module.md) ---
+  // --- BALANCE SHEET & FEASIBILITY ENGINE (feasify_financial_input_module.md) ---
   // Section 1: Initial Capital & Sources of Financing
   const proposalCapNum = Number(projects.find((p) => p.id === selectedProjectId)?.proposalCapital || 0);
   const sumFromContributors = (financials.contributorsList && financials.contributorsList.length > 0)
@@ -886,14 +945,33 @@ const Financial_input: React.FC = () => {
   const safeCashInvested = sumFromContributors > 0
     ? sumFromContributors
     : (Number(financials.cashInvested) || (proposalCapNum > 0 ? proposalCapNum : safeStartupCapital));
-  const totalInitialCapital = safeCashInvested;
+  const safePropertyInvested = Number(financials.propertyInvested) || 0;
+  const totalInitialCapital = safeCashInvested + safePropertyInvested;
 
   // Startup Project Cost Breakdown (Section 2)
   const safeRentAdvance = Number(financials.rentAdvanceDeposit) || 0;
   const safeTrainings = Number(financials.trainingsPrograms) || 0;
   const safeAdvertising = Number(financials.advertisingExpense) || 0;
   const safeSalariesInitial = Number(financials.salariesExpenseInitial) || 0;
-  const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital;
+  const safeRenovationCosts = Number(financials.renovationCosts) || 0;
+  const safePermitsLicenses = Number(financials.permitsLicensesInitial) || 0;
+  const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital + safeRenovationCosts + safePermitsLicenses;
+  const cashReserveContingency = Math.max(0, totalInitialCapital - totalProjectCost);
+
+  // Section 3: Statement of Financial Performance (Income Statement Waterfall)
+  const safeSalesDiscountPercent = Number(financials.salesDiscountPercent ?? 5);
+  const safeSalesReturnsPercent = Number(financials.salesReturnsPercent ?? 2);
+  const annualGrossSales = annualRevenue;
+  const annualSalesDiscount = (annualGrossSales * safeSalesDiscountPercent) / 100;
+  const annualSalesReturns = (annualGrossSales * safeSalesReturnsPercent) / 100;
+  const annualNetSales = Math.max(0, annualGrossSales - annualSalesDiscount - annualSalesReturns);
+  const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
+  const annualGrossProfit = Math.max(0, annualNetSales - annualCOGS);
+  const totalAnnualOpEx = (safeFixedCosts / 30) * safeOperatingDays;
+  const genAdminOpEx = totalAnnualOpEx * 0.45;
+  const sellingOpEx = totalAnnualOpEx * 0.55;
+  const annualOperatingIncome = annualGrossProfit - totalAnnualOpEx - (monthlyInterest * 12);
+  const statementNetProfitAfterTax = annualOperatingIncome - annualTax;
 
   // Section 4: Current Assets
   const operatingCashBuffer = Math.max(0, netMonthlyProfit * 12);
@@ -903,56 +981,128 @@ const Financial_input: React.FC = () => {
   const rawMaterialInventory = totalMonthlyVariableCosts * 0.15; // 15% raw materials buffer
   const finishedGoodsInventory = totalMultiEndingInventory; // Actual unsold finished goods inventory value
   const totalInventory = rawMaterialInventory + finishedGoodsInventory;
-  const totalCurrentAssets = cashOnHand + cashInBank + totalInventory;
+  const safeEndingSuppliesPercent = Number(financials.endingSuppliesPercent ?? 30);
+  const suppliesEndingInventory = (totalAnnualOpEx * 0.08) * (safeEndingSuppliesPercent / 100);
+  const safeAccountsReceivable = Number(financials.accountsReceivable) || (annualNetSales * 0.03);
+  const totalCurrentAssets = cashOnHand + cashInBank + totalInventory + suppliesEndingInventory + safeAccountsReceivable;
 
   // Non-Current Assets: Equipment/Machinery net of 10% straight-line annual depreciation
   const grossPPE = safeStartupCapital;
-  const annualDepreciation = grossPPE * 0.10;
-  const ppeNet = Math.max(0, grossPPE - annualDepreciation);
-  const totalNonCurrentAssets = ppeNet;
+  const leaseholdImprovementsGross = safeRenovationCosts;
+  const totalGrossNonCurrent = grossPPE + leaseholdImprovementsGross;
+  const annualDepreciation = (grossPPE * 0.10) + (leaseholdImprovementsGross * 0.10);
+  const totalNonCurrentAssets = Math.max(0, totalGrossNonCurrent - annualDepreciation);
   const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
 
   // Current Liabilities
   const safeAccountsPayable = Number(financials.accountsPayable) || (totalMonthlyVariableCosts * 0.20);
   const safeUtilitiesPayable = Number(financials.utilitiesPayable) || (safeFixedCosts * 0.15);
-  const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable;
+  const safeSalariesPayable = Number(financials.salariesPayable) || (safeSalariesInitial > 0 ? safeSalariesInitial / 2 : safeFixedCosts * 0.15);
+  const safeTaxesPayable = Number(financials.taxesPayable) || annualTax;
+  const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable + safeSalariesPayable + safeTaxesPayable;
 
   // Owner's Equity
   const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : safeStartupCapital;
   const endingOwnerEquity = totalAssets - totalCurrentLiabilities;
   const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
+  const isBalanceSheetVerified = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.05;
 
   // --- AUTOMATED FINANCIAL RATIOS & ACTIVITY METRICS (Section 5) ---
-  // 1. Current Ratio = Current Assets / Current Liabilities
   const currentRatio = totalCurrentLiabilities > 0
     ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2)
     : (totalCurrentAssets > 0 ? "99.9" : "0.0");
-
-  // 2. Inventory Turnover = Cost of Sales / Average Inventory
-  const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
+  const quickRatio = totalCurrentLiabilities > 0
+    ? ((cashOnHand + cashInBank + safeAccountsReceivable) / totalCurrentLiabilities).toFixed(2)
+    : "0.0";
+  const debtRatio = totalAssets > 0 ? ((totalCurrentLiabilities / totalAssets) * 100).toFixed(1) : "0.0";
+  const debtToEquityRatio = endingOwnerEquity > 0 ? ((totalCurrentLiabilities / endingOwnerEquity) * 100).toFixed(1) : "0.0";
+  const equityRatio = totalAssets > 0 ? ((endingOwnerEquity / totalAssets) * 100).toFixed(1) : "0.0";
+  const statementGrossProfitMargin = annualNetSales > 0 ? ((annualGrossProfit / annualNetSales) * 100).toFixed(1) : "0.0";
+  const operatingProfitMargin = annualNetSales > 0 ? ((annualOperatingIncome / annualNetSales) * 100).toFixed(1) : "0.0";
+  const netProfitMargin = annualNetSales > 0 ? ((statementNetProfitAfterTax / annualNetSales) * 100).toFixed(1) : "0.0";
+  const returnOnAssets = totalAssets > 0 ? ((statementNetProfitAfterTax / totalAssets) * 100).toFixed(1) : "0.0";
+  const returnOnEquity = endingOwnerEquity > 0 ? ((statementNetProfitAfterTax / endingOwnerEquity) * 100).toFixed(1) : "0.0";
   const avgInventory = totalInventory > 0 ? totalInventory : 1;
   const inventoryTurnover = avgInventory > 0 ? (annualCOGS / avgInventory).toFixed(1) : "0.0";
-
-  // 3. Average Age of Inventory = 360 Days / Inventory Turnover
   const numTurnover = Number(inventoryTurnover) || 0;
   const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
-
-  // 4. Current Asset Turnover = Net Sales / Current Assets
   const currentAssetTurnover = totalCurrentAssets > 0
-    ? (annualRevenue / totalCurrentAssets).toFixed(2)
+    ? (annualNetSales / totalCurrentAssets).toFixed(2)
     : "0.0";
 
-  // 5. Exact Payback Period in Years, Months, and Days
+  // Exact Payback Period in Years, Months, and Days
   const monthlyCashInflow = annualNetProfitAfterTax > 0 ? (annualNetProfitAfterTax / 12) : 0;
+  const effectiveInvestmentBase = totalProjectCost > 0 ? totalProjectCost : safeStartupCapital;
   let paybackYears = 0;
   let paybackMonths = 0;
   let paybackDays = 0;
-  if (monthlyCashInflow > 0 && safeStartupCapital > 0) {
-    const totalMonths = safeStartupCapital / monthlyCashInflow;
+  if (monthlyCashInflow > 0 && effectiveInvestmentBase > 0) {
+    const totalMonths = effectiveInvestmentBase / monthlyCashInflow;
     paybackYears = Math.floor(totalMonths / 12);
     paybackMonths = Math.floor(totalMonths % 12);
     paybackDays = Math.round((totalMonths % 1) * 30);
   }
+
+  const updateFinancialField = (field: string, value: any) => {
+    if (isInputsBlocked) return;
+    const newState = { ...financials, [field]: value };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+  };
+
+  const handleLoadMrCabbageBenchmark = () => {
+    if (isInputsBlocked) return;
+    const benchmark = MR_CABBAGE_BENCHMARK;
+    const newProducts = JSON.parse(JSON.stringify(benchmark.products));
+    const newEquipment = JSON.parse(JSON.stringify(benchmark.equipmentList));
+    const newOpex = JSON.parse(JSON.stringify(benchmark.opexList));
+    const newContributors = JSON.parse(JSON.stringify(benchmark.contributors));
+
+    const newState = {
+      ...financials,
+      products: newProducts,
+      equipmentList: newEquipment,
+      opexList: newOpex,
+      contributorsList: newContributors,
+      contributorsCount: "9",
+      cashInvested: String(benchmark.cashInvested),
+      propertyInvested: String(benchmark.propertyInvested),
+      propertyInvestedNote: benchmark.propertyInvestedNote,
+      startupCapital: String(benchmark.projectCost),
+      rentAdvanceDeposit: String(benchmark.rentAdvanceDeposit),
+      trainingsPrograms: String(benchmark.trainingsPrograms),
+      advertisingExpense: String(benchmark.advertisingExpense),
+      salariesExpenseInitial: String(benchmark.salariesExpenseInitial),
+      renovationCosts: String(benchmark.renovationCosts),
+      permitsLicensesInitial: String(benchmark.permitsLicensesInitial),
+      directCompetitors: [...benchmark.directCompetitors],
+      otherCompetitors: [...benchmark.otherCompetitors],
+      nearbyEstablishments: [...benchmark.nearbyEstablishments],
+      targetDemographics: [...benchmark.targetDemographics],
+      operatingDays: String(benchmark.operatingDays),
+    };
+    setFinancials(newState);
+    const updatedRecords = [...monthlyRecords];
+    if (updatedRecords[activeMonthIndex]) {
+      updatedRecords[activeMonthIndex] = {
+        ...updatedRecords[activeMonthIndex],
+        financials: newState,
+      };
+      setMonthlyRecords(updatedRecords);
+    }
+    handleAutoSave(newState, updatedRecords);
+    setShowBenchmarkModal(false);
+    setBenchmarkNotification("Mr. Cabbage (PLV) benchmark data successfully loaded into active draft!");
+    setTimeout(() => setBenchmarkNotification(""), 4500);
+  };
 
   const handleExportCSV = () => {
     const dateStr = new Date().toLocaleDateString();
@@ -1012,25 +1162,49 @@ const Financial_input: React.FC = () => {
     }
     addRow();
 
-    addRow(`=== 3. SOURCES OF FINANCING & STARTUP COSTS ===`);
+    addRow(`=== 3. SOURCES OF FINANCING & STARTUP PROJECT COSTS ===`);
     addRow(`Cash Invested (PHP)`, safeCashInvested);
+    addRow(`Property / Non-Cash Invested (PHP)`, safePropertyInvested);
+    if (financials.propertyInvestedNote) addRow(`Property Contribution Details:`, financials.propertyInvestedNote);
     addRow(`Total Initial Capital (PHP)`, totalInitialCapital);
+    addRow(`CapEx Tools & Equipment (PHP)`, safeStartupCapital);
+    addRow(`Leasehold Improvements / Renovation (PHP)`, safeRenovationCosts);
     addRow(`Rent Advance & Deposit (PHP)`, safeRentAdvance);
     addRow(`Trainings & Programs (PHP)`, safeTrainings);
-    addRow(`Advertising Expense (PHP)`, safeAdvertising);
+    addRow(`Initial Advertising Expense (PHP)`, safeAdvertising);
     addRow(`Initial Salaries Buffer (PHP)`, safeSalariesInitial);
-    addRow(`Total Equipment / CapEx (PHP)`, safeStartupCapital);
-    addRow(`Total Project Cost (PHP)`, totalProjectCost);
+    addRow(`Permits & Licenses (PHP)`, safePermitsLicenses);
+    addRow(`Total Startup Project Cost (PHP)`, totalProjectCost);
+    addRow(`Net Cash Reserve / Contingency Buffer (PHP)`, cashReserveContingency);
     addRow(`Borrowed / Loaned Capital?`, financials.isCapitalBorrowed ? `Yes (${financials.interestRate || 0}% annual interest)` : `No`);
     addRow();
 
-    addRow(`=== 4. STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) ===`);
+    addRow(`=== 4. STATEMENT OF FINANCIAL PERFORMANCE (INCOME STATEMENT) ===`);
+    addRow(`Gross Projected Sales (Revenue) (PHP)`, annualGrossSales.toFixed(2));
+    addRow(`Less: Senior/PWD Sales Discount (${safeSalesDiscountPercent}%) (PHP)`, `-${annualSalesDiscount.toFixed(2)}`);
+    addRow(`Less: Sales Returns & Spoilage (${safeSalesReturnsPercent}%) (PHP)`, `-${annualSalesReturns.toFixed(2)}`);
+    addRow(`Net Sales (PHP)`, annualNetSales.toFixed(2));
+    addRow(`Cost of Goods Sold (COGS) (PHP)`, `-${annualCOGS.toFixed(2)}`);
+    addRow(`Gross Profit (PHP)`, annualGrossProfit.toFixed(2));
+    addRow(`Gross Profit Margin (%)`, `${grossProfitMargin}%`);
+    addRow(`General & Administrative OpEx (PHP)`, `-${genAdminOpEx.toFixed(2)}`);
+    addRow(`Selling & Marketing OpEx (PHP)`, `-${sellingOpEx.toFixed(2)}`);
+    addRow(`Total Operating Expenses (PHP)`, `-${totalAnnualOpEx.toFixed(2)}`);
+    addRow(`Net Operating Income (EBIT) (PHP)`, annualOperatingIncome.toFixed(2));
+    addRow(`Tax Expense (BMBE Statutory 3%) (PHP)`, `-${annualTax.toFixed(2)}`);
+    addRow(`Net Income After Tax (PHP)`, annualNetProfitAfterTax.toFixed(2));
+    addRow();
+
+    addRow(`=== 5. STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) ===`);
     addRow(`ASSETS`);
     addRow(`Cash on Hand (15%)`, cashOnHand.toFixed(2));
     addRow(`Cash in Bank (85%)`, cashInBank.toFixed(2));
-    addRow(`Merchandise & Materials Inventory (15%)`, rawMaterialInventory.toFixed(2));
+    addRow(`Merchandise & Raw Materials Inventory`, totalInventory.toFixed(2));
+    addRow(`Supplies Ending Inventory (${safeEndingSuppliesPercent}%)`, suppliesEndingInventory.toFixed(2));
+    addRow(`Accounts & Credit Receivables`, safeAccountsReceivable.toFixed(2));
     addRow(`Total Current Assets`, totalCurrentAssets.toFixed(2));
-    addRow(`Property, Plant & Equipment (Gross)`, grossPPE.toFixed(2));
+    addRow(`Store Tools & Equipment (Gross)`, grossPPE.toFixed(2));
+    addRow(`Leasehold Improvements (Gross)`, leaseholdImprovementsGross.toFixed(2));
     addRow(`Less: Accumulated Depreciation (10%)`, `-${annualDepreciation.toFixed(2)}`);
     addRow(`Total Non-Current Assets (Net)`, totalNonCurrentAssets.toFixed(2));
     addRow(`TOTAL ASSETS`, totalAssets.toFixed(2));
@@ -1039,21 +1213,31 @@ const Financial_input: React.FC = () => {
     addRow(`LIABILITIES & OWNER'S EQUITY`);
     addRow(`Accounts Payable`, safeAccountsPayable.toFixed(2));
     addRow(`Utilities Payable`, safeUtilitiesPayable.toFixed(2));
+    addRow(`Salaries & Allowances Payable`, safeSalariesPayable.toFixed(2));
+    addRow(`Taxes Payable`, safeTaxesPayable.toFixed(2));
     addRow(`Total Current Liabilities`, totalCurrentLiabilities.toFixed(2));
     addRow(`Initial Capital Contributed`, initialEquity.toFixed(2));
     addRow(`Add: Retained Net Profit (After Tax)`, annualNetProfitAfterTax.toFixed(2));
     addRow(`Ending Capital (Owner's Net Worth)`, endingOwnerEquity.toFixed(2));
     addRow(`TOTAL LIABILITIES & OWNER'S EQUITY`, totalLiabilitiesAndEquity.toFixed(2));
+    addRow(`Balance Status`, isBalanceSheetVerified ? `100% Balanced (Assets = Liabilities + Equity)` : `Audit Verification Pending`);
     addRow();
 
-    addRow(`=== 4. FINANCIAL RATIOS & FEASIBILITY INDICATORS ===`);
+    addRow(`=== 6. AUTOMATED FINANCIAL RATIOS & FEASIBILITY INDICATORS ===`);
     addRow(`Payback Period`, `${paybackYears > 0 ? `${paybackYears} Years ` : ""}${paybackMonths} Months ${paybackDays} Days`);
-    addRow(`Current Ratio`, `${currentRatio}x`);
+    addRow(`Current Ratio (Liquidity)`, `${currentRatio}x`);
+    addRow(`Acid Test / Quick Ratio`, `${quickRatio}x`);
+    addRow(`Debt Ratio (%)`, `${debtRatio}%`);
+    addRow(`Debt-to-Equity Ratio (%)`, `${debtToEquityRatio}%`);
+    addRow(`Equity Ratio (%)`, `${equityRatio}%`);
+    addRow(`Gross Profit Margin (%)`, `${grossProfitMargin}%`);
+    addRow(`Operating Margin (%)`, `${operatingProfitMargin}%`);
+    addRow(`Net Profit Margin (%)`, `${netProfitMargin}%`);
+    addRow(`Return on Assets (ROA %)`, `${returnOnAssets}%`);
+    addRow(`Return on Equity (ROE %)`, `${returnOnEquity}%`);
     addRow(`Inventory Turnover`, `${inventoryTurnover} times/year`);
     addRow(`Average Age of Inventory`, `${avgAgeOfInventory} Days`);
     addRow(`Current Asset Turnover`, `${currentAssetTurnover}x`);
-    addRow(`Annual ROI (%)`, `${estimatedAnnualROI}%`);
-    addRow(`BMBE Annual Tax Liability (3%)`, taxResult.amount.toFixed(2));
 
     const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
     const link = document.createElement("a");
@@ -1247,6 +1431,16 @@ const Financial_input: React.FC = () => {
             opexList: loadedOpex,
             isCapitalBorrowed: fin.isCapitalBorrowed || false,
             interestRate: getVal(fin.interestRate),
+            propertyInvested: getVal(fin.propertyInvested),
+            propertyInvestedNote: fin.propertyInvestedNote || "",
+            renovationCosts: getVal(fin.renovationCosts),
+            permitsLicensesInitial: getVal(fin.permitsLicensesInitial),
+            salesDiscountPercent: getVal(fin.salesDiscountPercent) || "5",
+            salesReturnsPercent: getVal(fin.salesReturnsPercent) || "2",
+            endingSuppliesPercent: getVal(fin.endingSuppliesPercent) || "30",
+            accountsReceivable: getVal(fin.accountsReceivable),
+            salariesPayable: getVal(fin.salariesPayable),
+            taxesPayable: getVal(fin.taxesPayable),
           };
 
           // Load or initialize drafts for this month
@@ -1345,6 +1539,16 @@ const Financial_input: React.FC = () => {
           opexList: loadedOpex,
           isCapitalBorrowed: finData.isCapitalBorrowed || false,
           interestRate: getVal(finData.interestRate),
+          propertyInvested: getVal(finData.propertyInvested),
+          propertyInvestedNote: finData.propertyInvestedNote || "",
+          renovationCosts: getVal(finData.renovationCosts),
+          permitsLicensesInitial: getVal(finData.permitsLicensesInitial),
+          salesDiscountPercent: getVal(finData.salesDiscountPercent) || "5",
+          salesReturnsPercent: getVal(finData.salesReturnsPercent) || "2",
+          endingSuppliesPercent: getVal(finData.endingSuppliesPercent) || "30",
+          accountsReceivable: getVal(finData.accountsReceivable),
+          salariesPayable: getVal(finData.salariesPayable),
+          taxesPayable: getVal(finData.taxesPayable),
         };
 
         const initialRecords: MonthlyFinancialRecord[] = [
@@ -1400,6 +1604,16 @@ const Financial_input: React.FC = () => {
         opexList: PREDETERMINED_OPEX_ITEMS.map((item) => ({ ...item })),
         isCapitalBorrowed: false,
         interestRate: "",
+        propertyInvested: "",
+        propertyInvestedNote: "",
+        renovationCosts: "",
+        permitsLicensesInitial: "",
+        salesDiscountPercent: "5",
+        salesReturnsPercent: "2",
+        endingSuppliesPercent: "30",
+        accountsReceivable: "",
+        salariesPayable: "",
+        taxesPayable: "",
       };
 
       const initialRecords: MonthlyFinancialRecord[] = [
@@ -5023,185 +5237,1062 @@ return (
               </div>
             )}
 
-            {/* === TAB 3: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
+            {/* === TAB 3: INTERACTIVE BALANCE SHEET & FEASIBILITY STATEMENTS === */}
             {activeModuleTab === "balance-sheet" && (
               <div className="space-y-6 animate-in fade-in duration-200 text-[#122244]">
-                {/* BALANCE CHECK HEADER BANNER */}
+                {/* NOTIFICATION TOAST */}
+                {benchmarkNotification && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center justify-between gap-3 text-emerald-800 text-sm font-semibold shadow-sm animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <span>{benchmarkNotification}</span>
+                    </div>
+                    <button
+                      onClick={() => setBenchmarkNotification("")}
+                      className="text-emerald-600 hover:text-emerald-800 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* MODULE HEADER BANNER */}
                 <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-white/10">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Scale className="w-5 h-5 text-[#c9a654]" />
                       <h2 className="text-xl font-extrabold tracking-wide">
-                        Statement of Financial Position (Balance Sheet)
+                        Financial Statements & Viability Engine
                       </h2>
                     </div>
                     <p className="text-xs text-gray-300">
-                      Real-time snapshot of business assets, obligations, and net owner's equity.
+                      Standard feasibility study format: Statement of Financial Position, Performance, Startup Project Costs, and Viability Ratios.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-xl">
-                    <ShieldCheck className="w-4 h-4 text-green-400" />
-                    <span className="text-xs font-bold text-green-300 uppercase tracking-wider">
-                      Balance Verified: ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowBenchmarkModal(true)}
+                      className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-amber-500/20 to-[#c9a654]/30 hover:from-amber-500/30 hover:to-[#c9a654]/40 border border-[#c9a654]/50 text-amber-200 hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                      title="Preview and load validated feasibility study data from Mr. Cabbage (PLV 2025)"
+                    >
+                      <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                      <span>Benchmark with Mr. Cabbage</span>
+                    </button>
+
+                    <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border ${isBalanceSheetVerified ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-300" : "bg-amber-500/20 border-amber-400/30 text-amber-300"}`}>
+                      {isBalanceSheetVerified ? (
+                        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                      )}
+                      <span className="text-xs font-bold tracking-wider">
+                        {isBalanceSheetVerified
+                          ? `Balanced: ₱${totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "Audit Check Pending"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* TWO COLUMN STATEMENT OF FINANCIAL POSITION */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* SUB-TAB NAVIGATION PILLS */}
+                <div className="flex items-center gap-2 p-1.5 bg-gray-100/80 rounded-2xl border border-gray-200 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setBalanceSheetSubTab("position")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+                      balanceSheetSubTab === "position"
+                        ? "bg-[#122244] text-white shadow-md"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <Scale className={`w-3.5 h-3.5 ${balanceSheetSubTab === "position" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                    Financial Position (Balance Sheet)
+                  </button>
 
-                  {/* ASSETS COLUMN */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="border-b pb-4 flex justify-between items-center">
-                      <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
-                      </h3>
-                      <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
-                        ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceSheetSubTab("performance")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+                      balanceSheetSubTab === "performance"
+                        ? "bg-[#122244] text-white shadow-md"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <TrendingUp className={`w-3.5 h-3.5 ${balanceSheetSubTab === "performance" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                    Financial Performance (Income Statement)
+                  </button>
 
-                    {/* Current Assets */}
-                    <div className="space-y-3">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Assets</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Cash on Hand</span>
-                            <span className="text-[10px] text-gray-400 block">15% allocated for daily store operations</span>
-                          </div>
-                          <span className="font-extrabold text-[#122244]">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceSheetSubTab("startup")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+                      balanceSheetSubTab === "startup"
+                        ? "bg-[#122244] text-white shadow-md"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <Package className={`w-3.5 h-3.5 ${balanceSheetSubTab === "startup" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                    Financing & Startup Project Costs
+                  </button>
 
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Cash in Bank</span>
-                            <span className="text-[10px] text-gray-400 block">85% secured reserve in business accounts</span>
-                          </div>
-                          <span className="font-extrabold text-[#122244]">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Merchandise & Materials Inventory</span>
-                            <span className="text-[10px] text-gray-400 block">Ending inventory estimated at 15% of COGS</span>
-                          </div>
-                          <span className="font-extrabold text-[#122244]">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 font-bold text-xs text-blue-800 border-t border-gray-100 px-1">
-                          <span>Total Current Assets:</span>
-                          <span className="text-sm font-black">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Non-Current Assets */}
-                    <div className="space-y-3 pt-4 border-t border-gray-100">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Non-Current Assets</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Property, Plant & Equipment (Gross)</span>
-                            <span className="text-[10px] text-gray-400 block">Machinery & store equipment list</span>
-                          </div>
-                          <span className="font-bold text-gray-700">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-red-600">
-                          <div>
-                            <span className="font-bold">Less: Accumulated Depreciation</span>
-                            <span className="text-[10px] text-gray-400 block">10% annual straight-line depreciation</span>
-                          </div>
-                          <span className="font-bold">(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 font-bold text-xs text-purple-800 border-t border-gray-100 px-1">
-                          <span>Total Non-Current Assets (Net):</span>
-                          <span className="text-sm font-black">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Total Assets Summary */}
-                    <div className="p-4 bg-blue-50/70 border-2 border-blue-200 rounded-xl flex justify-between items-center">
-                      <span className="font-black text-sm uppercase tracking-wider text-blue-950">TOTAL ASSETS:</span>
-                      <span className="text-xl font-black text-blue-900">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
-
-                  {/* LIABILITIES & EQUITY COLUMN */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                    <div className="border-b pb-4 flex justify-between items-center">
-                      <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#c9a654]"></div> LIABILITIES & OWNER'S EQUITY
-                      </h3>
-                      <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
-                        ₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-
-                    {/* Current Liabilities */}
-                    <div className="space-y-3">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Liabilities (Obligations)</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Accounts Payable</span>
-                            <span className="text-[10px] text-gray-400 block">Short-term supplier obligations (20% of COGS)</span>
-                          </div>
-                          <span className="font-extrabold text-[#122244]">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Utilities Payable</span>
-                            <span className="text-[10px] text-gray-400 block">Accrued operating expenses (15% of OpEx)</span>
-                          </div>
-                          <span className="font-extrabold text-[#122244]">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 font-bold text-xs text-red-800 border-t border-gray-100 px-1">
-                          <span>Total Current Liabilities:</span>
-                          <span className="text-sm font-black">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Owner's Equity */}
-                    <div className="space-y-3 pt-4 border-t border-gray-100">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Owner's Equity (Net Worth)</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-bold text-gray-800">Initial Capital</span>
-                            <span className="text-[10px] text-gray-400 block">Cash starting investment</span>
-                          </div>
-                          <span className="font-bold text-gray-700">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-green-700">
-                          <div>
-                            <span className="font-bold">Add: Retained Net Income (After Tax)</span>
-                            <span className="text-[10px] text-gray-400 block">Annual net profit from operations (net of 3% BMBE tax)</span>
-                          </div>
-                          <span className="font-bold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 font-bold text-xs text-[#b59545] border-t border-gray-100 px-1">
-                          <span>Ending Capital (Owner's Net Worth):</span>
-                          <span className="text-sm font-black text-[#c9a654]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Total Liabilities & Equity Summary */}
-                    <div className="p-4 bg-amber-50/70 border-2 border-amber-200 rounded-xl flex justify-between items-center">
-                      <span className="font-black text-sm uppercase tracking-wider text-amber-950">TOTAL LIABILITIES & EQUITY:</span>
-                      <span className="text-xl font-black text-[#c9a654]">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceSheetSubTab("ratios")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+                      balanceSheetSubTab === "ratios"
+                        ? "bg-[#122244] text-white shadow-md"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <BarChart3 className={`w-3.5 h-3.5 ${balanceSheetSubTab === "ratios" ? "text-[#c9a654]" : "text-gray-400"}`} />
+                    Viability & Financial Ratios
+                  </button>
                 </div>
+
+                {/* SUBTAB 1: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
+                {balanceSheetSubTab === "position" && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* ASSETS COLUMN */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                        <div className="border-b pb-4 flex justify-between items-center">
+                          <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
+                          </h3>
+                          <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
+                            ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        {/* Current Assets */}
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Assets</p>
+                            <span className="text-[10px] font-bold text-blue-600">
+                              {totalAssets > 0 ? ((totalCurrentAssets / totalAssets) * 100).toFixed(1) : "0"}% of Assets
+                            </span>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Cash on Hand</span>
+                                <span className="text-[10px] text-gray-400 block">15% operational reserve for daily stall change & register</span>
+                              </div>
+                              <span className="font-extrabold text-[#122244]">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Cash in Bank</span>
+                                <span className="text-[10px] text-gray-400 block">85% secured funds in primary business checking account</span>
+                              </div>
+                              <span className="font-extrabold text-[#122244]">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Merchandise & Raw Materials Inventory</span>
+                                <span className="text-[10px] text-gray-400 block">Ending raw food materials (15% COGS) + unsold finished batches</span>
+                              </div>
+                              <span className="font-extrabold text-[#122244]">₱{totalInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Supplies Ending Inventory</span>
+                                <span className="text-[10px] text-gray-400 block">Packaging, hygiene & office consumables buffer ({safeEndingSuppliesPercent}% standard)</span>
+                              </div>
+                              <span className="font-extrabold text-[#122244]">₱{suppliesEndingInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Accounts & Credit Receivables</span>
+                                <span className="text-[10px] text-gray-400 block">Customer credit sales & employee salary advances</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.accountsReceivable ?? ""}
+                                placeholder={safeAccountsReceivable.toFixed(2)}
+                                onChange={(e) => updateFinancialField("accountsReceivable", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2 font-bold text-xs text-blue-800 border-t border-gray-200 px-1">
+                              <span>Total Current Assets:</span>
+                              <span className="text-sm font-black">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Non-Current Assets */}
+                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                          <div className="flex justify-between items-center">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Non-Current Assets</p>
+                            <span className="text-[10px] font-bold text-purple-600">
+                              {totalAssets > 0 ? ((totalNonCurrentAssets / totalAssets) * 100).toFixed(1) : "0"}% of Assets
+                            </span>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Store Tools & Equipment (Gross)</span>
+                                <span className="text-[10px] text-gray-400 block">Itemized machinery & furniture from CapEx table</span>
+                              </div>
+                              <span className="font-bold text-gray-700">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Leasehold Improvements (Renovation)</span>
+                                <span className="text-[10px] text-gray-400 block">Stall construction, electrical, painting & signage</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.renovationCosts ?? ""}
+                                placeholder={safeRenovationCosts.toFixed(2)}
+                                onChange={(e) => updateFinancialField("renovationCosts", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-purple-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-red-50/60 rounded-xl border border-red-100 text-red-600">
+                              <div>
+                                <span className="font-bold">Less: Accumulated Depreciation</span>
+                                <span className="text-[10px] text-red-400 block">10% straight-line annual depreciation & amortization</span>
+                              </div>
+                              <span className="font-bold">(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2 font-bold text-xs text-purple-800 border-t border-gray-200 px-1">
+                              <span>Total Non-Current Assets (Net):</span>
+                              <span className="text-sm font-black">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Total Assets Summary */}
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl flex justify-between items-center shadow-xs">
+                          <div>
+                            <span className="font-black text-sm uppercase tracking-wider text-blue-950 block">TOTAL ASSETS</span>
+                            <span className="text-[10px] text-blue-600 font-medium">Sum of Current and Net Long-Term Assets</span>
+                          </div>
+                          <span className="text-2xl font-black text-blue-900">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+
+                      {/* LIABILITIES & EQUITY COLUMN */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                        <div className="border-b pb-4 flex justify-between items-center">
+                          <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-[#c9a654]"></div> LIABILITIES & OWNER'S EQUITY
+                          </h3>
+                          <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
+                            ₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        {/* Current Liabilities */}
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Liabilities (Obligations)</p>
+                            <span className="text-[10px] font-bold text-red-600">
+                              {totalLiabilitiesAndEquity > 0 ? ((totalCurrentLiabilities / totalLiabilitiesAndEquity) * 100).toFixed(1) : "0"}% of Total
+                            </span>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Accounts Payable</span>
+                                <span className="text-[10px] text-gray-400 block">Short-term supplier credit (default 20% of monthly COGS)</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.accountsPayable ?? ""}
+                                placeholder={safeAccountsPayable.toFixed(2)}
+                                onChange={(e) => updateFinancialField("accountsPayable", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-red-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Utilities Payable</span>
+                                <span className="text-[10px] text-gray-400 block">Accrued electricity, water & internet bills</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.utilitiesPayable ?? ""}
+                                placeholder={safeUtilitiesPayable.toFixed(2)}
+                                onChange={(e) => updateFinancialField("utilitiesPayable", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-red-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Salaries & Allowances Payable</span>
+                                <span className="text-[10px] text-gray-400 block">Accrued semi-monthly staff & crew payroll</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.salariesPayable ?? ""}
+                                placeholder={safeSalariesPayable.toFixed(2)}
+                                onChange={(e) => updateFinancialField("salariesPayable", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-red-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div className="flex-1 mr-3">
+                                <span className="font-bold text-gray-800">Taxes Payable</span>
+                                <span className="text-[10px] text-gray-400 block">Accrued statutory percentage tax / BMBE obligation</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.taxesPayable ?? ""}
+                                placeholder={safeTaxesPayable.toFixed(2)}
+                                onChange={(e) => updateFinancialField("taxesPayable", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-32 px-2.5 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-red-500 focus:outline-hidden bg-white"
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2 font-bold text-xs text-red-800 border-t border-gray-200 px-1">
+                              <span>Total Current Liabilities:</span>
+                              <span className="text-sm font-black">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Owner's Equity */}
+                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                          <div className="flex justify-between items-center">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Owner's / Partners' Equity</p>
+                            <span className="text-[10px] font-bold text-[#b59545]">
+                              {totalLiabilitiesAndEquity > 0 ? ((endingOwnerEquity / totalLiabilitiesAndEquity) * 100).toFixed(1) : "0"}% of Total
+                            </span>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                              <div>
+                                <span className="font-bold text-gray-800">Initial Capital Contributed</span>
+                                <span className="text-[10px] text-gray-400 block">Cash (₱{safeCashInvested.toLocaleString()}) + Property (₱{safePropertyInvested.toLocaleString()})</span>
+                              </div>
+                              <span className="font-bold text-gray-700">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-emerald-50/80 rounded-xl border border-emerald-100 text-emerald-800">
+                              <div>
+                                <span className="font-bold">Add: Retained Net Profit (After Tax)</span>
+                                <span className="text-[10px] text-emerald-600 block">Net operating earnings reinvested back into the business</span>
+                              </div>
+                              <span className="font-bold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2 font-bold text-xs text-[#b59545] border-t border-gray-200 px-1">
+                              <span>Ending Capital (Owner's Net Worth):</span>
+                              <span className="text-sm font-black text-[#c9a654]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Total Liabilities & Equity Summary */}
+                        <div className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-200 rounded-2xl flex justify-between items-center shadow-xs">
+                          <div>
+                            <span className="font-black text-sm uppercase tracking-wider text-amber-950 block">TOTAL LIABILITIES & EQUITY</span>
+                            <span className="text-[10px] text-amber-700 font-medium">Claims against business assets</span>
+                          </div>
+                          <span className="text-2xl font-black text-[#c9a654]">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ACCOUNTING IDENTITY VERIFICATION BAR */}
+                    <div className="p-4 bg-white rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-2xs">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="font-bold text-[#122244]">Accounting Balance Equation Verified:</span>
+                          <span className="text-gray-500 ml-1.5 font-mono text-[11px]">
+                            Assets (₱{totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}) = Liabilities (₱{totalCurrentLiabilities.toLocaleString(undefined, { maximumFractionDigits: 0 })}) + Equity (₱{endingOwnerEquity.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-black text-[11px] uppercase tracking-wider">
+                        100% Balanced
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUBTAB 2: STATEMENT OF FINANCIAL PERFORMANCE (INCOME STATEMENT) */}
+                {balanceSheetSubTab === "performance" && (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                    <div className="border-b pb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <h3 className="font-extrabold text-base text-[#122244] flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-[#c9a654]" />
+                          Statement of Financial Performance (Income Statement Waterfall)
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Annualized waterfall calculation based on monthly product yields, unit costs, discounts, and OpEx.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-500">Gross Margin:</span>
+                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 font-black rounded-lg text-xs">
+                          {statementGrossProfitMargin}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                            <th className="py-3 px-4">Financial Item / Line</th>
+                            <th className="py-3 px-4 text-center">Rate / Basis</th>
+                            <th className="py-3 px-4 text-right">Monthly (PHP)</th>
+                            <th className="py-3 px-4 text-right">Annualized (PHP)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
+                          {/* Gross Sales */}
+                          <tr className="hover:bg-gray-50/50">
+                            <td className="py-3.5 px-4 font-bold text-[#122244]">
+                              Gross Projected Sales (Revenue)
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Based on {normalizedProducts.length} product(s) sold at menu prices
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-xs text-gray-500">100% Volume</td>
+                            <td className="py-3.5 px-4 text-right font-semibold">₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3.5 px-4 text-right font-bold text-[#122244]">₱{annualGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+
+                          {/* Less: Sales Discount */}
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: Senior Citizen & PWD Sales Discount
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Mandated statutory discount (Mr. Cabbage Note 13: 5% of target population)
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <div className="inline-flex items-center gap-1 justify-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="30"
+                                  disabled={isInputsBlocked}
+                                  value={financials.salesDiscountPercent ?? "5"}
+                                  onChange={(e) => updateFinancialField("salesDiscountPercent", e.target.value)}
+                                  className="w-14 px-1.5 py-0.5 text-center text-xs border border-gray-200 rounded font-bold"
+                                />
+                                <span className="text-xs text-gray-500">%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{(annualSalesDiscount / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{annualSalesDiscount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          {/* Less: Sales Returns */}
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: Sales Returns & Spoilage Allowances
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Product replacement & defective batch reserve
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <div className="inline-flex items-center gap-1 justify-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="20"
+                                  disabled={isInputsBlocked}
+                                  value={financials.salesReturnsPercent ?? "2"}
+                                  onChange={(e) => updateFinancialField("salesReturnsPercent", e.target.value)}
+                                  className="w-14 px-1.5 py-0.5 text-center text-xs border border-gray-200 rounded font-bold"
+                                />
+                                <span className="text-xs text-gray-500">%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{(annualSalesReturns / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{annualSalesReturns.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          {/* Net Sales */}
+                          <tr className="bg-amber-50/40 font-bold text-[#122244]">
+                            <td className="py-3.5 px-4 text-sm font-extrabold text-[#b59545]">
+                              Net Sales
+                              <span className="text-[10px] text-gray-500 block font-normal">Gross Sales minus discounts and returns</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-xs text-gray-500">
+                              {(100 - safeSalesDiscountPercent - safeSalesReturnsPercent).toFixed(1)}%
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-bold">₱{(annualNetSales / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3.5 px-4 text-right font-black text-[#c9a654]">₱{annualNetSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+
+                          {/* Cost of Sales */}
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: Cost of Sales (COGS)
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Direct raw ingredients, food preparation & production costs
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-xs text-gray-500">
+                              {annualNetSales > 0 ? ((annualCOGS / annualNetSales) * 100).toFixed(1) : 0}% of Net Sales
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{annualCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          {/* Gross Profit */}
+                          <tr className="bg-blue-50/50 font-bold text-blue-900">
+                            <td className="py-3.5 px-4 text-sm font-extrabold text-blue-950">
+                              Gross Profit
+                              <span className="text-[10px] text-blue-600 block font-normal">Revenue retained after paying direct production costs</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-xs text-blue-700 font-bold">{statementGrossProfitMargin}%</td>
+                            <td className="py-3.5 px-4 text-right font-bold">₱{(annualGrossProfit / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3.5 px-4 text-right font-black text-blue-900">₱{annualGrossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+
+                          {/* Operating Expenses */}
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: General & Administrative Expenses
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Rent, utilities, store/office supplies, permits, admin allowances
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-xs text-gray-500">45% OpEx split</td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{(genAdminOpEx / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{genAdminOpEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: Selling & Marketing Expenses
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                Social media advertising, packaging materials, promotions & delivery
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-xs text-gray-500">55% OpEx split</td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{(sellingOpEx / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{sellingOpEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          {/* Operating Income */}
+                          <tr className="bg-purple-50/40 font-bold text-purple-950">
+                            <td className="py-3.5 px-4 text-sm font-extrabold text-purple-900">
+                              Net Operating Income (EBIT)
+                              <span className="text-[10px] text-purple-600 block font-normal">Earnings before taxes and interest</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-xs text-purple-700 font-bold">{operatingProfitMargin}%</td>
+                            <td className="py-3.5 px-4 text-right font-bold">₱{(annualOperatingIncome / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3.5 px-4 text-right font-black text-purple-900">₱{annualOperatingIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+
+                          {/* Tax Expense */}
+                          <tr className="hover:bg-gray-50/50 text-red-600">
+                            <td className="py-3 px-4 pl-8">
+                              Less: Tax Expense (BMBE RA 9178 / Statutory)
+                              <span className="text-[10px] text-gray-400 block font-normal">
+                                3% Gross Receipts Percentage Tax (Income Tax Exempt under BMBE)
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-xs text-gray-500">3.0% Stat. Tax</td>
+                            <td className="py-3 px-4 text-right font-medium">(₱{(annualTax / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                            <td className="py-3 px-4 text-right font-bold">(₱{annualTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          </tr>
+
+                          {/* Net Profit After Tax */}
+                          <tr className="bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-950">
+                            <td className="py-4 px-4 text-base font-black text-emerald-900">
+                              NET INCOME AFTER TAX (Retained Earnings)
+                              <span className="text-[11px] text-emerald-600 block font-normal">
+                                Reinvested directly into ending partner's equity
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-center text-xs font-black text-emerald-700">{netProfitMargin}%</td>
+                            <td className="py-4 px-4 text-right font-bold text-emerald-800">₱{(annualNetProfitAfterTax / 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-4 px-4 text-right font-black text-2xl text-emerald-600">₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUBTAB 3: SOURCES OF FINANCING & STARTUP PROJECT COSTS */}
+                {balanceSheetSubTab === "startup" && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* SECTION 1: SOURCES OF FINANCING */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                        <div className="border-b pb-4 flex justify-between items-center">
+                          <div>
+                            <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-[#c9a654]" /> Section 1: Sources of Financing
+                            </h3>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Define cash and property investments by partners or founding members.
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
+                            ₱{totalInitialCapital.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-bold text-gray-700 block mb-1">
+                              Cash Invested (Direct Cash Contributions)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2.5 text-gray-400 font-bold text-xs">₱</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.cashInvested || (sumFromContributors > 0 ? sumFromContributors : "")}
+                                placeholder={safeCashInvested.toFixed(2)}
+                                onChange={(e) => updateFinancialField("cashInvested", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-[#122244] focus:border-[#c9a654] focus:outline-hidden"
+                              />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {sumFromContributors > 0 ? `Synced from ${currentContribList.length} partners in Section Contributors table.` : "Direct equity input."}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-bold text-gray-700 block mb-1">
+                              Property / Non-Cash Invested (Equipment & Services)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2.5 text-gray-400 font-bold text-xs">₱</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                disabled={isInputsBlocked}
+                                value={financials.propertyInvested ?? ""}
+                                placeholder="0.00"
+                                onChange={(e) => updateFinancialField("propertyInvested", e.target.value)}
+                                onKeyDown={handlePreventNegative}
+                                onPaste={handlePasteNonNegative}
+                                className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-[#122244] focus:border-[#c9a654] focus:outline-hidden"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              disabled={isInputsBlocked}
+                              value={financials.propertyInvestedNote ?? ""}
+                              placeholder="Description e.g. Cooking Machineries & Logistics Services"
+                              onChange={(e) => updateFinancialField("propertyInvestedNote", e.target.value)}
+                              className="w-full mt-2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-[#c9a654] focus:outline-hidden"
+                            />
+                          </div>
+
+                          <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl flex justify-between items-center">
+                            <div>
+                              <span className="font-extrabold text-xs text-[#b59545] uppercase tracking-wider block">Total Initial Capital</span>
+                              <span className="text-[10px] text-gray-500">Cash Invested + Non-Cash Property</span>
+                            </div>
+                            <span className="text-xl font-black text-[#c9a654]">
+                              ₱{totalInitialCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SECTION 2: STARTUP COST (PROJECT COST) */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                        <div className="border-b pb-4 flex justify-between items-center">
+                          <div>
+                            <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                              <Package className="w-4 h-4 text-blue-600" /> Section 2: Start-Up Cost (Project Cost)
+                            </h3>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Pre-operating expenses and initial CapEx before commercial launch.
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
+                            ₱{totalProjectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 text-xs">
+                          {/* CapEx Equipment */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Capital Equipment & Store Tools</span>
+                              <span className="text-[10px] text-gray-400 block">From CapEx Equipment list ({financials.equipmentList?.length || 0} items)</span>
+                            </div>
+                            <span className="font-bold text-gray-700">₱{safeStartupCapital.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          {/* Renovation */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Leasehold Improvements (Renovation)</span>
+                              <span className="text-[10px] text-gray-400 block">Store buildout, painting, electrical, fixtures</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.renovationCosts ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("renovationCosts", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Rent Advance & Deposit */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Rent (Advance & Security Deposit)</span>
+                              <span className="text-[10px] text-gray-400 block">Typically 2-3 months advance stall lease</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.rentAdvanceDeposit ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("rentAdvanceDeposit", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Trainings & Programs */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Trainings & Program Costs</span>
+                              <span className="text-[10px] text-gray-400 block">Pre-opening food safety & staff onboarding</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.trainingsPrograms ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("trainingsPrograms", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Pre-opening Advertising */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Initial Advertising & Marketing</span>
+                              <span className="text-[10px] text-gray-400 block">Banners, social media tease, grand opening</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.advertisingExpense ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("advertisingExpense", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Initial Salaries Buffer */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Salaries Buffer (Initial 2 Months)</span>
+                              <span className="text-[10px] text-gray-400 block">Operating payroll reserve before cash flow</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.salariesExpenseInitial ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("salariesExpenseInitial", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Permits & Licenses */}
+                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <span className="font-bold text-gray-800">Permits, Licenses & Registration</span>
+                              <span className="text-[10px] text-gray-400 block">DTI, SEC, Mayor's Permit, Sanitary, Fire</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              disabled={isInputsBlocked}
+                              value={financials.permitsLicensesInitial ?? ""}
+                              placeholder="0.00"
+                              onChange={(e) => updateFinancialField("permitsLicensesInitial", e.target.value)}
+                              onKeyDown={handlePreventNegative}
+                              onPaste={handlePasteNonNegative}
+                              className="w-28 px-2 py-1 text-right text-xs font-bold border border-gray-200 rounded-lg focus:border-blue-500 bg-white"
+                            />
+                          </div>
+
+                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex justify-between items-center">
+                            <div>
+                              <span className="font-extrabold text-xs text-blue-900 uppercase tracking-wider block">Total Project Cost</span>
+                              <span className="text-[10px] text-blue-600">Sum of All Capital & Pre-Operating Outlays</span>
+                            </div>
+                            <span className="text-xl font-black text-blue-900">
+                              ₱{totalProjectCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CAPITAL BUFFER / CASH RESERVE COMPARISON */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${totalInitialCapital >= totalProjectCost ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+                          {totalInitialCapital >= totalProjectCost ? <ShieldCheck className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm text-[#122244]">
+                            {totalInitialCapital >= totalProjectCost ? "Adequately Capitalized Project" : "Capital Deficit Warning"}
+                          </h4>
+                          <p className="text-xs text-gray-500 max-w-lg mt-0.5">
+                            {totalInitialCapital >= totalProjectCost
+                              ? `Your initial capital of ₱${totalInitialCapital.toLocaleString()} successfully covers the startup project cost of ₱${totalProjectCost.toLocaleString()} with a healthy working capital buffer.`
+                              : `Initial capital of ₱${totalInitialCapital.toLocaleString()} is insufficient to cover the startup project cost of ₱${totalProjectCost.toLocaleString()}. Please increase partner contributions or trim pre-operating expenses.`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Net Cash Reserve / Contingency</span>
+                        <p className={`text-2xl font-black ${totalInitialCapital >= totalProjectCost ? "text-emerald-600" : "text-red-600"}`}>
+                          ₱{cashReserveContingency.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUBTAB 4: AUTOMATED FINANCIAL RATIOS & VIABILITY INDICATORS */}
+                {balanceSheetSubTab === "ratios" && (
+                  <div className="space-y-6">
+                    {/* PAYBACK PERIOD HERO CARD */}
+                    <div className="bg-gradient-to-r from-[#122244] to-[#1f3768] text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-white/10">
+                      <div>
+                        <span className="text-xs font-bold text-[#c9a654] uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                          <Clock className="w-4 h-4" /> Capital Recovery Benchmark
+                        </span>
+                        <h3 className="text-2xl font-black">
+                          Payback Period: {paybackYears > 0 ? `${paybackYears} yr${paybackYears > 1 ? 's' : ''} ` : ""}{paybackMonths} mo{paybackMonths !== 1 ? 's' : ''} {paybackDays} day{paybackDays !== 1 ? 's' : ''}
+                        </h3>
+                        <p className="text-xs text-gray-300 mt-1 max-w-xl">
+                          Calculated as Total Project Investment (₱{totalProjectCost.toLocaleString()}) divided by Annual Net Cash Inflow (₱{annualNetProfitAfterTax.toLocaleString()}). Standard Philippine SME benchmark is recovery within 2 to 3 years.
+                        </p>
+                      </div>
+                      <div className="px-4 py-2 bg-[#c9a654]/20 border border-[#c9a654]/40 rounded-xl text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200 block">Viability Status</span>
+                        <span className="text-base font-extrabold text-[#c9a654]">
+                          {paybackYears <= 2 ? "High Viability" : paybackYears <= 3 ? "Standard Feasible" : "Extended Recovery"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 4 RATIO PILLARS GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {/* 1. LIQUIDITY RATIOS */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                        <div className="border-b pb-3 flex items-center gap-2 text-blue-700 font-extrabold text-xs uppercase tracking-wider">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                          Liquidity Ratios
+                        </div>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Current Ratio</span>
+                              <span className="text-sm font-black text-[#122244]">{currentRatio}x</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Current Assets ÷ Current Liabilities</span>
+                            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded ${Number(currentRatio) >= 1.5 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                              {Number(currentRatio) >= 1.5 ? "Strong Liquidity (≥1.5x)" : "Moderate Liquidity"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Acid Test (Quick) Ratio</span>
+                              <span className="text-sm font-black text-[#122244]">{quickRatio}x</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">(Cash + Receivables) ÷ Liabilities</span>
+                            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded ${Number(quickRatio) >= 1.0 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                              {Number(quickRatio) >= 1.0 ? "Healthy Quick Cash (≥1.0x)" : "Lean Immediate Cash"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. SOLVENCY RATIOS */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                        <div className="border-b pb-3 flex items-center gap-2 text-indigo-700 font-extrabold text-xs uppercase tracking-wider">
+                          <div className="w-2.5 h-2.5 rounded-full bg-indigo-600"></div>
+                          Solvency & Leverage
+                        </div>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Debt Ratio</span>
+                              <span className="text-sm font-black text-[#122244]">{debtRatio}%</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Total Liabilities ÷ Total Assets</span>
+                            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded ${Number(debtRatio) < 50 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                              {Number(debtRatio) < 50 ? "Low Risk (<50%)" : "High Leverage"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Debt-to-Equity Ratio</span>
+                              <span className="text-sm font-black text-[#122244]">{debtToEquityRatio}%</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Total Liabilities ÷ Owner's Equity</span>
+                            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded ${Number(debtToEquityRatio) < 100 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                              {Number(debtToEquityRatio) < 100 ? "Conservative Debt (<100%)" : "Moderate Debt"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. PROFITABILITY RATIOS */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                        <div className="border-b pb-3 flex items-center gap-2 text-emerald-700 font-extrabold text-xs uppercase tracking-wider">
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-600"></div>
+                          Profitability Margins
+                        </div>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Gross Margin</span>
+                              <span className="text-sm font-black text-blue-700">{statementGrossProfitMargin}%</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Gross Profit ÷ Net Sales</span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Net Profit Margin</span>
+                              <span className="text-sm font-black text-emerald-600">{netProfitMargin}%</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Net Income After Tax ÷ Net Sales</span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Return on Assets (ROA)</span>
+                              <span className="text-sm font-black text-purple-700">{returnOnAssets}%</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Net Income ÷ Total Assets</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. ACTIVITY & TURNOVER */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                        <div className="border-b pb-3 flex items-center gap-2 text-amber-700 font-extrabold text-xs uppercase tracking-wider">
+                          <div className="w-2.5 h-2.5 rounded-full bg-amber-600"></div>
+                          Activity & Turnover
+                        </div>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Inventory Turnover</span>
+                              <span className="text-sm font-black text-[#122244]">{inventoryTurnover}x / yr</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Cost of Sales ÷ Average Inventory</span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Average Age of Inventory</span>
+                              <span className="text-sm font-black text-[#122244]">{avgAgeOfInventory} Days</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">360 Days ÷ Inventory Turnover</span>
+                            <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                              {avgAgeOfInventory <= 7 ? "High Freshness Turn (≤7 Days)" : "Standard Food Turn"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-gray-700">Current Asset Turnover</span>
+                              <span className="text-sm font-black text-[#122244]">{currentAssetTurnover}x</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 block">Net Sales ÷ Current Assets</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -5482,6 +6573,113 @@ return (
                 className="flex-1 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/10 transition-colors"
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MR. CABBAGE FEASIBILITY BENCHMARK MODAL */}
+      {showBenchmarkModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setShowBenchmarkModal(false)}
+          />
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative text-[#122244] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-amber-500 to-[#c9a654] text-white rounded-2xl shadow-md">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-[#122244]">
+                      Mr. Cabbage (Brassica Foods) Benchmark
+                    </h3>
+                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-full uppercase tracking-wider">
+                      PLV 2025 Study
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Pamantasan ng Lungsod ng Valenzuela • Bachelor of Science in Business Administration
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBenchmarkModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-5 space-y-5 text-xs text-gray-600">
+              <p className="leading-relaxed text-sm">
+                This feature loads the exact, verified data from the <strong>442-page PLV Feasibility Study</strong> of <em>Mr. Cabbage</em> into your current draft, allowing you to examine and test a complete real-world academic business proposal:
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Capital</span>
+                  <span className="text-sm font-black text-[#c9a654]">₱900,000</span>
+                  <span className="text-[9px] text-gray-500 block mt-0.5">9 Partners @ ₱100k</span>
+                </div>
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Project Cost</span>
+                  <span className="text-sm font-black text-blue-900">₱860,603</span>
+                  <span className="text-[9px] text-gray-500 block mt-0.5">Pre-Op & CapEx</span>
+                </div>
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cash Reserve</span>
+                  <span className="text-sm font-black text-emerald-600">₱39,397</span>
+                  <span className="text-[9px] text-gray-500 block mt-0.5">Working Capital</span>
+                </div>
+                <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Payback Period</span>
+                  <span className="text-sm font-black text-purple-900">~1.11 Years</span>
+                  <span className="text-[9px] text-gray-500 block mt-0.5">Capital Amortization</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
+                <h4 className="font-extrabold text-[#122244] text-xs uppercase tracking-wider flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-[#c9a654]" /> Included Schedules Loaded:
+                </h4>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-gray-600 text-[11px]">
+                  <li>• <strong>12 Product Costings:</strong> Cabbage Snacks, Chao meals, Bundles, and Drinks with itemized ingredients</li>
+                  <li>• <strong>11 CapEx Tools & Equipment:</strong> Commercial grill, rice cooker, freezer, POS terminal, CCTV</li>
+                  <li>• <strong>10 OpEx Lines:</strong> C&B Mall rent, 3 operating staff, utilities, supplies, mandatory benefits</li>
+                  <li>• <strong>9 Founding Partners:</strong> 7 Cash partners + 2 Industrial property partners</li>
+                  <li>• <strong>Startup Costs:</strong> Rent deposit (₱150k), Renovation (₱335.4k), Trainings (₱32.4k), Permits (₱3.9k)</li>
+                  <li>• <strong>Competitors:</strong> Master Siomai, Rice in a Box (RBX), Turks, Shawarma Shack, Paotsin</li>
+                </ul>
+              </div>
+
+              <div className="p-3 bg-amber-50/50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-[#c9a654] shrink-0 mt-0.5" />
+                <span>
+                  Loading the benchmark will replace the product and expense entries in this draft with the Mr. Cabbage figures. You can edit or revert them at any time.
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowBenchmarkModal(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLoadMrCabbageBenchmark}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#122244] to-[#1f3768] hover:from-[#1a2f55] hover:to-[#27447e] text-white text-xs font-black shadow-lg shadow-indigo-950/20 transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                <span>Load Mr. Cabbage Benchmark Data</span>
               </button>
             </div>
           </div>
