@@ -182,8 +182,8 @@ const AI_Analysis: React.FC = () => {
             const data = snap.data() as any;
             setUserName(
               [data.firstName, data.lastName].filter(Boolean).join(" ") ||
-                u.displayName ||
-                "",
+              u.displayName ||
+              "",
             );
             if (data.section) {
               loadUserGroup(u.uid, data.section);
@@ -384,8 +384,8 @@ const AI_Analysis: React.FC = () => {
     const prods = (finData?.products && Array.isArray(finData.products) && finData.products.length > 0)
       ? normalizeProposalProducts(finData)
       : (finData?.monthlyRecords && finData.monthlyRecords[0]?.financials?.products
-          ? normalizeProposalProducts(finData.monthlyRecords[0].financials)
-          : []);
+        ? normalizeProposalProducts(finData.monthlyRecords[0].financials)
+        : []);
 
     let monthlyRevenue = 0;
     let totalMonthlyVariableCosts = 0;
@@ -559,8 +559,8 @@ const AI_Analysis: React.FC = () => {
           summary: directCount <= 2 && nearbyCount > 0
             ? "The location demonstrates positive market viability with low direct competition and strong nearby foot traffic anchors."
             : (nearbyCount === 0
-                ? "Direct competitor count is manageable, but the location lacks anchor establishments, meaning customer walk-ins will depend heavily on local promotions."
-                : "The area has an active commercial presence with established competitors; sustainable sales will require distinct product value or competitive pricing."),
+              ? "Direct competitor count is manageable, but the location lacks anchor establishments, meaning customer walk-ins will depend heavily on local promotions."
+              : "The area has an active commercial presence with established competitors; sustainable sales will require distinct product value or competitive pricing."),
           competitorInsight: {
             status: directCount <= 2 ? "positive" : "warning",
             badge: directCount === 0 ? "Zero Direct Competition" : (directCount <= 2 ? "Manageable Competition" : "Competitive Density"),
@@ -605,7 +605,7 @@ const AI_Analysis: React.FC = () => {
 
     try {
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
-      
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
@@ -661,7 +661,7 @@ const AI_Analysis: React.FC = () => {
 
       if (aiResult.aiScores) setAiScores(aiResult.aiScores);
       if (aiResult.aiScoreExplanations) setAiScoreExplanations(aiResult.aiScoreExplanations);
-      
+
       const isFallbackResult = aiResult._fallback === true;
       setIsFallback(isFallbackResult);
       if (isFallbackResult) {
@@ -819,107 +819,149 @@ const AI_Analysis: React.FC = () => {
         />
       )}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } w-64 lg:w-16 lg:hover:w-64`}
       >
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+        {/* Logo Section */}
+        <div className="h-16 flex items-center justify-center px-2 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* FeasifyEmblemLogo when sidebar is folded */}
           <img
-            src="/dashboard logo.png"
+            src="/FeasifyEmblemLogo.png"
             alt="FeasiFy"
-            className="w-70 h-20 object-contain"
+            onClick={() => navigate("/dashboard")}
+            className="h-11 w-auto max-h-[46px] max-w-[48px] object-contain cursor-pointer transition-transform hover:scale-105 hidden lg:block lg:group-hover:hidden shrink-0"
+          />
+          {/* FeasifyFullLogo when sidebar is hovered or on mobile */}
+          <img
+            src="/FeasifyFullLogo.png"
+            alt="FeasiFy"
+            onClick={() => navigate("/dashboard")}
+            className="h-12 w-auto max-h-[48px] max-w-[210px] object-contain cursor-pointer transition-transform hover:scale-105 block lg:hidden lg:group-hover:block shrink-0"
           />
         </div>
-        <nav className="flex-1 p-4 space-y-4 mt-2">
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </button>
-            <button
-              onClick={() => navigate("/projects")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Folder className="w-4 h-4" /> Business Proposal
-            </button>
-            <button
-              onClick={() => navigate("/financial-input")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <FileEdit className="w-4 h-4" /> Financial Input
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-              <Zap className="w-4 h-4" /> AI Feasibility Analysis
-            </button>
-            <button
-              onClick={() => navigate("/reports")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <BarChart3 className="w-4 h-4" /> Reports
-            </button>
-            <button
-              onClick={() => navigate("/messages")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <MessageCircle className="w-4 h-4" /> Message
-            </button>
-          </div>
 
-          <div className="pt-4 border-t border-white/10 space-y-1">
-            <button
-              onClick={() => navigate("/settings")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Settings className="w-4 h-4" /> Settings
-            </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <ShieldAlert className="w-4 h-4" /> Logout
-            </button>
-          </div>
-        </nav>
-        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-            {getInitials(userName)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-white">
-              {userName || "User"}
-            </p>
-            <p className="text-[10px] text-gray-400 truncate">Student</p>
-          </div>
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
           <button
-            onClick={() => navigate("/notifications")}
-            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-            title="Notifications"
+            onClick={() => navigate("/dashboard")}
+            title="Dashboard"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            )}
+            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Dashboard
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/projects")}
+            title="Business Proposal"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Folder className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Business Proposal
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/financial-input")}
+            title="Financial Input"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <FileEdit className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Financial Input
+            </span>
+          </button>
+          <button
+            title="AI Feasibility Analysis"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"
+          >
+            <Zap className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              AI Feasibility Analysis
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/reports")}
+            title="Reports"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <BarChart3 className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Reports
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/messages")}
+            title="Message"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <MessageCircle className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Message
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            title="Settings"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Settings
+            </span>
+          </button>
+        </nav>
+
+        {/* Bottom Logout Button */}
+        <div className="p-3 border-t border-white/10 shrink-0">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Logout"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0 text-red-400" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Logout
+            </span>
           </button>
         </div>
       </aside>
 
       <main
-        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center flex-wrap gap-2 text-sm text-gray-500">
-          <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors flex-shrink-0"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
-          <span className="mx-1 sm:mx-2 text-gray-300">|</span>
-          <span
-            className="cursor-pointer hover:text-[#c9a654] truncate"
-            onClick={() => navigate("/dashboard")}
-          >
-            FeasiFy
-          </span>
-          <span className="text-gray-400">›</span>
-          <span className="font-semibold text-gray-900 truncate">AI Analysis</span>
+        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900 truncate">AI Analysis</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/notifications")}
+              className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+              )}
+            </button>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div
+              onClick={() => navigate("/settings")}
+              className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                {getInitials(userName)}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-gray-900 leading-tight">
+                  {userName || "User"}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Student</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {isAnalyzing ? (
@@ -1003,7 +1045,7 @@ const AI_Analysis: React.FC = () => {
                   <span>Analysis Failed</span>
                 </div>
                 <p className="text-sm text-red-600">{analysisError}</p>
-                <button 
+                <button
                   onClick={() => executeAnalysis(financials, selectedProjectId)}
                   className="self-start px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm rounded-lg transition-colors"
                 >
@@ -1361,11 +1403,10 @@ const AI_Analysis: React.FC = () => {
                                     <Store size={12} className="text-amber-600" /> Competitor Density
                                   </span>
                                   <span
-                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                      marketAnalysis.competitorInsight.status === "positive"
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${marketAnalysis.competitorInsight.status === "positive"
                                         ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                         : "bg-amber-100 text-amber-800 border border-amber-200"
-                                    }`}
+                                      }`}
                                   >
                                     {marketAnalysis.competitorInsight.badge}
                                   </span>
@@ -1384,11 +1425,10 @@ const AI_Analysis: React.FC = () => {
                                     <Building2 size={12} className="text-emerald-600" /> Foot Traffic & Anchors
                                   </span>
                                   <span
-                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                      marketAnalysis.footTrafficInsight.status === "positive"
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${marketAnalysis.footTrafficInsight.status === "positive"
                                         ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                         : "bg-rose-100 text-rose-800 border border-rose-200"
-                                    }`}
+                                      }`}
                                   >
                                     {marketAnalysis.footTrafficInsight.badge}
                                   </span>

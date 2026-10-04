@@ -147,8 +147,8 @@ const CustomDropdown: React.FC<{
           disabled={disabled}
           onClick={() => !disabled && setIsOpen((prev) => !prev)}
           className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 border ${isOpen
-              ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
-              : "border-gray-200 hover:border-gray-300"
+            ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
+            : "border-gray-200 hover:border-gray-300"
             } rounded-lg text-sm font-medium transition-all text-[#122244] text-left outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100/70`}
         >
           <span className={selectedOption && selectedOption.value ? "text-[#122244] font-medium" : "text-gray-400"}>
@@ -172,8 +172,8 @@ const CustomDropdown: React.FC<{
                     setIsOpen(false);
                   }}
                   className={`px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${isSelected
-                      ? "bg-amber-50/80 text-[#c9a654] font-bold"
-                      : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
+                    ? "bg-amber-50/80 text-[#c9a654] font-bold"
+                    : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
                     }`}
                 >
                   <span>{option.label}</span>
@@ -2042,86 +2042,110 @@ const Projects: React.FC = () => {
         />
       )}
       <aside
-        className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } w-64 lg:w-16 lg:hover:w-64`}
       >
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+        {/* Logo Section */}
+        <div className="h-16 flex items-center justify-center px-2 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* FeasifyEmblemLogo when sidebar is folded */}
           <img
-            src="/dashboard logo.png"
+            src="/FeasifyEmblemLogo.png"
             alt="FeasiFy"
-            className="w-70 h-20 object-contain"
+            onClick={() => navigate("/dashboard")}
+            className="h-11 w-auto max-h-[46px] max-w-[48px] object-contain cursor-pointer transition-transform hover:scale-105 hidden lg:block lg:group-hover:hidden shrink-0"
+          />
+          {/* FeasifyFullLogo when sidebar is hovered or on mobile */}
+          <img
+            src="/FeasifyFullLogo.png"
+            alt="FeasiFy"
+            onClick={() => navigate("/dashboard")}
+            className="h-12 w-auto max-h-[48px] max-w-[210px] object-contain cursor-pointer transition-transform hover:scale-105 block lg:hidden lg:group-hover:block shrink-0"
           />
         </div>
-        <nav className="flex-1 p-4 space-y-4 mt-2">
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-              <Folder className="w-4 h-4" /> Business Proposal
-            </button>
-            <button
-              onClick={() => navigate("/financial-input")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <FileEdit className="w-4 h-4" /> Financial Input
-            </button>
-            <button
-              onClick={() => navigate("/ai-analysis")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Zap className="w-4 h-4" /> AI Feasibility Analysis
-            </button>
-            <button
-              onClick={() => navigate("/reports")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <BarChart3 className="w-4 h-4" /> Reports
-            </button>
-            <button
-              onClick={() => navigate("/messages")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <MessageCircle className="w-4 h-4" /> Message
-            </button>
-          </div>
 
-          <div className="pt-4 border-t border-white/10 space-y-1">
-            <button
-              onClick={() => navigate("/settings")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Settings className="w-4 h-4" /> Settings
-            </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <ShieldAlert className="w-4 h-4" /> Logout
-            </button>
-          </div>
-        </nav>
-        <div className="p-4 border-t border-white/10 bg-black/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-            {getInitials(userName)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-white">
-              {userName || "User"}
-            </p>
-            <p className="text-[10px] text-gray-400 truncate">Student</p>
-          </div>
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
           <button
-            onClick={() => navigate("/notifications")}
-            className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-            title="Notifications"
+            onClick={() => navigate("/dashboard")}
+            title="Dashboard"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <Bell className="w-5 h-5" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            )}
+            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Dashboard
+            </span>
+          </button>
+          <button
+            title="Business Proposal"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"
+          >
+            <Folder className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Business Proposal
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/financial-input")}
+            title="Financial Input"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <FileEdit className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Financial Input
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/ai-analysis")}
+            title="AI Feasibility Analysis"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Zap className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              AI Feasibility Analysis
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/reports")}
+            title="Reports"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <BarChart3 className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Reports
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/messages")}
+            title="Message"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <MessageCircle className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Message
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            title="Settings"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Settings
+            </span>
+          </button>
+        </nav>
+
+        {/* Bottom Logout Button */}
+        <div className="p-3 border-t border-white/10 shrink-0">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Logout"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0 text-red-400" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Logout
+            </span>
           </button>
         </div>
       </aside>
@@ -2141,11 +2165,39 @@ const Projects: React.FC = () => {
     return (
       <div className="flex min-h-screen bg-gray-50/50">
         {renderSidebar()}
-        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}>
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-            <SidebarIcon className="w-4 h-4 cursor-pointer text-gray-300" />
-            <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-            <span className="font-semibold text-gray-900">Projects</span>
+        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}>
+          <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900">Projects</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate("/notifications")}
+                className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+                )}
+              </button>
+              <div className="h-6 w-px bg-gray-200"></div>
+              <div
+                onClick={() => navigate("/settings")}
+                className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                  {getInitials(userName)}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-bold text-gray-900 leading-tight">
+                    {userName || "User"}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-medium">Student</p>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="p-6 md:p-8 max-w-6xl mx-auto">
             <Skeleton width={250} height={36} className="mb-2" />
@@ -2193,15 +2245,40 @@ const Projects: React.FC = () => {
       {renderSidebar()}
 
       <main
-        className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+        className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-          <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
-          <span className="mx-2">|</span> FeasiFy <span>›</span>{" "}
-          <span className="font-semibold text-gray-900">Projects</span>
+        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900">Projects</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/notifications")}
+              className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+              )}
+            </button>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div
+              onClick={() => navigate("/settings")}
+              className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                {getInitials(userName)}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-gray-900 leading-tight">
+                  {userName || "User"}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Student</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="p-6 md:p-8 max-w-6xl mx-auto">
@@ -2408,8 +2485,8 @@ const Projects: React.FC = () => {
                       Business Proposals
                     </h2>
                     <span className={`px-3 py-1 text-xs font-black rounded-full border ${proposals.length >= 3
-                        ? "bg-amber-50 text-amber-800 border-amber-300"
-                        : "bg-blue-50 text-[#4285F4] border-blue-200"
+                      ? "bg-amber-50 text-amber-800 border-amber-300"
+                      : "bg-blue-50 text-[#4285F4] border-blue-200"
                       }`}>
                       Proposals: {proposals.length} / 3
                     </span>
@@ -2439,8 +2516,8 @@ const Projects: React.FC = () => {
                       }}
                       disabled={!!activeBusiness || proposals.length >= 3}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${activeBusiness || proposals.length >= 3
-                          ? "bg-gray-400 cursor-not-allowed opacity-70 text-white"
-                          : "bg-[#c9a654] text-white hover:bg-[#b59545]"
+                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white"
+                        : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                         }`}
                     >
                       + New Proposal
@@ -2497,21 +2574,21 @@ const Projects: React.FC = () => {
                         <div
                           key={proposal.id}
                           className={`bg-white rounded-xl border-2 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isApproved ? "border-green-400" :
-                              isRejected ? "border-red-300" :
-                                isRevision ? "border-orange-300" : "border-gray-200"
+                            isRejected ? "border-red-300" :
+                              isRevision ? "border-orange-300" : "border-gray-200"
                             }`}
                         >
                           <div className="flex gap-4 items-center w-full sm:w-auto flex-1">
                             <div
                               className={`w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center font-bold text-sm overflow-hidden border shadow-2xs ${proposal.businessLogo
-                                  ? "border-gray-200 bg-white"
-                                  : isApproved
-                                    ? "bg-green-50 border-green-200 text-green-600"
-                                    : isRejected
-                                      ? "bg-red-50 border-red-200 text-red-600"
-                                      : isRevision
-                                        ? "bg-orange-50 border-orange-200 text-orange-600"
-                                        : "bg-blue-50 border-blue-100 text-[#4285F4]"
+                                ? "border-gray-200 bg-white"
+                                : isApproved
+                                  ? "bg-green-50 border-green-200 text-green-600"
+                                  : isRejected
+                                    ? "bg-red-50 border-red-200 text-red-600"
+                                    : isRevision
+                                      ? "bg-orange-50 border-orange-200 text-orange-600"
+                                      : "bg-blue-50 border-blue-100 text-[#4285F4]"
                                 }`}
                             >
                               {proposal.businessLogo ? (
@@ -2529,11 +2606,11 @@ const Projects: React.FC = () => {
                                   {proposal.businessName || "Untitled Proposal"}
                                 </h3>
                                 <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${proposal.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                    proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                      proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
-                                        proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
-                                          proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-600'
+                                  proposal.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                    proposal.status === 'Revision' || proposal.status === 'Revision Required' ? 'bg-orange-100 text-orange-700' :
+                                      proposal.status === 'Pending' || proposal.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                                        proposal.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+                                          'bg-gray-100 text-gray-600'
                                   }`}>
                                   {proposal.status === 'Revision' ? 'Needs Revision' : proposal.status}
                                 </span>
@@ -2588,8 +2665,8 @@ const Projects: React.FC = () => {
                                     }}
                                     disabled={!!activeBusiness}
                                     className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto flex items-center justify-center gap-1.5 transition-all ${activeBusiness
-                                        ? "bg-gray-400 cursor-not-allowed opacity-70"
-                                        : "bg-green-600 hover:bg-green-700 shadow-md"
+                                      ? "bg-gray-400 cursor-not-allowed opacity-70"
+                                      : "bg-green-600 hover:bg-green-700 shadow-md"
                                       }`}
                                     title={activeBusiness ? "Another business is already setup" : "Activate this approved proposal as the official business"}
                                   >
@@ -2626,8 +2703,8 @@ const Projects: React.FC = () => {
                                       }}
                                       disabled={proposal.status === 'Pending'}
                                       className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${proposal.status === 'Pending'
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
-                                          : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
+                                        : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
                                         }`}
                                     >
                                       <Edit className="w-4 h-4" /> Edit
@@ -2729,13 +2806,13 @@ const Projects: React.FC = () => {
                     {/* === ADVISER FEEDBACK BANNER IN FORM VIEW === */}
                     {currentProposal.feedbackHistory && currentProposal.feedbackHistory.length > 0 && (
                       <div className={`p-6 rounded-xl border-2 flex flex-col gap-4 mb-8 ${currentProposal.status === 'Rejected' ? 'bg-red-50 border-red-200' :
-                          currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
-                            'bg-blue-50 border-blue-200'
+                        currentProposal.status === 'Approved' ? 'bg-green-50 border-green-200' :
+                          'bg-blue-50 border-blue-200'
                         }`}>
                         <div className="flex justify-between items-center mb-4">
                           <h4 className={`text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 ${currentProposal.status === 'Rejected' ? 'text-red-700' :
-                              currentProposal.status === 'Approved' ? 'text-green-700' :
-                                'text-blue-700'
+                            currentProposal.status === 'Approved' ? 'text-green-700' :
+                              'text-blue-700'
                             }`}>
                             <MessageCircle className="w-4 h-4" /> Adviser Feedback {currentProposal.feedbackHistory.length > 1 && !showAllFeedback ? "(Latest)" : "History"}
                           </h4>
@@ -2812,8 +2889,8 @@ const Projects: React.FC = () => {
                                   }}
                                   onBlur={() => handleAutoSave()}
                                   className={`w-full px-4 py-2.5 bg-white border ${highlightMissingFields && currentProposal.businessType === "Other"
-                                      ? "border-red-500 ring-1 ring-red-500/20"
-                                      : "border-[#c9a654]/40 focus:border-[#c9a654]"
+                                    ? "border-red-500 ring-1 ring-red-500/20"
+                                    : "border-[#c9a654]/40 focus:border-[#c9a654]"
                                     } rounded-lg outline-none text-sm font-medium transition-all shadow-sm`}
                                 />
                               </div>
@@ -2996,46 +3073,46 @@ const Projects: React.FC = () => {
                           );
                         })()}
                       </div>
-                        <div className={highlightMissingFields && !currentProposal.tagline?.trim() ? "field-has-error" : ""}>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                            Tagline <span className="text-red-500">*</span>
-                          </label>
-                          {(() => {
-                            const check = checkTagline(currentProposal.tagline, copyrightDB || undefined);
-                            const isMissing = highlightMissingFields && !currentProposal.tagline?.trim();
-                            return (
-                              <>
-                                <input
-                                  disabled={!isEditingMode}
-                                  type="text"
-                                  value={currentProposal.tagline}
-                                  onChange={(e) =>
-                                    setCurrentProposal({
-                                      ...currentProposal,
-                                      tagline: e.target.value,
-                                    })
-                                  }
-                                  onBlur={() => handleAutoSave()}
-                                  className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
-                                    } rounded-lg outline-none text-sm font-medium transition-colors`}
-                                />
-                                {check.isCopyrighted && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>{check.errorMessage}</span>
-                                  </p>
-                                )}
-                                {!check.isCopyrighted && isMissing && (
-                                  <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
-                                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                    <span>Tagline is required before submitting.</span>
-                                  </p>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                        <div className={highlightMissingFields && !currentProposal.targetMarket?.trim() ? "field-has-error" : ""}>
+                      <div className={highlightMissingFields && !currentProposal.tagline?.trim() ? "field-has-error" : ""}>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                          Tagline <span className="text-red-500">*</span>
+                        </label>
+                        {(() => {
+                          const check = checkTagline(currentProposal.tagline, copyrightDB || undefined);
+                          const isMissing = highlightMissingFields && !currentProposal.tagline?.trim();
+                          return (
+                            <>
+                              <input
+                                disabled={!isEditingMode}
+                                type="text"
+                                value={currentProposal.tagline}
+                                onChange={(e) =>
+                                  setCurrentProposal({
+                                    ...currentProposal,
+                                    tagline: e.target.value,
+                                  })
+                                }
+                                onBlur={() => handleAutoSave()}
+                                className={`w-full px-4 py-3 bg-gray-50 border ${check.isCopyrighted || isMissing ? "border-red-500 bg-red-50/20" : "border-gray-200"
+                                  } rounded-lg outline-none text-sm font-medium transition-colors`}
+                              />
+                              {check.isCopyrighted && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>{check.errorMessage}</span>
+                                </p>
+                              )}
+                              {!check.isCopyrighted && isMissing && (
+                                <p className="text-red-500 text-xs font-semibold mt-1.5 flex items-start gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span>Tagline is required before submitting.</span>
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className={highlightMissingFields && !currentProposal.targetMarket?.trim() ? "field-has-error" : ""}>
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                           Target Market <span className="text-red-500">*</span>
                         </label>
@@ -4097,8 +4174,8 @@ const Projects: React.FC = () => {
                         }}
                         placeholder="Enter proposed company or business name..."
                         className={`w-full px-4 py-3 bg-gray-50 border ${setupErrors.companyName
-                            ? "border-red-400 bg-red-50/20"
-                            : "border-gray-200"
+                          ? "border-red-400 bg-red-50/20"
+                          : "border-gray-200"
                           } rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] transition-all`}
                       />
                     </div>
@@ -4952,10 +5029,10 @@ const Projects: React.FC = () => {
                 <div
                   key={idx}
                   className={`p-4 rounded-xl border text-left ${reason.type === "missing"
-                      ? "bg-amber-50/70 border-amber-200 text-amber-900"
-                      : reason.type === "quota"
-                        ? "bg-blue-50/70 border-blue-200 text-blue-900"
-                        : "bg-red-50/70 border-red-200 text-red-900"
+                    ? "bg-amber-50/70 border-amber-200 text-amber-900"
+                    : reason.type === "quota"
+                      ? "bg-blue-50/70 border-blue-200 text-blue-900"
+                      : "bg-red-50/70 border-red-200 text-red-900"
                     }`}
                 >
                   <div className="flex items-center gap-2 font-bold text-sm mb-1">
@@ -5019,12 +5096,12 @@ const Projects: React.FC = () => {
       )}
       {showToast && (
         <div className={`fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 ${toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
-            ? "border-red-500"
-            : "border-[#c9a654]"
+          ? "border-red-500"
+          : "border-[#c9a654]"
           } shadow-2xl p-5 rounded-xl z-[100] animate-in slide-in-from-top-5 fade-in duration-300 flex items-start gap-4 w-11/12 max-w-lg`}>
           <AlertCircle className={`w-7 h-7 shrink-0 ${toastTitle.toLowerCase().includes("fail") || toastTitle.toLowerCase().includes("error") || toastTitle.toLowerCase().includes("invalid") || toastTitle.toLowerCase().includes("conflict")
-              ? "text-red-500"
-              : "text-[#c9a654]"
+            ? "text-red-500"
+            : "text-[#c9a654]"
             }`} />
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-gray-900 text-base">

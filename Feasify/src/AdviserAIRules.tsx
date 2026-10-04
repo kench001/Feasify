@@ -141,15 +141,7 @@ const AdviserAIRules: React.FC = () => {
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <img
-            src="/dashboard logo.png"
-            alt="FeasiFy"
-            className="w-70 h-20 object-contain"
-          />
-        </div>
-
-        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-8">
+        <nav className="flex-1 p-4 pt-6 overflow-y-auto custom-scrollbar space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
               Main Menu
@@ -200,31 +192,7 @@ const AdviserAIRules: React.FC = () => {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-white/10 bg-black/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-              {getInitials(userName)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-white">
-                {userName}
-              </p>
-              <p className="text-[10px] text-gray-400 truncate">
-                Feasibility Adviser
-              </p>
-            </div>
-            <button
-              onClick={() => navigate("/adviser/notifications")}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-              title="Notifications"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-              )}
-            </button>
-          </div>
-        </div>
+
       </aside>
 
       {/* MAIN CONTENT */}
@@ -233,20 +201,50 @@ const AdviserAIRules: React.FC = () => {
           isSidebarOpen ? "lg:ml-64" : "ml-0"
         }`}
       >
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-          <SidebarIcon
-            className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
-          <span className="mx-2">|</span>
-          <span
-            className="cursor-pointer hover:text-[#c9a654] transition-colors"
-            onClick={() => navigate("/adviser/dashboard")}
-          >
-            FeasiFy
-          </span>
-          <span>›</span>
-          <span className="font-semibold text-gray-900">Settings</span>
+        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center gap-2">
+            <SidebarIcon
+              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            />
+            <span className="mx-2">|</span>
+            <span
+              className="cursor-pointer hover:text-[#c9a654] transition-colors"
+              onClick={() => navigate("/adviser/dashboard")}
+            >
+              FeasiFy
+            </span>
+            <span>›</span>
+            <span className="font-semibold text-gray-900">Settings</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/adviser/notifications")}
+              className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+              )}
+            </button>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div
+              onClick={() => navigate("/adviser/settings")}
+              className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                {getInitials(userName)}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-gray-900 leading-tight">
+                  {userName || "Adviser"}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Feasibility Adviser</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="p-6 md:p-8 max-w-4xl mx-auto w-full">
