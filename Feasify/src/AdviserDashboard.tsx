@@ -566,7 +566,7 @@ const AdviserDashboard: React.FC = () => {
             market: 75,
           },
           explanations: {
-            feasibility: `Preliminary heuristic evaluation: Score ${evalScore}/100. Capital is declared at PHP ${capitalNum.toLocaleString()}.`,
+            feasibility: `Preliminary heuristic evaluation. Capital is declared at PHP ${capitalNum.toLocaleString()}.`,
             financial: marginPositive ? "Selling price exceeds unit variable cost." : "Unit contribution margin requires review.",
             risk: "Startup capital and operational scale reviewed against baseline university exemplars.",
             market: "Target demographic and location reviewed."

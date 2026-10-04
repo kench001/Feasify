@@ -169,20 +169,86 @@ export function classifyBusinessArchetype(
 }
 
 /**
- * Searches local Philippine landmarks database for coordinates
+ * Standard centroid coordinates for Philippine cities
+ */
+export const PHILIPPINE_CITY_CENTROIDS: Record<string, { lat: number; lon: number }> = {
+  "Quezon City": { lat: 14.6760, lon: 121.0437 },
+  "Manila": { lat: 14.5995, lon: 120.9842 },
+  "Valenzuela": { lat: 14.6980, lon: 120.9788 },
+  "Caloocan": { lat: 14.6488, lon: 120.9680 },
+  "Makati": { lat: 14.5547, lon: 121.0244 },
+  "Taguig": { lat: 14.5176, lon: 121.0509 },
+  "Pasig": { lat: 14.5764, lon: 121.0851 },
+  "Mandaluyong": { lat: 14.5794, lon: 121.0359 },
+  "Marikina": { lat: 14.6507, lon: 121.1029 },
+  "Pasay": { lat: 14.5378, lon: 120.9996 },
+  "Parañaque": { lat: 14.4793, lon: 121.0198 },
+  "Las Piñas": { lat: 14.4445, lon: 120.9939 },
+  "Muntinlupa": { lat: 14.4081, lon: 121.0415 },
+  "San Juan": { lat: 14.6019, lon: 121.0355 },
+  "Malabon": { lat: 14.6625, lon: 120.9566 },
+  "Navotas": { lat: 14.6667, lon: 120.9417 },
+  "Pateros": { lat: 14.5454, lon: 121.0687 },
+  "Antipolo": { lat: 14.5842, lon: 121.1763 },
+  "Cebu City": { lat: 10.3157, lon: 123.8854 },
+  "Davao City": { lat: 7.1907, lon: 125.4553 },
+  "Baguio": { lat: 16.4023, lon: 120.5960 },
+  "Angeles": { lat: 15.1450, lon: 120.5887 },
+  "San Fernando": { lat: 15.0285, lon: 120.6897 },
+  "Bulacan": { lat: 14.7943, lon: 120.8799 },
+  "Cavite": { lat: 14.4791, lon: 120.8964 },
+  "Laguna": { lat: 14.2691, lon: 121.3653 },
+  "Rizal": { lat: 14.5547, lon: 121.2422 },
+  "Pampanga": { lat: 15.0794, lon: 120.6200 },
+};
+
+/**
+ * Searches local Philippine landmarks database for coordinates.
+ * Evaluates specific name, display name, barangay, and aliases using word boundaries.
+ * Strictly avoids generic city name matches so addresses in Metro Manila / Quezon City never get snapped to Manila.
  */
 function findCoordinatesInLocalLandmarks(locationStr: string): { lat: number; lon: number } | null {
+  if (!locationStr) return null;
   const lower = locationStr.toLowerCase();
+
+  const matchScore = (text: string, query?: string): number => {
+    if (!query) return 0;
+    const q = query.trim().toLowerCase();
+    if (q.length < 3) return 0; // Avoid short acronyms like 'ue' falsely matching inside 'avenue'
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
+    if (regex.test(text)) {
+      return q.length; // More specific names receive higher priority
+    }
+    return 0;
+  };
+
+  let bestMatch: PhilippineLandmark | null = null;
+  let highestScore = 0;
+
   for (const lm of PHILIPPINE_LANDMARKS) {
-    if (
-      lower.includes(lm.name.toLowerCase()) ||
-      lower.includes(lm.city.toLowerCase()) ||
-      (lm.barangay && lower.includes(lm.barangay.toLowerCase())) ||
-      (lm.aliases && lm.aliases.some((a) => lower.includes(a.toLowerCase())))
-    ) {
-      return { lat: lm.latitude, lon: lm.longitude };
+    const cleanBarangay = lm.barangay ? lm.barangay.replace(/^(brgy\.?|barangay)\s*/i, "") : "";
+    const scores = [
+      matchScore(lower, lm.name),
+      lm.displayName ? matchScore(lower, lm.displayName) : 0,
+      cleanBarangay ? matchScore(lower, cleanBarangay) : 0,
+      ...(lm.aliases || []).map((a) => matchScore(lower, a)),
+    ];
+    const maxScore = Math.max(...scores);
+    if (maxScore > 0) {
+      // Specific landmarks, malls, hospitals, and highways take priority over broad city boundaries
+      const totalScore = maxScore + (lm.category === "City" ? 0 : 50);
+      if (totalScore > highestScore) {
+        highestScore = totalScore;
+        bestMatch = lm;
+      }
     }
   }
+
+  if (bestMatch && highestScore > 0) {
+    return { lat: bestMatch.latitude, lon: bestMatch.longitude };
+  }
+
   return null;
 }
 
@@ -225,10 +291,10 @@ async function safeFetchWithTimeout(
 }
 
 /**
- * Geocodes an address via OpenStreetMap Nominatim
+ * Geocodes an address via local landmarks, OpenStreetMap Nominatim, or City Centroid fallback
  */
 async function geocodeLocation(locationStr: string): Promise<{ lat: number; lon: number } | null> {
-  // 1. Try local Philippine landmark coordinates first for instant match
+  // 1. Try local Philippine landmark coordinates first for instant, high-accuracy match
   const localCoord = findCoordinatesInLocalLandmarks(locationStr);
   if (localCoord) return localCoord;
 
@@ -243,14 +309,22 @@ async function geocodeLocation(locationStr: string): Promise<{ lat: number; lon:
       },
       4500
     );
-    if (!res || !res.ok) return null;
-    const data = (await res.json().catch(() => null)) as any[];
-    if (data && data[0]) {
-      return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+    if (res && res.ok) {
+      const data = (await res.json().catch(() => null)) as any[];
+      if (data && data[0]) {
+        return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+      }
     }
   } catch {
     // Ignore network/abort errors
   }
+
+  // 3. City centroid fallback if specific landmark was not found
+  const city = extractCityOrArea(locationStr);
+  if (PHILIPPINE_CITY_CENTROIDS[city]) {
+    return PHILIPPINE_CITY_CENTROIDS[city];
+  }
+
   return null;
 }
 
@@ -448,7 +522,7 @@ export function generateLocationAwareEstablishments(
           distanceKm: parseFloat((distM / 1000).toFixed(1)),
         };
       })
-      .filter((lm) => (lm.distanceKm || 0) <= 8.0)
+      .filter((lm) => (lm.distanceKm || 0) <= 6.5)
       .sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
 
     if (nearbySpatial.length > 0) {
@@ -461,8 +535,9 @@ export function generateLocationAwareEstablishments(
           (lm) =>
             !["Street", "Highway", "City"].includes(lm.category) &&
             !nearbySpatial.some((ns) => ns.name.toLowerCase() === lm.name.toLowerCase()) &&
-            (lm.city.toLowerCase().includes(cleanCity.toLowerCase()) ||
-              cleanCity.toLowerCase().includes(lm.city.toLowerCase()))
+            (cleanCity.toLowerCase() === "quezon city"
+              ? lm.city.toLowerCase() === "quezon city"
+              : lm.city.toLowerCase() === cleanCity.toLowerCase())
         )
         .map((lm) => ({
           name: lm.name,
@@ -478,8 +553,9 @@ export function generateLocationAwareEstablishments(
     .filter(
       (lm) =>
         !["Street", "Highway", "City"].includes(lm.category) &&
-        (lm.city.toLowerCase().includes(cleanCity.toLowerCase()) ||
-          cleanCity.toLowerCase().includes(lm.city.toLowerCase()))
+        (cleanCity.toLowerCase() === "quezon city"
+          ? lm.city.toLowerCase() === "quezon city"
+          : lm.city.toLowerCase() === cleanCity.toLowerCase())
     )
     .map((lm) => ({
       name: lm.name,
@@ -505,6 +581,13 @@ export function generateLocationAwareEstablishments(
 }
 
 /**
+ * Clear in-memory competitor cache
+ */
+export function clearCompetitorCache(): void {
+  cache.clear();
+}
+
+/**
  * Main detection engine: Combines live map POIs, Philippine landmark records,
  * and location-based business intelligence into dynamic competitor tags.
  */
@@ -518,7 +601,8 @@ export async function getDynamicCompetitorsFromLocation(
   const cleanLoc = (proposedLocation || "").trim();
   const city = extractCityOrArea(cleanLoc);
   const archetype = classifyBusinessArchetype(businessName, businessType, products);
-  const cacheKey = `${cleanLoc.toLowerCase()}__${archetype}__${businessName.toLowerCase()}`;
+  const CACHE_VERSION = "v3_fairview_qc_fix";
+  const cacheKey = `${CACHE_VERSION}__${cleanLoc.toLowerCase()}__${archetype}__${businessName.toLowerCase()}`;
 
   if (!forceRefresh && cache.has(cacheKey)) {
     return cache.get(cacheKey)!;

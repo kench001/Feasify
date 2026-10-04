@@ -1660,11 +1660,24 @@ const Financial_input: React.FC = () => {
       let syncMarkupAmt = "";
       let syncComputedBasePrice = "";
 
-      if (prods.length > 0) {
+      if (prods.length > 1) {
+        const totalMultiRev = prods.reduce((sum, p) => sum + computeProductMetrics(p).revenue, 0);
+        const totalMultiCogs = prods.reduce((sum, p) => sum + computeProductMetrics(p).cogsSold, 0);
+        const totalMultiUnits = prods.reduce((sum, p) => sum + computeProductMetrics(p).unitsSold, 0);
+        const totalMultiBatchCost = prods.reduce((sum, p) => sum + computeProductMetrics(p).totalBatchCost, 0);
+
+        syncSellingPrice = totalMultiUnits > 0 ? String(Number((totalMultiRev / totalMultiUnits).toFixed(2))) : "0";
+        syncMonthlySales = String(totalMultiUnits);
+        syncVariableCost = totalMultiUnits > 0 ? String(Number((totalMultiCogs / totalMultiUnits).toFixed(2))) : "0";
+        syncProductionCost = String(Number(totalMultiBatchCost.toFixed(2)));
+        syncMarkupPct = "100";
+        syncMarkupAmt = "";
+        syncComputedBasePrice = syncSellingPrice;
+      } else if (prods.length === 1) {
         const firstP = prods[0];
         const firstM = computeProductMetrics(firstP);
         syncSellingPrice = String(firstP.sellingPrice || (firstM.computedBasePrice > 0 ? Number(firstM.computedBasePrice.toFixed(2)) : ""));
-        syncMonthlySales = String(firstP.quantityYield || "");
+        syncMonthlySales = String(firstM.unitsSold || firstP.quantityYield || "");
         syncVariableCost = firstM.unitCost > 0 ? String(Number(firstM.unitCost.toFixed(2))) : "";
         syncProductionCost = String(firstM.totalBatchCost);
         syncMarkupPct = String(firstP.markupPercentage || "100");

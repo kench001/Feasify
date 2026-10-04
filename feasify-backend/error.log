@@ -862,3 +862,4085 @@ Request: {
 }
 Error: AbortError: This operation was aborted
 
+[2026-10-04T13:37:05.159Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "markupPercentage": "200",
+        "sellingPrice": "101",
+        "unitsSold": "50",
+        "name": "Oversized Graphic T-Shirt",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "price": 1000,
+            "name": "Prep"
+          },
+          {
+            "category": "ingredient",
+            "id": "ing-1791100393144-9yjx",
+            "name": "Linen",
+            "price": 500
+          }
+        ],
+        "id": "prod-1",
+        "vatRate": 12,
+        "applyVat": true,
+        "quantityYield": "50",
+        "batchesPerMonth": "1"
+      }
+    ],
+    "sellingPrice": 101,
+    "monthlySales": 50,
+    "variableCost": 30,
+    "fixedCosts": 41190,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "total": 10500,
+        "quantity": 3,
+        "unitPrice": 3500,
+        "id": "eq-1791099923011",
+        "name": "Clothing Display Rack"
+      },
+      {
+        "id": "eq-1791099931292",
+        "quantity": 2,
+        "unitPrice": 3000,
+        "name": "Shelving Unit",
+        "total": 6000
+      }
+    ],
+    "opexList": [
+      {
+        "isPreset": true,
+        "amount": 1000,
+        "id": "opex-rent",
+        "category": "Facility & Lease",
+        "name": "Rent Expense (Space / Stall Rental)"
+      },
+      {
+        "id": "opex-salaries",
+        "category": "Payroll & Labor",
+        "amount": 10000,
+        "isPreset": true,
+        "name": "Salaries & Wages (Operating Staff)"
+      },
+      {
+        "id": "opex-electricity",
+        "isPreset": true,
+        "amount": 10000,
+        "category": "Utilities",
+        "name": "Electricity & Power"
+      },
+      {
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "id": "opex-water",
+        "category": "Utilities",
+        "amount": 200
+      },
+      {
+        "amount": 5410,
+        "category": "Utilities & Tech",
+        "name": "Internet, Telecom & Communication",
+        "id": "opex-internet",
+        "isPreset": true
+      },
+      {
+        "isPreset": true,
+        "name": "Marketing, Signage & Promotions",
+        "id": "opex-marketing",
+        "amount": 600,
+        "category": "Marketing & Growth"
+      },
+      {
+        "isPreset": true,
+        "id": "opex-transport",
+        "category": "Logistics",
+        "name": "Transportation, Delivery & Fuel",
+        "amount": 326
+      },
+      {
+        "category": "Consumables",
+        "name": "Store, Office & Packaging Supplies",
+        "id": "opex-supplies",
+        "amount": 400,
+        "isPreset": true
+      },
+      {
+        "category": "Facility Upkeep",
+        "isPreset": true,
+        "name": "Equipment Maintenance & Repairs",
+        "amount": 900,
+        "id": "opex-maintenance"
+      },
+      {
+        "category": "Admin & Misc",
+        "isPreset": true,
+        "id": "opex-misc",
+        "amount": 12354,
+        "name": "Miscellaneous & Contingency Buffer"
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1075:22
+
+[2026-10-04T13:42:07.264Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "name": "Prep",
+            "category": "labor",
+            "id": "ing-1791100374771-enh9"
+          },
+          {
+            "id": "ing-1791100393144-9yjx",
+            "price": 500,
+            "name": "Linen",
+            "category": "ingredient"
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      },
+      {
+        "id": "prod-1791121211611-zukx",
+        "name": "Oversized Graphic T-Shirt (Copy)",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "name": "Prep",
+            "category": "labor",
+            "id": "ing-1791121211611-gxd9"
+          },
+          {
+            "id": "ing-1791121211611-vrts",
+            "price": 1000,
+            "name": "Linen",
+            "category": "ingredient"
+          }
+        ],
+        "markupPercentage": "130",
+        "sellingPrice": "1030",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": "1359.82",
+    "monthlySales": "10",
+    "variableCost": "350",
+    "fixedCosts": "8436",
+    "startupCapital": "150000",
+    "cashInvested": "150000",
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "name": "Investor / Partner 1",
+        "amount": "50000"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Investor / Partner 2",
+        "amount": "100000"
+      }
+    ],
+    "contributorsCount": "2",
+    "rentAdvanceDeposit": "",
+    "trainingsPrograms": "",
+    "advertisingExpense": "",
+    "salariesExpenseInitial": "",
+    "accountsPayable": "",
+    "utilitiesPayable": "",
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": "300",
+    "equipmentList": [
+      {
+        "id": "eq-1791099923011",
+        "unitPrice": 3500,
+        "name": "Clothing Display Rack",
+        "total": 10500,
+        "quantity": 3
+      },
+      {
+        "total": 6000,
+        "quantity": 2,
+        "unitPrice": 3000,
+        "id": "eq-1791099931292",
+        "name": "Shelving Unit"
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 1000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 200,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 5410,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "propertyInvested": "1505",
+    "propertyInvestedNote": "",
+    "renovationCosts": "",
+    "permitsLicensesInitial": "",
+    "salesDiscountPercent": "20",
+    "salesReturnsPercent": "20",
+    "endingSuppliesPercent": "30",
+    "accountsReceivable": "289",
+    "salariesPayable": "",
+    "taxesPayable": "",
+    "productionCost": "3500",
+    "quantityYield": "10",
+    "unitCost": "350",
+    "markupPercentage": "100",
+    "markupAmount": "",
+    "computedSellingPrice": "1359.82",
+    "monthlyRecords": [
+      {
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "isLocked": false,
+        "activeDraftId": "draft-1",
+        "drafts": [
+          {
+            "id": "draft-1",
+            "name": "Draft 1 (Primary)",
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-10-04T13:41:33.273Z",
+            "financials": {
+              "products": [
+                {
+                  "id": "prod-1",
+                  "name": "Oversized Graphic T-Shirt",
+                  "quantityYield": "5",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "price": 1000,
+                      "name": "Prep",
+                      "category": "labor",
+                      "id": "ing-1791100374771-enh9"
+                    },
+                    {
+                      "id": "ing-1791100393144-9yjx",
+                      "price": 500,
+                      "name": "Linen",
+                      "category": "ingredient"
+                    }
+                  ],
+                  "markupPercentage": "500",
+                  "sellingPrice": "2016",
+                  "applyVat": true,
+                  "vatRate": 12
+                },
+                {
+                  "id": "prod-1791121211611-zukx",
+                  "name": "Oversized Graphic T-Shirt (Copy)",
+                  "quantityYield": "5",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "price": 1000,
+                      "name": "Prep",
+                      "category": "labor",
+                      "id": "ing-1791121211611-gxd9"
+                    },
+                    {
+                      "id": "ing-1791121211611-vrts",
+                      "price": 1000,
+                      "name": "Linen",
+                      "category": "ingredient"
+                    }
+                  ],
+                  "markupPercentage": "130",
+                  "sellingPrice": "1030",
+                  "applyVat": true,
+                  "vatRate": 12
+                }
+              ],
+              "sellingPrice": "",
+              "monthlySales": "",
+              "variableCost": "",
+              "fixedCosts": "",
+              "startupCapital": "150000",
+              "cashInvested": "150000",
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "name": "Investor / Partner 1",
+                  "amount": "50000"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Investor / Partner 2",
+                  "amount": "100000"
+                }
+              ],
+              "contributorsCount": "2",
+              "rentAdvanceDeposit": "",
+              "trainingsPrograms": "",
+              "advertisingExpense": "",
+              "salariesExpenseInitial": "",
+              "accountsPayable": "",
+              "utilitiesPayable": "",
+              "competitorCount": 3,
+              "marketDemand": "Medium",
+              "directCompetitors": [
+                "SM Supermarket / Savemore (Quezon City)"
+              ],
+              "otherCompetitors": [
+                "Alfamart Neighborhood Mart",
+                "7-Eleven Convenience (Quezon City)"
+              ],
+              "competitorNotes": "",
+              "nearbyEstablishments": [],
+              "targetDemographics": [
+                "Junior & Senior High Students (16–18)",
+                "Gen Z Teens & Barkadas (16–18)"
+              ],
+              "footTrafficPeak": "",
+              "marketDemandNotes": "",
+              "operatingDays": "300",
+              "equipmentList": [
+                {
+                  "id": "eq-1791099923011",
+                  "unitPrice": 3500,
+                  "name": "Clothing Display Rack",
+                  "total": 10500,
+                  "quantity": 3
+                },
+                {
+                  "total": 6000,
+                  "quantity": 2,
+                  "unitPrice": 3000,
+                  "id": "eq-1791099931292",
+                  "name": "Shelving Unit"
+                }
+              ],
+              "opexList": [
+                {
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "amount": 1000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-water",
+                  "name": "Water & Sanitation",
+                  "category": "Utilities",
+                  "amount": 200,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-internet",
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 5410,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-marketing",
+                  "name": "Marketing, Signage & Promotions",
+                  "category": "Marketing & Growth",
+                  "amount": 600,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 326,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "amount": 900,
+                  "isPreset": true
+                }
+              ],
+              "isCapitalBorrowed": false,
+              "interestRate": "",
+              "propertyInvested": "1505",
+              "propertyInvestedNote": "",
+              "renovationCosts": "",
+              "permitsLicensesInitial": "",
+              "salesDiscountPercent": "20",
+              "salesReturnsPercent": "20",
+              "endingSuppliesPercent": "30",
+              "accountsReceivable": "289",
+              "salariesPayable": "",
+              "taxesPayable": ""
+            }
+          }
+        ],
+        "financials": {
+          "products": [
+            {
+              "id": "prod-1",
+              "name": "Oversized Graphic T-Shirt",
+              "quantityYield": "5",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "name": "Prep",
+                  "category": "labor",
+                  "id": "ing-1791100374771-enh9"
+                },
+                {
+                  "id": "ing-1791100393144-9yjx",
+                  "price": 500,
+                  "name": "Linen",
+                  "category": "ingredient"
+                }
+              ],
+              "markupPercentage": "500",
+              "sellingPrice": "2016",
+              "applyVat": true,
+              "vatRate": 12
+            },
+            {
+              "id": "prod-1791121211611-zukx",
+              "name": "Oversized Graphic T-Shirt (Copy)",
+              "quantityYield": "5",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "name": "Prep",
+                  "category": "labor",
+                  "id": "ing-1791121211611-gxd9"
+                },
+                {
+                  "id": "ing-1791121211611-vrts",
+                  "price": 1000,
+                  "name": "Linen",
+                  "category": "ingredient"
+                }
+              ],
+              "markupPercentage": "130",
+              "sellingPrice": "1030",
+              "applyVat": true,
+              "vatRate": 12
+            }
+          ],
+          "sellingPrice": "",
+          "monthlySales": "",
+          "variableCost": "",
+          "fixedCosts": "",
+          "startupCapital": "150000",
+          "cashInvested": "150000",
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Investor / Partner 1",
+              "amount": "50000"
+            },
+            {
+              "id": "contrib-2",
+              "name": "Investor / Partner 2",
+              "amount": "100000"
+            }
+          ],
+          "contributorsCount": "2",
+          "rentAdvanceDeposit": "",
+          "trainingsPrograms": "",
+          "advertisingExpense": "",
+          "salariesExpenseInitial": "",
+          "accountsPayable": "",
+          "utilitiesPayable": "",
+          "competitorCount": 3,
+          "marketDemand": "Medium",
+          "directCompetitors": [
+            "SM Supermarket / Savemore (Quezon City)"
+          ],
+          "otherCompetitors": [
+            "Alfamart Neighborhood Mart",
+            "7-Eleven Convenience (Quezon City)"
+          ],
+          "competitorNotes": "",
+          "nearbyEstablishments": [],
+          "targetDemographics": [
+            "Junior & Senior High Students (16–18)",
+            "Gen Z Teens & Barkadas (16–18)"
+          ],
+          "footTrafficPeak": "",
+          "marketDemandNotes": "",
+          "operatingDays": "300",
+          "equipmentList": [
+            {
+              "id": "eq-1791099923011",
+              "unitPrice": 3500,
+              "name": "Clothing Display Rack",
+              "total": 10500,
+              "quantity": 3
+            },
+            {
+              "total": 6000,
+              "quantity": 2,
+              "unitPrice": 3000,
+              "id": "eq-1791099931292",
+              "name": "Shelving Unit"
+            }
+          ],
+          "opexList": [
+            {
+              "id": "opex-rent",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "category": "Facility & Lease",
+              "amount": 1000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-water",
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 200,
+              "isPreset": true
+            },
+            {
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "category": "Utilities & Tech",
+              "amount": 5410,
+              "isPreset": true
+            },
+            {
+              "id": "opex-marketing",
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "amount": 600,
+              "isPreset": true
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 326,
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "name": "Equipment Maintenance & Repairs",
+              "category": "Facility Upkeep",
+              "amount": 900,
+              "isPreset": true
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "interestRate": "",
+          "propertyInvested": "1505",
+          "propertyInvestedNote": "",
+          "renovationCosts": "",
+          "permitsLicensesInitial": "",
+          "salesDiscountPercent": "20",
+          "salesReturnsPercent": "20",
+          "endingSuppliesPercent": "30",
+          "accountsReceivable": "289",
+          "salariesPayable": "",
+          "taxesPayable": ""
+        }
+      }
+    ],
+    "activeMonthIndex": 0,
+    "totalMonths": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791121294,
+      "nanoseconds": 915000000
+    },
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1075:22
+
+[2026-10-04T14:48:35.606Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "equipmentList": [
+      {
+        "id": "eq-1791099923011",
+        "name": "Clothing Display Rack",
+        "total": 10500,
+        "unitPrice": 3500,
+        "quantity": 3
+      },
+      {
+        "unitPrice": 3000,
+        "quantity": 2,
+        "id": "eq-1791099931292",
+        "name": "Shelving Unit",
+        "total": 6000
+      }
+    ],
+    "competitorCount": 3,
+    "salariesPayable": "",
+    "cashInvested": "150000",
+    "advertisingExpense": "",
+    "rentAdvanceDeposit": "",
+    "unitCost": "318.18",
+    "salariesExpenseInitial": "",
+    "competitorNotes": "",
+    "trainingsPrograms": "",
+    "marketDemandNotes": "",
+    "utilitiesPayable": "",
+    "activeMonthIndex": 0,
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "startupCapital": "150000",
+    "salesReturnsPercent": "20",
+    "operatingDays": "300",
+    "productionCost": "3500",
+    "propertyInvestedNote": "",
+    "propertyInvested": "1505",
+    "permitsLicensesInitial": "",
+    "nearbyEstablishments": [],
+    "contributorsCount": "2",
+    "computedSellingPrice": "1319.81",
+    "accountsPayable": "",
+    "totalMonths": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791123845,
+      "nanoseconds": 796000000
+    },
+    "marketDemand": "Medium",
+    "monthlyRecords": [
+      {
+        "isLocked": false,
+        "monthName": "Month 1 (1st Month)",
+        "month": 1,
+        "financials": {
+          "accountsPayable": "",
+          "permitsLicensesInitial": "",
+          "competitorCount": 3,
+          "marketDemand": "Medium",
+          "endingSuppliesPercent": "30",
+          "salariesPayable": "",
+          "isCapitalBorrowed": false,
+          "equipmentList": [
+            {
+              "total": 10500,
+              "unitPrice": 3500,
+              "quantity": 3,
+              "id": "eq-1791099923011",
+              "name": "Clothing Display Rack"
+            },
+            {
+              "quantity": 2,
+              "name": "Shelving Unit",
+              "total": 6000,
+              "unitPrice": 3000,
+              "id": "eq-1791099931292"
+            }
+          ],
+          "advertisingExpense": "",
+          "cashInvested": "150000",
+          "competitorNotes": "",
+          "fixedCosts": "",
+          "rentAdvanceDeposit": "",
+          "opexList": [
+            {
+              "category": "Facility & Lease",
+              "amount": 1000,
+              "isPreset": true,
+              "id": "opex-rent",
+              "name": "Rent Expense (Space / Stall Rental)"
+            },
+            {
+              "category": "Payroll & Labor",
+              "amount": 0,
+              "id": "opex-salaries",
+              "name": "Salaries & Wages (Operating Staff)",
+              "isPreset": true
+            },
+            {
+              "category": "Utilities",
+              "name": "Electricity & Power",
+              "amount": 0,
+              "id": "opex-electricity",
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "id": "opex-water",
+              "category": "Utilities",
+              "amount": 200,
+              "name": "Water & Sanitation"
+            },
+            {
+              "isPreset": true,
+              "id": "opex-internet",
+              "category": "Utilities & Tech",
+              "amount": 5410,
+              "name": "Internet, Telecom & Communication"
+            },
+            {
+              "category": "Marketing & Growth",
+              "id": "opex-marketing",
+              "name": "Marketing, Signage & Promotions",
+              "amount": 600,
+              "isPreset": true
+            },
+            {
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 326,
+              "id": "opex-transport",
+              "isPreset": true
+            },
+            {
+              "id": "opex-supplies",
+              "name": "Store, Office & Packaging Supplies",
+              "category": "Consumables",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "name": "Equipment Maintenance & Repairs",
+              "amount": 900,
+              "isPreset": true,
+              "category": "Facility Upkeep"
+            },
+            {
+              "name": "Miscellaneous & Contingency Buffer",
+              "amount": 0,
+              "isPreset": true,
+              "id": "opex-misc",
+              "category": "Admin & Misc"
+            }
+          ],
+          "marketDemandNotes": "",
+          "contributorsList": [
+            {
+              "amount": "50000",
+              "name": "Investor / Partner 1",
+              "id": "contrib-1"
+            },
+            {
+              "name": "Investor / Partner 2",
+              "amount": "100000",
+              "id": "contrib-2"
+            }
+          ],
+          "targetDemographics": [
+            "Junior & Senior High Students (16–18)",
+            "Gen Z Teens & Barkadas (16–18)"
+          ],
+          "trainingsPrograms": "",
+          "accountsReceivable": "289",
+          "products": [
+            {
+              "sellingPrice": "2016",
+              "vatRate": 12,
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "id": "ing-1791100374771-enh9",
+                  "name": "Prep",
+                  "category": "labor"
+                },
+                {
+                  "price": 500,
+                  "name": "Linen",
+                  "category": "ingredient",
+                  "id": "ing-1791100393144-9yjx"
+                }
+              ],
+              "quantityYield": "5",
+              "applyVat": true,
+              "name": "Oversized Graphic T-Shirt",
+              "id": "prod-1",
+              "batchesPerMonth": "1",
+              "markupPercentage": "500"
+            },
+            {
+              "applyVat": true,
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "category": "labor",
+                  "name": "Prep",
+                  "id": "ing-1791121211611-gxd9"
+                },
+                {
+                  "id": "ing-1791121211611-vrts",
+                  "name": "Linen",
+                  "category": "ingredient",
+                  "price": 1000
+                }
+              ],
+              "markupPercentage": "130",
+              "sellingPrice": "1030",
+              "id": "prod-1791121211611-zukx",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "vatRate": 12,
+              "quantityYield": "6",
+              "name": "Oversized Graphic T-Shirt 123"
+            }
+          ],
+          "footTrafficPeak": "",
+          "directCompetitors": [
+            "SM Supermarket / Savemore (Quezon City)"
+          ],
+          "nearbyEstablishments": [],
+          "utilitiesPayable": "",
+          "sellingPrice": "",
+          "interestRate": "",
+          "salariesExpenseInitial": "",
+          "salesDiscountPercent": "20",
+          "propertyInvested": "1505",
+          "propertyInvestedNote": "",
+          "taxesPayable": "",
+          "startupCapital": "150000",
+          "renovationCosts": "",
+          "salesReturnsPercent": "20",
+          "otherCompetitors": [
+            "Alfamart Neighborhood Mart",
+            "7-Eleven Convenience (Quezon City)"
+          ],
+          "variableCost": "",
+          "operatingDays": "300",
+          "monthlySales": "",
+          "contributorsCount": "2"
+        },
+        "drafts": [
+          {
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "name": "Draft 1 (Primary)",
+            "financials": {
+              "operatingDays": "300",
+              "fixedCosts": "",
+              "competitorNotes": "",
+              "marketDemand": "Medium",
+              "salariesPayable": "",
+              "salesReturnsPercent": "20",
+              "permitsLicensesInitial": "",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "id": "opex-rent",
+                  "amount": 1000,
+                  "isPreset": true,
+                  "category": "Facility & Lease"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "category": "Payroll & Labor",
+                  "amount": 0,
+                  "id": "opex-salaries"
+                },
+                {
+                  "id": "opex-electricity",
+                  "amount": 0,
+                  "category": "Utilities",
+                  "name": "Electricity & Power",
+                  "isPreset": true
+                },
+                {
+                  "category": "Utilities",
+                  "isPreset": true,
+                  "amount": 200,
+                  "id": "opex-water",
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet",
+                  "amount": 5410,
+                  "isPreset": true
+                },
+                {
+                  "category": "Marketing & Growth",
+                  "name": "Marketing, Signage & Promotions",
+                  "id": "opex-marketing",
+                  "isPreset": true,
+                  "amount": 600
+                },
+                {
+                  "category": "Logistics",
+                  "name": "Transportation, Delivery & Fuel",
+                  "isPreset": true,
+                  "id": "opex-transport",
+                  "amount": 326
+                },
+                {
+                  "amount": 0,
+                  "category": "Consumables",
+                  "name": "Store, Office & Packaging Supplies",
+                  "id": "opex-supplies",
+                  "isPreset": true
+                },
+                {
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance",
+                  "amount": 900,
+                  "category": "Facility Upkeep",
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-misc",
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Admin & Misc",
+                  "name": "Miscellaneous & Contingency Buffer"
+                }
+              ],
+              "competitorCount": 3,
+              "accountsPayable": "",
+              "accountsReceivable": "289",
+              "cashInvested": "150000",
+              "targetDemographics": [
+                "Junior & Senior High Students (16–18)",
+                "Gen Z Teens & Barkadas (16–18)"
+              ],
+              "isCapitalBorrowed": false,
+              "sellingPrice": "",
+              "interestRate": "",
+              "directCompetitors": [
+                "SM Supermarket / Savemore (Quezon City)"
+              ],
+              "propertyInvested": "1505",
+              "products": [
+                {
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "sellingPrice": "2016",
+                  "markupPercentage": "500",
+                  "ingredients": [
+                    {
+                      "category": "labor",
+                      "id": "ing-1791100374771-enh9",
+                      "price": 1000,
+                      "name": "Prep"
+                    },
+                    {
+                      "id": "ing-1791100393144-9yjx",
+                      "category": "ingredient",
+                      "name": "Linen",
+                      "price": 500
+                    }
+                  ],
+                  "vatRate": 12,
+                  "applyVat": true,
+                  "id": "prod-1",
+                  "name": "Oversized Graphic T-Shirt",
+                  "quantityYield": "5"
+                },
+                {
+                  "vatRate": 12,
+                  "batchesPerMonth": "1",
+                  "ingredients": [
+                    {
+                      "name": "Prep",
+                      "price": 1000,
+                      "category": "labor",
+                      "id": "ing-1791121211611-gxd9"
+                    },
+                    {
+                      "name": "Linen",
+                      "category": "ingredient",
+                      "id": "ing-1791121211611-vrts",
+                      "price": 1000
+                    }
+                  ],
+                  "sellingPrice": "1030",
+                  "markupPercentage": "130",
+                  "applyVat": true,
+                  "unitsSold": "50",
+                  "quantityYield": "6",
+                  "name": "Oversized Graphic T-Shirt 123",
+                  "id": "prod-1791121211611-zukx"
+                }
+              ],
+              "propertyInvestedNote": "",
+              "endingSuppliesPercent": "30",
+              "rentAdvanceDeposit": "",
+              "renovationCosts": "",
+              "startupCapital": "150000",
+              "trainingsPrograms": "",
+              "equipmentList": [
+                {
+                  "unitPrice": 3500,
+                  "name": "Clothing Display Rack",
+                  "id": "eq-1791099923011",
+                  "total": 10500,
+                  "quantity": 3
+                },
+                {
+                  "total": 6000,
+                  "id": "eq-1791099931292",
+                  "quantity": 2,
+                  "name": "Shelving Unit",
+                  "unitPrice": 3000
+                }
+              ],
+              "advertisingExpense": "",
+              "marketDemandNotes": "",
+              "otherCompetitors": [
+                "Alfamart Neighborhood Mart",
+                "7-Eleven Convenience (Quezon City)"
+              ],
+              "variableCost": "",
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "amount": "50000",
+                  "name": "Investor / Partner 1"
+                },
+                {
+                  "name": "Investor / Partner 2",
+                  "id": "contrib-2",
+                  "amount": "100000"
+                }
+              ],
+              "footTrafficPeak": "",
+              "contributorsCount": "2",
+              "monthlySales": "",
+              "taxesPayable": "",
+              "salariesExpenseInitial": "",
+              "salesDiscountPercent": "20",
+              "nearbyEstablishments": [],
+              "utilitiesPayable": ""
+            },
+            "updatedAt": "2026-10-04T14:24:04.210Z",
+            "id": "draft-1"
+          }
+        ],
+        "activeDraftId": "draft-1"
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "quantityYield": "11",
+    "opexList": [
+      {
+        "category": "Facility & Lease",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "amount": 1000,
+        "id": "opex-rent",
+        "isPreset": true
+      },
+      {
+        "amount": 0,
+        "isPreset": true,
+        "category": "Payroll & Labor",
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)"
+      },
+      {
+        "id": "opex-electricity",
+        "isPreset": true,
+        "name": "Electricity & Power",
+        "amount": 0,
+        "category": "Utilities"
+      },
+      {
+        "id": "opex-water",
+        "category": "Utilities",
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "amount": 200
+      },
+      {
+        "amount": 5410,
+        "id": "opex-internet",
+        "isPreset": true,
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech"
+      },
+      {
+        "amount": 600,
+        "category": "Marketing & Growth",
+        "id": "opex-marketing",
+        "isPreset": true,
+        "name": "Marketing, Signage & Promotions"
+      },
+      {
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "id": "opex-transport",
+        "isPreset": true
+      },
+      {
+        "isPreset": true,
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "amount": 0,
+        "category": "Consumables"
+      },
+      {
+        "amount": 900,
+        "isPreset": true,
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "id": "opex-maintenance"
+      },
+      {
+        "id": "opex-misc",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc"
+      }
+    ],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "name": "Investor / Partner 1",
+        "amount": "50000"
+      },
+      {
+        "name": "Investor / Partner 2",
+        "id": "contrib-2",
+        "amount": "100000"
+      }
+    ],
+    "fixedCosts": "8436",
+    "accountsReceivable": "289",
+    "products": [
+      {
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "price": 1000,
+            "name": "Prep"
+          },
+          {
+            "category": "ingredient",
+            "id": "ing-1791100393144-9yjx",
+            "price": 500,
+            "name": "Linen"
+          }
+        ],
+        "markupPercentage": "500",
+        "applyVat": true,
+        "quantityYield": "5",
+        "vatRate": 12,
+        "id": "prod-1",
+        "unitsSold": "50",
+        "name": "Oversized Graphic T-Shirt",
+        "batchesPerMonth": "1",
+        "sellingPrice": "2016"
+      },
+      {
+        "quantityYield": "6",
+        "markupPercentage": "130",
+        "id": "prod-1791121211611-zukx",
+        "ingredients": [
+          {
+            "category": "labor",
+            "price": 1000,
+            "name": "Prep",
+            "id": "ing-1791121211611-gxd9"
+          },
+          {
+            "id": "ing-1791121211611-vrts",
+            "category": "ingredient",
+            "name": "Linen",
+            "price": 1000
+          }
+        ],
+        "sellingPrice": "1030",
+        "vatRate": 12,
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "applyVat": true,
+        "name": "Oversized Graphic T-Shirt 123"
+      }
+    ],
+    "interestRate": "",
+    "sellingPrice": "1319.81",
+    "endingSuppliesPercent": "30",
+    "footTrafficPeak": "",
+    "markupPercentage": "100",
+    "taxesPayable": "",
+    "salesDiscountPercent": "20",
+    "markupAmount": "",
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "variableCost": "318.18",
+    "renovationCosts": "",
+    "monthlySales": "11",
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T14:50:23.045Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "equipmentList": [
+      {
+        "id": "eq-1791099923011",
+        "quantity": 3,
+        "name": "Clothing Display Rack",
+        "total": 10500,
+        "unitPrice": 3500
+      },
+      {
+        "id": "eq-1791099931292",
+        "name": "Shelving Unit",
+        "quantity": 2,
+        "total": 6000,
+        "unitPrice": 3000
+      }
+    ],
+    "marketDemandNotes": "",
+    "footTrafficPeak": "",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791123845,
+      "nanoseconds": 796000000
+    },
+    "salesReturnsPercent": "20",
+    "monthlySales": "11",
+    "opexList": [
+      {
+        "amount": 1000,
+        "id": "opex-rent",
+        "isPreset": true,
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease"
+      },
+      {
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "isPreset": true,
+        "amount": 0,
+        "id": "opex-salaries"
+      },
+      {
+        "id": "opex-electricity",
+        "isPreset": true,
+        "name": "Electricity & Power",
+        "amount": 0,
+        "category": "Utilities"
+      },
+      {
+        "isPreset": true,
+        "id": "opex-water",
+        "amount": 200,
+        "name": "Water & Sanitation",
+        "category": "Utilities"
+      },
+      {
+        "name": "Internet, Telecom & Communication",
+        "amount": 5410,
+        "isPreset": true,
+        "category": "Utilities & Tech",
+        "id": "opex-internet"
+      },
+      {
+        "isPreset": true,
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions"
+      },
+      {
+        "id": "opex-transport",
+        "amount": 326,
+        "category": "Logistics",
+        "name": "Transportation, Delivery & Fuel",
+        "isPreset": true
+      },
+      {
+        "category": "Consumables",
+        "id": "opex-supplies",
+        "isPreset": true,
+        "amount": 0,
+        "name": "Store, Office & Packaging Supplies"
+      },
+      {
+        "category": "Facility Upkeep",
+        "id": "opex-maintenance",
+        "isPreset": true,
+        "amount": 900,
+        "name": "Equipment Maintenance & Repairs"
+      },
+      {
+        "category": "Admin & Misc",
+        "id": "opex-misc",
+        "amount": 0,
+        "name": "Miscellaneous & Contingency Buffer",
+        "isPreset": true
+      }
+    ],
+    "accountsReceivable": "289",
+    "taxesPayable": "",
+    "contributorsList": [
+      {
+        "name": "Investor / Partner 1",
+        "id": "contrib-1",
+        "amount": "50000"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Investor / Partner 2",
+        "amount": "100000"
+      }
+    ],
+    "unitCost": "318.18",
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "startupCapital": "150000",
+    "permitsLicensesInitial": "",
+    "computedSellingPrice": "1319.81",
+    "monthlyRecords": [
+      {
+        "month": 1,
+        "isLocked": false,
+        "drafts": [
+          {
+            "id": "draft-1",
+            "name": "Draft 1 (Primary)",
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "financials": {
+              "propertyInvestedNote": "",
+              "variableCost": "",
+              "fixedCosts": "",
+              "accountsReceivable": "289",
+              "contributorsList": [
+                {
+                  "amount": "50000",
+                  "id": "contrib-1",
+                  "name": "Investor / Partner 1"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Investor / Partner 2",
+                  "amount": "100000"
+                }
+              ],
+              "accountsPayable": "",
+              "utilitiesPayable": "",
+              "startupCapital": "150000",
+              "operatingDays": "300",
+              "cashInvested": "150000",
+              "marketDemand": "Medium",
+              "isCapitalBorrowed": false,
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "amount": 1000,
+                  "isPreset": true,
+                  "id": "opex-rent"
+                },
+                {
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "id": "opex-salaries",
+                  "amount": 0
+                },
+                {
+                  "name": "Electricity & Power",
+                  "id": "opex-electricity",
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "amount": 200,
+                  "id": "opex-water",
+                  "name": "Water & Sanitation",
+                  "category": "Utilities"
+                },
+                {
+                  "amount": 5410,
+                  "category": "Utilities & Tech",
+                  "name": "Internet, Telecom & Communication",
+                  "isPreset": true,
+                  "id": "opex-internet"
+                },
+                {
+                  "name": "Marketing, Signage & Promotions",
+                  "category": "Marketing & Growth",
+                  "amount": 600,
+                  "id": "opex-marketing",
+                  "isPreset": true
+                },
+                {
+                  "amount": 326,
+                  "name": "Transportation, Delivery & Fuel",
+                  "isPreset": true,
+                  "id": "opex-transport",
+                  "category": "Logistics"
+                },
+                {
+                  "id": "opex-supplies",
+                  "category": "Consumables",
+                  "name": "Store, Office & Packaging Supplies",
+                  "isPreset": true,
+                  "amount": 0
+                },
+                {
+                  "id": "opex-maintenance",
+                  "amount": 900,
+                  "isPreset": true,
+                  "category": "Facility Upkeep",
+                  "name": "Equipment Maintenance & Repairs"
+                },
+                {
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "id": "opex-misc",
+                  "category": "Admin & Misc",
+                  "amount": 0,
+                  "isPreset": true
+                }
+              ],
+              "products": [
+                {
+                  "markupPercentage": "500",
+                  "name": "Oversized Graphic T-Shirt",
+                  "id": "prod-1",
+                  "batchesPerMonth": "1",
+                  "quantityYield": "5",
+                  "ingredients": [
+                    {
+                      "name": "Prep",
+                      "price": 1000,
+                      "id": "ing-1791100374771-enh9",
+                      "category": "labor"
+                    },
+                    {
+                      "price": 500,
+                      "name": "Linen",
+                      "id": "ing-1791100393144-9yjx",
+                      "category": "ingredient"
+                    }
+                  ],
+                  "sellingPrice": "2016",
+                  "applyVat": true,
+                  "vatRate": 12,
+                  "unitsSold": "50"
+                },
+                {
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "sellingPrice": "1030",
+                  "quantityYield": "6",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791121211611-gxd9",
+                      "name": "Prep",
+                      "category": "labor",
+                      "price": 1000
+                    },
+                    {
+                      "category": "ingredient",
+                      "price": 1000,
+                      "name": "Linen",
+                      "id": "ing-1791121211611-vrts"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "name": "Oversized Graphic T-Shirt 123",
+                  "markupPercentage": "130",
+                  "applyVat": true,
+                  "id": "prod-1791121211611-zukx"
+                }
+              ],
+              "endingSuppliesPercent": "30",
+              "sellingPrice": "",
+              "trainingsPrograms": "",
+              "salariesExpenseInitial": "",
+              "marketDemandNotes": "",
+              "targetDemographics": [
+                "Junior & Senior High Students (16–18)",
+                "Gen Z Teens & Barkadas (16–18)"
+              ],
+              "salesDiscountPercent": "20",
+              "interestRate": "",
+              "directCompetitors": [
+                "SM Supermarket / Savemore (Quezon City)"
+              ],
+              "competitorNotes": "",
+              "rentAdvanceDeposit": "",
+              "salesReturnsPercent": "20",
+              "contributorsCount": "2",
+              "competitorCount": 3,
+              "taxesPayable": "",
+              "equipmentList": [
+                {
+                  "quantity": 3,
+                  "total": 10500,
+                  "id": "eq-1791099923011",
+                  "unitPrice": 3500,
+                  "name": "Clothing Display Rack"
+                },
+                {
+                  "total": 6000,
+                  "name": "Shelving Unit",
+                  "id": "eq-1791099931292",
+                  "quantity": 2,
+                  "unitPrice": 3000
+                }
+              ],
+              "salariesPayable": "",
+              "otherCompetitors": [
+                "Alfamart Neighborhood Mart",
+                "7-Eleven Convenience (Quezon City)"
+              ],
+              "monthlySales": "",
+              "footTrafficPeak": "",
+              "nearbyEstablishments": [],
+              "permitsLicensesInitial": "",
+              "advertisingExpense": "",
+              "renovationCosts": "",
+              "propertyInvested": "1505"
+            },
+            "updatedAt": "2026-10-04T14:24:04.210Z"
+          }
+        ],
+        "financials": {
+          "endingSuppliesPercent": "30",
+          "permitsLicensesInitial": "",
+          "monthlySales": "",
+          "trainingsPrograms": "",
+          "marketDemandNotes": "",
+          "targetDemographics": [
+            "Junior & Senior High Students (16–18)",
+            "Gen Z Teens & Barkadas (16–18)"
+          ],
+          "salesReturnsPercent": "20",
+          "directCompetitors": [
+            "SM Supermarket / Savemore (Quezon City)"
+          ],
+          "accountsReceivable": "289",
+          "products": [
+            {
+              "id": "prod-1",
+              "applyVat": true,
+              "ingredients": [
+                {
+                  "category": "labor",
+                  "price": 1000,
+                  "name": "Prep",
+                  "id": "ing-1791100374771-enh9"
+                },
+                {
+                  "name": "Linen",
+                  "price": 500,
+                  "id": "ing-1791100393144-9yjx",
+                  "category": "ingredient"
+                }
+              ],
+              "batchesPerMonth": "1",
+              "quantityYield": "5",
+              "unitsSold": "50",
+              "vatRate": 12,
+              "name": "Oversized Graphic T-Shirt",
+              "sellingPrice": "2016",
+              "markupPercentage": "500"
+            },
+            {
+              "markupPercentage": "130",
+              "unitsSold": "50",
+              "name": "Oversized Graphic T-Shirt 123",
+              "batchesPerMonth": "1",
+              "id": "prod-1791121211611-zukx",
+              "sellingPrice": "1030",
+              "quantityYield": "6",
+              "applyVat": true,
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "id": "ing-1791121211611-gxd9",
+                  "category": "labor",
+                  "name": "Prep"
+                },
+                {
+                  "name": "Linen",
+                  "category": "ingredient",
+                  "price": 1000,
+                  "id": "ing-1791121211611-vrts"
+                }
+              ],
+              "vatRate": 12
+            }
+          ],
+          "nearbyEstablishments": [],
+          "equipmentList": [
+            {
+              "unitPrice": 3500,
+              "name": "Clothing Display Rack",
+              "id": "eq-1791099923011",
+              "total": 10500,
+              "quantity": 3
+            },
+            {
+              "id": "eq-1791099931292",
+              "name": "Shelving Unit",
+              "total": 6000,
+              "unitPrice": 3000,
+              "quantity": 2
+            }
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "amount": "50000",
+              "name": "Investor / Partner 1"
+            },
+            {
+              "id": "contrib-2",
+              "amount": "100000",
+              "name": "Investor / Partner 2"
+            }
+          ],
+          "opexList": [
+            {
+              "amount": 1000,
+              "isPreset": true,
+              "id": "opex-rent",
+              "category": "Facility & Lease",
+              "name": "Rent Expense (Space / Stall Rental)"
+            },
+            {
+              "name": "Salaries & Wages (Operating Staff)",
+              "amount": 0,
+              "category": "Payroll & Labor",
+              "isPreset": true,
+              "id": "opex-salaries"
+            },
+            {
+              "category": "Utilities",
+              "id": "opex-electricity",
+              "name": "Electricity & Power",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "name": "Water & Sanitation",
+              "amount": 200,
+              "category": "Utilities",
+              "isPreset": true,
+              "id": "opex-water"
+            },
+            {
+              "amount": 5410,
+              "category": "Utilities & Tech",
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "isPreset": true
+            },
+            {
+              "category": "Marketing & Growth",
+              "name": "Marketing, Signage & Promotions",
+              "isPreset": true,
+              "amount": 600,
+              "id": "opex-marketing"
+            },
+            {
+              "category": "Logistics",
+              "amount": 326,
+              "isPreset": true,
+              "name": "Transportation, Delivery & Fuel",
+              "id": "opex-transport"
+            },
+            {
+              "category": "Consumables",
+              "amount": 0,
+              "name": "Store, Office & Packaging Supplies",
+              "id": "opex-supplies",
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "isPreset": true,
+              "amount": 900,
+              "category": "Facility Upkeep",
+              "name": "Equipment Maintenance & Repairs"
+            },
+            {
+              "name": "Miscellaneous & Contingency Buffer",
+              "isPreset": true,
+              "category": "Admin & Misc",
+              "amount": 0,
+              "id": "opex-misc"
+            }
+          ],
+          "utilitiesPayable": "",
+          "taxesPayable": "",
+          "isCapitalBorrowed": false,
+          "accountsPayable": "",
+          "otherCompetitors": [
+            "Alfamart Neighborhood Mart",
+            "7-Eleven Convenience (Quezon City)"
+          ],
+          "footTrafficPeak": "",
+          "propertyInvestedNote": "",
+          "interestRate": "",
+          "salariesExpenseInitial": "",
+          "renovationCosts": "",
+          "propertyInvested": "1505",
+          "advertisingExpense": "",
+          "sellingPrice": "",
+          "operatingDays": "300",
+          "competitorNotes": "",
+          "variableCost": "",
+          "rentAdvanceDeposit": "",
+          "marketDemand": "Medium",
+          "startupCapital": "150000",
+          "salariesPayable": "",
+          "cashInvested": "150000",
+          "contributorsCount": "2",
+          "competitorCount": 3,
+          "fixedCosts": "",
+          "salesDiscountPercent": "20"
+        },
+        "activeDraftId": "draft-1",
+        "monthName": "Month 1 (1st Month)"
+      }
+    ],
+    "sellingPrice": "1319.81",
+    "propertyInvested": "1505",
+    "operatingDays": "300",
+    "salesDiscountPercent": "20",
+    "rentAdvanceDeposit": "",
+    "endingSuppliesPercent": "30",
+    "productionCost": "3500",
+    "contributorsCount": "2",
+    "variableCost": "318.18",
+    "renovationCosts": "",
+    "salariesExpenseInitial": "",
+    "markupPercentage": "100",
+    "quantityYield": "11",
+    "trainingsPrograms": "",
+    "totalMonths": 1,
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "competitorCount": 3,
+    "fixedCosts": "8436",
+    "salariesPayable": "",
+    "products": [
+      {
+        "markupPercentage": "500",
+        "batchesPerMonth": "1",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "price": 1000,
+            "name": "Prep"
+          },
+          {
+            "id": "ing-1791100393144-9yjx",
+            "name": "Linen",
+            "category": "ingredient",
+            "price": 500
+          }
+        ],
+        "vatRate": 12,
+        "unitsSold": "50",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "quantityYield": "5",
+        "name": "Oversized Graphic T-Shirt",
+        "id": "prod-1"
+      },
+      {
+        "sellingPrice": "1030",
+        "quantityYield": "6",
+        "id": "prod-1791121211611-zukx",
+        "vatRate": 12,
+        "ingredients": [
+          {
+            "category": "labor",
+            "price": 1000,
+            "id": "ing-1791121211611-gxd9",
+            "name": "Prep"
+          },
+          {
+            "price": 1000,
+            "name": "Linen",
+            "category": "ingredient",
+            "id": "ing-1791121211611-vrts"
+          }
+        ],
+        "applyVat": true,
+        "name": "Oversized Graphic T-Shirt 123",
+        "markupPercentage": "130",
+        "unitsSold": "50",
+        "batchesPerMonth": "1"
+      }
+    ],
+    "utilitiesPayable": "",
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "propertyInvestedNote": "",
+    "advertisingExpense": "",
+    "marketDemand": "Medium",
+    "accountsPayable": "",
+    "cashInvested": "150000",
+    "activeMonthIndex": 0,
+    "markupAmount": "",
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 9h9m35.460615095s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"model":"gemini-3.8-flash","location":"global"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"32975s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:08:30.763Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "vatRate": 12,
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "unitsSold": "50",
+        "batchesPerMonth": "1",
+        "ingredients": [
+          {
+            "name": "Prep",
+            "category": "labor",
+            "price": 1000,
+            "id": "ing-1791100374771-enh9"
+          },
+          {
+            "category": "ingredient",
+            "name": "Linen",
+            "price": 500,
+            "id": "ing-1791100393144-9yjx"
+          }
+        ]
+      },
+      {
+        "quantityYield": "6",
+        "batchesPerMonth": "1",
+        "name": "Oversized Graphic T-Shirt 123",
+        "ingredients": [
+          {
+            "category": "labor",
+            "name": "Prep",
+            "id": "ing-1791121211611-gxd9",
+            "price": 1000
+          },
+          {
+            "name": "Linen",
+            "category": "ingredient",
+            "id": "ing-1791121211611-vrts",
+            "price": 1000
+          }
+        ],
+        "unitsSold": "50",
+        "vatRate": 12,
+        "id": "prod-1791121211611-zukx",
+        "markupPercentage": "130",
+        "applyVat": true,
+        "sellingPrice": "1030"
+      }
+    ],
+    "sellingPrice": 1319.81,
+    "monthlySales": 11,
+    "variableCost": 318.18,
+    "fixedCosts": 8436,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "quantity": 3,
+        "unitPrice": 3500,
+        "total": 10500,
+        "id": "eq-1791099923011",
+        "name": "Clothing Display Rack"
+      },
+      {
+        "quantity": 2,
+        "name": "Shelving Unit",
+        "id": "eq-1791099931292",
+        "unitPrice": 3000,
+        "total": 6000
+      }
+    ],
+    "opexList": [
+      {
+        "amount": 1000,
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "isPreset": true
+      },
+      {
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "isPreset": true,
+        "id": "opex-salaries",
+        "amount": 0
+      },
+      {
+        "amount": 0,
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "isPreset": true
+      },
+      {
+        "isPreset": true,
+        "category": "Utilities",
+        "amount": 200,
+        "id": "opex-water",
+        "name": "Water & Sanitation"
+      },
+      {
+        "name": "Internet, Telecom & Communication",
+        "id": "opex-internet",
+        "isPreset": true,
+        "category": "Utilities & Tech",
+        "amount": 5410
+      },
+      {
+        "name": "Marketing, Signage & Promotions",
+        "amount": 600,
+        "id": "opex-marketing",
+        "isPreset": true,
+        "category": "Marketing & Growth"
+      },
+      {
+        "amount": 326,
+        "category": "Logistics",
+        "id": "opex-transport",
+        "isPreset": true,
+        "name": "Transportation, Delivery & Fuel"
+      },
+      {
+        "category": "Consumables",
+        "isPreset": true,
+        "amount": 0,
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies"
+      },
+      {
+        "name": "Equipment Maintenance & Repairs",
+        "id": "opex-maintenance",
+        "amount": 900,
+        "category": "Facility Upkeep",
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "category": "Admin & Misc",
+        "isPreset": true,
+        "amount": 0,
+        "name": "Miscellaneous & Contingency Buffer"
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:08:46.005Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "name": "Oversized Graphic T-Shirt",
+        "id": "prod-1",
+        "ingredients": [
+          {
+            "category": "labor",
+            "price": 1000,
+            "name": "Prep",
+            "id": "ing-1791100374771-enh9"
+          },
+          {
+            "name": "Linen",
+            "id": "ing-1791100393144-9yjx",
+            "category": "ingredient",
+            "price": 500
+          }
+        ],
+        "sellingPrice": "2016",
+        "markupPercentage": "500",
+        "unitsSold": "50",
+        "applyVat": true,
+        "quantityYield": "5",
+        "vatRate": 12,
+        "batchesPerMonth": "1"
+      },
+      {
+        "sellingPrice": "1030",
+        "name": "Oversized Graphic T-Shirt 123",
+        "unitsSold": "50",
+        "vatRate": 12,
+        "id": "prod-1791121211611-zukx",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791121211611-gxd9",
+            "name": "Prep",
+            "price": 1000
+          },
+          {
+            "price": 1000,
+            "category": "ingredient",
+            "name": "Linen",
+            "id": "ing-1791121211611-vrts"
+          }
+        ],
+        "quantityYield": "6",
+        "applyVat": true,
+        "markupPercentage": "130",
+        "batchesPerMonth": "1"
+      }
+    ],
+    "sellingPrice": 1319.81,
+    "monthlySales": 11,
+    "variableCost": 318.18,
+    "fixedCosts": 8436,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "total": 10500,
+        "unitPrice": 3500,
+        "name": "Clothing Display Rack",
+        "quantity": 3,
+        "id": "eq-1791099923011"
+      },
+      {
+        "quantity": 2,
+        "name": "Shelving Unit",
+        "id": "eq-1791099931292",
+        "total": 6000,
+        "unitPrice": 3000
+      }
+    ],
+    "opexList": [
+      {
+        "category": "Facility & Lease",
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "isPreset": true,
+        "amount": 1000
+      },
+      {
+        "isPreset": true,
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "amount": 0,
+        "category": "Payroll & Labor"
+      },
+      {
+        "category": "Utilities",
+        "name": "Electricity & Power",
+        "amount": 0,
+        "id": "opex-electricity",
+        "isPreset": true
+      },
+      {
+        "amount": 200,
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "category": "Utilities",
+        "id": "opex-water"
+      },
+      {
+        "category": "Utilities & Tech",
+        "isPreset": true,
+        "amount": 5410,
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication"
+      },
+      {
+        "amount": 600,
+        "id": "opex-marketing",
+        "category": "Marketing & Growth",
+        "name": "Marketing, Signage & Promotions",
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "isPreset": true,
+        "category": "Logistics",
+        "amount": 326
+      },
+      {
+        "amount": 0,
+        "category": "Consumables",
+        "id": "opex-supplies",
+        "isPreset": true,
+        "name": "Store, Office & Packaging Supplies"
+      },
+      {
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true,
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs"
+      },
+      {
+        "amount": 0,
+        "isPreset": true,
+        "category": "Admin & Misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "id": "opex-misc"
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h51m12.495993644s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31872s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:10:40.789Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "name": "Oversized Graphic T-Shirt",
+        "id": "prod-1",
+        "ingredients": [
+          {
+            "category": "labor",
+            "price": 1000,
+            "name": "Prep",
+            "id": "ing-1791100374771-enh9"
+          },
+          {
+            "name": "Linen",
+            "id": "ing-1791100393144-9yjx",
+            "category": "ingredient",
+            "price": 500
+          }
+        ],
+        "sellingPrice": "2016",
+        "markupPercentage": "500",
+        "unitsSold": "50",
+        "applyVat": true,
+        "quantityYield": "5",
+        "vatRate": 12,
+        "batchesPerMonth": "1"
+      },
+      {
+        "sellingPrice": "1030",
+        "name": "Oversized Graphic T-Shirt 123",
+        "unitsSold": "50",
+        "vatRate": 12,
+        "id": "prod-1791121211611-zukx",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791121211611-gxd9",
+            "name": "Prep",
+            "price": 1000
+          },
+          {
+            "price": 1000,
+            "category": "ingredient",
+            "name": "Linen",
+            "id": "ing-1791121211611-vrts"
+          }
+        ],
+        "quantityYield": "6",
+        "applyVat": true,
+        "markupPercentage": "130",
+        "batchesPerMonth": "1"
+      }
+    ],
+    "sellingPrice": 1319.81,
+    "monthlySales": 11,
+    "variableCost": 318.18,
+    "fixedCosts": 8436,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "total": 10500,
+        "unitPrice": 3500,
+        "name": "Clothing Display Rack",
+        "quantity": 3,
+        "id": "eq-1791099923011"
+      },
+      {
+        "quantity": 2,
+        "name": "Shelving Unit",
+        "id": "eq-1791099931292",
+        "total": 6000,
+        "unitPrice": 3000
+      }
+    ],
+    "opexList": [
+      {
+        "category": "Facility & Lease",
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "isPreset": true,
+        "amount": 1000
+      },
+      {
+        "isPreset": true,
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "amount": 0,
+        "category": "Payroll & Labor"
+      },
+      {
+        "category": "Utilities",
+        "name": "Electricity & Power",
+        "amount": 0,
+        "id": "opex-electricity",
+        "isPreset": true
+      },
+      {
+        "amount": 200,
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "category": "Utilities",
+        "id": "opex-water"
+      },
+      {
+        "category": "Utilities & Tech",
+        "isPreset": true,
+        "amount": 5410,
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication"
+      },
+      {
+        "amount": 600,
+        "id": "opex-marketing",
+        "category": "Marketing & Growth",
+        "name": "Marketing, Signage & Promotions",
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "isPreset": true,
+        "category": "Logistics",
+        "amount": 326
+      },
+      {
+        "amount": 0,
+        "category": "Consumables",
+        "id": "opex-supplies",
+        "isPreset": true,
+        "name": "Store, Office & Packaging Supplies"
+      },
+      {
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true,
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs"
+      },
+      {
+        "amount": 0,
+        "isPreset": true,
+        "category": "Admin & Misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "id": "opex-misc"
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h49m19.234961236s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31759s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:11:25.542Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "price": 1000,
+            "name": "Prep"
+          },
+          {
+            "category": "ingredient",
+            "name": "Linen",
+            "id": "ing-1791100393144-9yjx",
+            "price": 500
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": "2016",
+    "monthlySales": "5",
+    "variableCost": "300",
+    "fixedCosts": "8436",
+    "startupCapital": "150000",
+    "cashInvested": "150000",
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "name": "Investor / Partner 1",
+        "amount": "50000"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Investor / Partner 2",
+        "amount": "100000"
+      }
+    ],
+    "contributorsCount": "2",
+    "rentAdvanceDeposit": "",
+    "trainingsPrograms": "",
+    "advertisingExpense": "",
+    "salariesExpenseInitial": "",
+    "accountsPayable": "",
+    "utilitiesPayable": "",
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": "300",
+    "equipmentList": [
+      {
+        "name": "Clothing Display Rack",
+        "total": 10500,
+        "id": "eq-1791099923011",
+        "unitPrice": 3500,
+        "quantity": 3
+      },
+      {
+        "name": "Shelving Unit",
+        "unitPrice": 3000,
+        "total": 6000,
+        "quantity": 2,
+        "id": "eq-1791099931292"
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 1000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 200,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 5410,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "isPreset": true
+      },
+      {
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "category": "Consumables",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc",
+        "amount": 0,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "propertyInvested": "1505",
+    "propertyInvestedNote": "",
+    "renovationCosts": "",
+    "permitsLicensesInitial": "",
+    "salesDiscountPercent": "20",
+    "salesReturnsPercent": "20",
+    "endingSuppliesPercent": "30",
+    "accountsReceivable": "289",
+    "salariesPayable": "",
+    "taxesPayable": "",
+    "productionCost": "1500",
+    "quantityYield": "5",
+    "unitCost": "300",
+    "markupPercentage": "500",
+    "markupAmount": "1500",
+    "computedSellingPrice": "1800",
+    "monthlyRecords": [
+      {
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "isLocked": false,
+        "activeDraftId": "draft-1",
+        "drafts": [
+          {
+            "id": "draft-1",
+            "name": "Draft 1 (Primary)",
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-10-04T15:11:10.529Z",
+            "financials": {
+              "products": [
+                {
+                  "id": "prod-1",
+                  "name": "Oversized Graphic T-Shirt",
+                  "quantityYield": "5",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "category": "labor",
+                      "id": "ing-1791100374771-enh9",
+                      "price": 1000,
+                      "name": "Prep"
+                    },
+                    {
+                      "category": "ingredient",
+                      "name": "Linen",
+                      "id": "ing-1791100393144-9yjx",
+                      "price": 500
+                    }
+                  ],
+                  "markupPercentage": "500",
+                  "sellingPrice": "2016",
+                  "applyVat": true,
+                  "vatRate": 12
+                }
+              ],
+              "sellingPrice": "",
+              "monthlySales": "",
+              "variableCost": "",
+              "fixedCosts": "",
+              "startupCapital": "150000",
+              "cashInvested": "150000",
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "name": "Investor / Partner 1",
+                  "amount": "50000"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Investor / Partner 2",
+                  "amount": "100000"
+                }
+              ],
+              "contributorsCount": "2",
+              "rentAdvanceDeposit": "",
+              "trainingsPrograms": "",
+              "advertisingExpense": "",
+              "salariesExpenseInitial": "",
+              "accountsPayable": "",
+              "utilitiesPayable": "",
+              "competitorCount": 3,
+              "marketDemand": "Medium",
+              "directCompetitors": [
+                "SM Supermarket / Savemore (Quezon City)"
+              ],
+              "otherCompetitors": [
+                "Alfamart Neighborhood Mart",
+                "7-Eleven Convenience (Quezon City)"
+              ],
+              "competitorNotes": "",
+              "nearbyEstablishments": [],
+              "targetDemographics": [
+                "Junior & Senior High Students (16–18)",
+                "Gen Z Teens & Barkadas (16–18)"
+              ],
+              "footTrafficPeak": "",
+              "marketDemandNotes": "",
+              "operatingDays": "300",
+              "equipmentList": [
+                {
+                  "name": "Clothing Display Rack",
+                  "total": 10500,
+                  "id": "eq-1791099923011",
+                  "unitPrice": 3500,
+                  "quantity": 3
+                },
+                {
+                  "name": "Shelving Unit",
+                  "unitPrice": 3000,
+                  "total": 6000,
+                  "quantity": 2,
+                  "id": "eq-1791099931292"
+                }
+              ],
+              "opexList": [
+                {
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "amount": 1000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "category": "Payroll & Labor",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-electricity",
+                  "name": "Electricity & Power",
+                  "category": "Utilities",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-water",
+                  "name": "Water & Sanitation",
+                  "category": "Utilities",
+                  "amount": 200,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-internet",
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 5410,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-marketing",
+                  "name": "Marketing, Signage & Promotions",
+                  "category": "Marketing & Growth",
+                  "amount": 600,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 326,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Store, Office & Packaging Supplies",
+                  "category": "Consumables",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "amount": 900,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc",
+                  "amount": 0,
+                  "isPreset": true
+                }
+              ],
+              "isCapitalBorrowed": false,
+              "interestRate": "",
+              "propertyInvested": "1505",
+              "propertyInvestedNote": "",
+              "renovationCosts": "",
+              "permitsLicensesInitial": "",
+              "salesDiscountPercent": "20",
+              "salesReturnsPercent": "20",
+              "endingSuppliesPercent": "30",
+              "accountsReceivable": "289",
+              "salariesPayable": "",
+              "taxesPayable": ""
+            }
+          }
+        ],
+        "financials": {
+          "products": [
+            {
+              "id": "prod-1",
+              "name": "Oversized Graphic T-Shirt",
+              "quantityYield": "5",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "category": "labor",
+                  "id": "ing-1791100374771-enh9",
+                  "price": 1000,
+                  "name": "Prep"
+                },
+                {
+                  "category": "ingredient",
+                  "name": "Linen",
+                  "id": "ing-1791100393144-9yjx",
+                  "price": 500
+                }
+              ],
+              "markupPercentage": "500",
+              "sellingPrice": "2016",
+              "applyVat": true,
+              "vatRate": 12
+            }
+          ],
+          "sellingPrice": "",
+          "monthlySales": "",
+          "variableCost": "",
+          "fixedCosts": "",
+          "startupCapital": "150000",
+          "cashInvested": "150000",
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Investor / Partner 1",
+              "amount": "50000"
+            },
+            {
+              "id": "contrib-2",
+              "name": "Investor / Partner 2",
+              "amount": "100000"
+            }
+          ],
+          "contributorsCount": "2",
+          "rentAdvanceDeposit": "",
+          "trainingsPrograms": "",
+          "advertisingExpense": "",
+          "salariesExpenseInitial": "",
+          "accountsPayable": "",
+          "utilitiesPayable": "",
+          "competitorCount": 3,
+          "marketDemand": "Medium",
+          "directCompetitors": [
+            "SM Supermarket / Savemore (Quezon City)"
+          ],
+          "otherCompetitors": [
+            "Alfamart Neighborhood Mart",
+            "7-Eleven Convenience (Quezon City)"
+          ],
+          "competitorNotes": "",
+          "nearbyEstablishments": [],
+          "targetDemographics": [
+            "Junior & Senior High Students (16–18)",
+            "Gen Z Teens & Barkadas (16–18)"
+          ],
+          "footTrafficPeak": "",
+          "marketDemandNotes": "",
+          "operatingDays": "300",
+          "equipmentList": [
+            {
+              "name": "Clothing Display Rack",
+              "total": 10500,
+              "id": "eq-1791099923011",
+              "unitPrice": 3500,
+              "quantity": 3
+            },
+            {
+              "name": "Shelving Unit",
+              "unitPrice": 3000,
+              "total": 6000,
+              "quantity": 2,
+              "id": "eq-1791099931292"
+            }
+          ],
+          "opexList": [
+            {
+              "id": "opex-rent",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "category": "Facility & Lease",
+              "amount": 1000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-salaries",
+              "name": "Salaries & Wages (Operating Staff)",
+              "category": "Payroll & Labor",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-electricity",
+              "name": "Electricity & Power",
+              "category": "Utilities",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-water",
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 200,
+              "isPreset": true
+            },
+            {
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "category": "Utilities & Tech",
+              "amount": 5410,
+              "isPreset": true
+            },
+            {
+              "id": "opex-marketing",
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "amount": 600,
+              "isPreset": true
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 326,
+              "isPreset": true
+            },
+            {
+              "id": "opex-supplies",
+              "name": "Store, Office & Packaging Supplies",
+              "category": "Consumables",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "name": "Equipment Maintenance & Repairs",
+              "category": "Facility Upkeep",
+              "amount": 900,
+              "isPreset": true
+            },
+            {
+              "id": "opex-misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "category": "Admin & Misc",
+              "amount": 0,
+              "isPreset": true
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "interestRate": "",
+          "propertyInvested": "1505",
+          "propertyInvestedNote": "",
+          "renovationCosts": "",
+          "permitsLicensesInitial": "",
+          "salesDiscountPercent": "20",
+          "salesReturnsPercent": "20",
+          "endingSuppliesPercent": "30",
+          "accountsReceivable": "289",
+          "salariesPayable": "",
+          "taxesPayable": ""
+        }
+      }
+    ],
+    "activeMonthIndex": 0,
+    "totalMonths": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791126670,
+      "nanoseconds": 603000000
+    },
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h48m34.48408341s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31714s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:11:48.808Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "price": 1000,
+            "name": "Prep"
+          },
+          {
+            "category": "ingredient",
+            "name": "Linen",
+            "id": "ing-1791100393144-9yjx",
+            "price": 500
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": 2016,
+    "monthlySales": 5,
+    "variableCost": 300,
+    "fixedCosts": 8436,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "name": "Clothing Display Rack",
+        "total": 10500,
+        "id": "eq-1791099923011",
+        "unitPrice": 3500,
+        "quantity": 3
+      },
+      {
+        "name": "Shelving Unit",
+        "unitPrice": 3000,
+        "total": 6000,
+        "quantity": 2,
+        "id": "eq-1791099931292"
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 1000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 200,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 5410,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "isPreset": true
+      },
+      {
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "category": "Consumables",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc",
+        "amount": 0,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h48m11.225265927s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31691s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:12:36.916Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "name": "Prep"
+          },
+          {
+            "price": 500,
+            "id": "ing-1791100393144-9yjx",
+            "category": "ingredient",
+            "name": "Linen"
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      },
+      {
+        "id": "prod-1791126744510-8acq",
+        "name": "Oversized Graphic T-Shirt (Copy)",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "category": "labor",
+            "id": "ing-1791126744510-kgi8",
+            "name": "Prep"
+          },
+          {
+            "price": 500,
+            "id": "ing-1791126744510-z96d",
+            "category": "ingredient",
+            "name": "Linen"
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": "1800",
+    "monthlySales": "10",
+    "variableCost": "300",
+    "fixedCosts": "8436",
+    "startupCapital": "150000",
+    "cashInvested": "150000",
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "name": "Investor / Partner 1",
+        "amount": "50000"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Investor / Partner 2",
+        "amount": "100000"
+      }
+    ],
+    "contributorsCount": "2",
+    "rentAdvanceDeposit": "",
+    "trainingsPrograms": "",
+    "advertisingExpense": "",
+    "salariesExpenseInitial": "",
+    "accountsPayable": "",
+    "utilitiesPayable": "",
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": "300",
+    "equipmentList": [
+      {
+        "total": 10500,
+        "unitPrice": 3500,
+        "name": "Clothing Display Rack",
+        "id": "eq-1791099923011",
+        "quantity": 3
+      },
+      {
+        "unitPrice": 3000,
+        "name": "Shelving Unit",
+        "quantity": 2,
+        "id": "eq-1791099931292",
+        "total": 6000
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 1000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 200,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 5410,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "isPreset": true
+      },
+      {
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "category": "Consumables",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc",
+        "amount": 0,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": "",
+    "propertyInvested": "1505",
+    "propertyInvestedNote": "",
+    "renovationCosts": "",
+    "permitsLicensesInitial": "",
+    "salesDiscountPercent": "20",
+    "salesReturnsPercent": "20",
+    "endingSuppliesPercent": "30",
+    "accountsReceivable": "289",
+    "salariesPayable": "",
+    "taxesPayable": "",
+    "productionCost": "3000",
+    "quantityYield": "10",
+    "unitCost": "300",
+    "markupPercentage": "100",
+    "markupAmount": "",
+    "computedSellingPrice": "1800",
+    "monthlyRecords": [
+      {
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "isLocked": false,
+        "activeDraftId": "draft-1",
+        "drafts": [
+          {
+            "id": "draft-1",
+            "name": "Draft 1 (Primary)",
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-10-04T15:12:24.511Z",
+            "financials": {
+              "products": [
+                {
+                  "id": "prod-1",
+                  "name": "Oversized Graphic T-Shirt",
+                  "quantityYield": "5",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "price": 1000,
+                      "category": "labor",
+                      "id": "ing-1791100374771-enh9",
+                      "name": "Prep"
+                    },
+                    {
+                      "price": 500,
+                      "id": "ing-1791100393144-9yjx",
+                      "category": "ingredient",
+                      "name": "Linen"
+                    }
+                  ],
+                  "markupPercentage": "500",
+                  "sellingPrice": "2016",
+                  "applyVat": true,
+                  "vatRate": 12
+                },
+                {
+                  "id": "prod-1791126744510-8acq",
+                  "name": "Oversized Graphic T-Shirt (Copy)",
+                  "quantityYield": "5",
+                  "batchesPerMonth": "1",
+                  "unitsSold": "50",
+                  "ingredients": [
+                    {
+                      "price": 1000,
+                      "category": "labor",
+                      "id": "ing-1791126744510-kgi8",
+                      "name": "Prep"
+                    },
+                    {
+                      "price": 500,
+                      "id": "ing-1791126744510-z96d",
+                      "category": "ingredient",
+                      "name": "Linen"
+                    }
+                  ],
+                  "markupPercentage": "500",
+                  "sellingPrice": "2016",
+                  "applyVat": true,
+                  "vatRate": 12
+                }
+              ],
+              "sellingPrice": "",
+              "monthlySales": "",
+              "variableCost": "",
+              "fixedCosts": "",
+              "startupCapital": "150000",
+              "cashInvested": "150000",
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "name": "Investor / Partner 1",
+                  "amount": "50000"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Investor / Partner 2",
+                  "amount": "100000"
+                }
+              ],
+              "contributorsCount": "2",
+              "rentAdvanceDeposit": "",
+              "trainingsPrograms": "",
+              "advertisingExpense": "",
+              "salariesExpenseInitial": "",
+              "accountsPayable": "",
+              "utilitiesPayable": "",
+              "competitorCount": 3,
+              "marketDemand": "Medium",
+              "directCompetitors": [
+                "SM Supermarket / Savemore (Quezon City)"
+              ],
+              "otherCompetitors": [
+                "Alfamart Neighborhood Mart",
+                "7-Eleven Convenience (Quezon City)"
+              ],
+              "competitorNotes": "",
+              "nearbyEstablishments": [],
+              "targetDemographics": [
+                "Junior & Senior High Students (16–18)",
+                "Gen Z Teens & Barkadas (16–18)"
+              ],
+              "footTrafficPeak": "",
+              "marketDemandNotes": "",
+              "operatingDays": "300",
+              "equipmentList": [
+                {
+                  "total": 10500,
+                  "unitPrice": 3500,
+                  "name": "Clothing Display Rack",
+                  "id": "eq-1791099923011",
+                  "quantity": 3
+                },
+                {
+                  "unitPrice": 3000,
+                  "name": "Shelving Unit",
+                  "quantity": 2,
+                  "id": "eq-1791099931292",
+                  "total": 6000
+                }
+              ],
+              "opexList": [
+                {
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "amount": 1000,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "category": "Payroll & Labor",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-electricity",
+                  "name": "Electricity & Power",
+                  "category": "Utilities",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-water",
+                  "name": "Water & Sanitation",
+                  "category": "Utilities",
+                  "amount": 200,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-internet",
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 5410,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-marketing",
+                  "name": "Marketing, Signage & Promotions",
+                  "category": "Marketing & Growth",
+                  "amount": 600,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 326,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Store, Office & Packaging Supplies",
+                  "category": "Consumables",
+                  "amount": 0,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "amount": 900,
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc",
+                  "amount": 0,
+                  "isPreset": true
+                }
+              ],
+              "isCapitalBorrowed": false,
+              "interestRate": "",
+              "propertyInvested": "1505",
+              "propertyInvestedNote": "",
+              "renovationCosts": "",
+              "permitsLicensesInitial": "",
+              "salesDiscountPercent": "20",
+              "salesReturnsPercent": "20",
+              "endingSuppliesPercent": "30",
+              "accountsReceivable": "289",
+              "salariesPayable": "",
+              "taxesPayable": ""
+            }
+          }
+        ],
+        "financials": {
+          "products": [
+            {
+              "id": "prod-1",
+              "name": "Oversized Graphic T-Shirt",
+              "quantityYield": "5",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "category": "labor",
+                  "id": "ing-1791100374771-enh9",
+                  "name": "Prep"
+                },
+                {
+                  "price": 500,
+                  "id": "ing-1791100393144-9yjx",
+                  "category": "ingredient",
+                  "name": "Linen"
+                }
+              ],
+              "markupPercentage": "500",
+              "sellingPrice": "2016",
+              "applyVat": true,
+              "vatRate": 12
+            },
+            {
+              "id": "prod-1791126744510-8acq",
+              "name": "Oversized Graphic T-Shirt (Copy)",
+              "quantityYield": "5",
+              "batchesPerMonth": "1",
+              "unitsSold": "50",
+              "ingredients": [
+                {
+                  "price": 1000,
+                  "category": "labor",
+                  "id": "ing-1791126744510-kgi8",
+                  "name": "Prep"
+                },
+                {
+                  "price": 500,
+                  "id": "ing-1791126744510-z96d",
+                  "category": "ingredient",
+                  "name": "Linen"
+                }
+              ],
+              "markupPercentage": "500",
+              "sellingPrice": "2016",
+              "applyVat": true,
+              "vatRate": 12
+            }
+          ],
+          "sellingPrice": "",
+          "monthlySales": "",
+          "variableCost": "",
+          "fixedCosts": "",
+          "startupCapital": "150000",
+          "cashInvested": "150000",
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Investor / Partner 1",
+              "amount": "50000"
+            },
+            {
+              "id": "contrib-2",
+              "name": "Investor / Partner 2",
+              "amount": "100000"
+            }
+          ],
+          "contributorsCount": "2",
+          "rentAdvanceDeposit": "",
+          "trainingsPrograms": "",
+          "advertisingExpense": "",
+          "salariesExpenseInitial": "",
+          "accountsPayable": "",
+          "utilitiesPayable": "",
+          "competitorCount": 3,
+          "marketDemand": "Medium",
+          "directCompetitors": [
+            "SM Supermarket / Savemore (Quezon City)"
+          ],
+          "otherCompetitors": [
+            "Alfamart Neighborhood Mart",
+            "7-Eleven Convenience (Quezon City)"
+          ],
+          "competitorNotes": "",
+          "nearbyEstablishments": [],
+          "targetDemographics": [
+            "Junior & Senior High Students (16–18)",
+            "Gen Z Teens & Barkadas (16–18)"
+          ],
+          "footTrafficPeak": "",
+          "marketDemandNotes": "",
+          "operatingDays": "300",
+          "equipmentList": [
+            {
+              "total": 10500,
+              "unitPrice": 3500,
+              "name": "Clothing Display Rack",
+              "id": "eq-1791099923011",
+              "quantity": 3
+            },
+            {
+              "unitPrice": 3000,
+              "name": "Shelving Unit",
+              "quantity": 2,
+              "id": "eq-1791099931292",
+              "total": 6000
+            }
+          ],
+          "opexList": [
+            {
+              "id": "opex-rent",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "category": "Facility & Lease",
+              "amount": 1000,
+              "isPreset": true
+            },
+            {
+              "id": "opex-salaries",
+              "name": "Salaries & Wages (Operating Staff)",
+              "category": "Payroll & Labor",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-electricity",
+              "name": "Electricity & Power",
+              "category": "Utilities",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-water",
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 200,
+              "isPreset": true
+            },
+            {
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "category": "Utilities & Tech",
+              "amount": 5410,
+              "isPreset": true
+            },
+            {
+              "id": "opex-marketing",
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "amount": 600,
+              "isPreset": true
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 326,
+              "isPreset": true
+            },
+            {
+              "id": "opex-supplies",
+              "name": "Store, Office & Packaging Supplies",
+              "category": "Consumables",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "id": "opex-maintenance",
+              "name": "Equipment Maintenance & Repairs",
+              "category": "Facility Upkeep",
+              "amount": 900,
+              "isPreset": true
+            },
+            {
+              "id": "opex-misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "category": "Admin & Misc",
+              "amount": 0,
+              "isPreset": true
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "interestRate": "",
+          "propertyInvested": "1505",
+          "propertyInvestedNote": "",
+          "renovationCosts": "",
+          "permitsLicensesInitial": "",
+          "salesDiscountPercent": "20",
+          "salesReturnsPercent": "20",
+          "endingSuppliesPercent": "30",
+          "accountsReceivable": "289",
+          "salariesPayable": "",
+          "taxesPayable": ""
+        }
+      }
+    ],
+    "activeMonthIndex": 0,
+    "totalMonths": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1791126744,
+      "nanoseconds": 862000000
+    },
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h47m23.115869354s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31643s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:13:01.642Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Oversized Graphic T-Shirt",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "category": "labor",
+            "id": "ing-1791100374771-enh9",
+            "name": "Prep"
+          },
+          {
+            "price": 500,
+            "id": "ing-1791100393144-9yjx",
+            "category": "ingredient",
+            "name": "Linen"
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      },
+      {
+        "id": "prod-1791126744510-8acq",
+        "name": "Oversized Graphic T-Shirt (Copy)",
+        "quantityYield": "5",
+        "batchesPerMonth": "1",
+        "unitsSold": "50",
+        "ingredients": [
+          {
+            "price": 1000,
+            "category": "labor",
+            "id": "ing-1791126744510-kgi8",
+            "name": "Prep"
+          },
+          {
+            "price": 500,
+            "id": "ing-1791126744510-z96d",
+            "category": "ingredient",
+            "name": "Linen"
+          }
+        ],
+        "markupPercentage": "500",
+        "sellingPrice": "2016",
+        "applyVat": true,
+        "vatRate": 12
+      }
+    ],
+    "sellingPrice": 1800,
+    "monthlySales": 10,
+    "variableCost": 300,
+    "fixedCosts": 8436,
+    "startupCapital": 150000,
+    "competitorCount": 3,
+    "marketDemand": "Medium",
+    "directCompetitors": [
+      "SM Supermarket / Savemore (Quezon City)"
+    ],
+    "otherCompetitors": [
+      "Alfamart Neighborhood Mart",
+      "7-Eleven Convenience (Quezon City)"
+    ],
+    "competitorNotes": "",
+    "nearbyEstablishments": [],
+    "targetDemographics": [
+      "Junior & Senior High Students (16–18)",
+      "Gen Z Teens & Barkadas (16–18)"
+    ],
+    "footTrafficPeak": "",
+    "marketDemandNotes": "",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "total": 10500,
+        "unitPrice": 3500,
+        "name": "Clothing Display Rack",
+        "id": "eq-1791099923011",
+        "quantity": 3
+      },
+      {
+        "unitPrice": 3000,
+        "name": "Shelving Unit",
+        "quantity": 2,
+        "id": "eq-1791099931292",
+        "total": 6000
+      }
+    ],
+    "opexList": [
+      {
+        "id": "opex-rent",
+        "name": "Rent Expense (Space / Stall Rental)",
+        "category": "Facility & Lease",
+        "amount": 1000,
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "name": "Salaries & Wages (Operating Staff)",
+        "category": "Payroll & Labor",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-electricity",
+        "name": "Electricity & Power",
+        "category": "Utilities",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-water",
+        "name": "Water & Sanitation",
+        "category": "Utilities",
+        "amount": 200,
+        "isPreset": true
+      },
+      {
+        "id": "opex-internet",
+        "name": "Internet, Telecom & Communication",
+        "category": "Utilities & Tech",
+        "amount": 5410,
+        "isPreset": true
+      },
+      {
+        "id": "opex-marketing",
+        "name": "Marketing, Signage & Promotions",
+        "category": "Marketing & Growth",
+        "amount": 600,
+        "isPreset": true
+      },
+      {
+        "id": "opex-transport",
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 326,
+        "isPreset": true
+      },
+      {
+        "id": "opex-supplies",
+        "name": "Store, Office & Packaging Supplies",
+        "category": "Consumables",
+        "amount": 0,
+        "isPreset": true
+      },
+      {
+        "id": "opex-maintenance",
+        "name": "Equipment Maintenance & Repairs",
+        "category": "Facility Upkeep",
+        "amount": 900,
+        "isPreset": true
+      },
+      {
+        "id": "opex-misc",
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc",
+        "amount": 0,
+        "isPreset": true
+      }
+    ],
+    "isCapitalBorrowed": false,
+    "interestRate": 0,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h46m58.398010694s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31618s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+
+[2026-10-04T15:20:37.804Z] AI Analysis Error:
+Request: {
+  "projectId": "test",
+  "financialData": {
+    "sellingPrice": 50,
+    "monthlySales": 1000,
+    "variableCost": 20,
+    "fixedCosts": 10000,
+    "startupCapital": 50000
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash
+Please retry in 8h39m22.229020489s. [{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"model":"gemini-3.8-flash","location":"global"},"quotaValue":"20"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"31162s"}]
+    at handleResponseNotOk (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async makeRequest (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:246:22)
+    at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1149:22
+

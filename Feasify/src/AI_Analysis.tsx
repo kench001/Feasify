@@ -22,6 +22,7 @@ import {
   User,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   Sidebar as SidebarIcon,
   RotateCcw,
   CheckCircle2,
@@ -45,6 +46,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  normalizeProposalProducts,
+  computeProductMetrics,
+} from "./utils/productCosting";
 
 interface InsightItem {
   id: string;
@@ -53,10 +58,26 @@ interface InsightItem {
   type: "positive" | "warning" | "info" | "suggestion";
 }
 
-// Helper to strip any confusing internal framework codes (e.g. "DF-02", "DF-01", "DF-03")
+export interface MarketPillarInsight {
+  status: "positive" | "warning" | "info";
+  badge: string;
+  text: string;
+}
+
+export interface MarketAnalysisData {
+  summary?: string;
+  competitorInsight?: MarketPillarInsight;
+  footTrafficInsight?: MarketPillarInsight;
+  demographicInsight?: MarketPillarInsight;
+}
+
+// Helper to strip any confusing internal framework codes and arbitrary numeric scores (e.g. "30/100")
 const cleanUserFacingText = (data: any): any => {
   if (typeof data === "string") {
     return data
+      .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
+      .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
+      .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
       .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
       .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
       .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
@@ -66,10 +87,14 @@ const cleanUserFacingText = (data: any): any => {
       .replace(/\bpasses\s+DF-\d+\b/gi, "maintains positive gross profit")
       .replace(/\bfails\s+DF-\d+\b/gi, "has negative gross profit")
       .replace(/\bRule\s+DF-\d+[:\s]*/gi, "Gross Margin Rule: ")
-      .replace(/\bcapital reconciliation \(DF-\d+ balance\)/gi, "capital reconciliation balance")
       .replace(/\(DF-\d+\)/gi, "")
       .replace(/\bDF-\d+[:\s-]*/gi, "")
+      .replace(/[—–-]\s*(?:similar to|based on|like|aligned with)?\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*\s*[—–-]/gi, " ")
+      .replace(/(?:,\s*)?(?:similar to|based on|like|aligned with)\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "")
+      .replace(/(?:proven\s+|local\s+)?benchmarks?\s*(?:such as|like)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "proven market standards")
+      .replace(/\b(?:Mr\.?\s*Cabbage(?:\s*\(Brassica Foods\))?|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)\b/gi, "market standards")
       .replace(/\s{2,}/g, " ")
+      .replace(/\s+([,.])/g, "$1")
       .trim();
   }
   if (Array.isArray(data)) {
@@ -100,6 +125,7 @@ const AI_Analysis: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const [financials, setFinancials] = useState({
+    products: [] as any[],
     sellingPrice: 0,
     monthlySales: 0,
     variableCost: 0,
@@ -140,6 +166,7 @@ const AI_Analysis: React.FC = () => {
   const [performanceGrade, setPerformanceGrade] = useState("");
   const [performanceStatus, setPerformanceStatus] = useState("");
   const [performanceRecommendation, setPerformanceRecommendation] = useState("");
+  const [marketAnalysis, setMarketAnalysis] = useState<MarketAnalysisData | null>(null);
 
   // Pro Forma Financial Statement States
   const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
@@ -271,6 +298,7 @@ const AI_Analysis: React.FC = () => {
       sessionStorage.setItem("lastSelectedProjectId", proj.id);
       const data = proj.financialData;
       setFinancials({
+        products: data?.products || proj.products || [],
         sellingPrice: Number(data?.sellingPrice) || 0,
         monthlySales: Number(data?.monthlySales) || 0,
         variableCost: Number(data?.variableCost) || 0,
@@ -313,6 +341,14 @@ const AI_Analysis: React.FC = () => {
         setInsights(cleanUserFacingText(proj.aiAnalysis.insights || []));
         setAiScores(proj.aiAnalysis.aiScores || {});
         setAiScoreExplanations(cleanUserFacingText(proj.aiAnalysis.aiScoreExplanations || {}));
+        setMarketAnalysis(cleanUserFacingText(proj.aiAnalysis.marketAnalysis || null));
+        const wasFallback = proj.aiAnalysis._fallback === true;
+        setIsFallback(wasFallback);
+        if (wasFallback) {
+          console.warn("🛡️ [Feasify Engine] Loaded previous analysis generated via Verified Local Mode.");
+        } else {
+          console.log(`🤖 [Live AI] Loaded analysis generated via Gemini (${proj.aiAnalysis._model || "Cloud AI"})`);
+        }
       } else if (!location.state?.runAnalysis) {
         setFeasibilityScore(0);
         setFeasibilityStatus("PENDING");
@@ -324,6 +360,7 @@ const AI_Analysis: React.FC = () => {
         setImprovementTips({});
         setAiScores({});
         setAiScoreExplanations({});
+        setMarketAnalysis(null);
       }
     }
   }, [location.state, projects]);
@@ -344,9 +381,39 @@ const AI_Analysis: React.FC = () => {
 
   // Resilient Client-Side Financial Audit Engine (Zero-Crash Capstone Defense Guard)
   const calculateLocalAudit = (finData: any) => {
-    const safeSellingPrice = Number(finData?.sellingPrice) || 0;
-    const safeVariableCost = Number(finData?.variableCost) || 0;
-    const safeMonthlySales = Number(finData?.monthlySales) || 0;
+    const prods = (finData?.products && Array.isArray(finData.products) && finData.products.length > 0)
+      ? normalizeProposalProducts(finData)
+      : (finData?.monthlyRecords && finData.monthlyRecords[0]?.financials?.products
+          ? normalizeProposalProducts(finData.monthlyRecords[0].financials)
+          : []);
+
+    let monthlyRevenue = 0;
+    let totalMonthlyVariableCosts = 0;
+    let safeMonthlySales = 0;
+    let safeSellingPrice = 0;
+    let safeVariableCost = 0;
+
+    if (prods.length > 1) {
+      monthlyRevenue = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).revenue, 0);
+      totalMonthlyVariableCosts = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).cogsSold, 0);
+      safeMonthlySales = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).unitsSold, 0);
+      safeSellingPrice = safeMonthlySales > 0 ? monthlyRevenue / safeMonthlySales : 0;
+      safeVariableCost = safeMonthlySales > 0 ? totalMonthlyVariableCosts / safeMonthlySales : 0;
+    } else if (prods.length === 1) {
+      const m = computeProductMetrics(prods[0]);
+      monthlyRevenue = m.revenue;
+      totalMonthlyVariableCosts = m.cogsSold;
+      safeMonthlySales = m.unitsSold;
+      safeSellingPrice = m.netSellingPrice > 0 ? m.netSellingPrice : (m.sellingPrice > 0 ? m.sellingPrice : (Number(finData?.sellingPrice) || 0));
+      safeVariableCost = m.unitCost > 0 ? m.unitCost : (Number(finData?.variableCost) || 0);
+    } else {
+      safeSellingPrice = Number(finData?.sellingPrice) || 0;
+      safeVariableCost = Number(finData?.variableCost) || 0;
+      safeMonthlySales = Number(finData?.monthlySales) || 0;
+      monthlyRevenue = safeSellingPrice * safeMonthlySales;
+      totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    }
+
     const safeOperatingDays = Number(finData?.operatingDays) || 300;
     const isCapitalBorrowed = Boolean(finData?.isCapitalBorrowed);
     const interestRate = Number(finData?.interestRate) || 0;
@@ -365,8 +432,6 @@ const AI_Analysis: React.FC = () => {
       : (Number(finData?.fixedCosts) || 0);
 
     const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
-    const monthlyRevenue = safeSellingPrice * safeMonthlySales;
-    const totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
     const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
 
     const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
@@ -392,7 +457,7 @@ const AI_Analysis: React.FC = () => {
     } else {
       const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
       status = "FEASIBLE";
-      score = Math.min(100, Math.max(70, Math.round(75 + marginRatio * 10)));
+      score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
     }
 
     const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
@@ -422,6 +487,7 @@ const AI_Analysis: React.FC = () => {
     }
 
     const unitGrossMargin = safeSellingPrice - safeVariableCost;
+    const marginTitle = prods.length > 1 ? "Blended Unit Margin" : "Unit Gross Margin";
 
     return {
       score,
@@ -431,8 +497,8 @@ const AI_Analysis: React.FC = () => {
       performanceRecommendation,
       metrics: { financial: financialScore, risk: riskScore, market: marketScore },
       explanations: {
-        feasibility: `Overall Feasibility Score: ${score}/100 (${status}). Unit Gross Margin is ₱${unitGrossMargin.toLocaleString()} per unit with estimated monthly net profit of ₱${Math.round(netMonthlyProfit).toLocaleString()}. Estimated payback period is ${paybackPeriodStr}.`,
-        financial: `Gross margin is ${safeSellingPrice > 0 ? Math.round((unitGrossMargin / safeSellingPrice) * 100) : 0}%. Projected monthly sales of ${safeMonthlySales.toLocaleString()} units produce ₱${Math.round(monthlyRevenue).toLocaleString()} gross monthly revenue.`,
+        feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}. ${marginTitle} is ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit with estimated monthly net profit of ₱${Math.round(netMonthlyProfit).toLocaleString()}. Estimated payback period is ${paybackPeriodStr}.`,
+        financial: `Gross margin is ${safeSellingPrice > 0 ? Math.round((unitGrossMargin / safeSellingPrice) * 100) : 0}%. Projected monthly sales of ${safeMonthlySales.toLocaleString()} units produce ₱${Math.round(monthlyRevenue).toLocaleString()} gross monthly revenue across ${prods.length > 1 ? `${prods.length} products` : "product line"}.`,
         risk: status === "FEASIBLE"
           ? `Capital recovery amortizes in ${paybackPeriodStr}. Operating overhead of ₱${Math.round(monthlyOpex).toLocaleString()}/month is covered by contribution margin.`
           : `Deficit cash flow detected: ongoing operations yield negative net margins, creating liquidity risk.`,
@@ -442,10 +508,10 @@ const AI_Analysis: React.FC = () => {
         {
           id: "local-0",
           type: unitGrossMargin > 0 ? "positive" : "warning",
-          title: "Unit Gross Margin",
+          title: marginTitle,
           description: unitGrossMargin > 0
-            ? `Positive Gross Margin: Selling price (₱${safeSellingPrice.toLocaleString()}) exceeds unit variable cost (₱${safeVariableCost.toLocaleString()}) by ₱${unitGrossMargin.toLocaleString()} per unit.`
-            : `Negative Unit Margin: Selling price (₱${safeSellingPrice.toLocaleString()}) is less than or equal to unit variable cost (₱${safeVariableCost.toLocaleString()}). Each unit sold loses money.`
+            ? `Positive Gross Margin: Average selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) by ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit.`
+            : `Negative Unit Margin: Selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) is less than or equal to unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Direct production costs exceed selling price.`
         },
         {
           id: "local-1",
@@ -477,10 +543,45 @@ const AI_Analysis: React.FC = () => {
       },
       aiScores: { financial: financialScore, operational: riskScore, market: marketScore },
       aiScoreExplanations: {
-        financial: `Score: ${financialScore}/100. Evaluates unit contribution margins, OPEX coverage, and net profit.`,
-        operational: `Score: ${riskScore}/100. Evaluates startup capital requirements and fixed cost commitments.`,
-        market: `Score: ${marketScore}/100. Evaluates monthly volume and sales revenue capacity.`
+        financial: `Evaluates unit contribution margins, OPEX coverage, and net profit.`,
+        operational: `Evaluates startup capital requirements and fixed cost commitments.`,
+        market: `Evaluates monthly volume and sales revenue capacity.`
       },
+      marketAnalysis: (() => {
+        const directCount = Array.isArray(finData?.directCompetitors) ? finData.directCompetitors.length : 0;
+        const indirectCount = Array.isArray(finData?.otherCompetitors) ? finData.otherCompetitors.length : 0;
+        const nearbyCount = Array.isArray(finData?.nearbyEstablishments) ? finData.nearbyEstablishments.length : 0;
+        const demos = Array.isArray(finData?.targetDemographics) && finData.targetDemographics.length > 0
+          ? finData.targetDemographics.join(", ")
+          : "local residents and commuters";
+
+        return {
+          summary: directCount <= 2 && nearbyCount > 0
+            ? "The location demonstrates positive market viability with low direct competition and strong nearby foot traffic anchors."
+            : (nearbyCount === 0
+                ? "Direct competitor count is manageable, but the location lacks anchor establishments, meaning customer walk-ins will depend heavily on local promotions."
+                : "The area has an active commercial presence with established competitors; sustainable sales will require distinct product value or competitive pricing."),
+          competitorInsight: {
+            status: directCount <= 2 ? "positive" : "warning",
+            badge: directCount === 0 ? "Zero Direct Competition" : (directCount <= 2 ? "Manageable Competition" : "Competitive Density"),
+            text: directCount <= 2
+              ? `${directCount} direct competitor(s) and ${indirectCount} indirect competitor(s) listed. Low saturation gives your business ample room to capture local market share.`
+              : `${directCount} direct competitor(s) listed in the immediate vicinity. You will need clear menu differentiation or pricing advantage to prevent customer loss.`
+          },
+          footTrafficInsight: {
+            status: nearbyCount > 0 ? "positive" : "warning",
+            badge: nearbyCount > 0 ? "Anchor Foot Traffic Present" : "Customer Acquisition Risk",
+            text: nearbyCount > 0
+              ? `${nearbyCount} nearby establishment(s) listed. These anchors generate consistent daily foot traffic, reducing reliance on expensive marketing.`
+              : "No nearby anchor establishments listed. Without natural walk-in foot traffic, expect higher customer acquisition costs through social media or flyers."
+          },
+          demographicInsight: {
+            status: "positive",
+            badge: "Demographic Strategy",
+            text: `Focus your promotions on ${demos}. Keeping entry-level prices accessible and offering value combos encourages steady repeat purchases.`
+          }
+        } as MarketAnalysisData;
+      })(),
       _fallback: true
     };
   };
@@ -490,6 +591,17 @@ const AI_Analysis: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysisError(null);
     setIsFallback(false);
+
+    const currentProj = projects.find((p) => p.id === pId);
+    const enrichedData = {
+      ...data,
+      products: data?.products && Array.isArray(data.products) && data.products.length > 0
+        ? data.products
+        : (currentProj?.financialData?.products || currentProj?.products || []),
+      startupCapital: data?.startupCapital || currentProj?.proposalCapital || 0,
+      businessName: currentProj?.name || currentProj?.rawProposalData?.businessName || "",
+      businessType: currentProj?.businessType || currentProj?.rawProposalData?.businessType || "",
+    };
 
     try {
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
@@ -502,7 +614,7 @@ const AI_Analysis: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: pId,
-          financialData: data,
+          financialData: enrichedData,
         }),
         signal: controller.signal,
       });
@@ -545,16 +657,23 @@ const AI_Analysis: React.FC = () => {
       setExplanations(aiResult.explanations || {}); // If AI provides them
       setImprovementTips(aiResult.improvementTips || {});
       setInsights(generatedInsights);
+      setMarketAnalysis(aiResult.marketAnalysis || null);
 
       if (aiResult.aiScores) setAiScores(aiResult.aiScores);
       if (aiResult.aiScoreExplanations) setAiScoreExplanations(aiResult.aiScoreExplanations);
       
-      setIsFallback(aiResult._fallback === true);
+      const isFallbackResult = aiResult._fallback === true;
+      setIsFallback(isFallbackResult);
+      if (isFallbackResult) {
+        console.warn("🛡️ [Feasify Engine] Backend used verified local calculations (Cloud AI unavailable).");
+      } else {
+        console.log(`🤖 [Live AI] Analysis generated successfully via Gemini (${aiResult._model || "Cloud AI"})`);
+      }
 
     } catch (e: any) {
-      console.warn("⚠️ Live AI Backend call failed, engaging resilient client-side financial audit engine:", e);
+      console.warn("⚠️ [Live AI] Backend connection failed, engaging verified client-side financial audit engine:", e);
       try {
-        const fallbackResult = calculateLocalAudit(data);
+        const fallbackResult = calculateLocalAudit(enrichedData);
         const fallbackInsights = (fallbackResult.insights || []).map(
           (i: any, idx: number) => ({ ...i, id: `local-${idx}` })
         );
@@ -585,6 +704,7 @@ const AI_Analysis: React.FC = () => {
         setInsights(fallbackInsights);
         setAiScores(fallbackResult.aiScores);
         setAiScoreExplanations(fallbackResult.aiScoreExplanations);
+        setMarketAnalysis(fallbackResult.marketAnalysis || null);
 
         setIsFallback(true);
         setAnalysisError(null);
@@ -893,24 +1013,18 @@ const AI_Analysis: React.FC = () => {
             )}
 
             {isFallback && (
-              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm text-amber-900 font-bold">
-                      ⚡ Resilient Audit Mode Active
-                    </p>
-                    <p className="text-xs text-amber-700">
-                      Scores, financial metrics, and rubric grades are computed via the verified academic feasibility evaluation framework.
-                    </p>
-                  </div>
+              <div className="mb-6 p-4 bg-slate-50 border border-slate-200/90 rounded-xl flex items-center gap-3.5 shadow-xs">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0 text-blue-600">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
-                <button
-                  onClick={() => executeAnalysis(financials, selectedProjectId)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs rounded-lg transition-colors border border-amber-300 flex-shrink-0"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" /> Reconnect Live AI
-                </button>
+                <div>
+                  <p className="text-sm text-slate-800 font-bold">
+                    Verified Feasibility Analysis Ready
+                  </p>
+                  <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
+                    All business metrics, profit projections, and feasibility evaluations are fully calculated and ready. You can click <strong>Re-analyze</strong> above anytime to refresh with online AI.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1213,6 +1327,102 @@ const AI_Analysis: React.FC = () => {
                         <p className="text-xs text-gray-600 italic bg-white/70 p-2.5 rounded-lg border border-emerald-100 mt-2">
                           "{financials.marketDemandNotes}"
                         </p>
+                      )}
+                    </div>
+
+                    {/* AI Market Indicators & Viability Evaluation */}
+                    <div className="pt-4 border-t border-gray-100 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                          <Zap size={14} className="text-[#c9a654]" /> AI Market Viability & Competitive Intelligence
+                        </span>
+                        {marketAnalysis?.competitorInsight?.badge && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                            Market Feasibility Audited
+                          </span>
+                        )}
+                      </div>
+
+                      {marketAnalysis?.summary ? (
+                        <div className="space-y-3">
+                          {/* High-Level Narrative Summary */}
+                          <div className="p-3.5 bg-amber-50/60 border border-amber-200/70 rounded-xl text-xs sm:text-sm text-[#122244] leading-relaxed">
+                            <span className="font-bold text-amber-900">Market Assessment: </span>
+                            {marketAnalysis.summary}
+                          </div>
+
+                          {/* 3 Structured Pillars */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {/* Pillar 1: Competitors */}
+                            {marketAnalysis.competitorInsight && (
+                              <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
+                                    <Store size={12} className="text-amber-600" /> Competitor Density
+                                  </span>
+                                  <span
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                      marketAnalysis.competitorInsight.status === "positive"
+                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                                    }`}
+                                  >
+                                    {marketAnalysis.competitorInsight.badge}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600 leading-normal">
+                                  {marketAnalysis.competitorInsight.text}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Pillar 2: Foot Traffic & Anchors */}
+                            {marketAnalysis.footTrafficInsight && (
+                              <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
+                                    <Building2 size={12} className="text-emerald-600" /> Foot Traffic & Anchors
+                                  </span>
+                                  <span
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                      marketAnalysis.footTrafficInsight.status === "positive"
+                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                        : "bg-rose-100 text-rose-800 border border-rose-200"
+                                    }`}
+                                  >
+                                    {marketAnalysis.footTrafficInsight.badge}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600 leading-normal">
+                                  {marketAnalysis.footTrafficInsight.text}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Pillar 3: Demographics & Pricing */}
+                            {marketAnalysis.demographicInsight && (
+                              <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
+                                    <Lightbulb size={12} className="text-sky-600" /> Demographic Strategy
+                                  </span>
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase bg-sky-100 text-sky-800 border border-sky-200">
+                                    {marketAnalysis.demographicInsight.badge}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600 leading-normal">
+                                  {marketAnalysis.demographicInsight.text}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-center">
+                          <p className="text-xs text-gray-500 italic">
+                            Run AI Feasibility Analysis to evaluate competitor density, walk-in foot traffic, and demographic viability.
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>

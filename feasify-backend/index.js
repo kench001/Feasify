@@ -236,6 +236,54 @@ const getGroupProposalCount = async (groupId) => {
 };
 
 
+// Reliable Multi-Model Cascade for Gemini
+const GEMINI_MODELS_CASCADE = [
+  "gemini-2.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+];
+
+// Multi-model cascade: attempts primary model, failing over seamlessly to secondary candidates if quota or rate-limit is encountered
+async function callGeminiCascade(prompt, generationConfig = {}) {
+  let lastError = null;
+
+  for (const modelName of GEMINI_MODELS_CASCADE) {
+    try {
+      console.log(`🤖 [Live AI] Requesting analysis via ${modelName}...`);
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          temperature: 0,
+          ...generationConfig,
+        },
+      });
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 35000);
+
+      const result = await model.generateContent(prompt, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      const candidate = result.response.candidates?.[0];
+      if (!candidate || !candidate.content) {
+        const reason = candidate?.finishReason || "UNKNOWN";
+        throw new Error(`Gemini blocked response. Reason: ${reason}`);
+      }
+
+      console.log(`✅ [Live AI] Successfully received response from ${modelName}`);
+      return { result, modelName };
+    } catch (err) {
+      console.warn(`⚠️ [Live AI] Model ${modelName} unavailable (${err.message?.substring(0, 100)}). Failing over to next candidate...`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All Gemini cascade models failed.");
+}
+
 // Retry wrapper with exponential backoff + jitter for Gemini API calls
 async function callGeminiWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -361,6 +409,9 @@ const mapScoreToPerformanceMatrix = (score, performanceMatrix) => {
 const sanitizeUserFacingText = (data) => {
   if (typeof data === "string") {
     return data
+      .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
+      .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
+      .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
       .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
       .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
       .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
@@ -373,7 +424,12 @@ const sanitizeUserFacingText = (data) => {
       .replace(/\bcapital reconciliation \(DF-\d+ balance\)/gi, "capital reconciliation balance")
       .replace(/\(DF-\d+\)/gi, "")
       .replace(/\bDF-\d+[:\s-]*/gi, "")
+      .replace(/[—–-]\s*(?:similar to|based on|like|aligned with)?\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*\s*[—–-]/gi, " ")
+      .replace(/(?:,\s*)?(?:similar to|based on|like|aligned with)\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "")
+      .replace(/(?:proven\s+|local\s+)?benchmarks?\s*(?:such as|like)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "proven market standards")
+      .replace(/\b(?:Mr\.?\s*Cabbage(?:\s*\(Brassica Foods\))?|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)\b/gi, "market standards")
       .replace(/\s{2,}/g, " ")
+      .replace(/\s+([,.])/g, "$1")
       .trim();
   }
   if (Array.isArray(data)) {
@@ -753,6 +809,138 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
 // AI REST API ENDPOINTS
 // ==========================================
 
+// Helper to calculate multi-product or single-product financial aggregates
+function calculateAggregatedFinancials(financials) {
+  const prods = Array.isArray(financials.products) && financials.products.length > 0
+    ? financials.products
+    : null;
+
+  if (prods && prods.length > 0) {
+    let totalRevenue = 0;
+    let totalCOGS = 0;
+    let totalUnitsSold = 0;
+    let totalUnitsProduced = 0;
+
+    prods.forEach((p) => {
+      const ingredients = Array.isArray(p.ingredients) ? p.ingredients : [];
+      const totalIngredientCost = ingredients.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+      const totalBatchCost = totalIngredientCost > 0
+        ? totalIngredientCost
+        : (Number(p.productionCost) || 0);
+
+      const batchYield = Number(p.quantityYield) || 0;
+      const batchesPerMonth = (p.batchesPerMonth !== undefined && p.batchesPerMonth !== "" && !isNaN(Number(p.batchesPerMonth)) && Number(p.batchesPerMonth) > 0)
+        ? Number(p.batchesPerMonth)
+        : 1;
+
+      const produced = batchYield * batchesPerMonth;
+      totalUnitsProduced += produced;
+
+      const sold = (p.unitsSold !== undefined && p.unitsSold !== "" && !isNaN(Number(p.unitsSold)))
+        ? Math.min(produced > 0 ? produced : Infinity, Math.max(0, Number(p.unitsSold)))
+        : produced;
+      totalUnitsSold += sold;
+
+      const unitCost = batchYield > 0 ? totalBatchCost / batchYield : (Number(p.unitCost) || 0);
+      const cogs = unitCost * sold;
+      totalCOGS += cogs;
+
+      const markupPct = Number(p.markupPercentage) || 0;
+      const computedBasePrice = unitCost + (unitCost * (markupPct / 100));
+      const applyVat = p.applyVat !== false;
+      const vatRate = p.vatRate !== undefined ? Number(p.vatRate) : 12;
+      const vatMultiplier = applyVat ? (vatRate / 100) : 0;
+      const computedVatInclusivePrice = computedBasePrice * (1 + vatMultiplier);
+      const suggestedSellingPrice = applyVat ? computedVatInclusivePrice : computedBasePrice;
+
+      const rawSellingPrice = (p.sellingPrice !== undefined && p.sellingPrice !== "" && !isNaN(Number(p.sellingPrice)))
+        ? Number(p.sellingPrice)
+        : (suggestedSellingPrice > 0 ? Number(suggestedSellingPrice.toFixed(2)) : 0);
+
+      const netSellingPrice = applyVat && vatMultiplier > 0
+        ? rawSellingPrice / (1 + vatMultiplier)
+        : rawSellingPrice;
+
+      totalRevenue += netSellingPrice * sold;
+    });
+
+    const monthlySales = totalUnitsSold;
+    const monthlyRevenue = totalRevenue;
+    const totalMonthlyVariableCosts = totalCOGS;
+    const sellingPrice = monthlySales > 0 ? totalRevenue / monthlySales : 0;
+    const variableCost = monthlySales > 0 ? totalCOGS / monthlySales : 0;
+
+    return {
+      monthlySales,
+      monthlyRevenue,
+      totalMonthlyVariableCosts,
+      sellingPrice,
+      variableCost,
+      isMultiProduct: true,
+      productCount: prods.length
+    };
+  }
+
+  // Single-product fallback
+  const sellingPrice = Number(financials.sellingPrice) || 0;
+  const variableCost = Number(financials.variableCost) || 0;
+  const monthlySales = Number(financials.monthlySales) || 0;
+  const monthlyRevenue = sellingPrice * monthlySales;
+  const totalMonthlyVariableCosts = variableCost * monthlySales;
+
+  return {
+    monthlySales,
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    sellingPrice,
+    variableCost,
+    isMultiProduct: false,
+    productCount: 1
+  };
+}
+
+// Helper to generate deterministic marketAnalysis fallback grounded in local benchmarks
+function generateFallbackMarketAnalysis(financials) {
+  const directCount = Array.isArray(financials.directCompetitors) ? financials.directCompetitors.length : 0;
+  const indirectCount = Array.isArray(financials.otherCompetitors) ? financials.otherCompetitors.length : 0;
+  const nearbyCount = Array.isArray(financials.nearbyEstablishments) ? financials.nearbyEstablishments.length : 0;
+  const demos = Array.isArray(financials.targetDemographics) && financials.targetDemographics.length > 0
+    ? financials.targetDemographics.join(", ")
+    : "local residents and commuters";
+
+  let summary = "";
+  if (directCount <= 2 && nearbyCount > 0) {
+    summary = "The location demonstrates positive market viability with low direct competition and strong nearby foot traffic anchors.";
+  } else if (nearbyCount === 0) {
+    summary = "Direct competitor count is manageable, but the location lacks anchor establishments, meaning customer walk-ins will depend heavily on local promotions.";
+  } else {
+    summary = "The area has an active commercial presence with established competitors; sustainable sales will require distinct product value or competitive pricing.";
+  }
+
+  return {
+    summary,
+    competitorInsight: {
+      status: directCount <= 2 ? "positive" : "warning",
+      badge: directCount === 0 ? "Zero Direct Competition" : (directCount <= 2 ? "Manageable Competition" : "Competitive Density"),
+      text: directCount <= 2
+        ? `${directCount} direct competitor(s) and ${indirectCount} indirect competitor(s) listed. Low saturation gives your business ample room to capture local market share.`
+        : `${directCount} direct competitor(s) listed in the immediate vicinity. You will need clear menu differentiation or pricing advantage to prevent customer loss.`
+    },
+    footTrafficInsight: {
+      status: nearbyCount > 0 ? "positive" : "warning",
+      badge: nearbyCount > 0 ? "Anchor Foot Traffic Present" : "Customer Acquisition Risk",
+      text: nearbyCount > 0
+        ? `${nearbyCount} nearby establishment(s) listed. These anchors generate consistent daily foot traffic, reducing reliance on expensive marketing.`
+        : "No nearby anchor establishments listed. Without natural walk-in foot traffic, expect higher customer acquisition costs through social media or flyers."
+    },
+    demographicInsight: {
+      status: "positive",
+      badge: "Demographic Strategy",
+      text: `Focus your promotions on ${demos}. Keeping entry-level prices accessible and offering value combos encourages steady repeat purchases.`
+    }
+  };
+}
+
 // ENDPOINT 1: Student-Facing Financial Audit
 app.post(
   [
@@ -778,11 +966,14 @@ app.post(
       }
 
       // ==========================================
-      // PROGRAMMATIC FINANCIAL AUDIT CALCULATIONS
+      // PROGRAMMATIC FINANCIAL AUDIT CALCULATIONS (MULTI-PRODUCT AWARE)
       // ==========================================
-      const sellingPrice = Number(financials.sellingPrice) || 0;
-      const variableCost = Number(financials.variableCost) || 0; // COGS/unit
-      const monthlySales = Number(financials.monthlySales) || 0;
+      const agg = calculateAggregatedFinancials(financials);
+      const sellingPrice = agg.sellingPrice;
+      const variableCost = agg.variableCost;
+      const monthlySales = agg.monthlySales;
+      const monthlyRevenue = agg.monthlyRevenue;
+      const totalMonthlyVariableCosts = agg.totalMonthlyVariableCosts;
       const operatingDays = Number(financials.operatingDays) || 300;
       const isCapitalBorrowed = financials.isCapitalBorrowed || false;
       const interestRate = Number(financials.interestRate) || 0;
@@ -815,8 +1006,6 @@ app.post(
       const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
 
       // 6. Basic Monthly Margin Metrics
-      const monthlyRevenue = sellingPrice * monthlySales;
-      const totalMonthlyVariableCosts = variableCost * monthlySales; // COGS
       const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
 
       // 7. Annualized calculations matching student panel
@@ -846,7 +1035,7 @@ app.post(
         // High feasibility: scale based on how fast the business pays back its capital
         const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
         status = "FEASIBLE";
-        score = Math.min(100, Math.max(70, Math.round(75 + marginRatio * 10)));
+        score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
       }
 
       // Calculate component scores
@@ -875,7 +1064,16 @@ EVALUATION RULES:
 1. Gross Profit Margin Rule: Selling Price - COGS/Unit > 0 (The unit selling price must strictly exceed the direct unit production cost). If fails, status must be NOT_FEASIBLE and score must be 15.
 2. Profitability Check: A business must have positive Net Profit/Month and positive Annual Net Profit (After Tax) to be feasible. If Net Profit is less than or equal to 0, status must be NOT_FEASIBLE and score must be 30.
 3. Realism Audit: Compare the submitted financial data (startup capital, unit selling price, COGS/unit, and monthly OPEX) against the approved university feasibility studies under APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples). Focus on comparing the startup capital scale and the COGS-to-price ratios. Warn if they are extremely unrealistic, but DO NOT check or criticize for total capital reconciliation balance or cash reserve buffer quantities since those are NOT evaluated in this phase.
-4. STRICT JARGON BAN: Do NOT output or refer to internal code names like "DF-01", "DF-02", "DF-03", or "DF" anywhere in your text. Explain concepts in everyday business terms that students easily understand (such as "unit gross profit margin", "direct cost coverage", "profitability margin", etc.).
+4. STRICT JARGON, SCORE & INTERNAL BENCHMARK NAME BAN:
+- Do NOT output or refer to internal code names like "DF-01", "DF-02", "DF-03", or "DF" anywhere in your text.
+- Do NOT mention arbitrary numerical score points like "Score: 85/100", "Score: 30/100", or "X/100" in any of your narrative text. In academic and capstone defenses, arbitrary scores cannot be quantified. Instead, explain concepts and verdicts purely using real business metrics that students easily understand (such as "unit gross profit margin", "direct cost coverage", "monthly net profit", "OPEX coverage", and "capital recovery/payback period").
+- STRICT INTERNAL BENCHMARK CONFIDENTIALITY: The exemplars in your knowledge base (such as Mr. Cabbage, The Dory House, Empinoy, etc.) are strictly internal reference cases for your auditing logic. NEVER mention, quote, or cite the names of these benchmark businesses (e.g., NEVER write "Mr. Cabbage", "The Dory House", or "Empinoy" anywhere in your generated text). State all advice, pricing recommendations, and marketing tips directly to the user (e.g., write "Keep entry-level pricing accessible and offer value combos to encourage repeat purchases" instead of naming benchmarks).
+5. Market Indicators & Competitive Landscape Evaluation:
+Evaluate the submitted market indicators:
+- Competitor Density: If direct competitors <= 2, evaluate as positive (low market saturation, room to capture share). If direct competitors >= 3, evaluate as warning/risk (market saturation, requires distinct product differentiation or pricing advantage).
+- Foot Traffic & Anchors: If nearby establishments >= 1 (e.g. schools, transit, malls, markets), evaluate as positive (strong walk-in customer drivers with low ad spend). If 0 nearby establishments, evaluate as warning/risk (customer acquisition risk; requires high promotional ad spend).
+- Demographics & Pricing: Evaluate if unit selling price is realistic and accessible for the target demographic. Directly state pricing and combo recommendations without citing internal benchmark names.
+Write all market text in simple, straight-to-the-point English without arbitrary score numbers or benchmark names.
 
 ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
 - Tone & Style: ${req.body.customAIRules?.tone || 'Default academic and constructive tone.'}
@@ -884,9 +1082,12 @@ ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
 - Formatting: ${req.body.customAIRules?.formatting || 'Follow standard output structure.'}
 
 SUBMITTED FINANCIAL DATA:
-- Selling Price per Unit: PHP ${sellingPrice}
-- Cost of Goods Sold (COGS) per Unit: PHP ${variableCost}
-- Monthly Sales Volume (Units): ${monthlySales}
+- Average Selling Price per Unit: PHP ${sellingPrice.toFixed(2)}
+- Average Cost of Goods Sold (COGS) per Unit: PHP ${variableCost.toFixed(2)}
+- Total Monthly Sales Volume (Units Across Product Line): ${monthlySales}
+- Product Mix Count: ${agg.productCount} product(s)
+- Total Gross Monthly Revenue: PHP ${monthlyRevenue}
+- Total Monthly Variable Costs (COGS): PHP ${totalMonthlyVariableCosts}
 - Declared Startup Capital: PHP ${declaredCapital}
 - Sum of Equipment Startup Costs: PHP ${equipmentTotal}
 - Monthly Operating Expenses (OPEX): PHP ${monthlyOpex}
@@ -926,18 +1127,18 @@ CRITICALLY IMPORTANT: You MUST strictly apply the ADVISER'S CUSTOM AI RULES (Ton
 
 Your response must be a single stringified JSON object matching this structure:
 {
-  "score": 85,
-  "status": "FEASIBLE",
+  "score": ${score},
+  "status": "${status}",
   "performanceGrade": "${performanceInfo.performanceGrade}",
   "performanceStatus": "${performanceInfo.performanceStatus}",
   "performanceRecommendation": "${performanceInfo.performanceRecommendation}",
   "metrics": {
-    "financial": 88,
-    "risk": 90,
-    "market": 80
+    "financial": ${financialScore},
+    "risk": ${riskScore},
+    "market": ${marketScore}
   },
   "explanations": {
-    "feasibility": "Overall numeric audit verdict explanation written in simple, clear business language without any internal technical codes (NEVER write 'DF-02', 'DF-01', or 'DF-03'). Explicitly mention unit gross profit margin, net profit, and whether unit pricing covers direct product costs. Assess whether the startup capital scale and pricing seem realistic based on baseline university exemplars.",
+    "feasibility": "Overall audit verdict explanation written in simple, clear business language without any internal technical codes (NEVER write 'DF-02', 'DF-01', or 'DF-03') and WITHOUT mentioning arbitrary score numbers (NEVER write 'Score: X/100'). Explicitly discuss the feasibility status, average unit gross profit margin, monthly net profit, and OPEX coverage.",
     "financial": "Detailed analysis of unit margins, OPEX coverage, and net profit.",
     "risk": "Breakdown of cash flow risks, capital recovery duration (payback period), and general budget stability.",
     "market": "Assessment of volume adequacy, gross margins, and general price realism."
@@ -953,29 +1154,41 @@ Your response must be a single stringified JSON object matching this structure:
     "marketing": ["Specific tip on pricing strategy or volume adjustments"]
   },
   "aiScores": {
-    "financial": 88,
-    "operational": 90,
-    "market": 80
+    "financial": ${financialScore},
+    "operational": ${riskScore},
+    "market": ${marketScore}
   },
   "aiScoreExplanations": {
-    "financial": "Brief summary explanation.",
-    "operational": "Brief summary explanation.",
-    "market": "Brief summary explanation."
+    "financial": "Brief summary explanation evaluating margins and net profit without score digits.",
+    "operational": "Brief summary explanation evaluating equipment and operational expenses.",
+    "market": "Brief summary explanation evaluating volume and market capacity."
+  },
+  "marketAnalysis": {
+    "summary": "Short 1-2 sentence straight-to-the-point evaluation of the market indicators using simple English.",
+    "competitorInsight": {
+      "status": "positive or warning",
+      "badge": "e.g. Low Competition or Competitive Density",
+      "text": "Short concise takeaway on direct and indirect competitors in simple English."
+    },
+    "footTrafficInsight": {
+      "status": "positive or warning",
+      "badge": "e.g. Strong Foot Traffic Anchor or Customer Acquisition Risk",
+      "text": "Short concise takeaway on foot traffic and nearby anchor establishments in simple English."
+    },
+    "demographicInsight": {
+      "status": "positive or warning",
+      "badge": "e.g. Demographic Alignment or Pricing Strategy",
+      "text": "Short concise takeaway on target demographics and price alignment in simple English. Directly provide actionable advice without mentioning or naming any internal benchmark businesses."
+    }
   }
 }
 
 IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, typescript annotations, or trailing commas in the JSON response. For the 'type' field in the 'insights' array, you must select one of: 'positive', 'warning', 'info', or 'suggestion'.
 `;
 
-      const model = genAI.getGenerativeModel({
-        model: "gemini-flash-latest", // Standard stable Flash model with 1,500 requests/day quota
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json"
-        }
+      const { result, modelName } = await callGeminiCascade(prompt, {
+        responseMimeType: "application/json"
       });
-
-      const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
       let parsedResponse = cleanAndParseJSON(textResponse);
       
@@ -984,8 +1197,16 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
       parsedResponse.performanceStatus = performanceInfo.performanceStatus;
       parsedResponse.performanceRecommendation = performanceInfo.performanceRecommendation;
 
-      // Sanitize user-facing text to remove any residual internal DF codes
+      // Ensure marketAnalysis is always populated with valid structure
+      if (!parsedResponse.marketAnalysis || typeof parsedResponse.marketAnalysis !== "object") {
+        parsedResponse.marketAnalysis = generateFallbackMarketAnalysis(financials);
+      }
+
+      // Sanitize user-facing text to remove any residual internal DF codes or arbitrary score numbers
       parsedResponse = sanitizeUserFacingText(parsedResponse);
+
+      parsedResponse._fallback = false;
+      parsedResponse._model = modelName;
 
       res.json(parsedResponse);
 
@@ -1001,11 +1222,14 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         console.error("Failed writing to error.log:", logErr);
       }
 
-      // Fallback mechanism to ensure no crash
+      // Fallback mechanism to ensure no crash (multi-product aware)
       const financials = req.body.financialData || req.body.financials || req.body;
-      const sellingPrice = Number(financials.sellingPrice) || 0;
-      const variableCost = Number(financials.variableCost) || 0; 
-      const monthlySales = Number(financials.monthlySales) || 0;
+      const agg = calculateAggregatedFinancials(financials);
+      const sellingPrice = agg.sellingPrice;
+      const variableCost = agg.variableCost; 
+      const monthlySales = agg.monthlySales;
+      const monthlyRevenue = agg.monthlyRevenue;
+      const totalMonthlyVariableCosts = agg.totalMonthlyVariableCosts;
       const operatingDays = Number(financials.operatingDays) || 300;
       const isCapitalBorrowed = financials.isCapitalBorrowed || false;
       const interestRate = Number(financials.interestRate) || 0;
@@ -1021,8 +1245,6 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
         : (Number(financials.fixedCosts) || 0);
       const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
-      const monthlyRevenue = sellingPrice * monthlySales;
-      const totalMonthlyVariableCosts = variableCost * monthlySales;
       const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
       const annualRevenue = (monthlyRevenue / 30) * operatingDays;
       const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
@@ -1041,7 +1263,7 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
       } else {
         const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
         status = "FEASIBLE";
-        score = Math.min(100, Math.max(70, Math.round(75 + marginRatio * 10)));
+        score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
       }
       const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
       const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
@@ -1049,7 +1271,7 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
 
       const kb = getKnowledgeBase();
       const performanceInfo = kb ? mapScoreToPerformanceMatrix(score, kb.evaluation_framework.performance_matrix) : {
-        performanceGrade: "N/A", performanceStatus: "N/A", performanceRecommendation: "N/A"
+        performanceGrade: "Satisfactory", performanceStatus: "PASS (Feasible)", performanceRecommendation: "Mathematically sound and logical financial indicators."
       };
 
       res.json({
@@ -1060,17 +1282,22 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         performanceRecommendation: performanceInfo.performanceRecommendation,
         metrics: { financial: financialScore, risk: riskScore, market: marketScore },
         explanations: {
-          feasibility: `Score: ${score}/100. ${status === "FEASIBLE" ? "Business shows positive margins." : "Business shows negative margins — review costs."}`,
-          financial: "AI narrative temporarily unavailable. Scores are computed from your financial data.",
-          risk: "AI narrative temporarily unavailable.",
-          market: "AI narrative temporarily unavailable."
+          feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}. ${status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : "Business shows negative margins — review costs."}`,
+          financial: "Detailed analysis of contribution margins, OPEX coverage, and net profit.",
+          risk: "Evaluation of startup capital recovery and fixed cost commitments.",
+          market: "Evaluation of sales volume and monthly revenue capacity."
         },
         insights: [
-          { type: status === "FEASIBLE" ? "positive" : "warning", title: "Automated Verdict", description: `Feasibility score: ${score}/100 (${status}).` }
+          { type: status === "FEASIBLE" ? "positive" : "warning", title: "Automated Verdict", description: `Feasibility assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}.` }
         ],
         improvementTips: {},
         aiScores: { financial: financialScore, operational: riskScore, market: marketScore },
-        aiScoreExplanations: {},
+        aiScoreExplanations: {
+          financial: "Evaluates unit contribution margins, OPEX coverage, and net profit.",
+          operational: "Evaluates startup capital requirements and fixed cost commitments.",
+          market: "Evaluates monthly volume and sales revenue capacity."
+        },
+        marketAnalysis: generateFallbackMarketAnalysis(financials),
         _fallback: true
       });
     }
@@ -1182,17 +1409,13 @@ Your response must be a single stringified JSON object matching this structure:
 IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, typescript annotations, or trailing commas in the JSON response. For the 'type' field in the 'insights' array, you must select one of: 'positive', 'warning', 'info', or 'suggestion'.
 `;
 
-      const model = genAI.getGenerativeModel({
-        model: "gemini-flash-latest", // Standard stable Flash model with 1,500 requests/day quota
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json"
-        }
+      const { result, modelName } = await callGeminiCascade(prompt, {
+        responseMimeType: "application/json"
       });
-
-      const result = await callGeminiWithRetry(model, prompt);
       const textResponse = result.response.text();
       const parsedProposal = cleanAndParseJSON(textResponse);
+      parsedProposal._fallback = false;
+      parsedProposal._model = modelName;
       res.json(sanitizeUserFacingText(parsedProposal));
 
     } catch (error) {

@@ -1,352 +1,596 @@
 {
-    "evaluation_framework": {
-        "gateway_phase": {
-            "rules": [
-                {
-                    "id": "RULE-LEGALITY",
-                    "name": "Legality & Ethical Compliance",
-                    "description": "The business concept must represent a legal, ethical, and safe enterprise under Philippine law. No scams, unregistered schemes, or deceptive trade practices.",
-                    "verification": "Check that the product and business type do not violate local or national laws."
-                },
-                {
-                    "id": "RULE-GROSS-MARGIN",
-                    "name": "Gross Margin Test",
-                    "description": "The selling price per unit must be strictly greater than the unit cost of goods sold (COGS).",
-                    "verification": "Selling Price - COGS > 0"
-                },
-                {
-                    "id": "RULE-CAPITAL-RECONCILIATION",
-                    "name": "Capital Reconciliation Test",
-                    "description": "The sum of all startup equipment, inventory, licenses, and initial working capital reserve must match the declared total capital.",
-                    "verification": "Sum of Startup Costs + Cash Reserve = Declared Total Capital."
-                }
-            ]
+  "evaluation_framework": {
+    "gateway_phase": {
+      "rules": [
+        {
+          "id": "RULE-LEGALITY",
+          "name": "Legality & Ethical Compliance",
+          "description": "The business concept must represent a legal, ethical, and safe enterprise under Philippine law. No scams, unregistered schemes, or deceptive trade practices.",
+          "verification": "Check that the product and business type do not violate local or national laws."
         },
-        "graded_categories": [
-            {
-                "category": "Category 1: Financial Viability & Risk",
-                "weight_points": 35,
-                "criteria": {
-                    "excellent": "31-35 pts. Pricing and COGS are highly realistic. Startup budget contains a healthy cash/working capital reserve (at least 1-2 months of OPEX). Monthly sales relate logically to daily capacity.",
-                    "satisfactory": "25-30 pts. Math is correct, margins are healthy. Cash reserve is low (less than 1 month of OPEX). Projections are slightly optimistic but mathematically sound.",
-                    "needs_improvement": "18-24 pts. Calculations contain minor errors. OPEX estimates are missing key elements (utilities, benefits). Cash reserve is practically non-existent.",
-                    "unacceptable": "0-17 pts. Major mathematical errors. Projections are wildly unrealistic."
-                }
-            },
-            {
-                "category": "Category 2: Operational & Location Feasibility",
-                "weight_points": 25,
-                "criteria": {
-                    "excellent": "22-25 pts. Proposed location has a specific address corresponding to the target demographic. Rent is realistic. Equipment list is comprehensive and matches the projected volume.",
-                    "satisfactory": "18-21 pts. Location is realistic but rent or leasehold estimates are slightly low. Equipment is functional, minor tools might be underbudgeted.",
-                    "needs_improvement": "13-17 pts. Location is vague or mismatched with target market. Critical production equipment is missing.",
-                    "unacceptable": "0-12 pts. Location is omitted or unviable. Equipment list is insufficient to produce the product."
-                }
-            },
-            {
-                "category": "Category 3: Market & Promotional Feasibility",
-                "weight_points": 25,
-                "criteria": {
-                    "excellent": "22-25 pts. Target market is clearly defined (age, income, geography). Promotional strategies utilize a realistic mix of digital and physical channels with matched budgets.",
-                    "satisfactory": "18-21 pts. Target market is defined but too broad. Promotional strategies are standard ('just post on Facebook') without unique local allocations.",
-                    "needs_improvement": "13-17 pts. Target market is poorly defined. Marketing ideas are generic, and promotional activities do not align with the budget.",
-                    "unacceptable": "0-12 pts. No clear marketing/promotional plan, or relies on wildly unrealistic assumptions."
-                }
-            },
-            {
-                "category": "Category 4: Strategic Alignment & Completeness",
-                "weight_points": 15,
-                "criteria": {
-                    "excellent": "13-15 pts. Mission and Vision statements are clear, professional, and directly reflected in the product offering. Formatting is clean and consistent.",
-                    "satisfactory": "10-12 pts. Mission and Vision are standard but functional. Document is complete with minor formatting or spelling errors.",
-                    "needs_improvement": "7-9 pts. Mission, Vision, and product description lack cohesion (e.g., mission states healthy food but the menu is deep-fried junk food). Disorganized.",
-                    "unacceptable": "0-6 pts. Key qualitative sections are missing, copy-pasted, or completely unaligned."
-                }
-            }
-        ],
-        "performance_matrix": [
-            {
-                "score_range": "90-100",
-                "grade": "Outstanding",
-                "status": "PASS (Highly Feasible)",
-                "recommendation": "Strong, well-designed study with realistic financial buffers. Ready for execution."
-            },
-            {
-                "score_range": "75-89",
-                "grade": "Satisfactory",
-                "status": "PASS (Feasible with Risks)",
-                "recommendation": "Mathematically sound and logical. Minor adjustments (such as increasing working capital or refining marketing) recommended."
-            },
-            {
-                "score_range": "70-74",
-                "grade": "Conditional",
-                "status": "CONDITIONAL PASS",
-                "recommendation": "Requires major revisions to either the operational or financial section before receiving a passing grade."
-            },
-            {
-                "score_range": "Below 70",
-                "grade": "Unsatisfactory",
-                "status": "FAIL",
-                "recommendation": "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot."
-            }
-        ]
+        {
+          "id": "RULE-GROSS-MARGIN",
+          "name": "Gross Margin Test",
+          "description": "The selling price per unit must be strictly greater than the unit cost of goods sold (COGS).",
+          "verification": "Selling Price - COGS > 0"
+        },
+        {
+          "id": "RULE-CAPITAL-RECONCILIATION",
+          "name": "Capital Reconciliation Test",
+          "description": "The sum of all startup equipment, inventory, licenses, and initial working capital reserve must match the declared total capital.",
+          "verification": "Sum of Startup Costs + Cash Reserve = Declared Total Capital."
+        }
+      ]
     },
-    "exemplars": [
-        {
-            "name": "The Dory House Co. (Dory-Yaki)",
-            "type": "Food Service Quick-Service Food Stall",
-            "capital": 900000.0,
-            "location": "Unit 1B #17 G. Lazaro St., Dalandanan, Valenzuela City",
-            "pricing": "₱45.00 (Regular) to ₱60.00 (Premium)",
-            "promotional_strategy": "Multi-channel (FB, IG, TikTok), local micro-influencer partnerships, flyers, customer loyalty cards, back-to-school discounts."
-        },
-        {
-            "name": "Empinoy",
-            "type": "Food Service Quick-Service Food Stall (Empanada Specialty)",
-            "capital": 216000.0,
-            "location": "1358 Que Grande Street, Ugong, Valenzuela City",
-            "pricing": "₱45.00 (fruit) up to ₱99.00 (Pinoy ulam flavors)",
-            "promotional_strategy": "Daily/weekly social media ads, direct customer contact via SMS, physical product sampling, custom monthly marketing themes."
+    "graded_categories": [
+      {
+        "category": "Category 1: Financial Viability & Risk",
+        "weight_points": 35,
+        "criteria": {
+          "excellent": "31-35 pts. Pricing and COGS are highly realistic. Startup budget contains a healthy cash/working capital reserve (at least 1-2 months of OPEX). Monthly sales relate logically to daily capacity.",
+          "satisfactory": "25-30 pts. Math is correct, margins are healthy. Cash reserve is low (less than 1 month of OPEX). Projections are slightly optimistic but mathematically sound.",
+          "needs_improvement": "18-24 pts. Calculations contain minor errors. OPEX estimates are missing key elements (utilities, benefits). Cash reserve is practically non-existent.",
+          "unacceptable": "0-17 pts. Major mathematical errors. Projections are wildly unrealistic."
         }
+      },
+      {
+        "category": "Category 2: Operational & Location Feasibility",
+        "weight_points": 25,
+        "criteria": {
+          "excellent": "22-25 pts. Proposed location has a specific address corresponding to the target demographic. Rent is realistic. Equipment list is comprehensive and matches the projected volume. Location is anchored by positive foot-traffic generators (e.g., schools, malls, transit hubs).",
+          "satisfactory": "18-21 pts. Location is realistic but rent or leasehold estimates are slightly low. Equipment is functional, minor tools might be underbudgeted.",
+          "needs_improvement": "13-17 pts. Location is vague or mismatched with target market. Critical production equipment is missing.",
+          "unacceptable": "0-12 pts. Location is omitted or unviable. Equipment list is insufficient to produce the product."
+        }
+      },
+      {
+        "category": "Category 3: Market & Promotional Feasibility",
+        "weight_points": 25,
+        "criteria": {
+          "excellent": "22-25 pts. Target market is clearly defined (age, income, geography) and matches the product price point. Competitor density (direct and indirect) is audited, showing clear differentiation or underserved market capture. Promotional strategies utilize a realistic mix of digital and physical channels with matched budgets.",
+          "satisfactory": "18-21 pts. Target market is defined but too broad. Promotional strategies are standard ('just post on Facebook') without unique local allocations.",
+          "needs_improvement": "13-17 pts. Target market is poorly defined. Marketing ideas are generic, and promotional activities do not align with the budget.",
+          "unacceptable": "0-12 pts. No clear marketing/promotional plan, or relies on wildly unrealistic assumptions."
+        }
+      },
+      {
+        "category": "Category 4: Strategic Alignment & Completeness",
+        "weight_points": 15,
+        "criteria": {
+          "excellent": "13-15 pts. Mission and Vision statements are clear, professional, and directly reflected in the product offering. Formatting is clean and consistent.",
+          "satisfactory": "10-12 pts. Mission and Vision are standard but functional. Document is complete with minor formatting or spelling errors.",
+          "needs_improvement": "7-9 pts. Mission, Vision, and product description lack cohesion (e.g., mission states healthy food but the menu is deep-fried junk food). Disorganized.",
+          "unacceptable": "0-6 pts. Key qualitative sections are missing, copy-pasted, or completely unaligned."
+        }
+      }
     ],
-    "financial_input_examples": [
-        {
-            "business_name": "The Dory House Co. (Dory-Yaki)",
-            "sales_and_pricing": {
-                "selling_price": 50.00,
-                "monthly_sales_unit": 4160,
-                "cogs_per_unit": 14.77
-            },
-            "capital_and_operations": {
-                "operating_days_year": 312,
-                "is_capital_borrowed": false,
-                "total_capital": 900000.00,
-                "startup_capital_equipment": [
-                    {
-                        "item_name": "Leasehold Improvements",
-                        "qty": 1,
-                        "unit_price": 200092.72,
-                        "total": 200092.72
-                    },
-                    {
-                        "item_name": "Furniture & Fixtures",
-                        "qty": 1,
-                        "unit_price": 90950.80,
-                        "total": 90950.80
-                    },
-                    {
-                        "item_name": "Kitchen Equipment",
-                        "qty": 1,
-                        "unit_price": 79119.44,
-                        "total": 79119.44
-                    },
-                    {
-                        "item_name": "Store Equipment",
-                        "qty": 1,
-                        "unit_price": 63952.60,
-                        "total": 63952.60
-                    },
-                    {
-                        "item_name": "Office Equipment",
-                        "qty": 1,
-                        "unit_price": 34899.00,
-                        "total": 34899.00
-                    },
-                    {
-                        "item_name": "Kitchen & Store Tools",
-                        "qty": 1,
-                        "unit_price": 29252.76,
-                        "total": 29252.76
-                    },
-                    {
-                        "item_name": "Initial Permits & Licenses",
-                        "qty": 1,
-                        "unit_price": 21756.32,
-                        "total": 21756.32
-                    },
-                    {
-                        "item_name": "Initial Raw Materials & Supplies",
-                        "qty": 1,
-                        "unit_price": 40102.54,
-                        "total": 40102.54
-                    },
-                    {
-                        "item_name": "Cash / Working Capital Reserve (residual)",
-                        "qty": 1,
-                        "unit_price": 340626.34,
-                        "total": 340626.34
-                    }
-                ]
-            },
-            "monthly_cost_opex": {
-                "total_opex": 111919.73,
-                "expenses": [
-                    {
-                        "expense_name": "Salaries & Wages (Store Personnel + Manager)",
-                        "amount": 68285.00
-                    },
-                    {
-                        "expense_name": "Rent Expense (Total space lease)",
-                        "amount": 10000.00
-                    },
-                    {
-                        "expense_name": "Utilities (Electricity, Water, Wi-Fi)",
-                        "amount": 6000.00
-                    },
-                    {
-                        "expense_name": "Employee Benefits",
-                        "amount": 8899.42
-                    },
-                    {
-                        "expense_name": "Training & Seminar Expense",
-                        "amount": 15108.49
-                    },
-                    {
-                        "expense_name": "Repairs & Maintenance",
-                        "amount": 1333.33
-                    },
-                    {
-                        "expense_name": "Permits & Licenses Expense",
-                        "amount": 1925.53
-                    },
-                    {
-                        "expense_name": "Advertising & Promotion",
-                        "amount": 367.96
-                    }
-                ]
-            }
-        },
-        {
-            "business_name": "Empinoy",
-            "sales_and_pricing": {
-                "selling_price": 73.44,
-                "monthly_sales_unit": 10200,
-                "cogs_per_unit": 36.27
-            },
-            "capital_and_operations": {
-                "operating_days_year": 365,
-                "is_capital_borrowed": false,
-                "total_capital": 216000.00,
-                "startup_capital_equipment": [
-                    {
-                        "item_name": "Renovation Cost (Leasehold Improvements)",
-                        "qty": 1,
-                        "unit_price": 120732.00,
-                        "total": 120732.00
-                    },
-                    {
-                        "item_name": "Initial Raw Materials",
-                        "qty": 1,
-                        "unit_price": 49342.00,
-                        "total": 49342.00
-                    },
-                    {
-                        "item_name": "Kitchen Equipment",
-                        "qty": 1,
-                        "unit_price": 14949.50,
-                        "total": 14949.50
-                    },
-                    {
-                        "item_name": "Permits and Licenses",
-                        "qty": 1,
-                        "unit_price": 9409.50,
-                        "total": 9409.50
-                    },
-                    {
-                        "item_name": "Start-Up/Pre-Operating Utilities Reserve",
-                        "qty": 1,
-                        "unit_price": 8400.00,
-                        "total": 8400.00
-                    },
-                    {
-                        "item_name": "Start-Up Operating/Initial Supplies",
-                        "qty": 1,
-                        "unit_price": 4536.75,
-                        "total": 4536.75
-                    },
-                    {
-                        "item_name": "Furniture and Fixtures",
-                        "qty": 1,
-                        "unit_price": 2508.25,
-                        "total": 2508.25
-                    },
-                    {
-                        "item_name": "Office Tools and Equipment",
-                        "qty": 1,
-                        "unit_price": 2016.50,
-                        "total": 2016.50
-                    },
-                    {
-                        "item_name": "Utilities Tools and Equipment",
-                        "qty": 1,
-                        "unit_price": 1549.75,
-                        "total": 1549.75
-                    },
-                    {
-                        "item_name": "Kitchen Tools",
-                        "qty": 1,
-                        "unit_price": 1376.25,
-                        "total": 1376.25
-                    },
-                    {
-                        "item_name": "Pre-Operating Expense",
-                        "qty": 1,
-                        "unit_price": 200.00,
-                        "total": 200.00
-                    },
-                    {
-                        "item_name": "Cash/Working Capital Reserve (residual)",
-                        "qty": 1,
-                        "unit_price": 979.50,
-                        "total": 979.50
-                    }
-                ]
-            },
-            "monthly_cost_opex": {
-                "total_opex": 283243.40,
-                "expenses": [
-                    {
-                        "expense_name": "Salaries and Wages",
-                        "amount": 207561.60
-                    },
-                    {
-                        "expense_name": "Monthly Rent",
-                        "amount": 10000.00
-                    },
-                    {
-                        "expense_name": "Employee Benefits (SSS, PhilHealth, Pag-IBIG)",
-                        "amount": 53583.20
-                    },
-                    {
-                        "expense_name": "Utilities Expense",
-                        "amount": 5040.00
-                    },
-                    {
-                        "expense_name": "Supplies Expense",
-                        "amount": 2005.80
-                    },
-                    {
-                        "expense_name": "Licensing & Permits Expense",
-                        "amount": 1882.00
-                    },
-                    {
-                        "expense_name": "Advertising/Marketing Expense",
-                        "amount": 1088.00
-                    },
-                    {
-                        "expense_name": "Withholding Tax Expense",
-                        "amount": 842.80
-                    },
-                    {
-                        "expense_name": "Repair and Maintenance",
-                        "amount": 200.00
-                    },
-                    {
-                        "expense_name": "Miscellaneous Expense",
-                        "amount": 40.00
-                    }
-                ]
-            }
-        }
+    "performance_matrix": [
+      {
+        "score_range": "90-100",
+        "grade": "Outstanding",
+        "status": "PASS (Highly Feasible)",
+        "recommendation": "Strong, well-designed study with realistic financial buffers. Ready for execution."
+      },
+      {
+        "score_range": "75-89",
+        "grade": "Satisfactory",
+        "status": "PASS (Feasible with Risks)",
+        "recommendation": "Mathematically sound and logical. Minor adjustments (such as increasing working capital or refining marketing) recommended."
+      },
+      {
+        "score_range": "70-74",
+        "grade": "Conditional",
+        "status": "CONDITIONAL PASS",
+        "recommendation": "Requires major revisions to either the operational or financial section before receiving a passing grade."
+      },
+      {
+        "score_range": "Below 70",
+        "grade": "Unsatisfactory",
+        "status": "FAIL",
+        "recommendation": "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot."
+      }
     ]
+  },
+  "exemplars": [
+    {
+      "name": "The Dory House Co. (Dory-Yaki)",
+      "type": "Food Service Quick-Service Food Stall",
+      "capital": 900000,
+      "location": "Unit 1B #17 G. Lazaro St., Dalandanan, Valenzuela City",
+      "pricing": "₱45.00 (Regular) to ₱60.00 (Premium)",
+      "promotional_strategy": "Multi-channel (FB, IG, TikTok), local micro-influencer partnerships, flyers, customer loyalty cards, back-to-school discounts."
+    },
+    {
+      "name": "Empinoy",
+      "type": "Food Service Quick-Service Food Stall (Empanada Specialty)",
+      "capital": 216000,
+      "location": "1358 Que Grande Street, Ugong, Valenzuela City",
+      "pricing": "₱45.00 (fruit) up to ₱99.00 (Pinoy ulam flavors)",
+      "promotional_strategy": "Daily/weekly social media ads, direct customer contact via SMS, physical product sampling, custom monthly marketing themes."
+    },
+    {
+      "name": "Mr. Cabbage (Brassica Foods)",
+      "type": "Food Service Quick-Service Food Stall / Healthy Snack Rolls",
+      "institution": "Pamantasan ng Lungsod ng Valenzuela (PLV) - College of Business Administration",
+      "capital": 900000,
+      "location": "C&B Mall, Maysan Road, Malinta, Valenzuela City",
+      "pricing": "₱20.00 (Snack Roll) to ₱59.00 (Chao Rice Ala Carte) to ₱169.00 (Friendship Combo)",
+      "promotional_strategy": "Direct campus student targeting (PLV CPAG & Annex campuses, CMIC), C&B Mall foot traffic capture, social media promotions, value meal combos, flyers, back-to-school bundle promos.",
+      "direct_competitors": [
+        "Master Siomai",
+        "Rice in a Box (RBX)",
+        "Turks",
+        "Shawarma Shack",
+        "Paotsin"
+      ],
+      "other_competitors": [
+        "Chowking",
+        "Siomai House",
+        "Dunkin Donuts",
+        "Local Street Kariton"
+      ],
+      "nearby_establishments": [
+        "C&B Mall Valenzuela",
+        "South Supermarket",
+        "PLV CPAG Campus",
+        "PLV Annex",
+        "Child of Mary Immaculate College (CMIC)",
+        "Mercury Drug Malinta"
+      ],
+      "target_demographics": [
+        "Students (15-24)",
+        "Employed Individuals (20-45)",
+        "Self-employed Workers (25-50)",
+        "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+      ],
+      "key_indicators_analysis": {
+        "competitor_density": "Moderate to high direct competitor density (5 listed food stalls in mall food strip). Differentiates via healthy vegetable-infused rolls (cabbage + chicken/pork/tofu) at competitive ₱20 price points.",
+        "foot_traffic_anchors": "High foot-traffic anchors: Dual PLV university campuses, CMIC college, and South Supermarket generate consistent student and commuter walk-ins daily.",
+        "demographic_pricing_fit": "Strong price alignment with allowance-conscious students and entry-level workers; ₱20-₱59 meals fit within standard student daily budget."
+      }
+    }
+  ],
+  "financial_input_examples": [
+    {
+      "business_name": "The Dory House Co. (Dory-Yaki)",
+      "sales_and_pricing": {
+        "selling_price": 50,
+        "monthly_sales_unit": 4160,
+        "cogs_per_unit": 14.77
+      },
+      "capital_and_operations": {
+        "operating_days_year": 312,
+        "is_capital_borrowed": false,
+        "total_capital": 900000,
+        "startup_capital_equipment": [
+          {
+            "item_name": "Leasehold Improvements",
+            "qty": 1,
+            "unit_price": 200092.72,
+            "total": 200092.72
+          },
+          {
+            "item_name": "Furniture & Fixtures",
+            "qty": 1,
+            "unit_price": 90950.8,
+            "total": 90950.8
+          },
+          {
+            "item_name": "Kitchen Equipment",
+            "qty": 1,
+            "unit_price": 79119.44,
+            "total": 79119.44
+          },
+          {
+            "item_name": "Store Equipment",
+            "qty": 1,
+            "unit_price": 63952.6,
+            "total": 63952.6
+          },
+          {
+            "item_name": "Office Equipment",
+            "qty": 1,
+            "unit_price": 34899,
+            "total": 34899
+          },
+          {
+            "item_name": "Kitchen & Store Tools",
+            "qty": 1,
+            "unit_price": 29252.76,
+            "total": 29252.76
+          },
+          {
+            "item_name": "Initial Permits & Licenses",
+            "qty": 1,
+            "unit_price": 21756.32,
+            "total": 21756.32
+          },
+          {
+            "item_name": "Initial Raw Materials & Supplies",
+            "qty": 1,
+            "unit_price": 40102.54,
+            "total": 40102.54
+          },
+          {
+            "item_name": "Cash / Working Capital Reserve (residual)",
+            "qty": 1,
+            "unit_price": 340626.34,
+            "total": 340626.34
+          }
+        ]
+      },
+      "monthly_cost_opex": {
+        "total_opex": 111919.73,
+        "expenses": [
+          {
+            "expense_name": "Salaries & Wages (Store Personnel + Manager)",
+            "amount": 68285
+          },
+          {
+            "expense_name": "Rent Expense (Total space lease)",
+            "amount": 10000
+          },
+          {
+            "expense_name": "Utilities (Electricity, Water, Wi-Fi)",
+            "amount": 6000
+          },
+          {
+            "expense_name": "Employee Benefits",
+            "amount": 8899.42
+          },
+          {
+            "expense_name": "Training & Seminar Expense",
+            "amount": 15108.49
+          },
+          {
+            "expense_name": "Repairs & Maintenance",
+            "amount": 1333.33
+          },
+          {
+            "expense_name": "Permits & Licenses Expense",
+            "amount": 1925.53
+          },
+          {
+            "expense_name": "Advertising & Promotion",
+            "amount": 367.96
+          }
+        ]
+      }
+    },
+    {
+      "business_name": "Empinoy",
+      "sales_and_pricing": {
+        "selling_price": 73.44,
+        "monthly_sales_unit": 10200,
+        "cogs_per_unit": 36.27
+      },
+      "capital_and_operations": {
+        "operating_days_year": 365,
+        "is_capital_borrowed": false,
+        "total_capital": 216000,
+        "startup_capital_equipment": [
+          {
+            "item_name": "Renovation Cost (Leasehold Improvements)",
+            "qty": 1,
+            "unit_price": 120732,
+            "total": 120732
+          },
+          {
+            "item_name": "Initial Raw Materials",
+            "qty": 1,
+            "unit_price": 49342,
+            "total": 49342
+          },
+          {
+            "item_name": "Kitchen Equipment",
+            "qty": 1,
+            "unit_price": 14949.5,
+            "total": 14949.5
+          },
+          {
+            "item_name": "Permits and Licenses",
+            "qty": 1,
+            "unit_price": 9409.5,
+            "total": 9409.5
+          },
+          {
+            "item_name": "Start-Up/Pre-Operating Utilities Reserve",
+            "qty": 1,
+            "unit_price": 8400,
+            "total": 8400
+          },
+          {
+            "item_name": "Start-Up Operating/Initial Supplies",
+            "qty": 1,
+            "unit_price": 4536.75,
+            "total": 4536.75
+          },
+          {
+            "item_name": "Furniture and Fixtures",
+            "qty": 1,
+            "unit_price": 2508.25,
+            "total": 2508.25
+          },
+          {
+            "item_name": "Office Tools and Equipment",
+            "qty": 1,
+            "unit_price": 2016.5,
+            "total": 2016.5
+          },
+          {
+            "item_name": "Utilities Tools and Equipment",
+            "qty": 1,
+            "unit_price": 1549.75,
+            "total": 1549.75
+          },
+          {
+            "item_name": "Kitchen Tools",
+            "qty": 1,
+            "unit_price": 1376.25,
+            "total": 1376.25
+          },
+          {
+            "item_name": "Pre-Operating Expense",
+            "qty": 1,
+            "unit_price": 200,
+            "total": 200
+          },
+          {
+            "item_name": "Cash/Working Capital Reserve (residual)",
+            "qty": 1,
+            "unit_price": 979.5,
+            "total": 979.5
+          }
+        ]
+      },
+      "monthly_cost_opex": {
+        "total_opex": 283243.4,
+        "expenses": [
+          {
+            "expense_name": "Salaries and Wages",
+            "amount": 207561.6
+          },
+          {
+            "expense_name": "Monthly Rent",
+            "amount": 10000
+          },
+          {
+            "expense_name": "Employee Benefits (SSS, PhilHealth, Pag-IBIG)",
+            "amount": 53583.2
+          },
+          {
+            "expense_name": "Utilities Expense",
+            "amount": 5040
+          },
+          {
+            "expense_name": "Supplies Expense",
+            "amount": 2005.8
+          },
+          {
+            "expense_name": "Licensing & Permits Expense",
+            "amount": 1882
+          },
+          {
+            "expense_name": "Advertising/Marketing Expense",
+            "amount": 1088
+          },
+          {
+            "expense_name": "Withholding Tax Expense",
+            "amount": 842.8
+          },
+          {
+            "expense_name": "Repair and Maintenance",
+            "amount": 200
+          },
+          {
+            "expense_name": "Miscellaneous Expense",
+            "amount": 40
+          }
+        ]
+      }
+    },
+    {
+      "business_name": "Mr. Cabbage (Brassica Foods)",
+      "sales_and_pricing": {
+        "selling_price": 32.88,
+        "monthly_sales_unit": 37636,
+        "cogs_per_unit": 19.01
+      },
+      "capital_and_operations": {
+        "operating_days_year": 360,
+        "is_capital_borrowed": false,
+        "total_capital": 900000,
+        "startup_capital_equipment": [
+          {
+            "item_name": "Renovation / Leasehold Improvement",
+            "qty": 1,
+            "unit_price": 335400,
+            "total": 335400
+          },
+          {
+            "item_name": "Chest Freezer 9 cu. ft.",
+            "qty": 1,
+            "unit_price": 14995,
+            "total": 14995
+          },
+          {
+            "item_name": "POS Terminal System with Thermal Printer",
+            "qty": 1,
+            "unit_price": 10000,
+            "total": 10000
+          },
+          {
+            "item_name": "Electric Commercial Rice Cooker (Large)",
+            "qty": 1,
+            "unit_price": 6000,
+            "total": 6000
+          },
+          {
+            "item_name": "Kyowa Water Dispenser (Hot & Cold)",
+            "qty": 1,
+            "unit_price": 5530,
+            "total": 5530
+          },
+          {
+            "item_name": "Wooden Dining Round Tables",
+            "qty": 4,
+            "unit_price": 874,
+            "total": 3496
+          },
+          {
+            "item_name": "Ergonomic Dining PP Chairs",
+            "qty": 8,
+            "unit_price": 375,
+            "total": 3000
+          },
+          {
+            "item_name": "Hikvision CCTV Security Dome Cameras",
+            "qty": 2,
+            "unit_price": 1352,
+            "total": 2704
+          },
+          {
+            "item_name": "Kitchen Utensils & Food Safety Gear",
+            "qty": 1,
+            "unit_price": 2220,
+            "total": 2220
+          },
+          {
+            "item_name": "High Bar Counter Stools",
+            "qty": 4,
+            "unit_price": 489,
+            "total": 1956
+          },
+          {
+            "item_name": "14-inch Gas Food Steamer (3-Layer)",
+            "qty": 1,
+            "unit_price": 1500,
+            "total": 1500
+          },
+          {
+            "item_name": "Single Gas Grill (Commercial)",
+            "qty": 1,
+            "unit_price": 1049,
+            "total": 1049
+          },
+          {
+            "item_name": "Advance Rent & Security Deposit (5 Months)",
+            "qty": 1,
+            "unit_price": 150000,
+            "total": 150000
+          },
+          {
+            "item_name": "Staff Pre-Operating Salaries",
+            "qty": 1,
+            "unit_price": 116531,
+            "total": 116531
+          },
+          {
+            "item_name": "Pre-Operating Training Programs",
+            "qty": 1,
+            "unit_price": 32400,
+            "total": 32400
+          },
+          {
+            "item_name": "Initial Permits & Licenses",
+            "qty": 1,
+            "unit_price": 3925,
+            "total": 3925
+          },
+          {
+            "item_name": "Initial Advertising & Marketing Launch",
+            "qty": 1,
+            "unit_price": 2442,
+            "total": 2442
+          },
+          {
+            "item_name": "Industrial Property Contribution (Machineries & Logistics)",
+            "qty": 1,
+            "unit_price": 200000,
+            "total": 200000
+          },
+          {
+            "item_name": "Cash / Working Capital Reserve (residual buffer)",
+            "qty": 1,
+            "unit_price": 39397,
+            "total": 39397
+          }
+        ]
+      },
+      "monthly_cost_opex": {
+        "total_opex": 143405.29,
+        "expenses": [
+          {
+            "expense_name": "Rent Expense (C&B Mall Stall)",
+            "amount": 30000
+          },
+          {
+            "expense_name": "Salaries & Wages (Store Crew + Cashier)",
+            "amount": 32869.5
+          },
+          {
+            "expense_name": "Partner & Staff Monthly Allowance",
+            "amount": 25396
+          },
+          {
+            "expense_name": "Mandatory Benefits Reserve (SSS/PHIC/HDMF)",
+            "amount": 28262.96
+          },
+          {
+            "expense_name": "Packaging, Cleaning & Store Supplies",
+            "amount": 15676.83
+          },
+          {
+            "expense_name": "Electricity & Power (MERALCO)",
+            "amount": 5000
+          },
+          {
+            "expense_name": "Water & Sanitation (Maynilad)",
+            "amount": 2000
+          },
+          {
+            "expense_name": "Internet & Telecommunication (Globe)",
+            "amount": 1500
+          },
+          {
+            "expense_name": "Equipment Maintenance & Sanitation",
+            "amount": 1500
+          },
+          {
+            "expense_name": "Marketing, Social Media Boost & Flyers",
+            "amount": 1200
+          }
+        ]
+      },
+      "market_context": {
+        "direct_competitors": [
+          "Master Siomai",
+          "Rice in a Box (RBX)",
+          "Turks",
+          "Shawarma Shack",
+          "Paotsin"
+        ],
+        "other_competitors": [
+          "Chowking",
+          "Siomai House",
+          "Dunkin Donuts",
+          "Local Street Kariton"
+        ],
+        "nearby_establishments": [
+          "C&B Mall Valenzuela",
+          "South Supermarket",
+          "PLV CPAG Campus",
+          "PLV Annex",
+          "Child of Mary Immaculate College (CMIC)",
+          "Mercury Drug Malinta"
+        ],
+        "target_demographics": [
+          "Students (15-24)",
+          "Employed Individuals (20-45)",
+          "Self-employed Workers (25-50)",
+          "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+        ]
+      }
+    }
+  ]
 }

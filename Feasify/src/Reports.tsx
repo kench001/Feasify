@@ -319,7 +319,9 @@ const Reports: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-lg tracking-wide uppercase">Official Verdict: {(selectedProject.aiAnalysis.status || "PENDING").replace("_", " ")}</h3>
-                  <p className="text-sm font-medium opacity-80 mt-1">Overall Feasibility Score: {selectedProject.aiAnalysis.score || 0}/100</p>
+                  <p className="text-sm font-medium opacity-80 mt-1">
+                    Grade: {selectedProject.aiAnalysis.performanceGrade || "Satisfactory"} {selectedProject.aiAnalysis.performanceStatus ? `• ${selectedProject.aiAnalysis.performanceStatus}` : ""}
+                  </p>
                 </div>
               </div>
 
