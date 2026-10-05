@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -35,6 +35,7 @@ import {
 
 import domtoimage from "dom-to-image";
 import { jsPDF } from "jspdf";
+import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
 
 const Reports: React.FC = () => {
   const navigate = useNavigate();
@@ -72,13 +73,20 @@ const Reports: React.FC = () => {
 
         const approvedProjects = propSnap.docs
           .filter((doc) => doc.data().status === "Approved" || doc.data().status === "APPROVED")
-          .map((doc) => ({
-            id: doc.id,
-            name: doc.data().businessName || doc.data().title || "Untitled Proposal",
-            financialData: doc.data().financialData || null,
-            aiAnalysis: doc.data().aiAnalysis || null,
-            parentGroupId: userGroupId,
-          }));
+          .map((doc) => {
+            const pData = doc.data();
+            return {
+              id: doc.id,
+              name: pData.businessName || pData.title || "Untitled Proposal",
+              financialData: pData.financialData || null,
+              aiAnalysis: pData.aiAnalysis || null,
+              totalCapital: pData.totalCapital || null,
+              proposalCapital: pData.totalCapital || null,
+              products: pData.products || pData.financialData?.products || [],
+              rawProposalData: pData,
+              parentGroupId: userGroupId,
+            };
+          });
 
         const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
         if (activeProp) {
@@ -178,6 +186,118 @@ const Reports: React.FC = () => {
   };
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+
+  const financialOverview = useMemo(() => {
+    if (!selectedProject) {
+      return {
+        startupCapital: 0,
+        annualRevenue: 0,
+        netAnnualProfit: 0,
+        paybackPeriodFormatted: "N/A",
+      };
+    }
+
+    const finData = selectedProject.financialData || {};
+    const activeFin =
+      finData.monthlyRecords &&
+      Array.isArray(finData.monthlyRecords) &&
+      finData.monthlyRecords.length > 0
+        ? finData.monthlyRecords[finData.monthlyRecords.length - 1]?.financials || finData
+        : finData;
+
+    const proposalProducts =
+      selectedProject.products && selectedProject.products.length > 0
+        ? selectedProject.products
+        : activeFin.products && activeFin.products.length > 0
+        ? activeFin.products
+        : selectedProject.rawProposalData?.products || [];
+
+    const prods = normalizeProposalProducts(activeFin, selectedProject.name, proposalProducts);
+
+    let monthlyRevenue = 0;
+    let totalMonthlyVariableCosts = 0;
+    let safeMonthlySales = 0;
+    let safeSellingPrice = 0;
+    let safeVariableCost = 0;
+
+    if (prods.length > 1) {
+      monthlyRevenue = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).revenue, 0);
+      totalMonthlyVariableCosts = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).cogsSold, 0);
+      safeMonthlySales = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).unitsSold, 0);
+      safeSellingPrice = safeMonthlySales > 0 ? monthlyRevenue / safeMonthlySales : 0;
+      safeVariableCost = safeMonthlySales > 0 ? totalMonthlyVariableCosts / safeMonthlySales : 0;
+    } else if (prods.length === 1) {
+      const m = computeProductMetrics(prods[0]);
+      monthlyRevenue = m.revenue;
+      totalMonthlyVariableCosts = m.cogsSold;
+      safeMonthlySales = m.unitsSold;
+      safeSellingPrice = m.netSellingPrice > 0 ? m.netSellingPrice : (m.sellingPrice > 0 ? m.sellingPrice : (Number(activeFin?.sellingPrice) || 0));
+      safeVariableCost = m.unitCost > 0 ? m.unitCost : (Number(activeFin?.variableCost) || 0);
+    } else {
+      safeSellingPrice = Number(activeFin?.sellingPrice) || 0;
+      safeVariableCost = Number(activeFin?.variableCost) || 0;
+      safeMonthlySales = Number(activeFin?.monthlySales) || 0;
+      monthlyRevenue = safeSellingPrice * safeMonthlySales;
+      totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    }
+
+    const safeOperatingDays = Number(activeFin?.operatingDays) || 300;
+    const isCapitalBorrowed = Boolean(activeFin?.isCapitalBorrowed);
+    const interestRate = Number(activeFin?.interestRate) || 0;
+
+    const equipmentList = activeFin?.equipmentList || [];
+    const equipmentTotal = equipmentList.reduce(
+      (sum: number, item: any) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
+      0
+    );
+
+    const declaredCapital =
+      Number(activeFin?.startupCapital) ||
+      Number(activeFin?.cashInvested) ||
+      Number(selectedProject?.totalCapital) ||
+      Number(selectedProject?.proposalCapital) ||
+      0;
+    const safeStartupCapital = equipmentList.length > 0 && equipmentTotal > 0 ? equipmentTotal : declaredCapital;
+
+    const opexList = activeFin?.opexList || [];
+    const monthlyOpex = opexList.length > 0
+      ? opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+      : (Number(activeFin?.fixedCosts) || 0);
+
+    const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
+    const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
+    const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * safeOperatingDays;
+    const annualNetProfitPreTax = annualRevenue - annualExpenses;
+    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
+    const annualNetProfitAfterTax = annualNetProfitPreTax > 0 ? (annualNetProfitPreTax - percentageTax) : annualNetProfitPreTax;
+
+    let paybackPeriodFormatted = "N/A";
+    if (annualNetProfitAfterTax > 0 && safeStartupCapital > 0) {
+      const monthlyCashInflow = annualNetProfitAfterTax / 12;
+      const totalMonths = safeStartupCapital / monthlyCashInflow;
+      const years = Math.floor(totalMonths / 12);
+      const months = Math.floor(totalMonths % 12);
+      const days = Math.round((totalMonths % 1) * 30);
+
+      if (years > 0) {
+        paybackPeriodFormatted = `${years} Year${years > 1 ? "s" : ""}${months > 0 ? ` ${months} Mo${months > 1 ? "s" : ""}` : ""}`;
+      } else if (months > 0) {
+        paybackPeriodFormatted = `${months} Month${months > 1 ? "s" : ""}${days > 0 ? ` ${days}d` : ""}`;
+      } else {
+        paybackPeriodFormatted = `${days} Days`;
+      }
+    } else if (annualNetProfitAfterTax <= 0) {
+      paybackPeriodFormatted = "N/A (Net Deficit)";
+    }
+
+    return {
+      startupCapital: safeStartupCapital,
+      annualRevenue: Math.round(annualRevenue),
+      netAnnualProfit: Math.round(annualNetProfitAfterTax),
+      paybackPeriodFormatted,
+    };
+  }, [selectedProject]);
+
   const getInitials = (name: string) =>
     name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
@@ -435,21 +555,28 @@ const Reports: React.FC = () => {
 
               <h3 className="text-xl font-bold text-[#122244] border-b border-gray-200 pb-2 mb-6">Financial Overview</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-                <div>
+                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Initial Capital</p>
-                  <p className="text-xl font-bold text-gray-900">₱ {(selectedProject.financialData?.startupCapital || 0).toLocaleString()}</p>
+                  <p className="text-xl font-bold text-gray-900">₱ {financialOverview.startupCapital.toLocaleString()}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Total Project Capitalization</p>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Financial Health</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedProject.aiAnalysis.metrics?.financial || 0}%</p>
+                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Projected Annual Sales</p>
+                  <p className="text-xl font-bold text-gray-900">₱ {financialOverview.annualRevenue.toLocaleString()}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Gross Annual Turnover</p>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Risk Level</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedProject.aiAnalysis.metrics?.risk || 0}%</p>
+                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Net Annual Profit</p>
+                  <p className={`text-xl font-bold ${financialOverview.netAnnualProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                    {financialOverview.netAnnualProfit < 0 ? "-₱ " : "₱ "}
+                    {Math.abs(financialOverview.netAnnualProfit).toLocaleString()}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">After-Tax Net Income</p>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Market Viability</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedProject.aiAnalysis.metrics?.market || 0}%</p>
+                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Est. Payback Period</p>
+                  <p className="text-xl font-bold text-gray-900">{financialOverview.paybackPeriodFormatted}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Capital Recovery Time</p>
                 </div>
               </div>
 

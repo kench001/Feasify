@@ -134,6 +134,35 @@
 }
 
 /* ========================================================================= */
+/* PRINT STYLES FOR FINANCIAL FEASIBILITY STATEMENTS                         */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: portrait;
+    margin: 5mm 5mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-single-page {
+    height: 100% !important;
+    max-height: 100vh !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    overflow: hidden !important;
+  }
+}
+
+/* ========================================================================= */
 /* DARK MODE SYSTEM                                                          */
 /* ========================================================================= */
 html.dark {
@@ -211,8 +240,8 @@ html.dark .hover\:bg-gray-100:hover {
   background-color: #1f3056 !important;
 }
 
-html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+html.dark .divide-gray-100> :not([hidden])~ :not([hidden]),
+html.dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
   border-color: #233358 !important;
 }
 
@@ -235,5 +264,3 @@ html.dark main {
   background-size: 100% clamp(200px, 30vh, 380px) !important;
   background-attachment: fixed !important;
 }
-
-
