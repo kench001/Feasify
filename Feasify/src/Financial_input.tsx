@@ -5428,45 +5428,30 @@ const Financial_input: React.FC = () => {
                             Projected Year 5: ₱{fiveYearBalanceSheet[fiveYearBalanceSheet.length - 1]?.totalAssets.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
                           </span>
                         </div>
-                        {/* SUBTAB 1: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
-                        {balanceSheetSubTab === "position" && (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                              {/* ASSETS COLUMN */}
-                              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                                <div className="border-b pb-4 flex justify-between items-center">
-                                  <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
-                                  </h3>
-                                  <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
-                                    ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
+                        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+                          <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">
+                            Total Current Liabilities (Year 1)
+                          </span>
+                          <div className="text-xl font-black text-amber-700 mt-1">
+                            ₱{fiveYearBalanceSheet[1]?.totalCurrentLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
+                          </div>
+                          <span className="text-[10px] text-gray-500 mt-0.5 block">
+                            Obligations (Utilities, SSS, Taxes, VAT)
+                          </span>
+                        </div>
 
-                                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-                                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">
-                                    Total Current Liabilities (Year 1)
-                                  </span>
-                                  <div className="text-xl font-black text-amber-700 mt-1">
-                                    ₱{fiveYearBalanceSheet[1]?.totalCurrentLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
-                                  </div>
-                                  <span className="text-[10px] text-gray-500 mt-0.5 block">
-                                    Obligations (Utilities, SSS, Taxes, VAT)
-                                  </span>
-                                </div>
-
-                                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-                                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">
-                                    Partner's / Owner's Equity
-                                  </span>
-                                  <div className="text-xl font-black text-[#122244] mt-1">
-                                    ₱{fiveYearBalanceSheet[fiveYearBalanceSheet.length - 1]?.totalEquity.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
-                                  </div>
-                                  <span className="text-[10px] text-emerald-600 font-bold mt-0.5 block">
-                                    Cumulative 5-Year Capital Growth
-                                  </span>
-                                </div>
-                              </div>
+                        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+                          <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">
+                            Partner's / Owner's Equity
+                          </span>
+                          <div className="text-xl font-black text-[#122244] mt-1">
+                            ₱{fiveYearBalanceSheet[fiveYearBalanceSheet.length - 1]?.totalEquity.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
+                          </div>
+                          <span className="text-[10px] text-emerald-600 font-bold mt-0.5 block">
+                            Cumulative 5-Year Capital Growth
+                          </span>
+                        </div>
+                      </div>
 
                               {/* STANDALONE STATEMENT OF FINANCIAL POSITION TABLE (MATCHING IMAGE 1) */}
                               <StatementOfFinancialPositionTable
