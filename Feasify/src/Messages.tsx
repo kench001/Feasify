@@ -349,20 +349,21 @@ const Messages: React.FC = () => {
           } w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center px-2 border-b border-white/10 shrink-0 overflow-hidden">
-          {/* FeasifyEmblemLogo when sidebar is folded */}
+        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
+            <img
+              src="/Logo.png"
+              alt="FeasiFy"
+              className="w-full h-full object-contain scale-[1.35]"
+              style={{ transform: "scale(1.35)" }}
+            />
+          </div>
+          {/* dashboard logo when sidebar is hovered or on mobile */}
           <img
-            src="/FeasifyEmblemLogo.png"
+            src="/dashboard logo.png"
             alt="FeasiFy"
-            onClick={() => navigate("/dashboard")}
-            className="h-11 w-auto max-h-[46px] max-w-[48px] object-contain cursor-pointer transition-transform hover:scale-105 hidden lg:block lg:group-hover:hidden shrink-0"
-          />
-          {/* FeasifyFullLogo when sidebar is hovered or on mobile */}
-          <img
-            src="/FeasifyFullLogo.png"
-            alt="FeasiFy"
-            onClick={() => navigate("/dashboard")}
-            className="h-12 w-auto max-h-[48px] max-w-[210px] object-contain cursor-pointer transition-transform hover:scale-105 block lg:hidden lg:group-hover:block shrink-0"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
         </div>
 
@@ -370,9 +371,9 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/dashboard")}
             title="Dashboard"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            <LayoutDashboard className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Dashboard
             </span>
@@ -380,9 +381,9 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/projects")}
             title="Business Proposal"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <Folder className="w-5 h-5 shrink-0" />
+            <Folder className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Business Proposal
             </span>
@@ -390,9 +391,9 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/financial-input")}
             title="Financial Input"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <FileEdit className="w-5 h-5 shrink-0" />
+            <FileEdit className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Financial Input
             </span>
@@ -400,9 +401,9 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/ai-analysis")}
             title="AI Feasibility Analysis"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <Zap className="w-5 h-5 shrink-0" />
+            <Zap className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               AI Feasibility Analysis
             </span>
@@ -410,18 +411,18 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/reports")}
             title="Reports"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <BarChart3 className="w-5 h-5 shrink-0" />
+            <BarChart3 className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Reports
             </span>
           </button>
           <button
             title="Message"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-[#122244] transition-all shadow-md"
           >
-            <MessageCircle className="w-5 h-5 shrink-0" />
+            <MessageCircle className="w-5 h-5 shrink-0 text-[#122244]" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Message
             </span>
@@ -429,9 +430,9 @@ const Messages: React.FC = () => {
           <button
             onClick={() => navigate("/settings")}
             title="Settings"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <Settings className="w-5 h-5 shrink-0" />
+            <Settings className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Settings
             </span>
@@ -458,8 +459,12 @@ const Messages: React.FC = () => {
         className={`flex-1 flex flex-col transition-all duration-300 ease-in-out h-screen ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
       >
         <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 flex-shrink-0 z-20">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <span className="font-semibold text-gray-900">Messages</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Student Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 360" fill="none" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="feasifyDarkTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c9a654" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#e5b83b" stop-opacity="0.65" />
+      <stop offset="100%" stop-color="#b89340" stop-opacity="0.45" />
+    </linearGradient>
+    <linearGradient id="feasifyDarkGold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.75" />
+      <stop offset="50%" stop-color="#fef08a" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#c9a654" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="feasifyDarkMid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f1d39" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#15284f" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#0e1a33" stop-opacity="0.85" />
+    </linearGradient>
+    <linearGradient id="feasifyDarkBase" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#070d1a" />
+      <stop offset="50%" stop-color="#0b1427" />
+      <stop offset="100%" stop-color="#060c18" />
+    </linearGradient>
+  </defs>
+
+  <path
+    d="M0,225 C280,235 540,305 780,305 C1040,305 1260,225 1440,115 L1440,360 L0,360 Z"
+    fill="url(#feasifyDarkTop)"
+  />
+  <path
+    d="M0,225 C280,235 540,305 780,305 C1040,305 1260,225 1440,115"
+    stroke="url(#feasifyDarkGold)"
+    stroke-width="2"
+    fill="none"
+    opacity="0.6"
+  />
+  <path
+    d="M0,260 C260,268 520,320 790,320 C1060,320 1280,265 1440,195 L1440,360 L0,360 Z"
+    fill="url(#feasifyDarkMid)"
+  />
+  <path
+    d="M0,288 C250,295 520,335 800,335 C1080,335 1300,300 1440,250 L1440,360 L0,360 Z"
+    fill="url(#feasifyDarkBase)"
+  />
+</svg>

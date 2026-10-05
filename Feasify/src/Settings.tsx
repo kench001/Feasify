@@ -48,7 +48,20 @@ import {
   ShieldCheck,
   Tag,
   Sliders,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RotateCcw,
+  Filter,
+  Check,
+  Edit2,
+  Trash2,
+  Database,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
+import { logAuditEvent } from "./services/auditLogger";
 
 interface Teammate {
   id: string;
@@ -120,6 +133,12 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
 
   // Modals for Profile
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+  });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
   const [showForcePasswordSuccess, setShowForcePasswordSuccess] = useState(false);
@@ -136,20 +155,23 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
+  const [prefSaveNotice, setPrefSaveNotice] = useState("");
 
   // System Settings Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [language, setLanguage] = useState("English (US)");
 
-  // Audit Logs State (Student Scope)
+  // Audit Logs State (Student Scope) with Pagination & Filters
   const [logs, setLogs] = useState<AuditRecord[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [selectedActionFilter, setSelectedActionFilter] = useState("ALL");
+  const [selectedMemberFilter, setSelectedMemberFilter] = useState("ALL");
+  const [selectedDate, setSelectedDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [selectedLog, setSelectedLog] = useState<AuditRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 10;
 
   // Auth & Profile Fetch
   useEffect(() => {
@@ -172,6 +194,23 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
               section: data.section || "Not Assigned",
               roleInGroup: "",
             });
+
+            // Load user preferences
+            const savedTheme = localStorage.getItem("feasify_theme");
+            const prefDarkMode = savedTheme ? savedTheme === "dark" : (data.preferences?.darkMode ?? false);
+            setDarkModeEnabled(prefDarkMode);
+            if (prefDarkMode) {
+              document.documentElement.classList.add("dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+            }
+
+            const savedNotif = localStorage.getItem("feasify_email_notif");
+            const prefNotif = savedNotif !== null ? savedNotif === "true" : (data.preferences?.emailNotifications ?? true);
+            setNotificationsEnabled(prefNotif);
+
+            const savedLang = localStorage.getItem("feasify_lang") || data.preferences?.language || "English (US)";
+            setLanguage(savedLang);
 
             if (data.section) {
               fetchTeamDetails(u.uid, data.section);
@@ -320,12 +359,182 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
     return () => unsubLogs();
   }, [userUid, profileData.section]);
 
+  // Unique Members list from logs, team, and current user
+  const uniqueMembers = Array.from(
+    new Set([
+      ...logs.map((l) => l.userName).filter(Boolean),
+      ...teamCollaborators.map((t) => t.name).filter(Boolean),
+      userName,
+    ])
+  ).sort();
+
+  const availableRoles = [
+    "ALL",
+    "Leader",
+    "Member",
+    "Student",
+    "Adviser",
+    "Chairperson",
+  ];
+
+  const handleResetFilters = () => {
+    setSelectedActionFilter("ALL");
+    setSelectedMemberFilter("ALL");
+    setSelectedDate("");
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
+
+  // Preference Handlers
+  const handleToggleDarkMode = async (enable: boolean) => {
+    setDarkModeEnabled(enable);
+    if (enable) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("feasify_theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("feasify_theme", "light");
+    }
+    setPrefSaveNotice("Appearance preference saved.");
+    setTimeout(() => setPrefSaveNotice(""), 3000);
+
+    if (userUid) {
+      try {
+        await updateDoc(doc(db, "users", userUid), {
+          "preferences.darkMode": enable,
+          updatedAt: new Date(),
+        });
+      } catch (e) {
+        console.warn("Could not save theme preference to Firestore", e);
+      }
+    }
+  };
+
+  const handleToggleEmailNotifications = async (enable: boolean) => {
+    setNotificationsEnabled(enable);
+    localStorage.setItem("feasify_email_notif", String(enable));
+    setPrefSaveNotice(enable ? "Email notifications enabled." : "Email notifications muted.");
+    setTimeout(() => setPrefSaveNotice(""), 3000);
+
+    if (userUid) {
+      try {
+        await updateDoc(doc(db, "users", userUid), {
+          "preferences.emailNotifications": enable,
+          updatedAt: new Date(),
+        });
+      } catch (e) {
+        console.warn("Could not save notification preference to Firestore", e);
+      }
+    }
+  };
+
+  const handleChangeLanguage = async (newLang: string) => {
+    setLanguage(newLang);
+    localStorage.setItem("feasify_lang", newLang);
+    setPrefSaveNotice(`Language set to ${newLang}.`);
+    setTimeout(() => setPrefSaveNotice(""), 3000);
+
+    if (userUid) {
+      try {
+        await updateDoc(doc(db, "users", userUid), {
+          "preferences.language": newLang,
+          updatedAt: new Date(),
+        });
+      } catch (e) {
+        console.warn("Could not save language preference to Firestore", e);
+      }
+    }
+  };
+
+  const handleClearCache = () => {
+    try {
+      localStorage.removeItem("feasify_last_tab");
+      sessionStorage.clear();
+      setPrefSaveNotice("Local cache cleared successfully.");
+      setTimeout(() => setPrefSaveNotice(""), 3000);
+    } catch (e) {
+      console.warn("Clear cache notice:", e);
+    }
+  };
+
+  // Open Edit Profile Modal
+  const handleOpenEditProfile = () => {
+    setEditProfileForm({
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      username: profileData.username,
+    });
+    setModalError("");
+    setModalSuccess("");
+    setShowEditProfileModal(true);
+  };
+
+  // Save Edit Profile
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError("");
+    setModalSuccess("");
+    const trimmedFirst = editProfileForm.firstName.trim();
+    const trimmedLast = editProfileForm.lastName.trim();
+    const trimmedUsername = editProfileForm.username.trim().toLowerCase();
+
+    if (!trimmedFirst || !trimmedLast) {
+      setModalError("First name and last name cannot be empty.");
+      return;
+    }
+    if (!trimmedUsername) {
+      setModalError("User handle cannot be empty.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("No authenticated session");
+
+      await updateDoc(doc(db, "users", user.uid), {
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+        username: trimmedUsername,
+        updatedAt: new Date(),
+      });
+
+      const newFullName = `${trimmedFirst} ${trimmedLast}`;
+      setUserName(newFullName);
+      setProfileData((prev) => ({
+        ...prev,
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+        username: trimmedUsername,
+      }));
+
+      await logAuditEvent({
+        userId: user.uid,
+        userName: newFullName,
+        userRole: profileData.roleInGroup || "Student",
+        action: "UPDATE",
+        sectionCode: profileData.section || "N/A",
+        description: `Student updated profile details (${newFullName}, @${trimmedUsername})`,
+      });
+
+      setModalSuccess("Profile updated successfully!");
+      setTimeout(() => {
+        setShowEditProfileModal(false);
+        setModalSuccess("");
+      }, 1200);
+    } catch (err: any) {
+      setModalError(err.message || "Failed to update profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle Username Update
   const handleChangeUsername = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError("");
     setModalSuccess("");
-    const trimmed = newUsername.trim();
+    const trimmed = newUsername.trim().toLowerCase();
     if (!trimmed || trimmed === profileData.username) return;
     setIsLoading(true);
     try {
@@ -333,6 +542,16 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
       if (user) {
         await setDoc(doc(db, "users", user.uid), { username: trimmed }, { merge: true });
         setProfileData((prev) => ({ ...prev, username: trimmed }));
+        await logAuditEvent({
+          userId: user.uid,
+          userName: userName || "Student",
+          userRole: profileData.roleInGroup || "Student",
+          action: "UPDATE",
+          sectionCode: profileData.section || "N/A",
+          description: `Updated handle to @${trimmed}`,
+          oldValue: { username: profileData.username },
+          newValue: { username: trimmed },
+        });
         setModalSuccess("Username updated successfully!");
         setTimeout(() => setShowUsernameModal(false), 1500);
       }
@@ -368,9 +587,22 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, pwdData.new);
 
-      await updateDoc(doc(db, "users", user.uid), {
-        password: pwdData.new,
-        updatedAt: new Date(),
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          password: pwdData.new,
+          updatedAt: new Date(),
+        });
+      } catch (docErr) {
+        console.warn("Could not save password to user doc:", docErr);
+      }
+
+      await logAuditEvent({
+        userId: user.uid,
+        userName: userName || "Student",
+        userRole: profileData.roleInGroup || "Student",
+        action: "UPDATE",
+        sectionCode: profileData.section || "N/A",
+        description: "Student changed account login password",
       });
 
       setModalSuccess("Password updated successfully!");
@@ -379,6 +611,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
     } catch (err: any) {
       if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
         setModalError("Incorrect current password.");
+      } else if (err.code === "auth/requires-recent-login") {
+        setModalError("Please re-login and try changing password again.");
       } else {
         setModalError(err.message || "Failed to update password.");
       }
@@ -437,25 +671,34 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
     if (selectedActionFilter !== "ALL" && log.action !== selectedActionFilter) {
       return false;
     }
+    if (selectedMemberFilter !== "ALL") {
+      const logUser = (log.userName || "Student").toLowerCase();
+      if (logUser !== selectedMemberFilter.toLowerCase()) return false;
+    }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       const matchDesc = log.description?.toLowerCase().includes(q);
       const matchUser = log.userName?.toLowerCase().includes(q);
+      const matchRole = log.userRole?.toLowerCase().includes(q);
       const matchSection = log.sectionCode?.toLowerCase().includes(q);
       const matchAction = log.action?.toLowerCase().includes(q);
-      if (!matchDesc && !matchUser && !matchSection && !matchAction) return false;
+      if (!matchDesc && !matchUser && !matchRole && !matchSection && !matchAction) return false;
     }
-    if (startDate) {
-      const start = new Date(startDate);
-      if (new Date(log.createdAt) < start) return false;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (new Date(log.createdAt) > end) return false;
+    if (selectedDate) {
+      const d = new Date(log.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const logDateString = `${year}-${month}-${day}`;
+      if (logDateString !== selectedDate) return false;
     }
     return true;
   });
+
+  // 10 Rows per page pagination
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ROWS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ROWS_PER_PAGE);
 
   const getActionBadgeColor = (action: string) => {
     switch (action) {
@@ -492,7 +735,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden font-sans">
+    <div className="flex min-h-screen bg-gray-50/50 font-sans">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -507,20 +750,21 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           } w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center px-2 border-b border-white/10 shrink-0 overflow-hidden">
-          {/* FeasifyEmblemLogo when sidebar is folded */}
+        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
+            <img
+              src="/Logo.png"
+              alt="FeasiFy"
+              className="w-full h-full object-contain scale-[1.35]"
+              style={{ transform: "scale(1.35)" }}
+            />
+          </div>
+          {/* dashboard logo when sidebar is hovered or on mobile */}
           <img
-            src="/FeasifyEmblemLogo.png"
+            src="/dashboard logo.png"
             alt="FeasiFy"
-            onClick={() => navigate("/dashboard")}
-            className="h-11 w-auto max-h-[46px] max-w-[48px] object-contain cursor-pointer transition-transform hover:scale-105 hidden lg:block lg:group-hover:hidden shrink-0"
-          />
-          {/* FeasifyFullLogo when sidebar is hovered or on mobile */}
-          <img
-            src="/FeasifyFullLogo.png"
-            alt="FeasiFy"
-            onClick={() => navigate("/dashboard")}
-            className="h-12 w-auto max-h-[48px] max-w-[210px] object-contain cursor-pointer transition-transform hover:scale-105 block lg:hidden lg:group-hover:block shrink-0"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
         </div>
 
@@ -528,9 +772,9 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/dashboard")}
             title="Dashboard"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            <LayoutDashboard className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Dashboard
             </span>
@@ -538,9 +782,9 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/projects")}
             title="Business Proposal"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <Folder className="w-5 h-5 shrink-0" />
+            <Folder className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Business Proposal
             </span>
@@ -548,9 +792,9 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/financial-input")}
             title="Financial Input"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <FileEdit className="w-5 h-5 shrink-0" />
+            <FileEdit className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Financial Input
             </span>
@@ -558,9 +802,9 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/ai-analysis")}
             title="AI Feasibility Analysis"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <Zap className="w-5 h-5 shrink-0" />
+            <Zap className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               AI Feasibility Analysis
             </span>
@@ -568,9 +812,9 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/reports")}
             title="Reports"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <BarChart3 className="w-5 h-5 shrink-0" />
+            <BarChart3 className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Reports
             </span>
@@ -578,18 +822,18 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <button
             onClick={() => navigate("/messages")}
             title="Message"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
-            <MessageCircle className="w-5 h-5 shrink-0" />
+            <MessageCircle className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Message
             </span>
           </button>
           <button
             title="Settings"
-            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-[#122244] transition-all shadow-md"
           >
-            <SettingsIcon className="w-5 h-5 shrink-0" />
+            <SettingsIcon className="w-5 h-5 shrink-0 text-[#122244]" />
             <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
               Settings
             </span>
@@ -616,9 +860,13 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
         className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${isSidebarOpen ? "lg:ml-16" : "ml-0"
           }`}
       >
-        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2.5">
             <span className="font-semibold text-gray-900">Settings</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Student Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -705,9 +953,15 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     {getInitials(userName)}
                   </div>
                   <h3 className="text-xl font-bold text-[#122244]">{userName}</h3>
-                  <p className="text-gray-500 font-semibold text-sm mb-4">
+                  <p className="text-gray-500 font-semibold text-sm mb-2">
                     @{profileData.username}
                   </p>
+                  <button
+                    onClick={handleOpenEditProfile}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-[#c9a654]/15 text-[#122244] hover:text-[#b59545] rounded-xl text-xs font-bold transition-all mb-3 cursor-pointer shadow-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-[#c9a654]" /> Edit Profile Details
+                  </button>
                   <div className="w-full space-y-2 pt-4 mt-4 border-t border-gray-200">
                     <div className="flex justify-between items-center text-xs font-bold text-gray-500">
                       <span>SECTION</span>
@@ -831,6 +1085,13 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           {/* TAB 2: SYSTEM SETTINGS */}
           {activeTab === "system" && (
             <div className="space-y-6 animate-in fade-in duration-200">
+              {prefSaveNotice && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in slide-in-from-top-2 duration-150">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{prefSaveNotice}</span>
+                </div>
+              )}
+
               {/* Preferences */}
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50">
@@ -848,13 +1109,16 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                       </div>
                     </div>
                     <button
-                      onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
-                        }`}
+                      onClick={() => handleToggleEmailNotifications(!notificationsEnabled)}
+                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                        notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
+                      }`}
+                      title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${notificationsEnabled ? "left-7" : "left-1"
-                          }`}
+                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
+                          notificationsEnabled ? "left-7" : "left-1"
+                        }`}
                       ></div>
                     </button>
                   </div>
@@ -863,18 +1127,21 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     <div className="flex items-center gap-3">
                       <Moon className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="text-sm font-bold text-gray-900">Dark Mode (Beta)</p>
+                        <p className="text-sm font-bold text-gray-900">Dark Mode</p>
                         <p className="text-xs text-gray-500">Toggle dark appearance for the application.</p>
                       </div>
                     </div>
                     <button
-                      onClick={() => setDarkModeEnabled(!darkModeEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${darkModeEnabled ? "bg-[#122244]" : "bg-gray-300"
-                        }`}
+                      onClick={() => handleToggleDarkMode(!darkModeEnabled)}
+                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                        darkModeEnabled ? "bg-[#122244]" : "bg-gray-300"
+                      }`}
+                      title={darkModeEnabled ? "Disable dark mode" : "Enable dark mode"}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${darkModeEnabled ? "left-7" : "left-1"
-                          }`}
+                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
+                          darkModeEnabled ? "left-7" : "left-1"
+                        }`}
                       ></div>
                     </button>
                   </div>
@@ -887,25 +1154,32 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                         <p className="text-xs text-gray-500">Currently active language for FeasiFy.</p>
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
-                      {language}
-                    </span>
+                    <select
+                      value={language}
+                      onChange={(e) => handleChangeLanguage(e.target.value)}
+                      className="text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
+                    >
+                      <option value="English (US)">English (US)</option>
+                      <option value="Filipino (Tagalog)">Filipino (Tagalog)</option>
+                      <option value="Cebuano (Bisaya)">Cebuano (Bisaya)</option>
+                      <option value="Spanish">Spanish</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
-              {/* Security Card */}
+              {/* Security & Authentication Card */}
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50">
                   <h3 className="font-bold text-[#122244]">Security & Authentication</h3>
                 </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
+                <div className="divide-y divide-gray-100">
+                  <div className="p-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Lock className="w-5 h-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-bold text-gray-900">Account Password</p>
-                        <p className="text-xs text-gray-500">Update your current account credentials.</p>
+                        <p className="text-xs text-gray-500">Update your account credentials safely.</p>
                       </div>
                     </div>
                     <button
@@ -914,9 +1188,25 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                         setModalSuccess("");
                         setShowPasswordModal(true);
                       }}
-                      className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors shadow-xs"
+                      className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors shadow-xs cursor-pointer"
                     >
                       Change Password
+                    </button>
+                  </div>
+
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Database className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Cache & Storage</p>
+                        <p className="text-xs text-gray-500">Clear local workspace cache and temporary browser session states.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleClearCache}
+                      className="px-4 py-2 border border-gray-200 text-gray-700 hover:text-red-600 hover:border-red-200 font-bold text-xs rounded-xl hover:bg-red-50/50 transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" /> Clear Local Cache
                     </button>
                   </div>
                 </div>
@@ -929,16 +1219,35 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* FILTERS TOOLBAR */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#c9a654]" />
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Filter Activity Records
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-[#122244] hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Reset Filters
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* ACTION FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Action Type
                     </label>
                     <select
                       value={selectedActionFilter}
-                      onChange={(e) => setSelectedActionFilter(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                      onChange={(e) => {
+                        setSelectedActionFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     >
                       <option value="ALL">All Actions</option>
                       <option value="CREATE">CREATE</option>
@@ -952,29 +1261,41 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     </select>
                   </div>
 
-                  {/* START DATE */}
+                  {/* MEMBER FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      From Date
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Member / Actor
                     </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                    />
+                    <select
+                      value={selectedMemberFilter}
+                      onChange={(e) => {
+                        setSelectedMemberFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
+                    >
+                      <option value="ALL">All Members</option>
+                      {uniqueMembers.map((member) => (
+                        <option key={member} value={member}>
+                          {member}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* END DATE */}
+                  {/* SINGLE DATE FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      To Date
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Date
                     </label>
                     <input
                       type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                      value={selectedDate}
+                      onChange={(e) => {
+                        setSelectedDate(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -984,9 +1305,12 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search logs by description, user name, action..."
+                    placeholder="Search logs by description, member name, role, section, action..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
                   />
                 </div>
@@ -1002,32 +1326,40 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                         <th className="px-5 py-3.5">Action</th>
                         <th className="px-5 py-3.5">Section</th>
                         <th className="px-5 py-3.5">Description</th>
-                        <th className="px-5 py-3.5">Actor</th>
+                        <th className="px-5 py-3.5">Member / Actor</th>
+                        <th className="px-5 py-3.5">Role</th>
                         <th className="px-5 py-3.5 text-right">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 font-medium">
                       {isLoadingLogs ? (
-                        Array.from({ length: 4 }).map((_, i) => (
+                        Array.from({ length: 5 }).map((_, i) => (
                           <tr key={i}>
                             <td className="px-5 py-3.5"><Skeleton width={120} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={60} height={18} borderRadius={6} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={50} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={200} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={100} /></td>
+                            <td className="px-5 py-3.5"><Skeleton width={70} /></td>
                             <td className="px-5 py-3.5 text-right"><Skeleton width={40} /></td>
                           </tr>
                         ))
                       ) : filteredLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
+                          <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
                             <Clock className="w-7 h-7 text-gray-300 mx-auto mb-2" />
                             <p className="font-semibold text-gray-600">No activity logs found</p>
-                            <p className="text-[11px] text-gray-400 mt-1">Actions performed on your proposals will be logged here.</p>
+                            <p className="text-[11px] text-gray-400 mt-1">Try resetting search or filter criteria.</p>
+                            <button
+                              onClick={handleResetFilters}
+                              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#122244] text-white rounded-lg text-xs font-bold hover:bg-[#1c3260] transition-colors"
+                            >
+                              <RotateCcw className="w-3 h-3" /> Clear Filters
+                            </button>
                           </td>
                         </tr>
                       ) : (
-                        filteredLogs.map((log) => (
+                        paginatedLogs.map((log) => (
                           <tr key={log.id} className="hover:bg-amber-50/30 transition-colors">
                             <td className="px-5 py-3.5 text-gray-600 whitespace-nowrap">
                               {formatDate(log.createdAt)}
@@ -1046,19 +1378,21 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                                 {log.sectionCode || "N/A"}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 text-gray-900 font-semibold max-w-sm truncate">
+                            <td className="px-5 py-3.5 text-gray-900 font-semibold max-w-xs truncate">
                               {log.description}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                              <div className="font-semibold">{log.userName || "You"}</div>
-                              {log.userRole && (
-                                <span className="text-[10px] text-gray-400 block">{log.userRole}</span>
-                              )}
+                              <div className="font-semibold">{log.userName || "Student"}</div>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200/70 px-2 py-0.5 rounded text-[10px] font-bold">
+                                {log.userRole || "Student"}
+                              </span>
                             </td>
                             <td className="px-5 py-3.5 text-right whitespace-nowrap">
                               <button
                                 onClick={() => setSelectedLog(log)}
-                                className="p-1.5 text-gray-500 hover:text-[#c9a654] hover:bg-amber-50 rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-[11px]"
+                                className="p-1.5 text-gray-500 hover:text-[#c9a654] hover:bg-amber-50 rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-[11px] cursor-pointer"
                                 title="View details"
                               >
                                 <Eye className="w-3.5 h-3.5" /> View
@@ -1071,15 +1405,182 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                   </table>
                 </div>
 
-                <div className="px-5 py-3 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-500 flex items-center justify-between">
-                  <span>Showing {filteredLogs.length} activity records</span>
-                  <span className="text-[11px] text-gray-400">Student Portal Activity Log</span>
+                {/* 10 ROWS PER PAGE PAGINATION BAR */}
+                <div className="px-5 py-3.5 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+                  <div className="flex items-center gap-2 font-medium">
+                    <span>
+                      Showing{" "}
+                      <strong className="text-gray-900">
+                        {filteredLogs.length === 0 ? 0 : startIndex + 1}
+                      </strong>{" "}
+                      to{" "}
+                      <strong className="text-gray-900">
+                        {Math.min(startIndex + ROWS_PER_PAGE, filteredLogs.length)}
+                      </strong>{" "}
+                      of <strong className="text-gray-900">{filteredLogs.length}</strong> logs (10 rows/page)
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-[11px] text-gray-500">Page {currentPage} of {totalPages}</span>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      title="First Page"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Prev
+                    </button>
+
+                    {/* Numeric Page Buttons */}
+                    <div className="flex items-center gap-1 mx-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(
+                          (p) =>
+                            p === 1 ||
+                            p === totalPages ||
+                            Math.abs(p - currentPage) <= 1
+                        )
+                        .map((p, idx, arr) => {
+                          const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                          return (
+                            <React.Fragment key={p}>
+                              {showEllipsis && (
+                                <span className="px-1 text-gray-400">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(p)}
+                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  currentPage === p
+                                    ? "bg-[#122244] text-white shadow-xs"
+                                    : "border border-gray-200 text-gray-700 hover:bg-gray-100"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages || filteredLogs.length === 0}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Next Page"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages || filteredLogs.length === 0}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      title="Last Page"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </main>
+
+      {/* MODAL: EDIT PROFILE DETAILS */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#122244] flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-[#c9a654]" /> Edit Profile Details
+              </h3>
+              <button
+                onClick={() => setShowEditProfileModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              {modalError && (
+                <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-semibold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {modalError}
+                </div>
+              )}
+              {modalSuccess && (
+                <div className="bg-green-50 text-green-600 text-xs p-3 rounded-lg flex items-center gap-2 font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  {modalSuccess}
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={editProfileForm.firstName}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, firstName: e.target.value })}
+                  required
+                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={editProfileForm.lastName}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, lastName: e.target.value })}
+                  required
+                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  User Handle
+                </label>
+                <input
+                  type="text"
+                  value={editProfileForm.username}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, username: e.target.value })}
+                  required
+                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2 rounded-xl bg-[#c9a654] hover:bg-[#b59545] text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Profile"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: UPDATE USERNAME */}
       {showUsernameModal && (

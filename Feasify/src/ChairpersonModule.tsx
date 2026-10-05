@@ -620,7 +620,7 @@ const ChairpersonModule: React.FC = () => {
     });
 
   return (
-    <div className="flex min-h-screen bg-gray-50/30 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50/30">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -632,15 +632,23 @@ const ChairpersonModule: React.FC = () => {
       <aside
         className={`flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
-        <nav className="flex-1 p-4 pt-6 space-y-8">
+        {/* Logo Section */}
+        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none shrink-0"
+          />
+        </div>
+        <nav className="flex-1 p-4 pt-4 space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">
-                <Users className="w-5 h-5" /> User Accounts Management
+              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold bg-[#c9a654] text-[#122244] transition-all shadow-md">
+                <Users className="w-5 h-5 text-[#122244]" /> User Accounts Management
               </button>
-              <button onClick={() => navigate('/admin/projects')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <FileText className="w-5 h-5" /> Business Feasibility Management
+              <button onClick={() => navigate('/admin/projects')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group">
+                <FileText className="w-5 h-5 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> Business Feasibility Management
               </button>
             </div>
           </div>
@@ -648,11 +656,11 @@ const ChairpersonModule: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Settings className="w-5 h-5" /> Settings
+              <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group">
+                <Settings className="w-5 h-5 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> Settings
               </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <ShieldAlert className="w-5 h-5" /> Logout
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-white/10 transition-all">
+                <ShieldAlert className="w-5 h-5 text-red-400" /> Logout
               </button>
             </div>
           </div>
@@ -663,11 +671,15 @@ const ChairpersonModule: React.FC = () => {
 
       {/* MAIN CONTENT */}
       <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-72' : 'ml-0'}`}>
-        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span className="mx-2">|</span>
-            <span className="font-semibold text-gray-900">FeasiFy</span>
+            <span className="font-semibold text-gray-900">User Accounts Management</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Chairperson Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">

@@ -1475,11 +1475,19 @@ const AdviserDashboard: React.FC = () => {
   const unassignedCount = students.filter(s => !assignedIds.has(s.id)).length;
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50/50">
       {/* ADVISER SIDEBAR */}
       <aside className={`hidden lg:flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-20 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Logo Section */}
+        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none shrink-0"
+          />
+        </div>
         {/* SIDEBAR NAVIGATION */}
-        <nav className="flex-1 p-4 pt-6 overflow-y-auto custom-scrollbar space-y-8">
+        <nav className="flex-1 p-4 pt-4 overflow-y-auto custom-scrollbar space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
@@ -1525,9 +1533,9 @@ const AdviserDashboard: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
             <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Settings className="w-4 h-4" /> Settings</button>
-              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><Cpu className="w-4 h-4" /> AI Rules</button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4" /> Logout</button>
+              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group"><Settings className="w-4 h-4 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> Settings</button>
+              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group"><Cpu className="w-4 h-4 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> AI Rules</button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-white/10 transition-all"><ShieldAlert className="w-4 h-4 text-red-400" /> Logout</button>
             </div>
           </div>
         </nav>
@@ -1540,7 +1548,7 @@ const AdviserDashboard: React.FC = () => {
         onScroll={handleMainScroll}
         className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto overflow-x-hidden ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}
       >
-        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-10">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span className="mx-2">|</span>
@@ -1552,6 +1560,10 @@ const AdviserDashboard: React.FC = () => {
                 <span className="font-semibold text-[#c9a654]">Group {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
               </>
             )}
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Faculty Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">

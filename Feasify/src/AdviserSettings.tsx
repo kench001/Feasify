@@ -44,6 +44,13 @@ import {
   Sliders,
   Cpu,
   Layers,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RotateCcw,
+  Filter,
+  Calendar,
 } from "lucide-react";
 
 export interface AuditRecord {
@@ -136,15 +143,35 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
+  // Initialize theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("feasify_theme");
+    const isDark = savedTheme === "dark" || document.documentElement.classList.contains("dark");
+    setDarkModeEnabled(isDark);
+  }, []);
+
+  const handleToggleDarkMode = (enable: boolean) => {
+    setDarkModeEnabled(enable);
+    if (enable) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("feasify_theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("feasify_theme", "light");
+    }
+  };
+
   // Audit Logs State (Adviser Scoped)
   const [logs, setLogs] = useState<AuditRecord[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [selectedSectionFilter, setSelectedSectionFilter] = useState("ALL");
   const [selectedActionFilter, setSelectedActionFilter] = useState("ALL");
+  const [selectedUserFilter, setSelectedUserFilter] = useState("ALL");
+  const [selectedDate, setSelectedDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [selectedLog, setSelectedLog] = useState<AuditRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 10;
 
   // Auth & Adviser Details Fetching
   useEffect(() => {
@@ -431,30 +458,61 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
           .slice(0, 2)
       : "AD";
 
+  // Dynamic Options for Filters
+  const uniqueUsers = Array.from(new Set(logs.map((l) => l.userName).filter(Boolean))).sort();
+  const availableRoles = [
+    "ALL",
+    "Leader",
+    "Member",
+    "Student",
+    "Adviser",
+    "Chairperson",
+  ];
+
+  const handleResetFilters = () => {
+    setSelectedSectionFilter("ALL");
+    setSelectedActionFilter("ALL");
+    setSelectedUserFilter("ALL");
+    setSelectedDate("");
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
+
   // Filtered Logs
   const filteredLogs = logs.filter((log) => {
+    if (selectedSectionFilter !== "ALL" && log.sectionCode !== selectedSectionFilter) {
+      return false;
+    }
     if (selectedActionFilter !== "ALL" && log.action !== selectedActionFilter) {
+      return false;
+    }
+    if (selectedUserFilter !== "ALL" && log.userName !== selectedUserFilter) {
       return false;
     }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       const matchDesc = log.description?.toLowerCase().includes(q);
       const matchUser = log.userName?.toLowerCase().includes(q);
+      const matchRole = log.userRole?.toLowerCase().includes(q);
       const matchSection = log.sectionCode?.toLowerCase().includes(q);
       const matchAction = log.action?.toLowerCase().includes(q);
-      if (!matchDesc && !matchUser && !matchSection && !matchAction) return false;
+      if (!matchDesc && !matchUser && !matchRole && !matchSection && !matchAction) return false;
     }
-    if (startDate) {
-      const start = new Date(startDate);
-      if (new Date(log.createdAt) < start) return false;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (new Date(log.createdAt) > end) return false;
+    if (selectedDate) {
+      const d = new Date(log.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const logDateString = `${year}-${month}-${day}`;
+      if (logDateString !== selectedDate) return false;
     }
     return true;
   });
+
+  // 10 Rows per page pagination
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ROWS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ROWS_PER_PAGE);
 
   const getActionBadgeColor = (action: string) => {
     switch (action) {
@@ -491,7 +549,7 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 overflow-hidden font-sans">
+    <div className="flex min-h-screen bg-gray-50/50 font-sans">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -506,7 +564,15 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <nav className="flex-1 p-4 pt-6 overflow-y-auto space-y-6">
+        {/* Logo Section */}
+        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none shrink-0"
+          />
+        </div>
+        <nav className="flex-1 p-4 pt-4 overflow-y-auto space-y-6">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">
               Main Menu
@@ -514,9 +580,9 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
             <div className="space-y-1">
               <button
                 onClick={() => navigate("/adviser/dashboard")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group"
               >
-                <Users className="w-4 h-4" /> Groups & Proposals
+                <Users className="w-4 h-4 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> Groups & Proposals
               </button>
             </div>
           </div>
@@ -526,20 +592,20 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
               Account
             </p>
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                <SettingsIcon className="w-4 h-4" /> Settings
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-[#122244] transition-all shadow-md">
+                <SettingsIcon className="w-4 h-4 text-[#122244]" /> Settings
               </button>
               <button
                 onClick={() => navigate("/adviser/airules")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-all group"
               >
-                <Cpu className="w-4 h-4" /> AI Rules
+                <Cpu className="w-4 h-4 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" /> AI Rules
               </button>
               <button
                 onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-white/10 transition-all"
               >
-                <ShieldAlert className="w-4 h-4" /> Logout
+                <ShieldAlert className="w-4 h-4 text-red-400" /> Logout
               </button>
             </div>
           </div>
@@ -554,7 +620,7 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
           isSidebarOpen ? "lg:ml-64" : "ml-0"
         }`}
       >
-        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-10">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarIcon
               className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
@@ -569,6 +635,10 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
             </span>
             <span>›</span>
             <span className="font-semibold text-gray-900">Settings</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Faculty Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -870,10 +940,11 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                       </div>
                     </div>
                     <button
-                      onClick={() => setDarkModeEnabled(!darkModeEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${
+                      onClick={() => handleToggleDarkMode(!darkModeEnabled)}
+                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
                         darkModeEnabled ? "bg-[#122244]" : "bg-gray-300"
                       }`}
+                      title={darkModeEnabled ? "Disable dark mode" : "Enable dark mode"}
                     >
                       <div
                         className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
@@ -957,18 +1028,37 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
 
               {/* FILTERS TOOLBAR */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#c9a654]" />
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Faculty Audit Trail & Activity Logs
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-[#122244] hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Reset Filters
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* SECTION FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      Section Filter
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Section
                     </label>
                     <select
                       value={selectedSectionFilter}
-                      onChange={(e) => setSelectedSectionFilter(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                      onChange={(e) => {
+                        setSelectedSectionFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     >
-                      <option value="ALL">All Assigned Sections</option>
+                      <option value="ALL">All Sections</option>
                       {adviserSections.map((sec) => (
                         <option key={sec} value={sec}>
                           {sec}
@@ -977,15 +1067,40 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                     </select>
                   </div>
 
+                  {/* USER / MEMBER FILTER */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Member / User
+                    </label>
+                    <select
+                      value={selectedUserFilter}
+                      onChange={(e) => {
+                        setSelectedUserFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
+                    >
+                      <option value="ALL">All Members</option>
+                      {uniqueUsers.map((uName) => (
+                        <option key={uName} value={uName}>
+                          {uName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* ACTION FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      Action Type
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Action
                     </label>
                     <select
                       value={selectedActionFilter}
-                      onChange={(e) => setSelectedActionFilter(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                      onChange={(e) => {
+                        setSelectedActionFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     >
                       <option value="ALL">All Actions</option>
                       <option value="CREATE">CREATE</option>
@@ -995,32 +1110,23 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                       <option value="REJECT">REJECT</option>
                       <option value="REVISION">REVISION</option>
                       <option value="SUBMIT">SUBMIT</option>
+                      <option value="LOGIN">LOGIN</option>
                     </select>
                   </div>
 
-                  {/* START DATE */}
+                  {/* SINGLE DATE FILTER */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      From Date
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Date
                     </label>
                     <input
                       type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                    />
-                  </div>
-
-                  {/* END DATE */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      To Date
-                    </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
+                      value={selectedDate}
+                      onChange={(e) => {
+                        setSelectedDate(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -1030,9 +1136,12 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search logs by description, user name, or section..."
+                    placeholder="Search logs across your sections by description, member name, role, action..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
                   />
                 </div>
@@ -1048,7 +1157,8 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                         <th className="px-5 py-3.5">Action</th>
                         <th className="px-5 py-3.5">Section</th>
                         <th className="px-5 py-3.5">Description</th>
-                        <th className="px-5 py-3.5">User</th>
+                        <th className="px-5 py-3.5">Member / User</th>
+                        <th className="px-5 py-3.5">Role</th>
                         <th className="px-5 py-3.5 text-right">Details</th>
                       </tr>
                     </thead>
@@ -1061,21 +1171,22 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                             <td className="px-5 py-3.5"><Skeleton width={50} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={200} /></td>
                             <td className="px-5 py-3.5"><Skeleton width={100} /></td>
+                            <td className="px-5 py-3.5"><Skeleton width={60} /></td>
                             <td className="px-5 py-3.5 text-right"><Skeleton width={40} /></td>
                           </tr>
                         ))
                       ) : filteredLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
+                          <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
                             <Clock className="w-7 h-7 text-gray-300 mx-auto mb-2" />
                             <p className="font-semibold text-gray-600">No activity records found</p>
                             <p className="text-[11px] text-gray-400 mt-1">
-                              No log events match your selected section filters.
+                              No log events match your selected filters.
                             </p>
                           </td>
                         </tr>
                       ) : (
-                        filteredLogs.map((log) => (
+                        paginatedLogs.map((log) => (
                           <tr key={log.id} className="hover:bg-amber-50/30 transition-colors">
                             <td className="px-5 py-3.5 text-gray-600 whitespace-nowrap">
                               {formatDate(log.createdAt)}
@@ -1099,14 +1210,16 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
                               <div className="font-semibold">{log.userName || "System"}</div>
-                              {log.userRole && (
-                                <span className="text-[10px] text-gray-400 block">{log.userRole}</span>
-                              )}
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                                {log.userRole || "Student"}
+                              </span>
                             </td>
                             <td className="px-5 py-3.5 text-right whitespace-nowrap">
                               <button
                                 onClick={() => setSelectedLog(log)}
-                                className="p-1.5 text-gray-500 hover:text-[#c9a654] hover:bg-amber-50 rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-[11px]"
+                                className="p-1.5 text-gray-500 hover:text-[#c9a654] hover:bg-amber-50 rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-[11px] cursor-pointer"
                                 title="View details"
                               >
                                 <Eye className="w-3.5 h-3.5" /> View
@@ -1119,11 +1232,91 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                   </table>
                 </div>
 
-                <div className="px-5 py-3 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-500 flex items-center justify-between">
-                  <span>Showing {filteredLogs.length} activity records</span>
-                  <span className="text-[11px] text-gray-400 font-mono">
-                    Scope: {adviserSections.join(", ") || "None"}
-                  </span>
+                {/* 10 ROWS PER PAGE PAGINATION BAR */}
+                <div className="px-5 py-3.5 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+                  <div className="flex items-center gap-2 font-medium">
+                    <span>
+                      Showing{" "}
+                      <strong className="text-gray-900">
+                        {filteredLogs.length === 0 ? 0 : startIndex + 1}
+                      </strong>{" "}
+                      to{" "}
+                      <strong className="text-gray-900">
+                        {Math.min(startIndex + ROWS_PER_PAGE, filteredLogs.length)}
+                      </strong>{" "}
+                      of <strong className="text-gray-900">{filteredLogs.length}</strong> logs (10 rows/page)
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-[11px] text-gray-500">Page {currentPage} of {totalPages}</span>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      title="First Page"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Prev
+                    </button>
+
+                    {/* Numeric Page Buttons */}
+                    <div className="flex items-center gap-1 mx-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(
+                          (p) =>
+                            p === 1 ||
+                            p === totalPages ||
+                            Math.abs(p - currentPage) <= 1
+                        )
+                        .map((p, idx, arr) => {
+                          const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                          return (
+                            <React.Fragment key={p}>
+                              {showEllipsis && (
+                                <span className="px-1 text-gray-400">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(p)}
+                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  currentPage === p
+                                    ? "bg-[#122244] text-white shadow-xs"
+                                    : "border border-gray-200 text-gray-700 hover:bg-gray-100"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages || filteredLogs.length === 0}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Next Page"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages || filteredLogs.length === 0}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      title="Last Page"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

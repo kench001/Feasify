@@ -133,3 +133,107 @@
   background-color: #ffffff !important;
 }
 
+/* ========================================================================= */
+/* DARK MODE SYSTEM                                                          */
+/* ========================================================================= */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b1120;
+  color: #f1f5f9;
+}
+
+html.dark main,
+html.dark .bg-gray-50\/50,
+html.dark .bg-gray-50 {
+  background-color: #0d1527 !important;
+}
+
+html.dark .bg-white {
+  background-color: #151f38 !important;
+  color: #f8fafc;
+}
+
+html.dark .border-gray-200,
+html.dark .border-gray-200\/80,
+html.dark .border-gray-100 {
+  border-color: #233358 !important;
+}
+
+html.dark .text-gray-900 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-gray-500 {
+  color: #8393ad !important;
+}
+
+html.dark .text-gray-400 {
+  color: #64748b !important;
+}
+
+html.dark .text-\[\#122244\] {
+  color: #f1f5f9 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #0d1527 !important;
+  color: #f8fafc !important;
+  border-color: #233358 !important;
+}
+
+html.dark .bg-gray-100 {
+  background-color: #1e2c4f !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .hover\:bg-gray-50:hover {
+  background-color: #1a2745 !important;
+}
+
+html.dark .hover\:bg-gray-100:hover {
+  background-color: #1f3056 !important;
+}
+
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #233358 !important;
+}
+
+/* ========================================================================= */
+/* MODULE WAVE BACKGROUND (FEASIFY PALETTE)                                  */
+/* ========================================================================= */
+main {
+  position: relative;
+  background-image: url("/module-wave.svg");
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  background-size: 100% clamp(200px, 30vh, 380px);
+  background-attachment: fixed;
+}
+
+html.dark main {
+  background-image: url("/module-wave-dark.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: bottom right !important;
+  background-size: 100% clamp(200px, 30vh, 380px) !important;
+  background-attachment: fixed !important;
+}
+
+

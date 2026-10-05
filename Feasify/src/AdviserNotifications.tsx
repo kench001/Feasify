@@ -21,7 +21,8 @@ import {
   Sparkles,
   ExternalLink,
   Search,
-  X
+  X,
+  ArrowLeft,
 } from "lucide-react";
 import {
   markNotificationAsRead,
@@ -271,7 +272,15 @@ const AdviserNotifications: React.FC = () => {
 
       {/* SIDEBAR */}
       <aside className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <nav className="flex-1 p-4 pt-6 overflow-y-auto custom-scrollbar space-y-8">
+        {/* Logo Section */}
+        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none shrink-0"
+          />
+        </div>
+        <nav className="flex-1 p-4 pt-4 overflow-y-auto custom-scrollbar space-y-8">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
@@ -316,6 +325,10 @@ const AdviserNotifications: React.FC = () => {
             <span className="cursor-pointer hover:text-[#c9a654] font-semibold text-gray-900" onClick={() => navigate('/adviser/dashboard')}>FeasiFy</span>
             <span>›</span>
             <span className="font-semibold text-gray-900">Adviser Notifications</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+              Faculty Portal
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -356,6 +369,16 @@ const AdviserNotifications: React.FC = () => {
         </div>
 
         <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+          {/* Top Left Back Button */}
+          <div>
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 hover:text-[#122244] shadow-xs transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back
+            </button>
+          </div>
+
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
