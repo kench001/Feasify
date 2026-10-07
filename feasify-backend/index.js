@@ -239,9 +239,7 @@ const getGroupProposalCount = async (groupId) => {
 // Reliable Multi-Model Cascade for Gemini
 const GEMINI_MODELS_CASCADE = [
   "gemini-2.5-flash",
-  "gemini-flash-lite-latest",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
 ];
 
 // Multi-model cascade: attempts primary model, failing over seamlessly to secondary candidates if quota or rate-limit is encountered
@@ -985,16 +983,23 @@ app.post(
         0
       );
 
-      // 2. Startup Capital Determination
-      const declaredCapital = Number(financials.startupCapital) || 0;
-      const safeStartupCapital = equipmentList.length > 0 ? equipmentTotal : declaredCapital;
+      // 2. Startup Capital Determination (Accurately resolves Contributor equity, Cash Invested, or Proposal Capital)
+      const contribSum = Array.isArray(financials.contributorsList) && financials.contributorsList.length > 0
+        ? financials.contributorsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+        : 0;
 
-      // 3. Cash Reserve = Declared Capital - Equipment Cost
-      const cashReserve = equipmentList.length > 0
+      const declaredCapital = contribSum > 0
+        ? contribSum
+        : (Number(financials.cashInvested) || Number(financials.startupCapital) || Number(financials.totalCapital) || Number(financials.proposalCapital) || 0);
+
+      const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
+
+      // 3. Cash Reserve = Contributed / Declared Capital - Equipment CapEx
+      const cashReserve = declaredCapital > 0
         ? Math.max(0, declaredCapital - equipmentTotal)
-        : declaredCapital;
+        : (equipmentList.length > 0 ? 0 : declaredCapital);
 
-      const capitalDeficit = equipmentList.length > 0 && equipmentTotal > declaredCapital;
+      const capitalDeficit = equipmentList.length > 0 && declaredCapital > 0 && equipmentTotal > declaredCapital;
 
       // 4. Sum up Monthly OPEX
       const opexList = financials.opexList || [];
@@ -1016,8 +1021,9 @@ app.post(
       const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
 
       // 8. Payback period in months
+      const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
       const paybackPeriodMonths = annualNetProfitAfterTax > 0
-        ? (safeStartupCapital / (annualNetProfitAfterTax / 12))
+        ? (paybackBase / (annualNetProfitAfterTax / 12))
         : Infinity;
       const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Infinity (Never)" : `${paybackPeriodMonths.toFixed(1)} months`;
 
@@ -1238,8 +1244,13 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         (sum, item) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
         0
       );
-      const declaredCapital = Number(financials.startupCapital) || 0;
-      const safeStartupCapital = equipmentList.length > 0 ? equipmentTotal : declaredCapital;
+      const contribSum = Array.isArray(financials.contributorsList) && financials.contributorsList.length > 0
+        ? financials.contributorsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+        : 0;
+      const declaredCapital = contribSum > 0
+        ? contribSum
+        : (Number(financials.cashInvested) || Number(financials.startupCapital) || Number(financials.totalCapital) || Number(financials.proposalCapital) || 0);
+      const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
       const opexList = financials.opexList || [];
       const monthlyOpex = opexList.length > 0
         ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)

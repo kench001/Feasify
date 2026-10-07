@@ -112,6 +112,116 @@ const cleanUserFacingText = (data: any): any => {
   return data;
 };
 
+// Helper to extract clean, active financial inputs from project/proposal data (supporting multi-month records & scenarios)
+const extractActiveFinancialData = (proj: any) => {
+  const finData = proj?.financialData || {};
+
+  // If multi-month records exist, locate the active month and active draft financials
+  let activeMonthFin = finData;
+  if (Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0) {
+    const activeIdx =
+      typeof finData.activeMonthIndex === "number" &&
+      finData.activeMonthIndex >= 0 &&
+      finData.activeMonthIndex < finData.monthlyRecords.length
+        ? finData.activeMonthIndex
+        : 0;
+    const activeRecord = finData.monthlyRecords[activeIdx];
+    if (activeRecord) {
+      const activeDraftId = activeRecord.activeDraftId || "draft-1";
+      const activeDraft =
+        (activeRecord.drafts || []).find((d: any) => d.id === activeDraftId) ||
+        activeRecord.drafts?.[0];
+      activeMonthFin = activeDraft?.financials || activeRecord.financials || finData;
+    }
+  }
+
+  // Calculate partner / investor contributed equity
+  const contribList =
+    Array.isArray(activeMonthFin.contributorsList) && activeMonthFin.contributorsList.length > 0
+      ? activeMonthFin.contributorsList
+      : Array.isArray(finData.contributorsList)
+      ? finData.contributorsList
+      : [];
+  const contribSum = contribList.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0);
+
+  const proposalCap = Number(
+    proj?.proposalCapital || proj?.totalCapital || finData.startupCapital || 0
+  );
+  const resolvedCapital =
+    contribSum > 0
+      ? contribSum
+      : Number(activeMonthFin.cashInvested) ||
+        Number(activeMonthFin.startupCapital) ||
+        Number(finData.startupCapital) ||
+        proposalCap ||
+        0;
+
+  const equipmentList = activeMonthFin.equipmentList || finData.equipmentList || [];
+  const opexList = activeMonthFin.opexList || finData.opexList || [];
+  const fixedCosts =
+    opexList.length > 0
+      ? opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+      : Number(activeMonthFin.fixedCosts) || Number(finData.fixedCosts) || 0;
+
+  const products =
+    activeMonthFin.products && Array.isArray(activeMonthFin.products) && activeMonthFin.products.length > 0
+      ? activeMonthFin.products
+      : finData.products && Array.isArray(finData.products) && finData.products.length > 0
+      ? finData.products
+      : proj?.products || [];
+
+  return {
+    ...finData,
+    ...activeMonthFin,
+    products,
+    sellingPrice: Number(activeMonthFin.sellingPrice) || Number(finData.sellingPrice) || 0,
+    monthlySales: Number(activeMonthFin.monthlySales) || Number(finData.monthlySales) || 0,
+    variableCost: Number(activeMonthFin.variableCost) || Number(finData.variableCost) || 0,
+    fixedCosts,
+    startupCapital: resolvedCapital,
+    cashInvested: activeMonthFin.cashInvested || finData.cashInvested || String(resolvedCapital),
+    contributorsList: contribList,
+    totalCapital: resolvedCapital,
+    proposalCapital: proposalCap,
+    equipmentList,
+    opexList,
+    operatingDays: Number(activeMonthFin.operatingDays) || Number(finData.operatingDays) || 300,
+    isCapitalBorrowed: Boolean(activeMonthFin.isCapitalBorrowed ?? finData.isCapitalBorrowed),
+    interestRate: Number(activeMonthFin.interestRate) || Number(finData.interestRate) || 0,
+    competitorCount:
+      Number(activeMonthFin.competitorCount) ||
+      (Array.isArray(activeMonthFin.directCompetitors)
+        ? activeMonthFin.directCompetitors.length + (activeMonthFin.otherCompetitors?.length || 0)
+        : 0),
+    marketDemand: activeMonthFin.marketDemand || finData.marketDemand || "Medium",
+    directCompetitors: Array.isArray(activeMonthFin.directCompetitors)
+      ? activeMonthFin.directCompetitors
+      : Array.isArray(finData.directCompetitors)
+      ? finData.directCompetitors
+      : [],
+    otherCompetitors: Array.isArray(activeMonthFin.otherCompetitors)
+      ? activeMonthFin.otherCompetitors
+      : Array.isArray(finData.otherCompetitors)
+      ? finData.otherCompetitors
+      : [],
+    competitorNotes: activeMonthFin.competitorNotes || finData.competitorNotes || "",
+    nearbyEstablishments: Array.isArray(activeMonthFin.nearbyEstablishments)
+      ? activeMonthFin.nearbyEstablishments
+      : Array.isArray(finData.nearbyEstablishments)
+      ? finData.nearbyEstablishments
+      : [],
+    targetDemographics: Array.isArray(activeMonthFin.targetDemographics)
+      ? activeMonthFin.targetDemographics
+      : Array.isArray(finData.targetDemographics)
+      ? finData.targetDemographics
+      : [],
+    footTrafficPeak: activeMonthFin.footTrafficPeak || finData.footTrafficPeak || "",
+    marketDemandNotes: activeMonthFin.marketDemandNotes || finData.marketDemandNotes || "",
+    businessName: proj?.name || proj?.businessName || proj?.rawProposalData?.businessName || "",
+    businessType: proj?.businessType || proj?.rawProposalData?.businessType || "",
+  };
+};
+
 const AI_Analysis: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -133,6 +243,10 @@ const AI_Analysis: React.FC = () => {
     variableCost: 0,
     fixedCosts: 0,
     startupCapital: 0,
+    cashInvested: "",
+    contributorsList: [] as any[],
+    totalCapital: 0,
+    proposalCapital: 0,
     competitorCount: 0,
     marketDemand: "Medium",
     directCompetitors: [] as string[],
@@ -261,10 +375,13 @@ const AI_Analysis: React.FC = () => {
             businessName: doc.data().businessName || "Untitled Proposal",
             businessType: doc.data().businessType || "",
             totalCapital: doc.data().totalCapital || "0",
+            proposalCapital: doc.data().totalCapital || doc.data().proposalCapital || "0",
             priceRanges: doc.data().priceRanges || "",
             proposedLocation: doc.data().proposedLocation || "",
             financialData: doc.data().financialData || null,
             aiAnalysis: doc.data().aiAnalysis || null,
+            products: doc.data().products || doc.data().financialData?.products || [],
+            rawProposalData: doc.data(),
           }));
 
         const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
@@ -298,32 +415,30 @@ const AI_Analysis: React.FC = () => {
     if (proj) {
       setSelectedProjectId(proj.id);
       sessionStorage.setItem("lastSelectedProjectId", proj.id);
-      const data = proj.financialData;
-      setFinancials({
-        products: data?.products || proj.products || [],
-        sellingPrice: Number(data?.sellingPrice) || 0,
-        monthlySales: Number(data?.monthlySales) || 0,
-        variableCost: Number(data?.variableCost) || 0,
-        fixedCosts: Number(data?.fixedCosts) || 0,
-        startupCapital: Number(data?.startupCapital) || 0,
-        competitorCount: Number(data?.competitorCount) || (Array.isArray(data?.directCompetitors) ? data.directCompetitors.length + (data.otherCompetitors?.length || 0) : 0),
-        marketDemand: data?.marketDemand || "Medium",
-        directCompetitors: Array.isArray(data?.directCompetitors) ? data.directCompetitors : [],
-        otherCompetitors: Array.isArray(data?.otherCompetitors) ? data.otherCompetitors : [],
-        competitorNotes: data?.competitorNotes || "",
-        nearbyEstablishments: Array.isArray(data?.nearbyEstablishments) ? data.nearbyEstablishments : [],
-        targetDemographics: Array.isArray(data?.targetDemographics) ? data.targetDemographics : [],
-        footTrafficPeak: data?.footTrafficPeak || "",
-        marketDemandNotes: data?.marketDemandNotes || "",
-        operatingDays: Number(data?.operatingDays) || 300,
-        equipmentList: data?.equipmentList || [],
-        opexList: data?.opexList || [],
-        isCapitalBorrowed: data?.isCapitalBorrowed || false,
-        interestRate: Number(data?.interestRate) || 0,
-      });
+      const activeFin = extractActiveFinancialData(proj);
+      setFinancials(activeFin);
 
-      // --- CRITICAL FIX: Properly loading INSIGHTS from database ---
-      if (proj.aiAnalysis && !location.state?.runAnalysis) {
+      // Check if financial inputs have been updated since the last AI analysis was generated
+      const finUpdatedAt = proj.financialData?.updatedAt?.toDate?.()
+        ? proj.financialData.updatedAt.toDate().getTime()
+        : (proj.financialData?.updatedAt ? new Date(proj.financialData.updatedAt).getTime() : 0);
+
+      const aiLastRunTime = proj.aiAnalysis?.lastRun
+        ? new Date(proj.aiAnalysis.lastRun).getTime()
+        : 0;
+
+      // Has newer updates if financialData timestamp > aiAnalysis lastRun timestamp (+ 2s clock buffer)
+      const hasNewerInputs = finUpdatedAt > 0 && aiLastRunTime > 0 && finUpdatedAt > (aiLastRunTime + 2000);
+      const isExplicitRun = Boolean(location.state?.runAnalysis);
+      const shouldAutoAnalyze = isExplicitRun || !proj.aiAnalysis || hasNewerInputs;
+
+      if (shouldAutoAnalyze) {
+        console.log("⚡ [AI Analysis] Fresh financial updates detected. Auto-running feasibility evaluation...");
+        executeAnalysis(activeFin, proj.id);
+        if (isExplicitRun) {
+          navigate(location.pathname, { replace: true, state: {} });
+        }
+      } else if (proj.aiAnalysis) {
         setFeasibilityScore(proj.aiAnalysis.score || 0);
         setFeasibilityStatus(proj.aiAnalysis.status || "PENDING");
         setPerformanceGrade(proj.aiAnalysis.performanceGrade || "");
@@ -339,7 +454,6 @@ const AI_Analysis: React.FC = () => {
         );
         setExplanations(cleanUserFacingText(proj.aiAnalysis.explanations || {}));
         setImprovementTips(cleanUserFacingText(proj.aiAnalysis.improvementTips || {}));
-        // Restore the insights array here
         setInsights(cleanUserFacingText(proj.aiAnalysis.insights || []));
         setAiScores(proj.aiAnalysis.aiScores || {});
         setAiScoreExplanations(cleanUserFacingText(proj.aiAnalysis.aiScoreExplanations || {}));
@@ -351,7 +465,7 @@ const AI_Analysis: React.FC = () => {
         } else {
           console.log(`🤖 [Live AI] Loaded analysis generated via Gemini (${proj.aiAnalysis._model || "Cloud AI"})`);
         }
-      } else if (!location.state?.runAnalysis) {
+      } else {
         setFeasibilityScore(0);
         setFeasibilityStatus("PENDING");
         setPerformanceGrade("");
@@ -365,21 +479,7 @@ const AI_Analysis: React.FC = () => {
         setMarketAnalysis(null);
       }
     }
-  }, [location.state, projects]);
-
-  useEffect(() => {
-    if (
-      projects.length > 0 &&
-      selectedProjectId &&
-      location.state?.runAnalysis
-    ) {
-      const proj = projects.find((p) => p.id === selectedProjectId);
-      if (proj) {
-        executeAnalysis(proj.financialData, selectedProjectId);
-        navigate(location.pathname, { replace: true, state: {} });
-      }
-    }
-  }, [location.state, projects, selectedProjectId, navigate]);
+  }, [location.state, projects, navigate]);
 
   // Resilient Client-Side Financial Audit Engine (Zero-Crash Capstone Defense Guard)
   const calculateLocalAudit = (finData: any) => {
@@ -426,8 +526,28 @@ const AI_Analysis: React.FC = () => {
       0
     );
 
-    const declaredCapital = Number(finData?.startupCapital) || 0;
-    const safeStartupCapital = equipmentList.length > 0 ? equipmentTotal : declaredCapital;
+    const contribSum =
+      Array.isArray(finData?.contributorsList) && finData.contributorsList.length > 0
+        ? finData.contributorsList.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+        : 0;
+
+    const declaredCapital =
+      contribSum > 0
+        ? contribSum
+        : Number(finData?.cashInvested) ||
+          Number(finData?.startupCapital) ||
+          Number(finData?.totalCapital) ||
+          Number(finData?.proposalCapital) ||
+          0;
+
+    const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
+    const cashReserve =
+      declaredCapital > 0
+        ? Math.max(0, declaredCapital - equipmentTotal)
+        : equipmentList.length > 0
+        ? 0
+        : declaredCapital;
+
     const opexList = finData?.opexList || [];
     const monthlyOpex = opexList.length > 0
       ? opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
@@ -442,8 +562,9 @@ const AI_Analysis: React.FC = () => {
     const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
     const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
 
+    const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
     const paybackPeriodMonths = annualNetProfitAfterTax > 0
-      ? (safeStartupCapital / (annualNetProfitAfterTax / 12))
+      ? (paybackBase / (annualNetProfitAfterTax / 12))
       : Infinity;
     const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Never (Negative Cash Flow)" : `${paybackPeriodMonths.toFixed(1)} months`;
 
@@ -595,14 +716,27 @@ const AI_Analysis: React.FC = () => {
     setIsFallback(false);
 
     const currentProj = projects.find((p) => p.id === pId);
+    const activeFin = extractActiveFinancialData(currentProj);
+    const mergedFin = { ...activeFin, ...(data || {}) };
+
     const enrichedData = {
-      ...data,
-      products: data?.products && Array.isArray(data.products) && data.products.length > 0
-        ? data.products
-        : (currentProj?.financialData?.products || currentProj?.products || []),
-      startupCapital: data?.startupCapital || currentProj?.proposalCapital || 0,
-      businessName: currentProj?.name || currentProj?.rawProposalData?.businessName || "",
-      businessType: currentProj?.businessType || currentProj?.rawProposalData?.businessType || "",
+      ...currentProj?.financialData,
+      ...mergedFin,
+      products:
+        mergedFin?.products && Array.isArray(mergedFin.products) && mergedFin.products.length > 0
+          ? mergedFin.products
+          : currentProj?.financialData?.products || currentProj?.products || [],
+      startupCapital: mergedFin.startupCapital,
+      cashInvested: mergedFin.cashInvested,
+      contributorsList: mergedFin.contributorsList,
+      totalCapital: mergedFin.totalCapital,
+      proposalCapital: mergedFin.proposalCapital,
+      equipmentList: mergedFin.equipmentList,
+      opexList: mergedFin.opexList,
+      fixedCosts: mergedFin.fixedCosts,
+      operatingDays: mergedFin.operatingDays,
+      businessName: mergedFin.businessName || currentProj?.name || "",
+      businessType: mergedFin.businessType || currentProj?.businessType || "",
     };
 
     try {
@@ -636,13 +770,22 @@ const AI_Analysis: React.FC = () => {
       );
 
       // 3. Save the AI's verdict back to Firebase so it persists in Reports
+      const updatedAiAnalysis = {
+        ...aiResult,
+        insights: generatedInsights,
+        lastRun: new Date().toISOString()
+      };
+
       await updateDoc(doc(db, "proposals", pId), {
-        aiAnalysis: {
-          ...aiResult,
-          insights: generatedInsights,
-          lastRun: new Date().toISOString()
-        }
+        aiAnalysis: updatedAiAnalysis
       });
+
+      // Synchronize in-memory projects state with latest lastRun timestamp to prevent stale detection
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === pId ? { ...p, aiAnalysis: updatedAiAnalysis } : p
+        )
+      );
 
       // 4. Update Local State to reflect the AI's audited results
       setFeasibilityScore(aiResult.score);
@@ -680,14 +823,23 @@ const AI_Analysis: React.FC = () => {
           (i: any, idx: number) => ({ ...i, id: `local-${idx}` })
         );
 
+        const updatedFallback = {
+          ...fallbackResult,
+          insights: fallbackInsights,
+          lastRun: new Date().toISOString(),
+        };
+
         // Save fallback audit to Firebase so reports stay populated
         await updateDoc(doc(db, "proposals", pId), {
-          aiAnalysis: {
-            ...fallbackResult,
-            insights: fallbackInsights,
-            lastRun: new Date().toISOString(),
-          }
+          aiAnalysis: updatedFallback
         }).catch((err) => console.warn("Failed saving fallback to Firestore:", err));
+
+        // Synchronize in-memory projects state with fallback timestamp
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === pId ? { ...p, aiAnalysis: updatedFallback } : p
+          )
+        );
 
         // Update local state with the computed rubric results
         setFeasibilityScore(fallbackResult.score);
@@ -1029,19 +1181,24 @@ const AI_Analysis: React.FC = () => {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3d2c23]">
                   AI Analysis
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic font-medium break-words">
-                  Evaluation for{" "}
-                  <span className="text-[#122244] font-bold">
-                    {selectedProject?.name || "Selected Project"}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <p className="text-sm text-gray-500 italic font-medium break-words">
+                    Evaluation for{" "}
+                    <span className="text-[#122244] font-bold">
+                      {selectedProject?.name || "Selected Project"}
+                    </span>
+                  </p>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Auto-synced with Financial Inputs
                   </span>
-                </p>
+                </div>
               </div>
               <button
                 onClick={() => executeAnalysis(financials, selectedProjectId)}
-                disabled={!selectedProjectId}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0"
+                disabled={!selectedProjectId || isAnalyzing}
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0 disabled:opacity-50"
               >
-                <RotateCcw className="w-4 h-4" /> Re-analyze
+                <RotateCcw className={`w-4 h-4 ${isAnalyzing ? "animate-spin text-[#c9a654]" : ""}`} /> {isAnalyzing ? "Analyzing..." : "Re-analyze"}
               </button>
             </div>
 
