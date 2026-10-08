@@ -246,21 +246,46 @@ html.dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
 }
 
 /* ========================================================================= */
-/* MODULE WAVE BACKGROUND (FEASIFY PALETTE)                                  */
+/* MODULE WAVE BACKGROUND (FEASIFY PALETTE) - SCROLLABLE                     */
 /* ========================================================================= */
 main {
   position: relative;
+  isolation: isolate;
+}
+
+main::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
   background-image: url("/module-wave.svg");
   background-repeat: no-repeat;
   background-position: bottom right;
   background-size: 100% clamp(200px, 30vh, 380px);
-  background-attachment: fixed;
+  pointer-events: none;
+  z-index: -1;
 }
 
-html.dark main {
+main::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: clamp(200px, 30vh, 380px);
+  background-image: url("/module-wave.svg");
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  background-size: 100% 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+html.dark main::before,
+html.dark main::after {
   background-image: url("/module-wave-dark.svg") !important;
   background-repeat: no-repeat !important;
   background-position: bottom right !important;
-  background-size: 100% clamp(200px, 30vh, 380px) !important;
-  background-attachment: fixed !important;
 }

@@ -222,20 +222,16 @@ const AdviserDashboard: React.FC = () => {
   }, [navigate]);
 
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const mainContainerRef = React.useRef<HTMLElement | null>(null);
 
-  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
-    if (e.currentTarget.scrollTop > 150) {
-      setShowScrollTop(true);
-    } else {
-      setShowScrollTop(false);
-    }
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 150);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const scrollToTop = () => {
-    if (mainContainerRef.current) {
-      mainContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -1619,9 +1615,7 @@ const AdviserDashboard: React.FC = () => {
 
       {/* MAIN CONTENT AREA */}
       <main
-        ref={mainContainerRef}
-        onScroll={handleMainScroll}
-        className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-y-auto overflow-x-hidden ${isSidebarOpen ? 'lg:ml-16' : 'ml-0'}`}
+        className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-16' : 'ml-0'}`}
       >
         <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
