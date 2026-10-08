@@ -10,7 +10,7 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check, Download,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
+  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
 import { logAuditEvent } from "./services/auditLogger";
@@ -434,22 +434,50 @@ const AdviserDashboard: React.FC = () => {
 
   const handleOpenActiveBusiness = async (group: GroupData) => {
     setSelectedGroup(group);
-    if (!group.activeProposalId) {
+    const teamProps = proposalsByGroup[group.id] || [];
+    let propId = group.activeProposalId;
+    if (!propId) {
+      const approved = teamProps.find(p => p.status === 'Approved');
+      if (approved) propId = approved.id;
+    }
+    if (!propId && teamProps.length > 0) {
+      propId = teamProps[0].id;
+    }
+
+    if (!propId) {
       alert("No active proposal linked to this group.");
       return;
     }
+
     setIsLoading(true);
     try {
-      const docRef = doc(db, "proposals", group.activeProposalId);
+      const docRef = doc(db, "proposals", propId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setActiveProposal({ id: docSnap.id, ...docSnap.data() } as ProposalData);
+        const pData = { id: docSnap.id, ...docSnap.data() } as ProposalData;
+        setActiveProposal(pData);
         setActiveView('active-business');
         setActiveBusinessTab('Profile');
+      } else {
+        const fallback = teamProps.find(p => p.id === propId);
+        if (fallback) {
+          setActiveProposal(fallback);
+          setActiveView('active-business');
+          setActiveBusinessTab('Profile');
+        } else {
+          alert("Could not load the active proposal details.");
+        }
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to fetch business details.");
+      const fallback = teamProps.find(p => p.id === propId);
+      if (fallback) {
+        setActiveProposal(fallback);
+        setActiveView('active-business');
+        setActiveBusinessTab('Profile');
+      } else {
+        alert("Failed to fetch business details.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -1155,9 +1183,8 @@ const AdviserDashboard: React.FC = () => {
 
   // Financial Calculations for Read-Only Display (100% Synchronized with Financial_input.tsx)
   const renderFinancialData = () => {
-    if (!activeProposal?.financialData) return <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl">No financial data has been input yet.</div>;
-
-    const fin = activeProposal.financialData;
+    const fin = activeProposal?.financialData || (activeProposal as any)?.originalProposalFinancials;
+    if (!fin) return <div className="p-8 text-center text-gray-400 border border-dashed rounded-xl bg-white">No financial data has been input yet by the student team.</div>;
     const safeSellingPrice = Number(fin.sellingPrice) || 0;
     const safeMonthlySales = Number(fin.monthlySales) || 0;
     const safeVariableCost = Number(fin.variableCost) || Number(fin.unitCost) || (Number(fin.productionCost) && Number(fin.quantityYield) ? (Number(fin.productionCost) / Number(fin.quantityYield)) : 0);
@@ -1919,6 +1946,18 @@ const AdviserDashboard: React.FC = () => {
 
                 const teamDisplayName = group.companyName || group.title || `Group ${originalIndex}`;
 
+                const isActivated = (group.status === 'Active Business' || Boolean(group.activeProposalId)) && Boolean(
+                  (group.activeProposalId && teamProps.some(p => p.id === group.activeProposalId)) ||
+                  teamProps.some(p => p.status === 'Approved') ||
+                  teamProps.length > 0
+                );
+
+                const activatedProp = isActivated
+                  ? ((group.activeProposalId ? teamProps.find(p => p.id === group.activeProposalId) : null)
+                      || teamProps.find(p => p.status === 'Approved')
+                      || teamProps[0])
+                  : null;
+
                 return (
                   <div key={group.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col relative hover:shadow-md transition-shadow overflow-hidden">
                     {/* CARD HEADER: TEAM NAME & PROPOSALS COUNTER */}
@@ -1951,10 +1990,16 @@ const AdviserDashboard: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {/* Proposals Counter: Proposals: X / 3 */}
-                        <span className={`px-2.5 py-1 text-xs font-black rounded-full border ${proposalCount >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
-                          Proposals: {proposalCount} / 3
-                        </span>
+                        {/* Proposals Counter: Proposals: X / 3 OR Active Business */}
+                        {isActivated ? (
+                          <span className="px-2.5 py-1 text-xs font-black rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active Business
+                          </span>
+                        ) : (
+                          <span className={`px-2.5 py-1 text-xs font-black rounded-full border ${proposalCount >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+                            Proposals: {proposalCount} / 3
+                          </span>
+                        )}
 
                         <div className="relative">
                           <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
@@ -1962,6 +2007,11 @@ const AdviserDashboard: React.FC = () => {
                           </button>
                           {openDropdownId === group.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
+                              {isActivated && (
+                                <button onClick={() => { handleOpenGroupDetails(group); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                  <Users className="w-4 h-4" /> Group Details & History
+                                </button>
+                              )}
                               <button onClick={() => { setGroupToChangeLeader(group); setShowChangeLeaderModal(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Edit2 className="w-4 h-4" /> Change Leader</button>
                               <button onClick={() => { setGroupToDelete(group); setShowDeleteConfirm(true); setOpenDropdownId(null); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete Group</button>
                             </div>
@@ -1972,8 +2022,8 @@ const AdviserDashboard: React.FC = () => {
 
                     {/* CARD BODY: PROPOSALS 1, 2, 3 */}
                     <div className="p-4 flex-1 flex flex-col space-y-3">
-                      {/* Max reached notification */}
-                      {proposalCount >= 3 && (
+                      {/* Max reached notification (only for non-activated groups) */}
+                      {!isActivated && proposalCount >= 3 && (
                         <div className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1.5 text-[11px] text-amber-800 font-bold">
                           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> Maximum of 3 proposals reached.
                         </div>
@@ -1988,65 +2038,125 @@ const AdviserDashboard: React.FC = () => {
                         <span className="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
                       </div>
 
-                      {/* Proposals 1, 2, 3 Section */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-black text-gray-500 uppercase tracking-wider">
-                          <span>Team Proposals</span>
-                          <span>{proposalCount} of 3 created</span>
-                        </div>
+                      {/* Proposals Section: ONLY show activated proposal if business is activated */}
+                      {isActivated && activatedProp ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-black text-emerald-700 uppercase tracking-wider">
+                            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active Business Proposal</span>
+                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Activated</span>
+                          </div>
 
-                        {[1, 2, 3].map(slotNum => {
-                          const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
-                          if (prop) {
-                            return (
-                              <div key={prop.id || slotNum} className="p-3 bg-gray-50/90 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
-                                <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
-                                        Proposal {slotNum}
-                                      </span>
-                                      {getProposalStatusBadge(prop.status)}
-                                    </div>
-                                    <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
-                                      {prop.businessName || "Untitled Proposal"}
-                                    </h4>
-                                    <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-                                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
-                                    </p>
-                                  </div>
-                                  <button
-                                    onClick={() => handleOpenProposalModal(prop, group)}
-                                    className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
-                                    title={`Open Proposal ${slotNum}`}
-                                  >
-                                    <FileText className="w-3.5 h-3.5" /> Open
-                                  </button>
-                                </div>
-                                <div className="pt-2 border-t border-gray-200/80 text-[11px] flex items-start gap-1">
-                                  <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
-                                  <span className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}>
-                                    {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                          <div key={activatedProp.id || 'active'} className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 hover:border-emerald-300 transition-colors">
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
+                                    Proposal {activatedProp.proposalNumber || 1}
+                                  </span>
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
                                   </span>
                                 </div>
+                                <h4 className="text-xs font-bold text-[#122244] truncate" title={activatedProp.businessName || `Proposal ${activatedProp.proposalNumber || 1}`}>
+                                  {activatedProp.businessName || "Untitled Proposal"}
+                                </h4>
+                                <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(activatedProp)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleOpenProposalModal(activatedProp, group)}
+                                className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
+                                title="Open Proposal Review"
+                              >
+                                <FileText className="w-3.5 h-3.5" /> Open
+                              </button>
+                            </div>
+                            <div className="pt-2 border-t border-emerald-200/60 text-[11px] flex items-start gap-1">
+                              <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
+                              <span className={`line-clamp-2 ${activatedProp.adviserRemarks || activatedProp.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}>
+                                {activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-black text-gray-500 uppercase tracking-wider">
+                            <span>Team Proposals</span>
+                            <span>{proposalCount} of 3 created</span>
+                          </div>
+
+                          {[1, 2, 3].map(slotNum => {
+                            const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
+                            if (prop) {
+                              return (
+                                <div key={prop.id || slotNum} className="p-3 bg-gray-50/90 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
+                                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                                          Proposal {slotNum}
+                                        </span>
+                                        {getProposalStatusBadge(prop.status)}
+                                      </div>
+                                      <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
+                                        {prop.businessName || "Untitled Proposal"}
+                                      </h4>
+                                      <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleOpenProposalModal(prop, group)}
+                                      className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
+                                      title={`Open Proposal ${slotNum}`}
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> Open
+                                    </button>
+                                  </div>
+                                  <div className="pt-2 border-t border-gray-200/80 text-[11px] flex items-start gap-1">
+                                    <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
+                                    <span className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}>
+                                      {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
+                                <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
+                                <span className="text-[10px] italic">Slot available (Not created)</span>
                               </div>
                             );
-                          }
-
-                          return (
-                            <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
-                              <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
-                              <span className="text-[10px] italic">Slot available (Not created)</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* CARD FOOTER */}
                     <div className="p-3 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex gap-2">
-                      <button onClick={() => handleOpenGroupDetails(group)} className="w-full py-2 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50 transition-colors shadow-xs flex justify-center items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" /> View Group Details & History
+                      <button
+                        onClick={() => {
+                          if (isActivated) {
+                            handleOpenActiveBusiness(group);
+                          } else {
+                            handleOpenGroupDetails(group);
+                          }
+                        }}
+                        className="w-full py-2 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50 transition-colors shadow-xs flex justify-center items-center gap-1.5"
+                      >
+                        {isActivated ? (
+                          <>
+                            <Eye className="w-3.5 h-3.5 text-[#122244]" /> View Active Business Details
+                          </>
+                        ) : (
+                          <>
+                            <Users className="w-3.5 h-3.5" /> View Group Details & History
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2134,13 +2244,28 @@ const AdviserDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {(selectedGroup.status === 'Approved Proposal' || selectedGroup.status === 'Active Business') && (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3 mb-6">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-bold text-green-800 text-sm">Proposal Approved: {selectedGroup.title}</h4>
-                          <p className="text-sm text-green-700 mt-0.5">This group can now proceed to financial planning.</p>
+                    {(selectedGroup.status === 'Approved Proposal' || selectedGroup.status === 'Active Business' || Boolean(selectedGroup.activeProposalId)) && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+                          <div>
+                            <h4 className="font-bold text-green-800 text-sm">
+                              {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId ? "Active Business Activated: " : "Proposal Approved: "}
+                              {selectedGroup.businessName || selectedGroup.title}
+                            </h4>
+                            <p className="text-sm text-green-700 mt-0.5">
+                              {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId
+                                ? "This business is locked in and active. You can view the full project overview, financial inputs, and AI analysis."
+                                : "This group can now proceed to financial planning."}
+                            </p>
+                          </div>
                         </div>
+                        <button
+                          onClick={() => handleOpenActiveBusiness(selectedGroup)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                        >
+                          <Eye className="w-4 h-4" /> View Active Business (Read-Only)
+                        </button>
                       </div>
                     )}
 
@@ -2244,25 +2369,56 @@ const AdviserDashboard: React.FC = () => {
                 <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
                   {getInitials(activeProposal.businessName)}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> APPROVED BUSINESS PROPOSAL</span>
+                    <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> ACTIVE BUSINESS CHARTER</span>
                     <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3" /> SECTION: {selectedGroup.section}</span>
+                    <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold rounded flex items-center gap-1"><Lock className="w-3 h-3" /> READ-ONLY ADVISER VIEW</span>
                   </div>
-                  <h1 className="text-4xl font-extrabold mb-1 tracking-tight">{activeProposal.businessName}</h1>
+                  <h1 className="text-3xl md:text-4xl font-extrabold mb-1 tracking-tight truncate">{activeProposal.businessName}</h1>
                   <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setActiveView('group-details');
+                      fetchGroupProposals(selectedGroup.id);
+                    }}
+                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-white/10"
+                  >
+                    <Users className="w-4 h-4" /> Group History
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Tabs */}
+            {/* Tabs: Project Overview, Financial Input, AI Feasibility Analysis */}
             <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
-              {['Profile', 'Financial', 'AI'].map(tab => (
-                <button key={tab} onClick={() => setActiveBusinessTab(tab as any)}
-                  className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeBusinessTab === tab ? "border-[#122244] text-[#122244]" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
-                  {tab === 'Profile' ? 'Business Profile' : tab === 'Financial' ? 'Financial Data' : 'AI Feasibility Analysis'}
-                </button>
-              ))}
+              {[
+                { id: 'Profile', label: 'Project Overview', icon: FileText },
+                { id: 'Financial', label: 'Financial Input', icon: Calculator },
+                { id: 'AI', label: 'AI Feasibility Analysis', icon: Sparkles }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeBusinessTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveBusinessTab(tab.id as any)}
+                    className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-2 ${
+                      isActive
+                        ? "border-[#122244] text-[#122244]"
+                        : "border-transparent text-gray-500 hover:text-gray-800"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-[#c9a654]" : "text-gray-400"}`} />
+                    {tab.label}
+                    <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                      Read-Only
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Tab Content & Roster Grid */}
@@ -2459,7 +2615,7 @@ const AdviserDashboard: React.FC = () => {
                             <p className="text-sm text-gray-500">{activeProposal.aiAnalysis.explanations?.feasibility || "Evaluation completed."}</p>
                           </div>
                           <div className="text-right">
-                            <div className={`text-5xl font-extrabold ...`}>
+                            <div className="text-5xl font-extrabold text-[#122244]">
                               {(activeProposal.aiAnalysis.score || 0) / 10}
                             </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase">Score / 10</p>
@@ -2486,17 +2642,81 @@ const AdviserDashboard: React.FC = () => {
                           })}
                         </div>
 
-                        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                          <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
-                          <div className="space-y-3">
-                            {activeProposal.aiAnalysis.insights?.map((insight: any, i: number) => (
-                              <div key={i} className={`p-4 rounded-lg border ${insight.type === 'positive' ? 'bg-green-50 border-green-200 text-green-800' : insight.type === 'warning' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-                                <p className="font-bold text-sm mb-1">{insight.title}</p>
-                                <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
-                              </div>
-                            ))}
+                        {activeProposal.aiAnalysis.insights && activeProposal.aiAnalysis.insights.length > 0 && (
+                          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                            <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest">Key Insights</h4>
+                            <div className="space-y-3">
+                              {activeProposal.aiAnalysis.insights.map((insight: any, i: number) => (
+                                <div key={i} className={`p-4 rounded-lg border ${insight.type === 'positive' ? 'bg-green-50 border-green-200 text-green-800' : insight.type === 'warning' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                  <p className="font-bold text-sm mb-1">{insight.title}</p>
+                                  <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Qualitative Evaluation Findings (if available) */}
+                        {activeProposal.aiAnalysis.strengths && activeProposal.aiAnalysis.strengths.length > 0 && (
+                          <div className="bg-white rounded-2xl border border-emerald-100 p-6 shadow-sm">
+                            <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-700 mb-3 flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Key Feasibility Strengths
+                            </h4>
+                            <div className="space-y-2">
+                              {activeProposal.aiAnalysis.strengths.map((str: any, sIdx: number) => (
+                                <div key={sIdx} className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100/60 text-xs text-emerald-950 flex items-start gap-2">
+                                  <span className="font-bold text-emerald-700 mt-0.5">•</span>
+                                  <span>{typeof str === "string" ? str : str.title ? `${str.title}: ${str.description}` : str.description || ""}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeProposal.aiAnalysis.weaknesses && activeProposal.aiAnalysis.weaknesses.length > 0 && (
+                          <div className="bg-white rounded-2xl border border-amber-100 p-6 shadow-sm">
+                            <h4 className="text-xs font-extrabold uppercase tracking-widest text-amber-700 mb-3 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-600" /> Areas of Concern & Risks
+                            </h4>
+                            <div className="space-y-2">
+                              {activeProposal.aiAnalysis.weaknesses.map((w: any, wIdx: number) => (
+                                <div key={wIdx} className="p-3 bg-amber-50/60 rounded-xl border border-amber-100/60 text-xs text-amber-950 flex items-start gap-2">
+                                  <span className="font-bold text-amber-700 mt-0.5">•</span>
+                                  <span>{typeof w === "string" ? w : w.title ? `${w.title}: ${w.description}` : w.description || ""}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeProposal.aiAnalysis.realityCheck && (
+                          <div className="bg-rose-50/60 border border-rose-200 p-5 rounded-2xl shadow-sm">
+                            <h4 className="text-xs font-extrabold uppercase tracking-widest text-rose-700 mb-2 flex items-center gap-2">
+                              <ShieldAlert className="w-4 h-4 text-rose-600" /> Market Reality Check
+                            </h4>
+                            <p className="text-xs text-rose-950 italic leading-relaxed">
+                              "{activeProposal.aiAnalysis.realityCheck}"
+                            </p>
+                          </div>
+                        )}
+
+                        {activeProposal.aiAnalysis.recommendations && activeProposal.aiAnalysis.recommendations.length > 0 && (
+                          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                            <h4 className="text-xs font-extrabold uppercase tracking-widest text-[#122244] mb-3 flex items-center gap-2">
+                              <Lightbulb className="w-4 h-4 text-[#c9a654]" /> Strategic Recommendations
+                            </h4>
+                            <div className="space-y-2">
+                              {activeProposal.aiAnalysis.recommendations.map((rec: any, rIdx: number) => (
+                                <div key={rIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-800 flex items-start gap-2.5">
+                                  <span className="w-5 h-5 rounded-full bg-[#122244] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                    {rIdx + 1}
+                                  </span>
+                                  <span className="pt-0.5">{typeof rec === "string" ? rec : rec.title ? `${rec.title}: ${rec.description}` : rec.description || ""}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
