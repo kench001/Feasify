@@ -6,7 +6,6 @@ import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/fire
 import {
   Settings,
   ShieldAlert,
-  Sidebar as SidebarIcon,
   Bell,
   Check,
   CheckCheck,
@@ -271,59 +270,89 @@ const AdviserNotifications: React.FC = () => {
       )}
 
       {/* SIDEBAR */}
-      <aside className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } w-64 lg:w-16 lg:hover:w-64`}
+      >
         {/* Logo Section */}
-        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
+            <img
+              src="/Logo.png"
+              alt="FeasiFy"
+              className="w-full h-full object-contain scale-[1.35]"
+              style={{ transform: "scale(1.35)" }}
+            />
+          </div>
+          {/* dashboard logo when sidebar is hovered or on mobile */}
           <img
             src="/dashboard logo.png"
             alt="FeasiFy"
-            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none shrink-0"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
         </div>
-        <nav className="flex-1 p-4 pt-4 overflow-y-auto custom-scrollbar space-y-8">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/dashboard")} className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all shadow-md">
-                <span>My Sections</span>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">All</span>
-              </button>
-              <div className="pl-4 pr-2 py-2 space-y-1.5">
-                {adviserSections.map((sectionName) => (
-                  <button key={sectionName} onClick={() => { navigate(`/adviser/dashboard?section=${encodeURIComponent(sectionName)}`); }}
-                    className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${activeSection === sectionName ? 'bg-[#c9a654] text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    {sectionName}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate("/adviser/settings")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Settings className="w-4 h-4" /> Settings
-              </button>
-              <button onClick={() => navigate("/adviser/airules")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Cpu className="w-4 h-4" /> AI Rules
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <ShieldAlert className="w-4 h-4" /> Logout
-              </button>
-            </div>
-          </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
+          <button
+            onClick={() => navigate("/adviser/dashboard")}
+            title="Groups & Proposals"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+          >
+            <Users className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Groups & Proposals
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/adviser/settings")}
+            title="Settings"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+          >
+            <Settings className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Settings
+            </span>
+          </button>
+          <button
+            onClick={() => navigate("/adviser/airules")}
+            title="AI Rules"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+          >
+            <Cpu className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              AI Rules
+            </span>
+          </button>
         </nav>
 
+        {/* Bottom Logout Button */}
+        <div className="p-3 border-t border-white/10 shrink-0">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Logout"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0 text-red-400" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Logout
+            </span>
+          </button>
+        </div>
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-16' : 'ml-0'}`}>
         <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30 shadow-xs">
-          <div className="flex items-center gap-2">
-            <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-            <span className="mx-2">|</span>
-            <span className="cursor-pointer hover:text-[#c9a654] font-semibold text-gray-900" onClick={() => navigate('/adviser/dashboard')}>FeasiFy</span>
-            <span>›</span>
+          <div className="flex items-center gap-2.5">
+            <span
+              className="cursor-pointer hover:text-[#c9a654] font-semibold text-gray-900 transition-colors"
+              onClick={() => navigate('/adviser/dashboard')}
+            >
+              FeasiFy
+            </span>
+            <span className="text-gray-400">›</span>
             <span className="font-semibold text-gray-900">Adviser Notifications</span>
             <span className="text-gray-300">|</span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">

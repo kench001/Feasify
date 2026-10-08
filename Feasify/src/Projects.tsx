@@ -2169,6 +2169,13 @@ const Projects: React.FC = () => {
         <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}>
           <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
             <div className="flex items-center gap-2.5">
+              <span
+                className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors"
+                onClick={() => navigate("/dashboard")}
+              >
+                FeasiFy
+              </span>
+              <span className="text-gray-400">›</span>
               <span className="font-semibold text-gray-900">Business Proposal</span>
               <span className="text-gray-300">|</span>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
@@ -2254,6 +2261,13 @@ const Projects: React.FC = () => {
       >
         <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
           <div className="flex items-center gap-2.5">
+            <span
+              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors"
+              onClick={() => navigate("/dashboard")}
+            >
+              FeasiFy
+            </span>
+            <span className="text-gray-400">›</span>
             <span className="font-semibold text-gray-900">Business Proposal</span>
             <span className="text-gray-300">|</span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
