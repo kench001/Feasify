@@ -48,6 +48,8 @@ import {
   RotateCcw,
   Filter,
 } from "lucide-react";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
 
 export interface AuditRecord {
   id: string;
@@ -125,6 +127,8 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
   // System Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [language, setLanguage] = useState("English (US)");
+  const [prefSaveNotice, setPrefSaveNotice] = useState("");
 
   // Audit Logs State (Complete University Scope)
   const [logs, setLogs] = useState<AuditRecord[]>([]);
@@ -138,11 +142,13 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
   const [currentPage, setCurrentPage] = useState(1);
   const ROWS_PER_PAGE = 10;
 
-  // Initialize theme
+  // Initialize theme and language
   useEffect(() => {
     const savedTheme = localStorage.getItem("feasify_theme");
     const isDark = savedTheme === "dark" || document.documentElement.classList.contains("dark");
     setDarkModeEnabled(isDark);
+    const savedLang = localStorage.getItem("feasify_lang") || "English (US)";
+    setLanguage(savedLang);
   }, []);
 
   const handleToggleDarkMode = (enable: boolean) => {
@@ -153,6 +159,22 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("feasify_theme", "light");
+    }
+  };
+
+  const handleChangeLanguage = async (newLang: string) => {
+    setLanguage(newLang);
+    localStorage.setItem("feasify_lang", newLang);
+    setPrefSaveNotice(`Language set to ${newLang}.`);
+    setTimeout(() => setPrefSaveNotice(""), 3500);
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          "preferences.language": newLang,
+        });
+      } catch (e) {
+        console.warn("Could not save language preference to Firestore", e);
+      }
     }
   };
 
@@ -171,6 +193,11 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           const lastName = data.lastName || "";
           const fullName = `${firstName} ${lastName}`.trim();
           setUserName(fullName || "Chairperson");
+
+          if (data.preferences?.language) {
+            setLanguage(data.preferences.language);
+            localStorage.setItem("feasify_lang", data.preferences.language);
+          }
 
           setProfileData({
             firstName,
@@ -681,8 +708,8 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           {activeTab === "system" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Preferences */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible relative z-30">
+                <div className="p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
                   <h3 className="font-bold text-[#122244]">Chairperson System Preferences</h3>
                 </div>
                 <div className="divide-y divide-gray-100">
@@ -732,20 +759,34 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     </button>
                   </div>
 
-                  <div className="p-5 flex items-center justify-between">
+                  <div className="p-5 flex items-center justify-between rounded-b-2xl">
                     <div className="flex items-center gap-3">
                       <Globe className="w-5 h-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-bold text-gray-900">Language</p>
-                        <p className="text-xs text-gray-500">English (US)</p>
+                        <p className="text-xs text-gray-500">Currently active language for FeasiFy.</p>
                       </div>
+                    </div>
+                    <div className="w-48">
+                      <CustomDropdown
+                        value={language}
+                        onChange={(val) => handleChangeLanguage(val)}
+                        options={[
+                          { value: "English (US)", label: "English (US)" },
+                          { value: "Filipino (Tagalog)", label: "Filipino (Tagalog)" },
+                          { value: "Cebuano (Bisaya)", label: "Cebuano (Bisaya)" },
+                          { value: "Spanish", label: "Spanish" },
+                        ]}
+                        buttonClassName="py-1.5 text-xs font-bold"
+                        direction="down"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Security Card */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative z-10">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50">
                   <h3 className="font-bold text-[#122244]">Security & Authentication</h3>
                 </div>
@@ -801,21 +842,18 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Section
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedSectionFilter}
-                      onChange={(e) => {
-                        setSelectedSectionFilter(e.target.value);
+                      onChange={(val) => {
+                        setSelectedSectionFilter(val);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="ALL">All Sections</option>
-                      {uniqueSections.map((sec) => (
-                        <option key={sec} value={sec}>
-                          {sec}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "ALL", label: "All Sections" },
+                        ...uniqueSections.map((sec) => ({ value: sec, label: sec })),
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* USER / MEMBER FILTER */}
@@ -823,21 +861,18 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Member / User
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedUserFilter}
-                      onChange={(e) => {
-                        setSelectedUserFilter(e.target.value);
+                      onChange={(val) => {
+                        setSelectedUserFilter(val);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="ALL">All Members</option>
-                      {uniqueUsers.map((uName) => (
-                        <option key={uName} value={uName}>
-                          {uName}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "ALL", label: "All Members" },
+                        ...uniqueUsers.map((uName) => ({ value: uName, label: uName })),
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* ACTION FILTER */}
@@ -845,24 +880,25 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Action
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedActionFilter}
-                      onChange={(e) => {
-                        setSelectedActionFilter(e.target.value);
+                      onChange={(val) => {
+                        setSelectedActionFilter(val);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="ALL">All Actions</option>
-                      <option value="CREATE">CREATE</option>
-                      <option value="UPDATE">UPDATE</option>
-                      <option value="DELETE">DELETE</option>
-                      <option value="APPROVE">APPROVE</option>
-                      <option value="REJECT">REJECT</option>
-                      <option value="REVISION">REVISION</option>
-                      <option value="SUBMIT">SUBMIT</option>
-                      <option value="LOGIN">LOGIN</option>
-                    </select>
+                      options={[
+                        { value: "ALL", label: "All Actions" },
+                        { value: "CREATE", label: "CREATE" },
+                        { value: "UPDATE", label: "UPDATE" },
+                        { value: "DELETE", label: "DELETE" },
+                        { value: "APPROVE", label: "APPROVE" },
+                        { value: "REJECT", label: "REJECT" },
+                        { value: "REVISION", label: "REVISION" },
+                        { value: "SUBMIT", label: "SUBMIT" },
+                        { value: "LOGIN", label: "LOGIN" },
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* SINGLE DATE FILTER */}
@@ -1371,6 +1407,8 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           </div>
         </div>
       )}
+      {/* Scroll to Top */}
+      <ScrollToTopButton />
     </div>
   );
 };

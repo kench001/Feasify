@@ -15,6 +15,7 @@ import {
 import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
 import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 interface StudentData {
   id: string;
@@ -3573,17 +3574,7 @@ const AdviserDashboard: React.FC = () => {
       )}
 
       {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 p-3.5 bg-[#122244] hover:bg-[#1a3264] text-[#c9a654] hover:text-white rounded-full shadow-2xl border-2 border-[#c9a654]/40 hover:border-[#c9a654] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center group animate-in fade-in zoom-in-75 cursor-pointer"
-          title="Scroll to Top"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
-        </button>
-      )}
+      <ScrollToTopButton />
     </div>
   );
 };

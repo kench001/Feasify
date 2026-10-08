@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -668,6 +669,8 @@ const Messages: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Scroll to Top */}
+      <ScrollToTopButton />
     </div>
   );
 };

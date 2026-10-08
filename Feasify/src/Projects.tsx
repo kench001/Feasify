@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { OfficialNameChecker } from "./components/OfficialNameChecker";
 import { LocationPickerMap } from "./components/LocationPickerMap";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown, { type DropdownOption } from "./components/CustomDropdown";
 import {
   checkDTI,
   checkSEC,
@@ -101,91 +103,6 @@ const ExpandingTextarea: React.FC<ExpandingTextareaProps & { rows?: number }> = 
   );
 };
 
-interface DropdownOption {
-  value: string;
-  label: string;
-}
-
-const CustomDropdown: React.FC<{
-  value: string;
-  options: DropdownOption[];
-  onChange: (value: string) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
-}> = ({
-  value,
-  options,
-  onChange,
-  placeholder = "Select category...",
-  disabled = false,
-  className = "",
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-    const selectedOption = options.find((opt) => opt.value === value);
-
-    useEffect(() => {
-      const handleOutsideClick = (e: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-          setIsOpen(false);
-        }
-      };
-      if (isOpen) {
-        document.addEventListener("mousedown", handleOutsideClick);
-      }
-      return () => {
-        document.removeEventListener("mousedown", handleOutsideClick);
-      };
-    }, [isOpen]);
-
-    return (
-      <div className={`relative w-full ${className}`} ref={dropdownRef}>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => !disabled && setIsOpen((prev) => !prev)}
-          className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 border ${isOpen
-            ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 bg-white"
-            : "border-gray-200 hover:border-gray-300"
-            } rounded-lg text-sm font-medium transition-all text-[#122244] text-left outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-100/70`}
-        >
-          <span className={selectedOption && selectedOption.value ? "text-[#122244] font-medium" : "text-gray-400"}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180 text-[#c9a654]" : ""
-              }`}
-          />
-        </button>
-
-        {isOpen && (
-          <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
-            {options.map((option) => {
-              const isSelected = option.value === value;
-              return (
-                <div
-                  key={option.value}
-                  onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
-                  }}
-                  className={`px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-between cursor-pointer ${isSelected
-                    ? "bg-amber-50/80 text-[#c9a654] font-bold"
-                    : "text-[#122244] hover:bg-gray-50 hover:text-[#c9a654]"
-                    }`}
-                >
-                  <span>{option.label}</span>
-                  {isSelected && <Check className="w-4 h-4 text-[#c9a654]" />}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
 
 const businessTypeDropdownOptions: DropdownOption[] = [
   { value: "", label: "Select category..." },
@@ -5144,17 +5061,7 @@ const Projects: React.FC = () => {
         </div>
       )}
       {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 p-3.5 bg-[#122244] hover:bg-[#1a3264] text-[#c9a654] hover:text-white rounded-full shadow-2xl border-2 border-[#c9a654]/40 hover:border-[#c9a654] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center group animate-in fade-in zoom-in-75 cursor-pointer"
-          title="Scroll to Top"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
-        </button>
-      )}
+      <ScrollToTopButton />
     </div>
   );
 };

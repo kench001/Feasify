@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
 import Skeleton from "react-loading-skeleton";
 import { auth, db, signOutUser } from "./firebase";
 import {
@@ -1100,8 +1102,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
               )}
 
               {/* Preferences */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible relative z-30">
+                <div className="p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
                   <h3 className="font-bold text-[#122244]">System Preferences</h3>
                 </div>
                 <div className="divide-y divide-gray-100">
@@ -1153,7 +1155,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     </button>
                   </div>
 
-                  <div className="p-5 flex items-center justify-between">
+                  <div className="p-5 flex items-center justify-between rounded-b-2xl">
                     <div className="flex items-center gap-3">
                       <Globe className="w-5 h-5 text-gray-400" />
                       <div>
@@ -1161,22 +1163,26 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                         <p className="text-xs text-gray-500">Currently active language for FeasiFy.</p>
                       </div>
                     </div>
-                    <select
-                      value={language}
-                      onChange={(e) => handleChangeLanguage(e.target.value)}
-                      className="text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="English (US)">English (US)</option>
-                      <option value="Filipino (Tagalog)">Filipino (Tagalog)</option>
-                      <option value="Cebuano (Bisaya)">Cebuano (Bisaya)</option>
-                      <option value="Spanish">Spanish</option>
-                    </select>
+                    <div className="w-48">
+                      <CustomDropdown
+                        value={language}
+                        onChange={(val) => handleChangeLanguage(val)}
+                        options={[
+                          { value: "English (US)", label: "English (US)" },
+                          { value: "Filipino (Tagalog)", label: "Filipino (Tagalog)" },
+                          { value: "Cebuano (Bisaya)", label: "Cebuano (Bisaya)" },
+                          { value: "Spanish", label: "Spanish" },
+                        ]}
+                        buttonClassName="py-1.5 text-xs font-bold"
+                        direction="down"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Security & Authentication Card */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative z-10">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50">
                   <h3 className="font-bold text-[#122244]">Security & Authentication</h3>
                 </div>
@@ -1248,24 +1254,25 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Action Type
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedActionFilter}
-                      onChange={(e) => {
-                        setSelectedActionFilter(e.target.value);
+                      onChange={(val) => {
+                        setSelectedActionFilter(val);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="ALL">All Actions</option>
-                      <option value="CREATE">CREATE</option>
-                      <option value="UPDATE">UPDATE</option>
-                      <option value="DELETE">DELETE</option>
-                      <option value="SUBMIT">SUBMIT</option>
-                      <option value="APPROVE">APPROVE</option>
-                      <option value="REJECT">REJECT</option>
-                      <option value="REVISION">REVISION</option>
-                      <option value="LOGIN">LOGIN</option>
-                    </select>
+                      options={[
+                        { value: "ALL", label: "All Actions" },
+                        { value: "CREATE", label: "CREATE" },
+                        { value: "UPDATE", label: "UPDATE" },
+                        { value: "DELETE", label: "DELETE" },
+                        { value: "SUBMIT", label: "SUBMIT" },
+                        { value: "APPROVE", label: "APPROVE" },
+                        { value: "REJECT", label: "REJECT" },
+                        { value: "REVISION", label: "REVISION" },
+                        { value: "LOGIN", label: "LOGIN" },
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* MEMBER FILTER */}
@@ -1273,21 +1280,18 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Member / Actor
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedMemberFilter}
-                      onChange={(e) => {
-                        setSelectedMemberFilter(e.target.value);
+                      onChange={(val) => {
+                        setSelectedMemberFilter(val);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
-                    >
-                      <option value="ALL">All Members</option>
-                      {uniqueMembers.map((member) => (
-                        <option key={member} value={member}>
-                          {member}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "ALL", label: "All Members" },
+                        ...uniqueMembers.map((member) => ({ value: member, label: member })),
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* SINGLE DATE FILTER */}
@@ -1997,6 +2001,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           </div>
         </div>
       )}
+      {/* Floating Back to Top Button */}
+      <ScrollToTopButton />
     </div>
   );
 };

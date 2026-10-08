@@ -246,6 +246,47 @@ html.dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
 }
 
 /* ========================================================================= */
+/* UNIFORM SELECT & DROPDOWN LIST STYLING                                    */
+/* ========================================================================= */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
+  padding-right: 2.5rem !important;
+  border-radius: 0.75rem !important;
+  border-color: #e5e7eb;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+select:hover {
+  border-color: #c9a654;
+}
+
+select:focus {
+  outline: none !important;
+  border-color: #c9a654 !important;
+  box-shadow: 0 0 0 2px rgba(201, 166, 84, 0.2) !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c9a654' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M5 15l7-7 7 7'%3e%3c/path%3e%3c/svg%3e");
+}
+
+select option {
+  padding: 0.5rem 0.75rem;
+  background-color: #ffffff;
+  color: #122244;
+}
+
+select option:checked {
+  background-color: #fef9ee !important;
+  color: #c9a654 !important;
+  font-weight: 600;
+}
+
+/* ========================================================================= */
 /* MODULE WAVE BACKGROUND (FEASIFY PALETTE) - BOTTOM ONLY                    */
 /* ========================================================================= */
 main {

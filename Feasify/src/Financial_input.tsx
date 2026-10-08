@@ -90,6 +90,7 @@ import { MR_CABBAGE_BENCHMARK } from "./utils/cabbageBenchmark";
 import { generateFiveYearBalanceSheet } from "./utils/balanceSheetProjections";
 import { StatementOfFinancialPositionTable } from "./components/StatementOfFinancialPositionTable";
 import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
 import { logAuditEvent } from "./services/auditLogger";
 import {
   getDynamicCompetitorsFromLocation,
@@ -2666,16 +2667,11 @@ const Financial_input: React.FC = () => {
                     <div className="relative z-10 bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 backdrop-blur-sm space-y-4">
                       {/* Header */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654]">
-                            <DollarSign size={18} />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                              Initial Capital Contributed
-                            </h4>
-                            <p className="text-[10px] text-slate-300">Direct cash equity contributions from owners & founding partners</p>
-                          </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                            Initial Capital Contributed
+                          </h4>
+                          <p className="text-[10px] text-slate-300">Direct cash equity contributions from owners & founding partners</p>
                         </div>
                         <button
                           type="button"
@@ -5238,29 +5234,31 @@ const Financial_input: React.FC = () => {
                           <label className="text-[11px] font-bold text-gray-600 uppercase tracking-wider block">
                             Detailed Market Demand Context (Directly Affecting ROI):
                           </label>
-                          <select
-                            disabled={isInputsBlocked}
-                            value={financials.marketDemand || "Medium"}
-                            onChange={(e) => {
-                              const newDemand = e.target.value;
-                              const newState = { ...financials, marketDemand: newDemand };
-                              setFinancials(newState);
-                              const updatedRecords = [...monthlyRecords];
-                              if (updatedRecords[activeMonthIndex]) {
-                                updatedRecords[activeMonthIndex] = {
-                                  ...updatedRecords[activeMonthIndex],
-                                  financials: newState,
-                                };
-                                setMonthlyRecords(updatedRecords);
-                              }
-                              handleAutoSave(newState, updatedRecords);
-                            }}
-                            className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-[#122244] outline-none cursor-pointer"
-                          >
-                            <option value="High">🔥 High Demand</option>
-                            <option value="Medium">📈 Medium Demand</option>
-                            <option value="Low">⚖️ Low Demand</option>
-                          </select>
+                          <div className="w-48">
+                            <CustomDropdown
+                              disabled={isInputsBlocked}
+                              value={financials.marketDemand || "Medium"}
+                              onChange={(val) => {
+                                const newState = { ...financials, marketDemand: val };
+                                setFinancials(newState);
+                                const updatedRecords = [...monthlyRecords];
+                                if (updatedRecords[activeMonthIndex]) {
+                                  updatedRecords[activeMonthIndex] = {
+                                    ...updatedRecords[activeMonthIndex],
+                                    financials: newState,
+                                  };
+                                  setMonthlyRecords(updatedRecords);
+                                }
+                                handleAutoSave(newState, updatedRecords);
+                              }}
+                              options={[
+                                { value: "High", label: "🔥 High Demand" },
+                                { value: "Medium", label: "📈 Medium Demand" },
+                                { value: "Low", label: "⚖️ Low Demand" },
+                              ]}
+                              buttonClassName="py-1.5 px-3 text-xs font-bold"
+                            />
+                          </div>
                         </div>
                         <textarea
                           rows={3}

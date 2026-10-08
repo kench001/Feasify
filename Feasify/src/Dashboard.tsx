@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate, useLocation } from "react-router-dom";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -835,6 +836,8 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Floating Back to Top Button */}
+        <ScrollToTopButton />
       </div>
     </>
   );

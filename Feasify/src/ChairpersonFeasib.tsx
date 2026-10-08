@@ -18,6 +18,8 @@ import {
   Bell,
   Clock
 } from "lucide-react";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
 
 interface ProjectData {
   id: string;
@@ -453,27 +455,23 @@ const ChairpersonFeasib: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 w-full md:w-auto text-sm">
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-gray-500 font-semibold whitespace-nowrap">Section:</span>
-                <select 
+                <CustomDropdown 
                   value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                >
-                  {uniqueSections.map((section, idx) => (
-                    <option key={idx} value={section}>{section}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedSection(val)}
+                  options={uniqueSections.map((sec) => ({ value: sec, label: sec }))}
+                  className="w-full sm:w-44"
+                  buttonClassName="py-2 text-xs font-semibold"
+                />
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-gray-500 font-semibold whitespace-nowrap">Adviser:</span>
-                <select 
+                <CustomDropdown 
                   value={selectedAdviser}
-                  onChange={(e) => setSelectedAdviser(e.target.value)}
-                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                >
-                  {uniqueAdvisers.map((adviser, idx) => (
-                    <option key={idx} value={adviser}>{adviser}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedAdviser(val)}
+                  options={uniqueAdvisers.map((adv) => ({ value: adv, label: adv }))}
+                  className="w-full sm:w-48"
+                  buttonClassName="py-2 text-xs font-semibold"
+                />
               </div>
             </div>
           </div>
@@ -544,6 +542,8 @@ const ChairpersonFeasib: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Scroll to Top */}
+      <ScrollToTopButton />
     </div>
   );
 };

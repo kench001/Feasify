@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
@@ -1024,14 +1026,15 @@ const ChairpersonModule: React.FC = () => {
             <form onSubmit={handleSaveUser} className="p-6 space-y-4">
               <div>
                 <label className="text-sm font-bold text-gray-700 block mb-1">Role</label>
-                <select 
+                <CustomDropdown
                   value={userForm.role}
-                  onChange={(e) => setUserForm({...userForm, role: e.target.value})}
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none transition-shadow"
-                >
-                  <option value="Student">Student</option>
-                  <option value="Adviser">Faculty</option>
-                </select>
+                  onChange={(val) => setUserForm({ ...userForm, role: val })}
+                  options={[
+                    { value: "Student", label: "Student" },
+                    { value: "Adviser", label: "Faculty" },
+                  ]}
+                  buttonClassName="py-2.5 text-sm font-medium"
+                />
               </div>
 
               <div>
@@ -1232,6 +1235,8 @@ const ChairpersonModule: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Floating Back to Top Button */}
+      <ScrollToTopButton />
     </div>
   );
 };

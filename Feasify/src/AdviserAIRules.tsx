@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc, query, collection, where, getDocs } from "firebase/firestore";
 import {
@@ -481,6 +482,8 @@ const AdviserAIRules: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Scroll to Top */}
+      <ScrollToTopButton />
     </div>
   );
 };
