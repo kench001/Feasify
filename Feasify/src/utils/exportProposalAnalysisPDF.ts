@@ -214,103 +214,7 @@ export async function exportProposalAnalysisPDF(options: ExportProposalAnalysisO
   y = cardStartY + 41;
 
   // =========================================================================
-  // 3. OFFICIAL ADVISER REMARKS & DIRECTIVES
-  // =========================================================================
-  checkPageBreak(30);
-
-  // Section Header
-  doc.setFillColor(...brandNavy);
-  doc.rect(marginX, y, 3, 6.5, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...brandNavy);
-  doc.text("1. OFFICIAL FACULTY ADVISER REMARKS & DIRECTIVES", marginX + 6, y + 5);
-  y += 10;
-
-  const activeRemarks = (currentRemarks || proposal.adviserRemarks || proposal.adviserFeedback || "").trim();
-
-  if (activeRemarks) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    const splitRemarks = doc.splitTextToSize(activeRemarks, contentWidth - 14);
-    const boxHeight = splitRemarks.length * 4.5 + 14;
-
-    checkPageBreak(boxHeight);
-
-    doc.setFillColor(254, 252, 246); // warm gold-tinted box
-    doc.setDrawColor(245, 230, 190);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(marginX, y, contentWidth, boxHeight, 1.5, 1.5, "FD");
-
-    // Gold decorative left accent
-    doc.setFillColor(...brandGold);
-    doc.rect(marginX, y, 2, boxHeight, "F");
-
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(...textDark);
-    doc.text(splitRemarks, marginX + 6, y + 6);
-
-    const signoffY = y + boxHeight - 4;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...brandGold);
-    doc.text(
-      `— Prof. ${adviserName || "Faculty Adviser"} (Evaluator • Remarks Recorded)`,
-      pageWidth - marginX - 5,
-      signoffY,
-      { align: "right" }
-    );
-
-    y += boxHeight + 6;
-  } else {
-    doc.setFillColor(...bgLight);
-    doc.setDrawColor(...borderGray);
-    doc.roundedRect(marginX, y, contentWidth, 12, 1.5, 1.5, "FD");
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(...textMuted);
-    doc.text("No written remarks recorded for this proposal cycle.", marginX + 6, y + 7.5);
-    y += 18;
-  }
-
-  // Previous Feedback History (if any exists)
-  if (proposal.feedbackHistory && proposal.feedbackHistory.length > 0) {
-    checkPageBreak(25);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...brandNavy);
-    doc.text("Previous Evaluation Notes / Revision Timeline:", marginX + 2, y);
-    y += 5;
-
-    for (const hist of proposal.feedbackHistory.slice(-3)) {
-      const histText = hist.text ? hist.text.trim() : "";
-      if (!histText) continue;
-      const histLines = doc.splitTextToSize(histText, contentWidth - 14);
-      const hHeight = histLines.length * 4 + 9;
-      checkPageBreak(hHeight);
-
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(...borderGray);
-      doc.roundedRect(marginX, y, contentWidth, hHeight, 1, 1, "FD");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...textMuted);
-      const dateStr = hist.date ? new Date(hist.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-      doc.text(`${hist.authorName || "Adviser"} • ${dateStr}`, marginX + 4, y + 4.5);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(...textDark);
-      doc.text(histLines, marginX + 4, y + 8.5);
-
-      y += hHeight + 2.5;
-    }
-    y += 3;
-  }
-
-  // =========================================================================
-  // 4. AI FEASIBILITY QUALITATIVE ANALYSIS
+  // 3. AI FEASIBILITY QUALITATIVE ANALYSIS
   // =========================================================================
   checkPageBreak(25);
 
@@ -319,7 +223,7 @@ export async function exportProposalAnalysisPDF(options: ExportProposalAnalysisO
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...brandNavy);
-  doc.text("2. AI QUALITATIVE FEASIBILITY ASSESSMENT", marginX + 6, y + 5);
+  doc.text("1. AI QUALITATIVE FEASIBILITY ASSESSMENT", marginX + 6, y + 5);
   y += 10;
 
   if (!aiResult) {
@@ -336,30 +240,6 @@ export async function exportProposalAnalysisPDF(options: ExportProposalAnalysisO
     );
     y += 20;
   } else {
-    // Executive AI Synthesis (draftFeedback if available)
-    if (aiResult.draftFeedback) {
-      checkPageBreak(25);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(...brandNavy);
-      doc.text("Executive AI Evaluation Summary:", marginX + 2, y);
-      y += 4.5;
-
-      const splitSummary = doc.splitTextToSize(aiResult.draftFeedback.trim(), contentWidth - 10);
-      const sumHeight = splitSummary.length * 4.2 + 8;
-      checkPageBreak(sumHeight);
-
-      doc.setFillColor(...bgLight);
-      doc.setDrawColor(...borderGray);
-      doc.roundedRect(marginX, y, contentWidth, sumHeight, 1.5, 1.5, "FD");
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...textDark);
-      doc.text(splitSummary, marginX + 5, y + 5.5);
-      y += sumHeight + 6;
-    }
-
     // Key Strengths Box
     if (aiResult.strengths && aiResult.strengths.length > 0) {
       checkPageBreak(20);
@@ -496,6 +376,66 @@ export async function exportProposalAnalysisPDF(options: ExportProposalAnalysisO
       }
       y += 4;
     }
+  }
+
+  // =========================================================================
+  // 4. OFFICIAL ADVISER REMARKS & DIRECTIVES
+  // =========================================================================
+  checkPageBreak(30);
+
+  // Section Header
+  doc.setFillColor(...brandNavy);
+  doc.rect(marginX, y, 3, 6.5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...brandNavy);
+  doc.text("2. OFFICIAL FACULTY ADVISER REMARKS & DIRECTIVES", marginX + 6, y + 5);
+  y += 10;
+
+  const activeRemarks = (currentRemarks || proposal.adviserRemarks || proposal.adviserFeedback || "").trim();
+
+  if (activeRemarks) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    const splitRemarks = doc.splitTextToSize(activeRemarks, contentWidth - 14);
+    const boxHeight = splitRemarks.length * 4.5 + 14;
+
+    checkPageBreak(boxHeight);
+
+    doc.setFillColor(254, 252, 246); // warm gold-tinted box
+    doc.setDrawColor(245, 230, 190);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(marginX, y, contentWidth, boxHeight, 1.5, 1.5, "FD");
+
+    // Gold decorative left accent
+    doc.setFillColor(...brandGold);
+    doc.rect(marginX, y, 2, boxHeight, "F");
+
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(...textDark);
+    doc.text(splitRemarks, marginX + 6, y + 6);
+
+    const signoffY = y + boxHeight - 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...brandGold);
+    doc.text(
+      `— Prof. ${adviserName || "Faculty Adviser"} (Evaluator • Remarks Recorded)`,
+      pageWidth - marginX - 5,
+      signoffY,
+      { align: "right" }
+    );
+
+    y += boxHeight + 6;
+  } else {
+    doc.setFillColor(...bgLight);
+    doc.setDrawColor(...borderGray);
+    doc.roundedRect(marginX, y, contentWidth, 12, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...textMuted);
+    doc.text("No written remarks recorded for this proposal cycle.", marginX + 6, y + 7.5);
+    y += 18;
   }
 
   // =========================================================================
