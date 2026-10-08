@@ -210,7 +210,7 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-scroll bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-fixed bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')] p-4 sm:p-6 lg:p-8">
       {/* Background Decorative SVG */}
       <div className="absolute inset-0 opacity-15 pointer-events-none">
         <svg viewBox="0 0 800 800" className="absolute right-[-10%] top-0 h-full w-[120%]">

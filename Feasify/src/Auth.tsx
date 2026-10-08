@@ -355,7 +355,7 @@ const Auth: React.FC = () => {
 
   return (
     <>
-      <div className="min-h-screen flex flex-col min-[1131px]:flex-row bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-scroll bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')]">
+      <div className="min-h-screen flex flex-col min-[1131px]:flex-row bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-fixed bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')]">
         {/* DESKTOP LEFT SIDE */}
         <div className="hidden min-[1131px]:block relative w-full min-[1131px]:w-1/2 overflow-hidden">
           <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-10 md:px-12 md:py-14 lg:px-16 lg:py-20 text-white">

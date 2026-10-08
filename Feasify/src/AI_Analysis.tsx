@@ -1083,7 +1083,7 @@ const AI_Analysis: React.FC = () => {
       </aside>
 
       <main
-        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out bg-gray-50/50 min-h-screen ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
+        className={`flex-1 w-full max-w-full transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
       >
         <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2.5">

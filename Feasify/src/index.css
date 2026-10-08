@@ -254,7 +254,7 @@ main {
   background-repeat: no-repeat;
   background-position: bottom right;
   background-size: 100% clamp(200px, 30vh, 380px);
-  background-attachment: local;
+  background-attachment: fixed;
 }
 
 html.dark main {
@@ -262,5 +262,5 @@ html.dark main {
   background-repeat: no-repeat !important;
   background-position: bottom right !important;
   background-size: 100% clamp(200px, 30vh, 380px) !important;
-  background-attachment: local !important;
+  background-attachment: fixed !important;
 }
