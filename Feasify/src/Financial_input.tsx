@@ -5022,9 +5022,9 @@ const Financial_input: React.FC = () => {
                                   Live Map POIs
                                 </span>
                               )}
-                              {dynamicCompetitorData?.nearbyEstablishmentItems && dynamicCompetitorData.nearbyEstablishmentItems.some((i) => i.distanceKm !== undefined) && (
+                              {dynamicCompetitorData?.nearbyEstablishmentItems && dynamicCompetitorData.nearbyEstablishmentItems.some((i) => i.distanceKm !== undefined && i.distanceKm <= 3.0) && (
                                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                                  GPS Proximity
+                                  GPS Proximity (≤3km)
                                 </span>
                               )}
                             </span>
@@ -5033,7 +5033,7 @@ const Financial_input: React.FC = () => {
                           {isDetectingCompetitors ? (
                             <div className="flex items-center gap-2 py-2 px-3 bg-blue-50/50 rounded-xl border border-blue-200/50 text-xs text-[#122244]">
                               <RefreshCw size={12} className="animate-spin text-[#122244]" />
-                              <span className="font-medium">Reading map for nearby schools, hospitals, commercial hubs & transit points...</span>
+                              <span className="font-medium">Reading map for nearby schools, hospitals, commercial hubs & transit points within 3km...</span>
                             </div>
                           ) : (
                             <div className="flex flex-wrap gap-1.5">
@@ -5048,7 +5048,9 @@ const Financial_input: React.FC = () => {
                                   "Parish Church & Worship Center",
                                   "Corporate & BPO Offices",
                                 ]).map((name) => ({ name, category: "Establishment" as const, icon: "📍" }))
-                              ).map((item) => {
+                              )
+                                .filter((item) => item.distanceKm === undefined || item.distanceKm <= 3.0)
+                                .map((item) => {
                                 const isAdded = (financials.nearbyEstablishments || []).some(
                                   (e) => e.toLowerCase() === item.name.toLowerCase()
                                 );

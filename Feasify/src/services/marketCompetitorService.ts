@@ -509,7 +509,7 @@ export function generateLocationAwareEstablishments(
     Establishment: "📍",
   };
 
-  // 1. Spatial proximity if coordinates are known
+  // 1. Spatial proximity if coordinates are known - strictly maximum 3km
   if (coords) {
     const nearbySpatial = PHILIPPINE_LANDMARKS
       .filter((lm) => !["Street", "Highway", "City"].includes(lm.category))
@@ -522,29 +522,11 @@ export function generateLocationAwareEstablishments(
           distanceKm: parseFloat((distM / 1000).toFixed(1)),
         };
       })
-      .filter((lm) => (lm.distanceKm || 0) <= 6.5)
+      .filter((lm) => (lm.distanceKm || 0) <= 3.0)
       .sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
 
     if (nearbySpatial.length > 0) {
-      if (nearbySpatial.length >= 6) {
-        return nearbySpatial.slice(0, 12);
-      }
-      // Pad with matching city landmarks if fewer than 6
-      const cityMatches = PHILIPPINE_LANDMARKS
-        .filter(
-          (lm) =>
-            !["Street", "Highway", "City"].includes(lm.category) &&
-            !nearbySpatial.some((ns) => ns.name.toLowerCase() === lm.name.toLowerCase()) &&
-            (cleanCity.toLowerCase() === "quezon city"
-              ? lm.city.toLowerCase() === "quezon city"
-              : lm.city.toLowerCase() === cleanCity.toLowerCase())
-        )
-        .map((lm) => ({
-          name: lm.name,
-          category: lm.category as any,
-          icon: iconMap[lm.category] || "📍",
-        }));
-      return [...nearbySpatial, ...cityMatches].slice(0, 12);
+      return nearbySpatial.slice(0, 12);
     }
   }
 
@@ -601,7 +583,7 @@ export async function getDynamicCompetitorsFromLocation(
   const cleanLoc = (proposedLocation || "").trim();
   const city = extractCityOrArea(cleanLoc);
   const archetype = classifyBusinessArchetype(businessName, businessType, products);
-  const CACHE_VERSION = "v3_fairview_qc_fix";
+  const CACHE_VERSION = "v5_max_3km_strict";
   const cacheKey = `${CACHE_VERSION}__${cleanLoc.toLowerCase()}__${archetype}__${businessName.toLowerCase()}`;
 
   if (!forceRefresh && cache.has(cacheKey)) {
@@ -631,7 +613,7 @@ export async function getDynamicCompetitorsFromLocation(
     const coords = await geocodeLocation(cleanLoc);
     if (coords) {
       const spatialEst = generateLocationAwareEstablishments(city, coords);
-      const pois = await queryOverpassPOIs(coords.lat, coords.lon, 2000);
+      const pois = await queryOverpassPOIs(coords.lat, coords.lon, 3000);
 
       const liveDirect: string[] = [];
       const liveOther: string[] = [];
@@ -727,6 +709,9 @@ export async function getDynamicCompetitorsFromLocation(
           const distM = poiLat && poiLon ? haversineMeters(coords.lat, coords.lon, poiLat, poiLon) : undefined;
           const distKm = distM !== undefined ? parseFloat((distM / 1000).toFixed(1)) : undefined;
 
+          // Strictly filter live establishments to max 3.0 km
+          if (distKm !== undefined && distKm > 3.0) continue;
+
           if (amenity === "school" || amenity === "college" || amenity === "university") {
             liveEstItems.push({ name, category: "University", icon: "🏫", distanceKm: distKm });
           } else if (amenity === "hospital" || amenity === "clinic") {
@@ -747,11 +732,35 @@ export async function getDynamicCompetitorsFromLocation(
       const mergedDirect = Array.from(new Set([...liveDirect, ...fallback.direct])).slice(0, 8);
       const mergedOther = Array.from(new Set([...liveOther, ...fallback.other])).slice(0, 8);
 
-      const mergedEstItems = Array.from(
-        new Map(
-          [...spatialEst, ...liveEstItems, ...fallbackEst].map((item) => [item.name.toLowerCase(), item])
-        ).values()
-      ).slice(0, 12);
+      // Merge spatial and live landmarks, strictly filtering to maximum 3km
+      const validEstablishments: NearbyEstablishmentItem[] = [];
+      const seenNames = new Set<string>();
+
+      // 1. Spatial landmarks from DB (strictly <= 3km)
+      for (const item of spatialEst) {
+        if (item.distanceKm !== undefined && item.distanceKm > 3.0) continue;
+        const key = item.name.toLowerCase().trim();
+        if (!seenNames.has(key)) {
+          seenNames.add(key);
+          validEstablishments.push(item);
+        }
+      }
+
+      // 2. Live POIs from OSM (strictly <= 3km)
+      for (const item of liveEstItems) {
+        if (item.distanceKm !== undefined && item.distanceKm > 3.0) continue;
+        const key = item.name.toLowerCase().trim();
+        if (!seenNames.has(key)) {
+          seenNames.add(key);
+          validEstablishments.push(item);
+        }
+      }
+
+      validEstablishments.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
+
+      const mergedEstItems = validEstablishments.length > 0
+        ? validEstablishments.slice(0, 12)
+        : fallbackEst.slice(0, 8);
 
       result = {
         locationName: cleanLoc,

@@ -8,7 +8,7 @@ import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp
 import {
   User, Settings, ShieldAlert, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
-  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
+  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check, Download,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
   Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
 } from "lucide-react";
@@ -16,6 +16,7 @@ import { normalizeProposalProducts, computeProductMetrics } from "./utils/produc
 import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
 import ScrollToTopButton from "./components/ScrollToTopButton";
+import { exportProposalAnalysisPDF } from "./utils/exportProposalAnalysisPDF";
 
 interface StudentData {
   id: string;
@@ -167,6 +168,9 @@ const AdviserDashboard: React.FC = () => {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemarksSaving, setIsRemarksSaving] = useState(false);
+  const [remarksSavedNotice, setRemarksSavedNotice] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "balance-sheet">("operations");
 
   // AI Analysis State
@@ -464,6 +468,116 @@ const AdviserDashboard: React.FC = () => {
       setModalAiResult(null);
     }
   };
+
+  const handleCloseProposalModal = async () => {
+    if (viewingProposal && viewingProposal.id) {
+      const currentInput = feedbackInput.trim();
+      const currentSaved = (viewingProposal.adviserRemarks || viewingProposal.adviserFeedback || "").trim();
+      if (currentInput && currentInput !== currentSaved) {
+        try {
+          await updateDoc(doc(db, "proposals", viewingProposal.id), {
+            adviserRemarks: currentInput,
+            adviserFeedback: currentInput,
+            updatedAt: serverTimestamp(),
+          });
+        } catch {}
+      }
+    }
+    setViewingProposal(null);
+  };
+
+  const handleExportPDF = async () => {
+    if (!viewingProposal) return;
+    setIsExportingPdf(true);
+    try {
+      await exportProposalAnalysisPDF({
+        proposal: viewingProposal,
+        aiResult: modalAiResult,
+        currentRemarks: feedbackInput,
+        adviserName: userName,
+        groupTitle: selectedGroup?.title || "Student Group",
+        sectionCode: selectedGroup?.section || activeSection || "Unassigned",
+      });
+    } catch (err) {
+      console.error("PDF export error:", err);
+      alert("Failed to export PDF. Please try again.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Auto-save remarks when typing in the proposal review modal
+  useEffect(() => {
+    if (!viewingProposal || !viewingProposal.id) return;
+    const currentSavedRemarks = (viewingProposal.adviserRemarks || viewingProposal.adviserFeedback || "").trim();
+    const currentInput = feedbackInput.trim();
+    if (currentInput === currentSavedRemarks) {
+      setIsRemarksSaving(false);
+      return;
+    }
+
+    setIsRemarksSaving(true);
+    setRemarksSavedNotice(false);
+
+    const timer = setTimeout(async () => {
+      try {
+        const updatePayload: any = {
+          adviserRemarks: currentInput,
+          adviserFeedback: currentInput,
+          updatedAt: serverTimestamp(),
+        };
+
+        await updateDoc(doc(db, "proposals", viewingProposal.id!), updatePayload);
+
+        try {
+          await fetch(`http://localhost:5000/api/proposals/${viewingProposal.id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: viewingProposal.status,
+              remarks: currentInput,
+            })
+          });
+        } catch {}
+
+        setViewingProposal((prev) => prev ? {
+          ...prev,
+          adviserRemarks: currentInput,
+          adviserFeedback: currentInput,
+        } : null);
+
+        setGroupProposals((prev) =>
+          prev.map((p) =>
+            p.id === viewingProposal.id
+              ? { ...p, adviserRemarks: currentInput, adviserFeedback: currentInput }
+              : p
+          )
+        );
+
+        if (viewingProposal.groupId) {
+          setProposalsByGroup((prev) => {
+            const list = prev[viewingProposal.groupId] || [];
+            return {
+              ...prev,
+              [viewingProposal.groupId]: list.map((p) =>
+                p.id === viewingProposal.id
+                  ? { ...p, adviserRemarks: currentInput, adviserFeedback: currentInput }
+                  : p
+              ),
+            };
+          });
+        }
+
+        setIsRemarksSaving(false);
+        setRemarksSavedNotice(true);
+      } catch (err) {
+        console.error("Auto-save remarks error:", err);
+        setIsRemarksSaving(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [feedbackInput, viewingProposal?.id]);
 
   const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
@@ -2034,7 +2148,7 @@ const AdviserDashboard: React.FC = () => {
                       const slotNum = proposal.proposalNumber || idx + 1;
                       return (
                         <div key={proposal.id || idx} className="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-black rounded-md uppercase tracking-wider">
                                 Proposal {slotNum}
@@ -2045,10 +2159,17 @@ const AdviserDashboard: React.FC = () => {
                             <p className="text-sm text-gray-500 mb-1">{proposal.businessType ? `${proposal.businessType} • ` : ""}{proposal.tagline || proposal.targetMarket || "No additional description"}</p>
                             <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {formatProposalDate(proposal)}</p>
 
-                            {/* Adviser Remarks display */}
-                            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 text-xs">
-                              <span className="font-bold text-gray-600">Adviser Remarks: </span>
-                              <span className={proposal.adviserRemarks || proposal.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}>
+                            {/* Adviser Remarks display (single line truncated) */}
+                            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 text-xs flex items-center gap-1.5 overflow-hidden">
+                              <span className="font-bold text-gray-600 shrink-0">Adviser Remarks:</span>
+                              <span
+                                className={`truncate block flex-1 ${
+                                  proposal.adviserRemarks || proposal.adviserFeedback
+                                    ? "text-gray-800 font-medium italic"
+                                    : "text-gray-400 italic"
+                                }`}
+                                title={proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
+                              >
                                 {proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
                               </span>
                             </div>
@@ -2529,7 +2650,23 @@ const AdviserDashboard: React.FC = () => {
                   <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {formatProposalDate(viewingProposal)}</p>
                 </div>
               </div>
-              <button onClick={() => setViewingProposal(null)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50"><X className="w-6 h-6" /></button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  disabled={isExportingPdf}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 text-[#122244] hover:text-[#c9a654] border border-gray-200 hover:border-[#c9a654]/40 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title="Export AI Feasibility Analysis and Remarks as PDF"
+                >
+                  {isExportingPdf ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#c9a654]" />
+                  ) : (
+                    <Download className="w-4 h-4 text-[#c9a654]" />
+                  )}
+                  <span>{isExportingPdf ? "Exporting..." : "Export PDF"}</span>
+                </button>
+                <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50" title="Close"><X className="w-6 h-6" /></button>
+              </div>
             </div>
 
             {/* Modal Body - Split Layout */}
@@ -2813,11 +2950,29 @@ const AdviserDashboard: React.FC = () => {
                         <div className="p-1.5 bg-yellow-100/50 rounded-md"><Sparkles className="w-4 h-4 text-[#c9a654]" /></div>
                         AI Feasibility Analysis
                       </h3>
-                      {modalAiResult && !isAiAnalyzing && (
-                        <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
-                          <RefreshCw className="w-3 h-3" /> Re-analyze
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {modalAiResult && !isAiAnalyzing && (
+                          <button
+                            type="button"
+                            onClick={handleExportPDF}
+                            disabled={isExportingPdf}
+                            className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
+                            title="Export Analysis & Remarks as PDF"
+                          >
+                            {isExportingPdf ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#c9a654]" />
+                            ) : (
+                              <Download className="w-3 h-3 text-[#c9a654]" />
+                            )}
+                            Export PDF
+                          </button>
+                        )}
+                        {modalAiResult && !isAiAnalyzing && (
+                          <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm cursor-pointer">
+                            <RefreshCw className="w-3 h-3" /> Re-analyze
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {isAiAnalyzing ? (
@@ -2960,11 +3115,19 @@ const AdviserDashboard: React.FC = () => {
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-full">
                         Status: {viewingProposal.status}
                       </span>
-                      {feedbackInput.trim() && !isFeedbackExpanded && (
+                      {isRemarksSaving ? (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full flex items-center gap-1 animate-pulse">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving...
+                        </span>
+                      ) : remarksSavedNotice ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5 text-emerald-600" /> Auto-saved
+                        </span>
+                      ) : feedbackInput.trim() && !isFeedbackExpanded ? (
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
                           Remarks Attached
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     
                     <div className="flex items-center gap-2">
@@ -3020,40 +3183,22 @@ const AdviserDashboard: React.FC = () => {
                   {/* Action Decision Buttons */}
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => handleProposalAction(viewingProposal, 'Under Review')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-purple-700 border-2 border-purple-200 font-bold text-xs rounded-xl hover:bg-purple-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
-                      <Clock className="w-3.5 h-3.5" /> Under Review
-                    </button>
-                    <button
                       onClick={() => handleProposalAction(viewingProposal, 'Revision Required')}
                       disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-orange-600 border-2 border-orange-200 font-bold text-xs rounded-xl hover:bg-orange-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
                       <Edit2 className="w-3.5 h-3.5" /> Needs Revision
                     </button>
                     <button
                       onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
                       disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-white text-red-600 border-2 border-red-200 font-bold text-xs rounded-xl hover:bg-red-50 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
                       <X className="w-3.5 h-3.5" /> Reject
                     </button>
                     <button
                       onClick={() => handleProposalAction(viewingProposal, 'Approved')}
                       disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 text-white font-bold text-xs rounded-xl hover:bg-green-700 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95">
+                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                    </button>
-                    <button
-                      onClick={() => handleProposalAction(viewingProposal, 'Save Remarks')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-[#122244] text-white font-bold text-xs rounded-xl hover:bg-[#1f376b] transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
-                      {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      Save Remarks
-                    </button>
-                    <button
-                      onClick={() => setViewingProposal(null)}
-                      className="py-2.5 px-4 bg-gray-100 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-200 transition-colors shadow-xs">
-                      Close
                     </button>
                   </div>
                 </div>
