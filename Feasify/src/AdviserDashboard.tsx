@@ -18,6 +18,8 @@ import { cleanUserFacingText, derivePerformanceGrade, calculateLocalAudit, type 
 import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
 import ScrollToTopButton from "./components/ScrollToTopButton";
+import MobileBurgerButton from "./components/MobileBurgerButton";
+import SidebarCloseButton from "./components/SidebarCloseButton";
 import { exportProposalAnalysisPDF } from "./utils/exportProposalAnalysisPDF";
 
 interface StudentData {
@@ -2449,7 +2451,7 @@ const AdviserDashboard: React.FC = () => {
         } w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+        <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
           {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
             <img
@@ -2465,6 +2467,7 @@ const AdviserDashboard: React.FC = () => {
             alt="FeasiFy"
             className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
+          <SidebarCloseButton onClick={() => setIsSidebarOpen(false)} />
         </div>
 
         {/* SIDEBAR NAVIGATION */}
@@ -2472,6 +2475,7 @@ const AdviserDashboard: React.FC = () => {
           {/* Main Sections / Dashboard */}
           <button
             onClick={() => {
+              setIsSidebarOpen(false);
               setActiveView('dashboard');
               setActiveSection("ALL");
               setupSectionListener("ALL");
@@ -2516,6 +2520,7 @@ const AdviserDashboard: React.FC = () => {
                   <button
                     key={sectionName}
                     onClick={() => {
+                      setIsSidebarOpen(false);
                       setActiveView('dashboard');
                       setActiveSection(sectionName);
                       const s = sectionSettingsMap[sectionName];
@@ -2538,7 +2543,7 @@ const AdviserDashboard: React.FC = () => {
 
           {/* Settings button */}
           <button
-            onClick={() => navigate("/adviser/settings")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/adviser/settings"); }}
             title="Settings"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -2550,7 +2555,7 @@ const AdviserDashboard: React.FC = () => {
 
           {/* AI Rules button */}
           <button
-            onClick={() => navigate("/adviser/airules")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/adviser/airules"); }}
             title="AI Rules"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -2580,10 +2585,11 @@ const AdviserDashboard: React.FC = () => {
       <main
         className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-16' : 'ml-0'}`}
       >
-        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2.5">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
-              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors"
+              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
               onClick={() => {
                 setActiveView('dashboard');
                 navigate('/adviser/dashboard');
@@ -2591,9 +2597,9 @@ const AdviserDashboard: React.FC = () => {
             >
               FeasiFy
             </span>
-            <span className="text-gray-400">›</span>
+            <span className="text-gray-400 shrink-0">›</span>
             <span
-              className={`font-semibold ${activeView === 'dashboard' ? 'text-gray-900' : 'text-gray-500 hover:text-[#c9a654] cursor-pointer transition-colors'}`}
+              className={`font-semibold truncate ${activeView === 'dashboard' ? 'text-gray-900' : 'text-gray-500 hover:text-[#c9a654] cursor-pointer transition-colors'}`}
               onClick={() => setActiveView('dashboard')}
             >
               My Sections
@@ -2601,12 +2607,12 @@ const AdviserDashboard: React.FC = () => {
 
             {(activeView === 'group-details' || activeView === 'active-business') && selectedGroup && (
               <>
-                <span className="text-gray-400">›</span>
-                <span className="font-semibold text-[#c9a654]">Group {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
+                <span className="text-gray-400 shrink-0">›</span>
+                <span className="font-semibold text-[#c9a654] truncate">Group {groups.findIndex(g => g.id === selectedGroup.id) + 1}</span>
               </>
             )}
-            <span className="text-gray-300">|</span>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+            <span className="text-gray-300 hidden sm:inline shrink-0">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide whitespace-nowrap hidden sm:inline-block shrink-0">
               Faculty Portal
             </span>
           </div>

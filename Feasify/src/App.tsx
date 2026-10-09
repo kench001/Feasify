@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
+import { LanguageProvider } from "./context/LanguageContext";
 import "react-loading-skeleton/dist/skeleton.css";
 // Import your modules
 import Auth from "./Auth";
@@ -88,6 +89,7 @@ function App() {
   }, []);
 
   return (
+    <LanguageProvider>
     <SkeletonTheme baseColor="#e8ecf0" highlightColor="#f4f6f8">
     <Router>
       <Routes>
@@ -142,6 +144,7 @@ function App() {
       </Routes>
     </Router>
     </SkeletonTheme>
+    </LanguageProvider>
   );
 }
 

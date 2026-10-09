@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import CustomDropdown from "./components/CustomDropdown";
+import MobileBurgerButton from "./components/MobileBurgerButton";
+import SidebarCloseButton from "./components/SidebarCloseButton";
 
 interface ProjectData {
   id: string;
@@ -262,7 +264,7 @@ const ChairpersonFeasib: React.FC = () => {
         } w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+        <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
           {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
             <img
@@ -278,11 +280,12 @@ const ChairpersonFeasib: React.FC = () => {
             alt="FeasiFy"
             className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
+          <SidebarCloseButton onClick={() => setIsSidebarOpen(false)} />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
           <button
-            onClick={() => navigate('/admin/users')}
+            onClick={() => { setIsSidebarOpen(false); navigate('/admin/users'); }}
             title="User Accounts Management"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -301,7 +304,7 @@ const ChairpersonFeasib: React.FC = () => {
             </span>
           </button>
           <button
-            onClick={() => navigate('/admin/chairpersonsettings')}
+            onClick={() => { setIsSidebarOpen(false); navigate('/admin/chairpersonsettings'); }}
             title="Settings"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -329,18 +332,19 @@ const ChairpersonFeasib: React.FC = () => {
 
       {/* MAIN CONTENT */}
       <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-16' : 'ml-0'}`}>
-        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2.5">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
-              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors"
+              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
               onClick={() => navigate("/admin/users")}
             >
               FeasiFy
             </span>
-            <span className="text-gray-400">›</span>
-            <span className="font-semibold text-gray-900">Feasibility Projects</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+            <span className="text-gray-400 shrink-0">›</span>
+            <span className="font-semibold text-gray-900 truncate">Feasibility Projects</span>
+            <span className="text-gray-300 hidden sm:inline shrink-0">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide whitespace-nowrap hidden sm:inline-block shrink-0">
               Chairperson Portal
             </span>
           </div>

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "./context/LanguageContext";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import CustomDropdown from "./components/CustomDropdown";
+import MobileBurgerButton from "./components/MobileBurgerButton";
+import SidebarCloseButton from "./components/SidebarCloseButton";
 import Skeleton from "react-loading-skeleton";
 import { auth, db, signOutUser } from "./firebase";
 import {
@@ -160,9 +163,14 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   const [prefSaveNotice, setPrefSaveNotice] = useState("");
 
   // System Settings Preferences
+  const { language: currentLang, setLanguage: setGlobalLanguage } = useLanguage();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-  const [language, setLanguage] = useState("English (US)");
+  const [language, setLanguage] = useState<string>(currentLang);
+
+  useEffect(() => {
+    setLanguage(currentLang);
+  }, [currentLang]);
 
   // Audit Logs State (Student Scope) with Pagination & Filters
   const [logs, setLogs] = useState<AuditRecord[]>([]);
@@ -211,8 +219,10 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             const prefNotif = savedNotif !== null ? savedNotif === "true" : (data.preferences?.emailNotifications ?? true);
             setNotificationsEnabled(prefNotif);
 
-            const savedLang = localStorage.getItem("feasify_lang") || data.preferences?.language || "English (US)";
-            setLanguage(savedLang);
+            const savedLang = localStorage.getItem("feasify_lang") || data.preferences?.language || "English";
+            const normalizedLang = (savedLang === "Filipino" || savedLang === "Filipino (Tagalog)") ? "Filipino" : "English";
+            setLanguage(normalizedLang);
+            setGlobalLanguage(normalizedLang);
 
             if (data.section) {
               fetchTeamDetails(u.uid, data.section);
@@ -431,15 +441,16 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   };
 
   const handleChangeLanguage = async (newLang: string) => {
-    setLanguage(newLang);
-    localStorage.setItem("feasify_lang", newLang);
-    setPrefSaveNotice(`Language set to ${newLang}.`);
+    const normalized = (newLang === "Filipino (Tagalog)" || newLang === "Filipino") ? "Filipino" : "English";
+    setLanguage(normalized);
+    setGlobalLanguage(normalized);
+    setPrefSaveNotice(`Language set to ${normalized}.`);
     setTimeout(() => setPrefSaveNotice(""), 3000);
 
     if (userUid) {
       try {
         await updateDoc(doc(db, "users", userUid), {
-          "preferences.language": newLang,
+          "preferences.language": normalized,
           updatedAt: new Date(),
         });
       } catch (e) {
@@ -752,7 +763,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           } w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center px-3 border-b border-white/10 shrink-0 overflow-hidden">
+        <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
           {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
             <img
@@ -768,11 +779,12 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             alt="FeasiFy"
             className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
           />
+          <SidebarCloseButton onClick={() => setIsSidebarOpen(false)} />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/dashboard"); }}
             title="Dashboard"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -782,7 +794,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate("/projects")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/projects"); }}
             title="Business Proposal"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -792,7 +804,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate("/financial-input")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/financial-input"); }}
             title="Financial Input"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -802,7 +814,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate("/ai-analysis")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/ai-analysis"); }}
             title="AI Feasibility Analysis"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -812,7 +824,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate("/reports")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/reports"); }}
             title="Reports"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -822,7 +834,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate("/messages")}
+            onClick={() => { setIsSidebarOpen(false); navigate("/messages"); }}
             title="Message"
             className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
           >
@@ -862,18 +874,19 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
         className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${isSidebarOpen ? "lg:ml-16" : "ml-0"
           }`}
       >
-        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-6 py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2.5">
+        <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
-              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors"
+              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
               onClick={() => navigate("/dashboard")}
             >
               FeasiFy
             </span>
-            <span className="text-gray-400">›</span>
-            <span className="font-semibold text-gray-900">Settings</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide">
+            <span className="text-gray-400 shrink-0">›</span>
+            <span className="font-semibold text-gray-900 truncate">Settings</span>
+            <span className="text-gray-300 hidden sm:inline shrink-0">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide whitespace-nowrap hidden sm:inline-block shrink-0">
               Student Portal
             </span>
           </div>
@@ -1170,10 +1183,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                         value={language}
                         onChange={(val) => handleChangeLanguage(val)}
                         options={[
-                          { value: "English (US)", label: "English (US)" },
-                          { value: "Filipino (Tagalog)", label: "Filipino (Tagalog)" },
-                          { value: "Cebuano (Bisaya)", label: "Cebuano (Bisaya)" },
-                          { value: "Spanish", label: "Spanish" },
+                          { value: "English", label: "English" },
+                          { value: "Filipino", label: "Filipino (Tagalog)" },
                         ]}
                         buttonClassName="py-1.5 text-xs font-bold"
                         direction="down"
