@@ -838,16 +838,27 @@ const AdviserDashboard: React.FC = () => {
         newValue: { section: activeSection, leaderName: `${leader.firstName} ${leader.lastName}` }
       });
 
-      // Send Notification to all group members
-      const allMembers = Array.from(new Set([leader.id, ...selectedMemberIds].filter(Boolean)));
-      if (allMembers.length > 0) {
-        sendBatchNotification(allMembers, {
-          title: "Assigned to New Team",
-          message: `You have been added to ${leader.firstName}'s team in section ${activeSection} by adviser ${userName}.`,
+      // Send Notification to leader and members
+      if (leader.id) {
+        sendNotification({
+          userId: leader.id,
+          title: "You are now Team Leader! 🌟",
+          message: `You have been designated as the Team Leader for your group in section ${activeSection} by adviser ${userName}.`,
           type: "group",
           link: "/projects",
           senderName: userName
-        }).catch(err => console.error("Notification failed:", err));
+        }).catch(err => console.error("Leader notification failed:", err));
+      }
+
+      const otherMembers = selectedMemberIds.filter(id => id && id !== leader.id);
+      if (otherMembers.length > 0) {
+        sendBatchNotification(otherMembers, {
+          title: "Added to Group",
+          message: `You have been added to ${leader.firstName}'s group in section ${activeSection} by adviser ${userName}.`,
+          type: "group",
+          link: "/projects",
+          senderName: userName
+        }).catch(err => console.error("Members notification failed:", err));
       }
 
       setShowCreateMembersModal(false);
@@ -967,6 +978,31 @@ const AdviserDashboard: React.FC = () => {
 
       await batch.commit();
       setGroups(prev => [...prev, ...newGroupsToCreate]);
+
+      // Send notifications to all newly formed groups
+      newGroupsToCreate.forEach(ng => {
+        if (ng.leaderId) {
+          sendNotification({
+            userId: ng.leaderId,
+            title: "You are now Team Leader! 🌟",
+            message: `You have been designated as Team Leader for your group in section ${ng.section} by adviser ${userName}.`,
+            type: "group",
+            link: "/projects",
+            senderName: userName
+          }).catch(err => console.error("Auto-group leader notification failed:", err));
+        }
+
+        if (ng.memberIds && ng.memberIds.length > 0) {
+          sendBatchNotification(ng.memberIds, {
+            title: "Added to Group",
+            message: `You have been added to ${ng.leaderName}'s group in section ${ng.section} by adviser ${userName}.`,
+            type: "group",
+            link: "/projects",
+            senderName: userName
+          }).catch(err => console.error("Auto-group members notification failed:", err));
+        }
+      });
+
       setShowAutoGroupConfirm(false);
     } catch (error) {
       console.error("Failed to auto-group:", error);
@@ -990,6 +1026,28 @@ const AdviserDashboard: React.FC = () => {
       if (selectedGroup?.id === groupToChangeLeader.id) {
         setSelectedGroup({ ...selectedGroup, leaderId: newLeaderId, leaderName: `${newLeaderStudent.firstName} ${newLeaderStudent.lastName}`, memberIds: updatedMembers });
       }
+
+      // Send notifications for team leader change
+      sendNotification({
+        userId: newLeaderId,
+        title: "You are now Team Leader! 🌟",
+        message: `You have been designated as the new Team Leader for "${groupToChangeLeader.businessName || groupToChangeLeader.title || 'your team'}" by adviser ${userName}.`,
+        type: "group",
+        link: "/projects",
+        senderName: userName
+      }).catch(err => console.error("New leader notification failed:", err));
+
+      const otherMembers = Array.from(new Set([oldLeaderId, ...updatedMembers].filter(id => id && id !== newLeaderId)));
+      if (otherMembers.length > 0) {
+        sendBatchNotification(otherMembers, {
+          title: "Team Leader Updated",
+          message: `${newLeaderStudent.firstName} ${newLeaderStudent.lastName} is now the Team Leader for your group.`,
+          type: "group",
+          link: "/projects",
+          senderName: userName
+        }).catch(err => console.error("Team leader update notification failed:", err));
+      }
+
       setShowChangeLeaderModal(false); setGroupToChangeLeader(null); setNewLeaderId(""); setOpenDropdownId(null);
     } catch (error) { console.error("Failed to change leader:", error); alert("Failed to change the team leader."); }
   };
@@ -1161,6 +1219,10 @@ const AdviserDashboard: React.FC = () => {
           notifTitle = "Proposal Rejected";
           notifType = "feedback";
           notifMessage = `Proposal "${proposal.businessName || targetGroup.title}" was not approved by ${userName}. Remarks: ${feedbackInput.trim() || 'Please check feedback.'}`;
+        } else if (action === 'Save Remarks') {
+          notifTitle = "New Adviser Remarks 💬";
+          notifType = "feedback";
+          notifMessage = `Adviser ${userName} posted review remarks on proposal "${proposal.businessName || targetGroup.title}": "${feedbackInput.trim()}"`;
         }
 
         sendBatchNotification(studentRecipients, {

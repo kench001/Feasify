@@ -92,6 +92,7 @@ import { StatementOfFinancialPositionTable } from "./components/StatementOfFinan
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import CustomDropdown from "./components/CustomDropdown";
 import { logAuditEvent } from "./services/auditLogger";
+import { notifyAdvisersForSection } from "./services/notificationService";
 import {
   getDynamicCompetitorsFromLocation,
   parseTargetMarketDemographics,
@@ -1760,6 +1761,17 @@ const Financial_input: React.FC = () => {
         recordId: selectedProjectId,
         newValue: { month: currentMonthNumber, activeDraftId: cleanRecords[activeMonthIndex]?.activeDraftId || "draft-1" },
       });
+
+      // Notify Adviser of financial inputs update
+      if (userSection) {
+        notifyAdvisersForSection(userSection, {
+          title: "Financial Inputs Updated 📊",
+          message: `Team "${userGroup?.title || projects.find(p => p.id === selectedProjectId)?.name || 'Students'}" updated their financial projections (Month ${currentMonthNumber}).`,
+          type: "financial",
+          link: "/adviser/dashboard",
+          senderName: userName || "Student"
+        }).catch(err => console.error("Adviser financial notification failed:", err));
+      }
     } catch (e) {
       console.error("Save failed:", e);
       setSaveStatus("Save failed");

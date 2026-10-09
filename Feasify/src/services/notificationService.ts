@@ -198,3 +198,31 @@ export const markAllNotificationsAsReadForUser = async (userId: string): Promise
     return false;
   }
 };
+
+export const notifyAdvisersForSection = async (
+  section: string,
+  params: Omit<SendNotificationParams, 'userId'>
+): Promise<string[]> => {
+  if (!section) return [];
+  try {
+    const advQ = query(collection(db, "users"), where("role", "==", "Adviser"));
+    const advSnap = await getDocs(advQ);
+    const adviserIds: string[] = [];
+    advSnap.forEach((d) => {
+      const advData = d.data();
+      const secs = (advData.section || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      if (secs.includes(section) || secs.includes("ALL")) {
+        adviserIds.push(d.id);
+      }
+    });
+
+    if (adviserIds.length > 0) {
+      await sendBatchNotification(adviserIds, params);
+    }
+    return adviserIds;
+  } catch (error) {
+    console.error("Failed to notify advisers for section:", error);
+    return [];
+  }
+};
+

@@ -30,6 +30,8 @@ import {
   Search,
   X,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   markNotificationAsRead,
@@ -67,6 +69,8 @@ const Notifications: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedNotifDetail, setSelectedNotifDetail] = useState<NotificationItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     let unsubNotifications: (() => void) | undefined;
@@ -170,11 +174,30 @@ const Notifications: React.FC = () => {
     );
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredNotifications.length);
+  const paginatedNotifications = filteredNotifications.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [activeTab, searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const isAllCurrentPageSelected = paginatedNotifications.length > 0 && paginatedNotifications.every(n => selectedIds.includes(n.id));
+
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredNotifications.length && filteredNotifications.length > 0) {
-      setSelectedIds([]);
+    if (isAllCurrentPageSelected) {
+      setSelectedIds(prev => prev.filter(id => !paginatedNotifications.some(n => n.id === id)));
     } else {
-      setSelectedIds(filteredNotifications.map(n => n.id));
+      const currentPageIds = paginatedNotifications.map(n => n.id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...currentPageIds])));
     }
   };
 
@@ -499,7 +522,7 @@ const Notifications: React.FC = () => {
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-gray-300 text-[#c9a654] focus:ring-[#c9a654]"
-                    checked={filteredNotifications.length > 0 && selectedIds.length === filteredNotifications.length}
+                    checked={isAllCurrentPageSelected}
                     onChange={handleSelectAll}
                   />
                   <span className="text-xs font-bold text-gray-700">Select All</span>
@@ -566,7 +589,7 @@ const Notifications: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                filteredNotifications.map((notif) => {
+                paginatedNotifications.map((notif) => {
                   const isSelected = selectedIds.includes(notif.id);
                   return (
                     <div
@@ -633,6 +656,68 @@ const Notifications: React.FC = () => {
                 })
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {filteredNotifications.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/60">
+                <div className="text-xs text-gray-500 font-medium">
+                  Showing <span className="font-bold text-gray-700">{filteredNotifications.length === 0 ? 0 : startIndex + 1}</span> to{" "}
+                  <span className="font-bold text-gray-700">{endIndex}</span> of{" "}
+                  <span className="font-bold text-gray-700">{filteredNotifications.length}</span> notifications
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                currentPage === page
+                                  ? "bg-[#122244] text-white shadow-xs"
+                                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (page === currentPage - 2 || page === currentPage + 2) {
+                          return (
+                            <span key={page} className="px-1 text-gray-400 text-xs font-semibold">
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
+                    >
+                      Next <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

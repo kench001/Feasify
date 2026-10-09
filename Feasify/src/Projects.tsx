@@ -29,7 +29,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { logAuditEvent } from "./services/auditLogger";
-import { sendNotification } from "./services/notificationService";
+import { sendNotification, notifyAdvisersForSection } from "./services/notificationService";
 import {
   LayoutDashboard,
   Folder,
@@ -1678,28 +1678,34 @@ const Projects: React.FC = () => {
           prev ? { ...prev, status: "Pending Review" } : null,
         );
 
-        // Send Notification to Adviser
+        // Send Notification to Adviser (New vs Revised Proposal)
         try {
-          let targetFacultyId = resolvedFacultyId;
-          if (!targetFacultyId && userGroup.section) {
-            const advQ = query(collection(db, "users"), where("role", "==", "Adviser"));
-            const advSnap = await getDocs(advQ);
-            advSnap.forEach((d) => {
-              const advData = d.data();
-              if (advData.section && advData.section.split(",").map((s: string) => s.trim()).includes(userGroup.section)) {
-                targetFacultyId = d.id;
-              }
-            });
-          }
-          if (targetFacultyId) {
-            sendNotification({
-              userId: targetFacultyId,
-              title: "New Proposal Submitted",
-              message: `Team "${userGroup.companyName || userGroup.title}" submitted proposal "${proposalData.businessName}" for review.`,
+          const isExistingProposal = Boolean(currentProposal.id);
+          const wasRevision = currentProposal.status === "Revision Required" || currentProposal.status === "Revision" || currentProposal.status === "Pending";
+          const isRevision = isExistingProposal && (wasRevision || proposals.some(p => p.id === currentProposal.id));
+
+          const notifTitle = isRevision ? "Proposal Revised & Resubmitted 🔄" : "New Proposal Submitted 📋";
+          const notifMessage = isRevision
+            ? `Team "${userGroup.companyName || userGroup.title}" has revised and resubmitted proposal "${proposalData.businessName}" for your review.`
+            : `Team "${userGroup.companyName || userGroup.title}" submitted new proposal "${proposalData.businessName}" for your review.`;
+
+          if (userGroup.section) {
+            await notifyAdvisersForSection(userGroup.section, {
+              title: notifTitle,
+              message: notifMessage,
               type: "proposal",
               link: "/adviser/dashboard",
               senderName: userName
-            }).catch(err => console.error("Adviser notification failed:", err));
+            });
+          } else if (resolvedFacultyId) {
+            await sendNotification({
+              userId: resolvedFacultyId,
+              title: notifTitle,
+              message: notifMessage,
+              type: "proposal",
+              link: "/adviser/dashboard",
+              senderName: userName
+            });
           }
         } catch (notifErr) {
           console.error("Adviser notification query failed:", notifErr);
