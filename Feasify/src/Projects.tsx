@@ -3796,34 +3796,34 @@ const Projects: React.FC = () => {
 
                       <div className="space-y-6">
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Tagline
                           </p>
-                          <p className="text-black font-bold text-lg">
+                          <p className="text-gray-900 dark:text-white font-bold text-lg">
                             {activeBusiness.tagline || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Mission Statement
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.missionStatement || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Vision Statement
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.visionStatement || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Target Market
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.targetMarket || "None Provided"}
                           </p>
                         </div>
@@ -3831,34 +3831,34 @@ const Projects: React.FC = () => {
                         <div className="h-px bg-gray-100 my-4"></div>
 
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Product Description
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.productDescription || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Specific Pricing
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.priceRanges || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Location
                           </p>
-                          <p className="text-black font-medium">
+                          <p className="text-gray-800 dark:text-gray-200 font-medium">
                             {activeBusiness.proposedLocation || "None Provided"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-black uppercase tracking-widest mb-1">
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
                             Promotional Strategy
                           </p>
-                          <p className="text-black text-sm leading-relaxed">
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.promotionalStrategy ||
                               "None Provided"}
                           </p>
@@ -3980,17 +3980,17 @@ const Projects: React.FC = () => {
                         </p>
 
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                          <div className="flex items-center justify-between p-3 bg-blue-50/80 dark:bg-[#122244]/80 border border-blue-100 dark:border-[#c9a654]/40 rounded-xl">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-[#122244] rounded-lg text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                              <div className="w-10 h-10 bg-[#122244] dark:bg-[#c9a654] rounded-lg text-white dark:text-[#122244] flex items-center justify-center font-bold text-sm shadow-sm">
                                 {getInitials(adviserData ? `${adviserData.firstName} ${adviserData.lastName}` : "Adviser")}
                               </div>
                               <div>
-                                <p className="font-bold text-[#122244] text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
-                                <p className="text-[10px] text-blue-600">Faculty</p>
+                                <p className="font-bold text-[#122244] dark:text-white text-sm">Prof. {adviserData ? adviserData.lastName : "Cruz"}</p>
+                                <p className="text-[10px] text-blue-600 dark:text-[#edd59b]">Faculty</p>
                               </div>
                             </div>
-                            <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Adviser</span>
+                            <span className="text-[9px] font-black uppercase text-blue-600 dark:text-[#122244] bg-blue-100 dark:bg-[#c9a654] px-2 py-1 rounded">Adviser</span>
                           </div>
 
                           <div className="flex items-center gap-3 p-2">

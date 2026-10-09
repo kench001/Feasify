@@ -497,10 +497,10 @@ const Dashboard: React.FC = () => {
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
               <div>
-                <h1 className="text-3xl font-extrabold text-[#3d2c23]">
+                <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white">
                   Dashboard
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic">
+                <p className="text-sm text-gray-500 dark:text-gray-300 mt-1 italic">
                   Overview of your feasibility studies and key metrics
                 </p>
               </div>

@@ -3279,9 +3279,9 @@ const Financial_input: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleAddProduct}
-                            className="flex items-center gap-1.5 text-xs font-bold text-[#c9a654] hover:text-[#b59545] bg-amber-50 px-3.5 py-1.5 rounded-xl border border-amber-200/80 hover:bg-amber-100 transition-all shadow-sm"
+                            className="flex items-center gap-1.5 text-xs font-bold text-[#122244] bg-[#c9a654] hover:bg-[#b59545] px-4 py-2 rounded-xl border border-[#c9a654] transition-all shadow-sm hover:shadow-md cursor-pointer"
                           >
-                            <Plus size={14} /> Add Product
+                            <Plus size={14} className="stroke-[2.5]" /> Add Product
                           </button>
                         )}
                       </div>
@@ -3367,8 +3367,8 @@ const Financial_input: React.FC = () => {
                               <div className="pt-3.5 border-t border-gray-100">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                                   {/* 1. Units per batch (Editable) */}
-                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                  <div className="bg-gray-50/90 dark:bg-gradient-to-b dark:from-[#152342] dark:to-[#0f1930] p-2.5 rounded-xl border border-gray-200/70 dark:border-[#c9a654]/40 hover:border-[#c9a654] transition-all shadow-xs">
+                                    <label className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-wider block">
                                       Units per batch <span className="text-red-500">*</span>
                                     </label>
                                     <input
@@ -3386,14 +3386,14 @@ const Financial_input: React.FC = () => {
                                         }
                                       }}
                                       onBlur={() => handleAutoSave()}
-                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#122244] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                      className="w-full px-2.5 py-1 bg-white dark:bg-[#0c1424] border border-gray-200 dark:border-[#c9a654]/50 rounded-lg text-sm font-black text-[#122244] dark:text-[#f3d98b] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                     />
-                                    <span className="text-[9px] text-gray-400 block mt-1">Batch Yield (finished pcs)</span>
+                                    <span className="text-[9px] text-gray-400 dark:text-[#edd59b]/70 block mt-1">Batch Yield (finished pcs)</span>
                                   </div>
 
                                   {/* 2. Batches per Month (Editable) */}
-                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                  <div className="bg-gray-50/90 dark:bg-gradient-to-b dark:from-[#152342] dark:to-[#0f1930] p-2.5 rounded-xl border border-gray-200/70 dark:border-[#c9a654]/40 hover:border-[#c9a654] transition-all shadow-xs">
+                                    <label className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-wider block">
                                       Batches / Mo
                                     </label>
                                     <input
@@ -3411,16 +3411,16 @@ const Financial_input: React.FC = () => {
                                         }
                                       }}
                                       onBlur={() => handleAutoSave()}
-                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#c9a654] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                      className="w-full px-2.5 py-1 bg-white dark:bg-[#0c1424] border border-gray-200 dark:border-[#c9a654]/50 rounded-lg text-sm font-black text-[#c9a654] dark:text-[#f3d98b] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                     />
-                                    <span className="text-[9px] text-[#b59545] font-semibold block mt-1">
+                                    <span className="text-[9px] text-[#b59545] dark:text-[#edd59b] font-semibold block mt-1">
                                       {metrics.totalUnitsProduced.toLocaleString()} pcs nagawa
                                     </span>
                                   </div>
 
                                   {/* 3. Units Sold / Mo (Editable) */}
-                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 hover:border-amber-300/80 transition-colors">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                  <div className="bg-gray-50/90 dark:bg-gradient-to-b dark:from-[#152342] dark:to-[#0f1930] p-2.5 rounded-xl border border-gray-200/70 dark:border-[#c9a654]/40 hover:border-[#c9a654] transition-all shadow-xs">
+                                    <label className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-wider block">
                                       Units Sold / Mo
                                     </label>
                                     <input
@@ -3447,33 +3447,33 @@ const Financial_input: React.FC = () => {
                                         }
                                       }}
                                       onBlur={() => handleAutoSave()}
-                                      className="w-full px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-[#c9a654] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100"
+                                      className="w-full px-2.5 py-1 bg-white dark:bg-[#0c1424] border border-gray-200 dark:border-[#c9a654]/50 rounded-lg text-sm font-black text-[#c9a654] dark:text-[#f3d98b] focus:border-[#c9a654] outline-none mt-1 shadow-2xs disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                     />
-                                    <span className="text-[9px] text-[#b59545] font-semibold block mt-1">
+                                    <span className="text-[9px] text-[#b59545] dark:text-[#edd59b] font-semibold block mt-1">
                                       {metrics.unitsSold.toLocaleString()} pcs nabenta
                                     </span>
                                   </div>
 
                                   {/* 4. Cost per Batch */}
-                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors flex flex-col justify-between">
+                                  <div className="bg-gray-50/90 dark:bg-gradient-to-b dark:from-[#152342] dark:to-[#0f1930] p-2.5 rounded-xl border border-gray-200/70 dark:border-[#c9a654]/40 transition-all shadow-xs flex flex-col justify-between">
                                     <div>
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Batch</span>
-                                      <p className="text-sm font-black text-[#122244] mt-1.5">
+                                      <span className="text-[10px] font-bold text-gray-400 dark:text-[#edd59b] uppercase tracking-wider block">Cost / Batch</span>
+                                      <p className="text-sm font-black text-[#122244] dark:text-[#f3d98b] mt-1.5">
                                         ₱{metrics.totalBatchCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </p>
                                     </div>
-                                    <span className="text-[9px] text-gray-400 mt-1">{ingredients.length} items/costs</span>
+                                    <span className="text-[9px] text-gray-400 dark:text-[#edd59b]/70 mt-1">{ingredients.length} items/costs</span>
                                   </div>
 
                                   {/* 5. Cost per Unit (COGS) */}
-                                  <div className="bg-gray-50/90 p-2.5 rounded-xl border border-gray-200/70 transition-colors col-span-2 sm:col-span-1 flex flex-col justify-between">
+                                  <div className="bg-gray-50/90 dark:bg-gradient-to-b dark:from-[#152342] dark:to-[#0f1930] p-2.5 rounded-xl border border-gray-200/70 dark:border-[#c9a654]/40 transition-all shadow-xs col-span-2 sm:col-span-1 flex flex-col justify-between">
                                     <div>
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost / Unit (COGS)</span>
-                                      <p className="text-sm font-black text-[#122244] mt-1.5">
+                                      <span className="text-[10px] font-bold text-gray-400 dark:text-[#edd59b] uppercase tracking-wider block">Cost / Unit (COGS)</span>
+                                      <p className="text-sm font-black text-[#122244] dark:text-[#f3d98b] mt-1.5">
                                         ₱{metrics.unitCost.toFixed(2)}
                                       </p>
                                     </div>
-                                    <span className="text-[9px] text-gray-500 font-semibold mt-1">
+                                    <span className="text-[9px] text-gray-500 dark:text-[#edd59b]/80 font-semibold mt-1">
                                       {metrics.sellingPrice > 0 ? `Target SRP: ₱${metrics.sellingPrice.toFixed(2)}` : "Unit cost"}
                                     </span>
                                   </div>

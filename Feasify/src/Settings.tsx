@@ -1134,7 +1134,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
 
                   <div className="p-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Moon className="w-5 h-5 text-gray-400" />
+                      <Moon className={`w-5 h-5 transition-colors ${darkModeEnabled ? "text-[#c9a654]" : "text-gray-400"}`} />
                       <div>
                         <p className="text-sm font-bold text-gray-900">Dark Mode</p>
                         <p className="text-xs text-gray-500">Toggle dark appearance for the application.</p>
@@ -1142,13 +1142,15 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     </div>
                     <button
                       onClick={() => handleToggleDarkMode(!darkModeEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                        darkModeEnabled ? "bg-[#122244]" : "bg-gray-300"
+                      className={`w-12 h-6 rounded-full transition-all relative cursor-pointer border ${
+                        darkModeEnabled
+                          ? "bg-[#c9a654] border-[#c9a654] shadow-[0_0_12px_rgba(201,166,84,0.45)]"
+                          : "bg-gray-300 dark:bg-gray-700 border-gray-400/40 dark:border-gray-500"
                       }`}
                       title={darkModeEnabled ? "Disable dark mode" : "Enable dark mode"}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
+                        className={`w-4 h-4 bg-white rounded-full absolute top-[3px] shadow-sm transition-all ${
                           darkModeEnabled ? "left-7" : "left-1"
                         }`}
                       ></div>
