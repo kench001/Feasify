@@ -468,7 +468,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
       <aside
         className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } w-64 lg:w-16 lg:hover:w-64`}
+        } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
@@ -539,9 +539,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
 
       {/* MAIN CONTENT */}
       <main
-        className={`flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col ${
-          isSidebarOpen ? "lg:ml-16" : "ml-0"
-        }`}
+        className="flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col lg:ml-16 ml-0"
       >
         <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">

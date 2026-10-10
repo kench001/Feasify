@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronUp,
   DollarSign,
+  PhilippinePeso,
   Package,
   TrendingUp,
   Target,
@@ -2373,7 +2374,7 @@ const Financial_input: React.FC = () => {
         {/* SIDEBAR */}
         <aside
           className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-            } w-64 lg:w-16 lg:hover:w-64`}
+            } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
         >
           {/* Logo Section */}
           <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
@@ -2488,7 +2489,7 @@ const Financial_input: React.FC = () => {
         </aside>
 
         <main
-          className={`flex-1 transition-all duration-300 min-h-screen ${isSidebarOpen ? "lg:ml-16" : "ml-0"}`}
+          className="flex-1 transition-all duration-300 min-h-screen lg:ml-16 ml-0"
         >
           <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
             <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
@@ -2626,7 +2627,7 @@ const Financial_input: React.FC = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10 pb-5 border-b border-white/10">
                   <div className="flex items-start sm:items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654] font-black text-2xl shrink-0 shadow-inner">
-                      <DollarSign className="w-8 h-8" />
+                      <PhilippinePeso className="w-8 h-8" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -5831,9 +5832,9 @@ const Financial_input: React.FC = () => {
                                   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
                                     <div className="border-b pb-4 flex justify-between items-center">
                                       <div>
-                                        <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                                          <DollarSign className="w-4 h-4 text-[#c9a654]" /> Section 1: Sources of Financing
-                                        </h3>
+                                          <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
+                                            <PhilippinePeso className="w-4 h-4 text-[#c9a654]" /> Section 1: Sources of Financing
+                                          </h3>
                                         <p className="text-xs text-gray-400 mt-0.5">
                                           Define cash and property investments by partners or founding members.
                                         </p>

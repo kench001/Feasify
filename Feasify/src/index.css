@@ -388,43 +388,4 @@ html.dark main::after {
   background-position: bottom right !important;
 }
 
-/* ========================================================================= */
-/* PERSISTENT SIDEBAR HOVER STATE ACROSS ROUTE & TAB SWITCHES               */
-/* ========================================================================= */
-@media (min-width: 1024px) {
-  html.sidebar-hovered aside {
-    width: 16rem !important;
-  }
-
-  /* Nav item text labels */
-  html.sidebar-hovered aside .lg\:opacity-0 {
-    opacity: 1 !important;
-  }
-
-  /* Hover-revealed elements (dashboard logo, adviser subsections, etc.) */
-  html.sidebar-hovered aside .lg\:group-hover\:block {
-    display: block !important;
-  }
-
-  /* Folded-only circular logo */
-  html.sidebar-hovered aside .lg\:flex.lg\:group-hover\:hidden {
-    display: none !important;
-  }
-
-  /* Adviser active section hover states */
-  html.sidebar-hovered aside .lg\:group-hover\:bg-transparent {
-    background-color: transparent !important;
-  }
-
-  html.sidebar-hovered aside .lg\:group-hover\:text-gray-200 {
-    color: rgb(229 231 235) !important;
-  }
-
-  html.sidebar-hovered aside .lg\:group-hover\:shadow-none {
-    box-shadow: none !important;
-  }
-
-  html.sidebar-hovered aside .lg\:group-hover\:text-\[\#c9a654\] {
-    color: #c9a654 !important;
-  }
-}
+
