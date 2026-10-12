@@ -52,6 +52,9 @@ try {
     adminFirestore = admin.firestore();
     adminAuth = admin.auth();
     console.log("✅ [Firebase Admin] Initialized — Audit Trail backend enforcement active.");
+    dynamicExemplars.syncFromFirestore(adminFirestore).catch((e) =>
+      console.warn("[Dynamic Exemplars] Initial sync warning:", e.message)
+    );
   }
 } catch (err) {
   console.error("❌ [Firebase Admin] Initialization failed:", err.message);
@@ -216,6 +219,9 @@ const getCopyrightDB = () => {
 
 // Official Government Registration Authority Checker Service (DTI + SEC)
 const nameCheckerService = require("./services/nameChecker");
+
+// Dynamic Academic Benchmarks & Exemplars Engine (Anti-Outlier Hybrid Store)
+const dynamicExemplars = require("./services/dynamicExemplars");
 
 // In-memory cache/store for team proposal counts (guarantees backend 3-limit enforcement)
 const teamProposalsStore = new Map();
@@ -794,6 +800,21 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
     }
   }
 
+  if (status === "Approved") {
+    // Attempt automatic background ingestion evaluation for academic benchmarks
+    const candidateProposal = req.body.proposalData || { id: proposalId, status, adviserRemarks };
+    dynamicExemplars
+      .ingestCandidateProposal(
+        candidateProposal,
+        req.body.financialData || candidateProposal.financialData || {},
+        req.body.aiAnalysis || candidateProposal.aiAnalysis || {},
+        adminFirestore
+      )
+      .catch((err) =>
+        console.warn("[Dynamic Exemplar Background Ingest Warning]:", err.message)
+      );
+  }
+
   res.json({
     success: true,
     proposalId,
@@ -801,6 +822,48 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
     adviserRemarks,
     updatedAt: new Date().toISOString()
   });
+});
+
+// ==========================================
+// DYNAMIC EXEMPLAR BENCHMARKS (HYBRID ENGINE)
+// ==========================================
+
+// Endpoint to inspect all current dynamic exemplars
+app.get("/api/exemplars/dynamic", (req, res) => {
+  const exemplars = dynamicExemplars.loadDynamicExemplars();
+  res.json({
+    success: true,
+    count: exemplars.length,
+    exemplars
+  });
+});
+
+// Endpoint to evaluate and automatically ingest an approved candidate proposal
+app.post("/api/exemplars/evaluate-candidate", async (req, res) => {
+  const { proposal, financialData, aiAnalysis } = req.body || {};
+
+  if (!proposal) {
+    return res.status(400).json({ error: "Missing candidate proposal object." });
+  }
+
+  try {
+    const result = await dynamicExemplars.ingestCandidateProposal(
+      proposal,
+      financialData || proposal.financialData || {},
+      aiAnalysis || proposal.aiAnalysis || {},
+      adminFirestore
+    );
+
+    res.json({
+      success: true,
+      ingested: result.ingested,
+      reason: result.reason || null,
+      exemplar: result.exemplar || null
+    });
+  } catch (err) {
+    console.error("❌ [Evaluate Candidate Exemplar Error]:", err.message);
+    res.status(500).json({ error: "Candidate evaluation failed: " + err.message });
+  }
 });
 
 // ==========================================
@@ -1061,7 +1124,7 @@ LOCAL KNOWLEDGE BASE CONTEXT (FOR REALISM & GRADING STANDARDS):
 ${JSON.stringify(kb.evaluation_framework, null, 2)}
 
 FEW-SHOT SUCCESSFUL BUSINESS EXEMPLARS FOR REFERENCE (CAPITAL STABILITY, COST & PRICING STRUCTURE):
-${JSON.stringify(kb.exemplars, null, 2)}
+${JSON.stringify(dynamicExemplars.getCategoryMatchedExemplars(req.body.businessType || req.body.category || 'General', kb.exemplars), null, 2)}
 
 APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples):
 ${JSON.stringify(kb.financial_input_examples, null, 2)}
@@ -1361,7 +1424,7 @@ LOCAL GRADING MATRIX CONTEXT:
 ${JSON.stringify(kb.evaluation_framework, null, 2)}
 
 FEW-SHOT PASSING EXEMPLARS FOR REFERENCE STYLE AND QUALITY:
-${JSON.stringify(kb.exemplars, null, 2)}
+${JSON.stringify(dynamicExemplars.getCategoryMatchedExemplars(businessType, kb.exemplars), null, 2)}
 
 SUBMITTED PROPOSAL TO EVALUATE:
 - Business Name: "${businessName}"

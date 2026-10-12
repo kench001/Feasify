@@ -916,6 +916,7 @@ const Financial_input: React.FC = () => {
 
   const netMonthlyProfit =
     monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
+  const monthlyNetProfitMargin = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
 
   const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
   const annualExpenses =
@@ -3228,9 +3229,21 @@ const Financial_input: React.FC = () => {
                     {/* 5. Net Profit / Month */}
                     <div className={`bg-white rounded-xl border-l-4 p-5 shadow-sm text-center flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
                       <div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Net Profit / mo
-                        </span>
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Net Profit / mo
+                          </span>
+                          <span
+                            className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                              netMonthlyProfit >= 0
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                                : "bg-red-50 text-red-600 border border-red-200/60"
+                            }`}
+                            title="Net Profit Margin = (Net Profit ÷ Monthly Revenue) × 100"
+                          >
+                            {monthlyNetProfitMargin >= 0 ? "+" : ""}{monthlyNetProfitMargin.toFixed(1)}%
+                          </span>
+                        </div>
                         <p
                           className={`text-2xl font-black mt-1 ${netMonthlyProfit < 0 ? "text-red-600" : "text-emerald-600"
                             }`}

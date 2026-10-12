@@ -1117,16 +1117,39 @@ const AdviserDashboard: React.FC = () => {
 
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
 
-      // Best effort backend sync for independent status and remarks
+      // Best effort backend sync for independent status, remarks, and automatic candidate benchmark evaluation
       try {
-        await fetch(`http://localhost:5000/api/proposals/${proposal.id}/status`, {
+        const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+        await fetch(`${backendUrl}/api/proposals/${proposal.id}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             status: newStatus,
-            remarks: feedbackInput.trim()
+            adviserRemarks: feedbackInput.trim(),
+            proposalData: {
+              ...proposal,
+              status: newStatus,
+              adviserRemarks: feedbackInput.trim()
+            },
+            financialData: proposal.financialData || {},
+            aiAnalysis: modalAiResult || proposal.aiAnalysis || {}
           })
         });
+
+        // If Approved, also automatically evaluate as an academic benchmark exemplar
+        if (newStatus === "Approved") {
+          fetch(`${backendUrl}/api/exemplars/evaluate-candidate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              proposal: { ...proposal, status: "Approved" },
+              financialData: proposal.financialData || {},
+              aiAnalysis: modalAiResult || proposal.aiAnalysis || {}
+            })
+          }).catch((evalErr) =>
+            console.warn("Candidate benchmark evaluation non-blocking error:", evalErr)
+          );
+        }
       } catch (apiErr) {
         // Backend offline or non-blocking
       }
@@ -1396,6 +1419,7 @@ const AdviserDashboard: React.FC = () => {
     const grossProfitMargin = monthlyRevenue > 0 ? ((monthlyRevenue - totalMonthlyVariableCosts) / monthlyRevenue) * 100 : 0;
     const monthlyInterest = fin.isCapitalBorrowed && fin.interestRate ? (safeStartupCapital * (Number(fin.interestRate) / 100)) / 12 : 0;
     const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - safeFixedCosts - monthlyInterest;
+    const monthlyNetProfitMargin = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
 
     const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
     const annualExpenses = ((totalMonthlyVariableCosts + safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
@@ -1712,7 +1736,19 @@ const AdviserDashboard: React.FC = () => {
               {/* 5. Net Profit / Mo */}
               <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
                 <div>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Net Profit / Mo</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Net Profit / Mo</span>
+                    <span
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                        netMonthlyProfit >= 0
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                          : "bg-red-50 text-red-600 border border-red-200/60"
+                      }`}
+                      title="Net Profit Margin = (Net Profit ÷ Monthly Revenue) × 100"
+                    >
+                      {monthlyNetProfitMargin >= 0 ? "+" : ""}{monthlyNetProfitMargin.toFixed(1)}%
+                    </span>
+                  </div>
                   <p className={`text-xl sm:text-2xl font-black mt-0.5 ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}>
                     {netMonthlyProfit < 0 ? "-" : ""}₱{Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
