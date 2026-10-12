@@ -2430,7 +2430,7 @@ const Financial_input: React.FC = () => {
               onClick={() => {
                 setIsSidebarOpen(false);
                 navigate("/ai-analysis", {
-                  state: { projectId: selectedProjectId, runAnalysis: true },
+                  state: { projectId: selectedProjectId },
                 });
               }}
               title="AI Feasibility Analysis"

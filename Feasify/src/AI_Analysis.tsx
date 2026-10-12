@@ -285,6 +285,7 @@ const AI_Analysis: React.FC = () => {
   const [performanceStatus, setPerformanceStatus] = useState("");
   const [performanceRecommendation, setPerformanceRecommendation] = useState("");
   const [marketAnalysis, setMarketAnalysis] = useState<MarketAnalysisData | null>(null);
+  const [hasNewerInputs, setHasNewerInputs] = useState(false);
 
   // Pro Forma Financial Statement States
   const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
@@ -430,16 +431,15 @@ const AI_Analysis: React.FC = () => {
         : 0;
 
       // Has newer updates if financialData timestamp > aiAnalysis lastRun timestamp (+ 2s clock buffer)
-      const hasNewerInputs = finUpdatedAt > 0 && aiLastRunTime > 0 && finUpdatedAt > (aiLastRunTime + 2000);
-      const isExplicitRun = Boolean(location.state?.runAnalysis);
-      const shouldAutoAnalyze = isExplicitRun || !proj.aiAnalysis || hasNewerInputs;
+      const hasNewer = finUpdatedAt > 0 && aiLastRunTime > 0 && finUpdatedAt > (aiLastRunTime + 2000);
+      setHasNewerInputs(hasNewer);
 
-      if (shouldAutoAnalyze) {
-        console.log("⚡ [AI Analysis] Fresh financial updates detected. Auto-running feasibility evaluation...");
+      const isExplicitRun = Boolean(location.state?.runAnalysis);
+
+      if (isExplicitRun) {
+        console.log("⚡ [AI Analysis] Explicit 'Run Analysis' clicked. Executing feasibility evaluation...");
         executeAnalysis(activeFin, proj.id);
-        if (isExplicitRun) {
-          navigate(location.pathname, { replace: true, state: {} });
-        }
+        navigate(location.pathname, { replace: true, state: {} });
       } else if (proj.aiAnalysis) {
         setFeasibilityScore(proj.aiAnalysis.score || 0);
         setFeasibilityStatus(proj.aiAnalysis.status || "PENDING");
@@ -716,6 +716,7 @@ const AI_Analysis: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysisError(null);
     setIsFallback(false);
+    setHasNewerInputs(false);
 
     const currentProj = projects.find((p) => p.id === pId);
     const activeFin = extractActiveFinancialData(currentProj);
@@ -1199,19 +1200,55 @@ const AI_Analysis: React.FC = () => {
                       {selectedProject?.name || "Selected Project"}
                     </span>
                   </p>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Auto-synced with Financial Inputs
-                  </span>
+                  {hasNewerInputs ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <AlertCircle className="w-3 h-3 text-amber-600" /> Financial Inputs Modified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Synced with Financial Inputs
+                    </span>
+                  )}
                 </div>
               </div>
               <button
                 onClick={() => executeAnalysis(financials, selectedProjectId)}
                 disabled={!selectedProjectId || isAnalyzing}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0 disabled:opacity-50"
+                className={`w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm flex-shrink-0 disabled:opacity-50 ${
+                  hasNewerInputs
+                    ? "bg-[#c9a654] hover:bg-[#b59545] text-white shadow-md ring-2 ring-[#c9a654]/30"
+                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
               >
                 <RotateCcw className={`w-4 h-4 ${isAnalyzing ? "animate-spin text-[#c9a654]" : ""}`} /> {isAnalyzing ? "Analyzing..." : "Re-analyze"}
               </button>
             </div>
+
+            {/* Inputs Modified Notification Banner */}
+            {hasNewerInputs && !isAnalyzing && selectedProject?.aiAnalysis && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-3 text-amber-900">
+                  <div className="p-2 rounded-lg bg-amber-100 text-amber-700 shrink-0">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">
+                      Financial inputs have been updated
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Your financial inputs were modified since the last analysis was generated. Click Re-analyze to update this evaluation.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  disabled={isAnalyzing}
+                  className="px-4 py-2 bg-[#c9a654] hover:bg-[#b59545] text-white text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Re-analyze Now
+                </button>
+              </div>
+            )}
 
             {analysisError && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3">
@@ -1264,9 +1301,29 @@ const AI_Analysis: React.FC = () => {
               </div>
             </div>
 
-            <div
-              className={`transition-opacity duration-300 ${!selectedProjectId || feasibilityStatus === "PENDING" ? "opacity-40 pointer-events-none" : "opacity-100"}`}
-            >
+            {!selectedProject?.aiAnalysis && !isAnalyzing ? (
+              <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center shadow-sm mb-8 max-w-2xl mx-auto animate-in fade-in duration-200">
+                <div className="w-16 h-16 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-inner">
+                  <Zap className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-[#122244] mb-2">
+                  Ready for AI Feasibility Analysis
+                </h2>
+                <p className="text-gray-500 text-sm max-w-md mx-auto mb-6 leading-relaxed">
+                  Your business proposal and financial inputs are set up. Click below to run a comprehensive feasibility audit on product margins, capital adequacy, and market viability.
+                </p>
+                <button
+                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  disabled={isAnalyzing}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <Zap className="w-4 h-4 fill-white" /> {isAnalyzing ? "Analyzing..." : "Run Feasibility Analysis"}
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`transition-opacity duration-300 ${!selectedProjectId || isAnalyzing ? "opacity-40 pointer-events-none" : "opacity-100"}`}
+              >
               {/* Verdict Section */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
@@ -1961,6 +2018,7 @@ const AI_Analysis: React.FC = () => {
                 </button>
               </div>
             </div>
+            )}
           </div>
         )}
 
