@@ -33,11 +33,14 @@ import {
   Lightbulb,
   Bell,
   ChevronUp,
+  Store,
+  Building2,
 } from "lucide-react";
 
 import domtoimage from "dom-to-image";
 import { jsPDF } from "jspdf";
 import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
+import { cleanUserFacingText, calculateLocalAudit, type MarketAnalysisData } from "./utils/feasibilityAudit";
 
 const Reports: React.FC = () => {
   const navigate = useNavigate();
@@ -170,13 +173,38 @@ const Reports: React.FC = () => {
     if (!reportRef.current || !selectedProject) return;
     setIsDownloading(true);
     try {
-      const dataUrl = await domtoimage.toPng(reportRef.current, { quality: 1, bgcolor: "#ffffff" });
+      const dataUrl = await domtoimage.toPng(reportRef.current, {
+        quality: 1,
+        bgcolor: "#ffffff",
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
+      });
+
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const elWidth = reportRef.current.offsetWidth;
-      const elHeight = reportRef.current.offsetHeight;
-      const pdfHeight = (elHeight * pdfWidth) / elWidth;
-      pdf.addImage(dataUrl, "PNG", 0, 10, pdfWidth, pdfHeight);
+      const pageWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 8; // 8mm margin
+      const maxContentWidth = pageWidth - margin * 2; // 194mm
+      const maxContentHeight = pageHeight - margin * 2; // 281mm
+
+      const elWidth = reportRef.current.offsetWidth || 800;
+      const elHeight = reportRef.current.offsetHeight || 1100;
+
+      // Calculate proportional dimensions so report strictly fits 1 page
+      let renderWidth = maxContentWidth;
+      let renderHeight = (elHeight * maxContentWidth) / elWidth;
+
+      if (renderHeight > maxContentHeight) {
+        renderHeight = maxContentHeight;
+        renderWidth = (elWidth * maxContentHeight) / elHeight;
+      }
+
+      const x = (pageWidth - renderWidth) / 2;
+      const y = (pageHeight - renderHeight) / 2;
+
+      pdf.addImage(dataUrl, "PNG", x, y, renderWidth, renderHeight, undefined, "FAST");
       const safeName = selectedProject.name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
       pdf.save(`${safeName}_Feasibility_Report.pdf`);
     } catch (error) {
@@ -300,6 +328,24 @@ const Reports: React.FC = () => {
     };
   }, [selectedProject]);
 
+  const marketAnalysis = useMemo<MarketAnalysisData | null>(() => {
+    if (!selectedProject) return null;
+    const rawAi = selectedProject.aiAnalysis;
+    if (rawAi?.marketAnalysis) {
+      return cleanUserFacingText(rawAi.marketAnalysis);
+    }
+    if (selectedProject.financialData) {
+      const fallback = calculateLocalAudit({
+        ...selectedProject.financialData,
+        businessName: selectedProject.name,
+        totalCapital: selectedProject.totalCapital,
+        products: selectedProject.products,
+      });
+      return fallback.marketAnalysis || null;
+    }
+    return null;
+  }, [selectedProject]);
+
   const getInitials = (name: string) =>
     name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
@@ -309,15 +355,50 @@ const Reports: React.FC = () => {
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
-          @page { margin: 10mm; size: auto; }
-          body { background: white !important; }
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
           .print\\:hidden { display: none !important; }
-          main { margin: 0 !important; padding: 0 !important; width: 100% !important; position: relative !important; left: 0 !important; }
+          main {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            position: relative !important;
+            left: 0 !important;
+          }
+          /* Hide decorative background wave on print */
+          main::after {
+            display: none !important;
+          }
           .print\\:shadow-none { box-shadow: none !important; }
           .print\\:border-none { border: none !important; }
           .print\\:p-0 { padding: 0 !important; }
-          /* Ensure colors print in Chrome/Firefox */
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print\\:m-0 { margin: 0 !important; }
+          .report-page-container {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-height: 280mm !important;
+            box-sizing: border-box !important;
+          }
+          /* Ensure exact background colors and borders print */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
         }
       `}} />
 
@@ -542,72 +623,244 @@ const Reports: React.FC = () => {
               <button onClick={() => navigate("/ai-analysis")} className="bg-[#122244] text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-[#1a3263] transition-colors">Go to Analysis Module</button>
             </div>
           ) : (
-            <div ref={reportRef} className="bg-white rounded-xl border border-gray-200 shadow-lg p-10 md:p-16 mb-12 print:shadow-none print:border-none print:p-0">
-              <div className="border-b-2 border-[#122244] pb-8 mb-8 text-center">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Executive Summary</h2>
-                <h1 className="text-4xl font-extrabold text-[#3d2c23] mb-4">{selectedProject.name}</h1>
-                <p className="text-gray-600">Generated by FeasiFy AI Engine</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Date of Analysis: {selectedProject.aiAnalysis.lastRun ? new Date(selectedProject.aiAnalysis.lastRun).toLocaleDateString() : "Unknown"}
-                </p>
-              </div>
-
-              <div className={`p-6 rounded-xl mb-10 flex items-center gap-4 ${selectedProject.aiAnalysis.status === "FEASIBLE" ? "bg-green-50 border border-green-200 text-green-900" : selectedProject.aiAnalysis.status === "NOT_FEASIBLE" ? "bg-red-50 border border-red-200 text-red-900" : "bg-orange-50 border border-orange-200 text-orange-900"}`}>
-                <div className={`p-3 rounded-full bg-white shadow-sm`}>
-                  {selectedProject.aiAnalysis.status === "FEASIBLE" ? <CheckCircle2 className="w-6 h-6 text-green-600" /> : <AlertCircle className="w-6 h-6 text-red-600" />}
+            <div
+              ref={reportRef}
+              className="bg-white rounded-2xl border border-gray-200 shadow-xl p-8 sm:p-10 md:p-12 mb-8 max-w-5xl mx-auto print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none report-page-container flex flex-col justify-between"
+            >
+              {/* Report Header */}
+              <div className="border-b-2 border-[#122244] pb-4 mb-5 text-center print:pb-3 print:mb-4">
+                <div className="flex items-center justify-between mb-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  <span>FeasiFy Intelligence Engine</span>
+                  <span className="text-[#c9a654]">Executive Feasibility Audit</span>
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-lg tracking-wide uppercase">Official Verdict: {(selectedProject.aiAnalysis.status || "PENDING").replace("_", " ")}</h3>
-                  <p className="text-sm font-medium opacity-80 mt-1">
-                    Grade: {selectedProject.aiAnalysis.performanceGrade || "Satisfactory"} {selectedProject.aiAnalysis.performanceStatus ? `• ${selectedProject.aiAnalysis.performanceStatus}` : ""}
-                  </p>
-                </div>
-              </div>
-
-              <h3 className="text-xl font-bold text-[#122244] border-b border-gray-200 pb-2 mb-6">Financial Overview</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Initial Capital</p>
-                  <p className="text-xl font-bold text-gray-900">₱ {financialOverview.startupCapital.toLocaleString()}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">Total Project Capitalization</p>
-                </div>
-                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Projected Annual Sales</p>
-                  <p className="text-xl font-bold text-gray-900">₱ {financialOverview.annualRevenue.toLocaleString()}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">Gross Annual Turnover</p>
-                </div>
-                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Net Annual Profit</p>
-                  <p className={`text-xl font-bold ${financialOverview.netAnnualProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
-                    {financialOverview.netAnnualProfit < 0 ? "-₱ " : "₱ "}
-                    {Math.abs(financialOverview.netAnnualProfit).toLocaleString()}
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-1">After-Tax Net Income</p>
-                </div>
-                <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Est. Payback Period</p>
-                  <p className="text-xl font-bold text-gray-900">{financialOverview.paybackPeriodFormatted}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">Capital Recovery Time</p>
+                <h1 className="text-3xl sm:text-4xl font-black text-[#122244] tracking-tight">{selectedProject.name}</h1>
+                <div className="flex items-center justify-center gap-3 text-xs sm:text-sm text-gray-500 mt-1.5 font-medium">
+                  <span>
+                    Analysis Date: {selectedProject.aiAnalysis.lastRun ? new Date(selectedProject.aiAnalysis.lastRun).toLocaleDateString() : "Current"}
+                  </span>
+                  <span>•</span>
+                  <span className="text-emerald-700 font-bold">Verified Academic Study</span>
+                  <span>•</span>
+                  <span className="text-gray-400">Formal Feasibility Audit</span>
                 </div>
               </div>
 
-              <h3 className="text-xl font-bold text-[#122244] border-b border-gray-200 pb-2 mb-6">Key Insights & Recommendations</h3>
-              <div className="space-y-6">
-                {(selectedProject.aiAnalysis.insights || []).map((insight: any, i: number) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="mt-1">
-                      {insight.type === "positive" ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : insight.type === "warning" ? <TrendingUp className="w-5 h-5 text-orange-500" /> : <Lightbulb className="w-5 h-5 text-blue-500" />}
+              {/* Official Verdict Banner */}
+              <div
+                className={`p-4 sm:p-5 rounded-2xl mb-5 flex items-center justify-between gap-4 border-2 print:p-3.5 print:mb-4 ${
+                  selectedProject.aiAnalysis.status === "FEASIBLE"
+                    ? "bg-green-50/90 border-green-200 text-green-900"
+                    : selectedProject.aiAnalysis.status === "NOT_FEASIBLE"
+                    ? "bg-red-50/90 border-red-200 text-red-900"
+                    : "bg-amber-50/90 border-amber-200 text-amber-900"
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 sm:p-3 rounded-full bg-white shadow-xs">
+                    {selectedProject.aiAnalysis.status === "FEASIBLE" ? (
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-6 h-6 text-red-600" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base sm:text-lg tracking-wide uppercase">
+                      Official Verdict: {(selectedProject.aiAnalysis.status || "PENDING").replace("_", " ")}
+                    </h3>
+                    <p className="text-xs sm:text-sm font-semibold opacity-90 mt-0.5">
+                      Academic Standing: {selectedProject.aiAnalysis.performanceGrade || "Satisfactory"} {selectedProject.aiAnalysis.performanceStatus ? `• ${selectedProject.aiAnalysis.performanceStatus}` : ""}
+                    </p>
+                  </div>
+                </div>
+                {selectedProject.aiAnalysis.performanceRecommendation && (
+                  <div className="hidden sm:block text-right max-w-sm pl-4 border-l border-current/20">
+                    <span className="text-[10px] uppercase font-extrabold tracking-wider block opacity-75">Advisory Note</span>
+                    <span className="text-xs sm:text-sm font-semibold leading-snug">{selectedProject.aiAnalysis.performanceRecommendation}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Overview */}
+              <div className="mb-5 print:mb-4">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-1.5 mb-3">
+                  <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#122244] flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-[#c9a654]" /> Financial Performance Overview
+                  </h3>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Annual Projection Basis</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 print:grid-cols-4 print:gap-3">
+                  <div className="bg-gray-50/80 p-3.5 sm:p-4 rounded-xl border border-gray-200/80 print:p-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Initial Capital</p>
+                    <p className="text-lg sm:text-xl font-black text-gray-900">₱ {financialOverview.startupCapital.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 mt-1">Total Project Capital</p>
+                  </div>
+                  <div className="bg-gray-50/80 p-3.5 sm:p-4 rounded-xl border border-gray-200/80 print:p-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Projected Annual Sales</p>
+                    <p className="text-lg sm:text-xl font-black text-gray-900">₱ {financialOverview.annualRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 mt-1">Gross Turnover</p>
+                  </div>
+                  <div className="bg-gray-50/80 p-3.5 sm:p-4 rounded-xl border border-gray-200/80 print:p-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Net Annual Profit</p>
+                    <p className={`text-lg sm:text-xl font-black ${financialOverview.netAnnualProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                      {financialOverview.netAnnualProfit < 0 ? "-₱ " : "₱ "}
+                      {Math.abs(financialOverview.netAnnualProfit).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">After-Tax Net Income</p>
+                  </div>
+                  <div className="bg-gray-50/80 p-3.5 sm:p-4 rounded-xl border border-gray-200/80 print:p-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Est. Payback Period</p>
+                    <p className="text-lg sm:text-xl font-black text-gray-900">{financialOverview.paybackPeriodFormatted}</p>
+                    <p className="text-xs text-gray-400 mt-1">Capital Recovery</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Market Viability & Competitive Intelligence */}
+              {marketAnalysis && (
+                <div className="mb-5 print:mb-4">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-1.5 mb-3">
+                    <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#122244] flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-[#c9a654]" /> AI Market Viability & Competitive Intelligence
+                    </h3>
+                    <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded">
+                      Market Feasibility Audited
+                    </span>
+                  </div>
+
+                  {marketAnalysis.summary && (
+                    <div className="p-3.5 sm:p-4 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs sm:text-sm text-[#122244] leading-relaxed mb-3.5 print:p-3 print:mb-3">
+                      <span className="font-extrabold text-amber-950">Market Assessment: </span>
+                      <span>{marketAnalysis.summary}</span>
                     </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 print:grid-cols-3 print:gap-3">
+                    {marketAnalysis.competitorInsight && (
+                      <div className="p-3.5 sm:p-4 bg-white border border-gray-200 rounded-xl shadow-2xs flex flex-col justify-between print:p-3">
+                        <div>
+                          <div className="pb-2 mb-2 border-b border-gray-100 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#122244] uppercase tracking-wider">
+                              <Store size={14} className="text-amber-600 shrink-0" />
+                              <span>Competitor Density</span>
+                            </div>
+                            <div>
+                              <span
+                                className={`inline-block text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide ${
+                                  marketAnalysis.competitorInsight.status === "positive"
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                    : "bg-amber-100 text-amber-800 border border-amber-200"
+                                }`}
+                              >
+                                {marketAnalysis.competitorInsight.badge}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {marketAnalysis.competitorInsight.text}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {marketAnalysis.footTrafficInsight && (
+                      <div className="p-3.5 sm:p-4 bg-white border border-gray-200 rounded-xl shadow-2xs flex flex-col justify-between print:p-3">
+                        <div>
+                          <div className="pb-2 mb-2 border-b border-gray-100 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#122244] uppercase tracking-wider">
+                              <Building2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Foot Traffic & Anchors</span>
+                            </div>
+                            <div>
+                              <span
+                                className={`inline-block text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide ${
+                                  marketAnalysis.footTrafficInsight.status === "positive"
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                    : "bg-rose-100 text-rose-800 border border-rose-200"
+                                }`}
+                              >
+                                {marketAnalysis.footTrafficInsight.badge}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {marketAnalysis.footTrafficInsight.text}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {marketAnalysis.demographicInsight && (
+                      <div className="p-3.5 sm:p-4 bg-white border border-gray-200 rounded-xl shadow-2xs flex flex-col justify-between print:p-3">
+                        <div>
+                          <div className="pb-2 mb-2 border-b border-gray-100 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#122244] uppercase tracking-wider">
+                              <Lightbulb size={14} className="text-sky-600 shrink-0" />
+                              <span>Demographic Strategy</span>
+                            </div>
+                            <div>
+                              <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide bg-sky-100 text-sky-800 border border-sky-200">
+                                {marketAnalysis.demographicInsight.badge}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {marketAnalysis.demographicInsight.text}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Strategic Insights & Recommendations */}
+              <div className="mb-4 print:mb-3">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-1.5 mb-3">
+                  <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#122244] flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-[#c9a654]" /> Strategic Insights & Recommendations
+                  </h3>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Executive Takeaways</span>
+                </div>
+                <div className="space-y-2.5 sm:space-y-3">
+                  {(selectedProject.aiAnalysis.insights || []).slice(0, 3).map((insight: any, i: number) => (
+                    <div key={i} className="flex items-start gap-3 p-3 sm:p-3.5 bg-gray-50/80 rounded-xl border border-gray-200/70">
+                      <div className="mt-0.5 shrink-0 p-1 rounded-md bg-white shadow-2xs">
+                        {insight.type === "positive" ? (
+                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                        ) : insight.type === "warning" ? (
+                          <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                        ) : (
+                          <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-sky-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{insight.title}</h4>
+                        <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{insight.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Priority Strategic Guidance Banner */}
+                {selectedProject.aiAnalysis.improvementTips?.feasibility && (
+                  <div className="mt-3 p-3 sm:p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 flex items-start gap-3">
+                    <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-gray-900">{insight.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1 leading-relaxed">{insight.description}</p>
+                      <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 block mb-0.5">
+                        Priority Feasibility Action:
+                      </span>
+                      <p className="text-xs text-indigo-800 leading-relaxed">
+                        {selectedProject.aiAnalysis.improvementTips.feasibility}
+                      </p>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
 
-              <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-                <p className="text-xs text-gray-400">This document is auto-generated by the FeasiFy System and is intended for academic evaluation purposes only.</p>
+              {/* Report Footer */}
+              <div className="pt-3 mt-4 border-t border-gray-200 flex items-center justify-between text-xs text-gray-400 print:pt-2 print:mt-3">
+                <span>FeasiFy Intelligence System • Academic Feasibility Evaluation</span>
+                <span>Page 1 of 1 • Official Feasibility Study Report</span>
               </div>
             </div>
           )}
