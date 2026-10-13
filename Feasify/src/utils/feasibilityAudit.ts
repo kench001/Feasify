@@ -20,6 +20,9 @@ export const cleanUserFacingText = (data: any): any => {
       .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
       .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
       .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
+      .replace(/\s*\(PLV\s*[\d\.\s-]+\)/gi, "")
+      .replace(/\s*-\s*PLV\s*[\d\.\s-]+/gi, "")
+      .replace(/\bPLV\s*[\d\.\s-]+\b/gi, "")
       .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
       .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
       .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
@@ -55,32 +58,53 @@ export const cleanUserFacingText = (data: any): any => {
 // Derives standard grade, performance status, and recommendation based on score and status
 export const derivePerformanceGrade = (score: number, status?: string) => {
   let performanceGrade = "Satisfactory";
-  let performanceStatus = "PASS (Feasible with Risks)";
-  let performanceRecommendation = "Mathematically sound and logical. Minor adjustments recommended.";
+  let performanceStatus = "Pass (Feasible with Minor Risks)";
+  let performanceRecommendation = "Mathematically sound and logical. Minor operational refinements recommended.";
 
-  if (score >= 90) {
-    performanceGrade = "Outstanding";
-    performanceStatus = "PASS (Highly Feasible)";
-    performanceRecommendation = "Strong, well-designed study with realistic financial buffers. Ready for execution.";
-  } else if (score >= 75) {
-    performanceGrade = "Satisfactory";
-    performanceStatus = "PASS (Feasible with Risks)";
-    performanceRecommendation = "Mathematically sound and logical. Minor adjustments (such as increasing working capital or refining marketing) recommended.";
-  } else if (score >= 70) {
-    performanceGrade = "Conditional";
-    performanceStatus = "CONDITIONAL PASS";
-    performanceRecommendation = "Requires major revisions to either the operational or financial section before receiving a passing grade.";
-  } else {
+  if (status === "NOT_FEASIBLE" || score < 70) {
     performanceGrade = "Unsatisfactory";
-    performanceStatus = "FAIL";
-    performanceRecommendation = "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot.";
+    performanceStatus = "Fail (Major Revisions Required)";
+    performanceRecommendation = "Serious structural, operational, or financial defects detected. Review production costs, capital adequacy, and monthly expenses before defense.";
+  } else if (status === "CONDITIONALLY_FEASIBLE" || (score >= 70 && score < 80)) {
+    performanceGrade = "Conditional";
+    performanceStatus = "Conditional Pass (Revision Required)";
+    performanceRecommendation = "Revisions required for panel defense: review the highlighted warning flags (unrealistic profit margins, cash runway, or break-even target) before final defense sign-off.";
+  } else if (score >= 90) {
+    performanceGrade = "Outstanding";
+    performanceStatus = "Pass (Highly Feasible)";
+    performanceRecommendation = "Strong, well-designed study with realistic financial buffers and defensible margins. Ready for implementation.";
+  } else {
+    performanceGrade = "Satisfactory";
+    performanceStatus = "Pass (Feasible with Minor Risks)";
+    performanceRecommendation = "Mathematically sound and logical. Minor operational refinements recommended.";
   }
 
   return { performanceGrade, performanceStatus, performanceRecommendation };
 };
 
-// Calculates client-side audited feasibility results (100% matched with AI_Analysis.tsx)
-export const calculateLocalAudit = (finData: any) => {
+// Normalizes business type string to category
+export const normalizeCategory = (typeStr = ""): string => {
+  const s = String(typeStr || "").toLowerCase();
+  if (s.includes("food") || s.includes("beverage") || s.includes("restaurant") || s.includes("cafe") || s.includes("bakery") || s.includes("snack") || s.includes("kiosk") || s.includes("stall") || s.includes("dory") || s.includes("cabbage")) {
+    return "Food & Beverage / Food Service";
+  }
+  if (s.includes("retail") || s.includes("store") || s.includes("shop") || s.includes("apparel") || s.includes("clothing") || s.includes("goods") || s.includes("merchandise")) {
+    return "Retail & Consumer Goods";
+  }
+  if (s.includes("service") || s.includes("salon") || s.includes("repair") || s.includes("laundry") || s.includes("consult") || s.includes("logistics")) {
+    return "Services & Personal Care";
+  }
+  if (s.includes("tech") || s.includes("software") || s.includes("digital") || s.includes("app") || s.includes("it ") || s.includes("platform")) {
+    return "Technology & Digital Services";
+  }
+  if (s.includes("manufac") || s.includes("craft") || s.includes("product") || s.includes("assem") || s.includes("pack")) {
+    return "Manufacturing & Production";
+  }
+  return "General Enterprise";
+};
+
+// Defense-grade multi-factor financial feasibility evaluation engine
+export const evaluateDefenseFeasibility = (finData: any) => {
   const prods = (finData?.products && Array.isArray(finData.products) && finData.products.length > 0)
     ? normalizeProposalProducts(finData)
     : (finData?.monthlyRecords && finData.monthlyRecords[0]?.financials?.products
@@ -139,6 +163,14 @@ export const calculateLocalAudit = (finData: any) => {
         0;
 
   const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
+  const cashReserve =
+    declaredCapital > 0
+      ? Math.max(0, declaredCapital - equipmentTotal)
+      : equipmentList.length > 0
+      ? 0
+      : declaredCapital;
+
+  const capitalDeficit = equipmentList.length > 0 && declaredCapital > 0 && equipmentTotal > declaredCapital;
 
   const opexList = finData?.opexList || [];
   const monthlyOpex = opexList.length > 0
@@ -158,30 +190,202 @@ export const calculateLocalAudit = (finData: any) => {
   const paybackPeriodMonths = annualNetProfitAfterTax > 0
     ? (paybackBase / (annualNetProfitAfterTax / 12))
     : Infinity;
-  const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Never (Negative Cash Flow)" : `${paybackPeriodMonths.toFixed(1)} months`;
+  const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Infinity (Never)" : `${paybackPeriodMonths.toFixed(1)} months`;
+
+  const unitGrossMargin = safeSellingPrice - safeVariableCost;
+  const netMarginPct = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
+  const cashRunwayMonths = monthlyOpex > 0 ? (cashReserve / monthlyOpex) : (cashReserve > 0 ? 12 : 0);
+
+  const unitContribution = Math.max(0, unitGrossMargin);
+  const bepUnits = unitContribution > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / unitContribution) : Infinity;
+  const bepRatio = safeMonthlySales > 0 && bepUnits !== Infinity ? (bepUnits / safeMonthlySales) * 100 : Infinity;
+
+  const category = normalizeCategory(finData?.businessType || finData?.category || "");
+
+  let bounds = { primeMin: 12, primeMax: 28, fantasyCap: 38, vulnerableFloor: 8, label: "General Enterprise" };
+  if (category.includes("Food")) {
+    bounds = { primeMin: 12, primeMax: 22, fantasyCap: 30, vulnerableFloor: 10, label: "Food & Beverage / Food Service" };
+  } else if (category.includes("Retail")) {
+    bounds = { primeMin: 8, primeMax: 16, fantasyCap: 25, vulnerableFloor: 6, label: "Retail & Consumer Goods" };
+  } else if (category.includes("Manufacturing")) {
+    bounds = { primeMin: 15, primeMax: 25, fantasyCap: 35, vulnerableFloor: 10, label: "Manufacturing & Production" };
+  } else if (category.includes("Service") || category.includes("Tech") || category.includes("Digital")) {
+    bounds = { primeMin: 20, primeMax: 32, fantasyCap: 40, vulnerableFloor: 12, label: "Services & Tech" };
+  }
+
+  const fatalFlaws: string[] = [];
+  if (unitGrossMargin <= 0) {
+    fatalFlaws.push("Selling price is less than or equal to unit production cost (negative unit margin).");
+  }
+  if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
+    fatalFlaws.push("Business operates at a net cash loss per month after operating expenses.");
+  }
+  if (capitalDeficit) {
+    fatalFlaws.push(`Equipment costs (₱${Math.round(equipmentTotal).toLocaleString()}) exceed declared capital (₱${Math.round(declaredCapital).toLocaleString()}), creating an immediate startup deficit.`);
+  }
+  if (paybackPeriodMonths > 48 || paybackPeriodMonths === Infinity) {
+    fatalFlaws.push("Capital recovery period exceeds 4 years or is never recovered with current earnings.");
+  }
+
+  const severeFlags: { id: string; title: string; description: string; tip: string }[] = [];
+  if (netMarginPct > bounds.fantasyCap) {
+    severeFlags.push({
+      id: "fantasy-margin",
+      title: "Unrealistic High Net Profit Margin",
+      description: `Your net profit margin of ${netMarginPct.toFixed(1)}% is an unrealistic outlier for ${category} (standard student capstone ceiling is ${bounds.fantasyCap}%). Please check if monthly rent, worker salaries, electricity, or taxes were missed.`,
+      tip: `Check monthly OPEX: ensure you budgeted commercial stall rent, crew wages, electricity, and taxes so profit margins stay within realistic ${bounds.primeMin}%-${bounds.primeMax}% standards.`
+    });
+  } else if (netMarginPct > 0 && netMarginPct < bounds.vulnerableFloor) {
+    severeFlags.push({
+      id: "vulnerable-margin",
+      title: "Fragile Profit Margin",
+      description: `Your net profit margin of ${netMarginPct.toFixed(1)}% is below the ${bounds.vulnerableFloor}% safe cushion for ${category}. A minor rise in ingredient or supply costs will wipe out your profits.`,
+      tip: "Increase selling price slightly or negotiate lower supplier costs to build a safer profit buffer."
+    });
+  }
+
+  if (cashRunwayMonths < 1.0 && !capitalDeficit) {
+    severeFlags.push({
+      id: "low-runway",
+      title: "Low Cash Buffer for Bills",
+      description: `Your cash savings (₱${Math.round(cashReserve).toLocaleString()}) only cover ${cashRunwayMonths.toFixed(1)} months of monthly bills and rent. Allocate at least 1.5 to 2.0 months of cash reserve so you do not run out of money before sales stabilize.`,
+      tip: "Increase declared startup capital to ensure at least 1.5 to 2.0 months of fixed operating overhead is kept as a cash buffer."
+    });
+  }
+
+  if (bepRatio > 75 && bepUnits !== Infinity) {
+    severeFlags.push({
+      id: "high-bep",
+      title: "High Break-Even Sales Pressure",
+      description: `You must sell ${bepUnits.toLocaleString()} units (${bepRatio.toFixed(0)}% of your monthly goal) just to pay your bills. A slight 15% drop in sales will push the business into a loss.`,
+      tip: "Lower fixed monthly bills or improve unit profit margin to reduce the number of sales needed to break even."
+    });
+  }
+
+  if (paybackPeriodMonths > 0 && paybackPeriodMonths < 3.0) {
+    severeFlags.push({
+      id: "unrealistic-fast-payback",
+      title: "Unrealistically Fast Payback Period",
+      description: `An estimated payback period of ${paybackPeriodMonths.toFixed(1)} months is unusually fast for capital investments. Verify that startup equipment and pre-operating costs are fully budgeted.`,
+      tip: "Double-check your equipment list and pre-operating costs to make sure all startup assets were budgeted."
+    });
+  } else if (paybackPeriodMonths > 36.0 && paybackPeriodMonths <= 48.0) {
+    severeFlags.push({
+      id: "slow-payback",
+      title: "Slow Capital Payback",
+      description: `Earning back your initial capital takes ${paybackPeriodMonths.toFixed(1)} months (over 3 years), which poses a high risk of tying up money for too long.`,
+      tip: "Increase monthly sales volume or trim operating expenses to accelerate capital payback time."
+    });
+  }
 
   let status = "FEASIBLE";
   let score = 85;
 
-  if (safeSellingPrice - safeVariableCost <= 0) {
+  if (fatalFlaws.length > 0) {
     status = "NOT_FEASIBLE";
-    score = 15;
-  } else if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
-    status = "NOT_FEASIBLE";
-    score = 30;
+    if (unitGrossMargin <= 0) score = 15;
+    else if (capitalDeficit) score = 35;
+    else if (paybackPeriodMonths > 48) score = 50;
+    else score = 30;
+  } else if (severeFlags.length > 0) {
+    status = "CONDITIONALLY_FEASIBLE";
+    score = Math.min(78, Math.max(70, Math.round(76 - (severeFlags.length - 1) * 2)));
   } else {
-    const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
     status = "FEASIBLE";
-    score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
+    let base = 84;
+    if (netMarginPct >= bounds.primeMin && netMarginPct <= bounds.primeMax) base += 4;
+    if (cashRunwayMonths >= 1.5) base += 3;
+    if (bepRatio <= 60) base += 3;
+    if (paybackPeriodMonths <= 24) base += 3;
+    score = Math.min(98, Math.max(80, base));
   }
 
-  const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
-  const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
-  const marketScore = safeMonthlySales > 0 ? 80 : 50;
+  let financialScore = 88;
+  let riskScore = 90;
+  let marketScore = 80;
+
+  if (status === "NOT_FEASIBLE") {
+    financialScore = Math.min(45, score + 10);
+    riskScore = 30;
+    marketScore = safeMonthlySales > 0 ? 60 : 40;
+  } else if (status === "CONDITIONALLY_FEASIBLE") {
+    financialScore = 75;
+    riskScore = cashRunwayMonths < 1.0 ? 68 : 74;
+    marketScore = 76;
+  } else {
+    financialScore = score >= 90 ? 94 : 88;
+    riskScore = cashRunwayMonths >= 2.0 ? 94 : 88;
+    marketScore = 85;
+  }
 
   const { performanceGrade, performanceStatus, performanceRecommendation } = derivePerformanceGrade(score, status);
 
-  const unitGrossMargin = safeSellingPrice - safeVariableCost;
+  return {
+    category,
+    prods,
+    safeSellingPrice,
+    safeVariableCost,
+    unitGrossMargin,
+    safeMonthlySales,
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    monthlyOpex,
+    cashReserve,
+    cashRunwayMonths,
+    netMonthlyProfit,
+    netMarginPct,
+    annualRevenue,
+    paybackPeriodMonths,
+    paybackPeriodStr,
+    bepUnits,
+    bepRatio,
+    bounds,
+    fatalFlaws,
+    severeFlags,
+    status,
+    score,
+    performanceGrade,
+    performanceStatus,
+    performanceRecommendation,
+    financialScore,
+    riskScore,
+    marketScore
+  };
+};
+
+// Calculates client-side audited feasibility results (100% matched with backend defense engine)
+export const calculateLocalAudit = (finData: any) => {
+  const evalRes = evaluateDefenseFeasibility(finData);
+  const {
+    category,
+    prods,
+    safeSellingPrice,
+    safeVariableCost,
+    unitGrossMargin,
+    safeMonthlySales,
+    monthlyRevenue,
+    monthlyOpex,
+    cashReserve,
+    cashRunwayMonths,
+    netMonthlyProfit,
+    netMarginPct,
+    annualRevenue,
+    paybackPeriodStr,
+    paybackPeriodMonths,
+    bepUnits,
+    bepRatio,
+    bounds,
+    severeFlags,
+    status,
+    score,
+    performanceGrade,
+    performanceStatus,
+    performanceRecommendation,
+    financialScore,
+    riskScore,
+    marketScore
+  } = evalRes;
+
   const marginTitle = prods.length > 1 ? "Blended Unit Margin" : "Unit Gross Margin";
 
   return {
@@ -192,41 +396,49 @@ export const calculateLocalAudit = (finData: any) => {
     performanceRecommendation,
     metrics: { financial: financialScore, risk: riskScore, market: marketScore },
     explanations: {
-      feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}. ${marginTitle} is ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit with estimated monthly net profit of ₱${Math.round(netMonthlyProfit).toLocaleString()}. Estimated payback period is ${paybackPeriodStr}.`,
-      financial: `Gross margin is ${safeSellingPrice > 0 ? Math.round((unitGrossMargin / safeSellingPrice) * 100) : 0}%. Projected monthly sales of ${safeMonthlySales.toLocaleString()} units produce ₱${Math.round(monthlyRevenue).toLocaleString()} gross monthly revenue across ${prods.length > 1 ? `${prods.length} products` : "product line"}.`,
-      risk: status === "FEASIBLE"
-        ? `Capital recovery amortizes in ${paybackPeriodStr}. Operating overhead of ₱${Math.round(monthlyOpex).toLocaleString()}/month is covered by contribution margin.`
-        : `Deficit cash flow detected: ongoing operations yield negative net margins, creating liquidity risk.`,
-      market: `Target monthly volume of ${safeMonthlySales.toLocaleString()} units produces annualized gross revenue of ₱${Math.round(annualRevenue).toLocaleString()} across ${safeOperatingDays} operating days.`
+      feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : (status === "CONDITIONALLY_FEASIBLE" ? "Conditionally Feasible" : "Not Feasible")}. ${status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : (status === "CONDITIONALLY_FEASIBLE" ? "Business is profitable but has warning flags requiring revision before final defense presentation." : "Business shows negative margins or capital deficit - review costs.")}`,
+      financial: `Average selling price of ₱${safeSellingPrice.toFixed(2)} produces ₱${Math.round(netMonthlyProfit).toLocaleString()} estimated monthly net profit (${netMarginPct.toFixed(1)}% margin). Projected sales of ${safeMonthlySales.toLocaleString()} units yield ₱${Math.round(monthlyRevenue).toLocaleString()} monthly revenue.`,
+      risk: `Cash buffer of ₱${Math.round(cashReserve).toLocaleString()} covers ${cashRunwayMonths.toFixed(1)} months of monthly expenses (₱${Math.round(monthlyOpex).toLocaleString()}/month). Capital payback amortizes in ${paybackPeriodStr}.`,
+      market: `Target monthly sales volume of ${safeMonthlySales.toLocaleString()} units produces annualized gross revenue of ₱${Math.round(annualRevenue).toLocaleString()}.`
     },
     insights: [
       {
         id: "local-0",
-        type: unitGrossMargin > 0 ? "positive" : "warning",
-        title: marginTitle,
-        description: unitGrossMargin > 0
-          ? `Positive Gross Margin: Average selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) by ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit.`
-          : `Negative Unit Margin: Selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) is less than or equal to unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Direct production costs exceed selling price.`
+        type: status === "CONDITIONALLY_FEASIBLE" && netMarginPct > bounds.fantasyCap ? "warning" : (netMarginPct <= 0 ? "warning" : "positive"),
+        title: "Profit Margin Status",
+        description: netMarginPct > bounds.fantasyCap
+          ? `Your net profit margin is ${netMarginPct.toFixed(1)}%. This is unusually high for ${category}. Check if commercial stall rent, employee wages, or utility bills were omitted.`
+          : (netMarginPct <= 0
+            ? `Your net margin is negative (${netMarginPct.toFixed(1)}%). Ongoing operations run at a monthly loss.`
+            : `Your net profit margin is ${netMarginPct.toFixed(1)}%, which is healthy and realistic for a ${category} business.`)
       },
       {
         id: "local-1",
-        type: netMonthlyProfit > 0 ? "positive" : "warning",
-        title: "Operating Cash Flow",
-        description: netMonthlyProfit > 0
-          ? `Positive monthly operating profit of ₱${Math.round(netMonthlyProfit).toLocaleString()} after covering OPEX and financing obligations.`
-          : `Negative monthly net margin of ₱${Math.round(netMonthlyProfit).toLocaleString()}/month. Re-evaluate pricing or overhead.`
+        type: cashRunwayMonths >= 1.5 ? "positive" : (cashRunwayMonths >= 1.0 ? "info" : "warning"),
+        title: "Cash Runway Buffer",
+        description: cashRunwayMonths >= 1.5
+          ? `Your cash reserve (₱${Math.round(cashReserve).toLocaleString()}) covers ${cashRunwayMonths.toFixed(1)} months of monthly expenses, providing a safe operational buffer.`
+          : `Your cash reserve (₱${Math.round(cashReserve).toLocaleString()}) covers only ${cashRunwayMonths.toFixed(1)} months of expenses. Allocate a larger cash buffer.`
       },
       {
         id: "local-2",
-        type: paybackPeriodMonths !== Infinity && paybackPeriodMonths <= 36 ? "positive" : "info",
-        title: "Capital Payback Duration",
-        description: `Estimated investment payback period is ${paybackPeriodStr}.`
+        type: bepRatio <= 65 ? "positive" : (bepRatio <= 80 ? "info" : "warning"),
+        title: "Break-Even Target",
+        description: bepUnits === Infinity
+          ? "Break-even cannot be calculated due to zero or negative unit margins."
+          : `You need to sell ${bepUnits.toLocaleString()} units each month (${bepRatio.toFixed(0)}% of your target) just to cover fixed monthly bills.`
+      },
+      {
+        id: "local-3",
+        type: paybackPeriodMonths <= 30 && paybackPeriodMonths >= 3 ? "positive" : (paybackPeriodMonths <= 36 ? "info" : "warning"),
+        title: "Capital Payback Time",
+        description: `Estimated investment payback takes ${paybackPeriodStr} based on annual net earnings after tax.`
       }
     ],
     improvementTips: {
-      feasibility: status === "FEASIBLE"
-        ? "Maintain product pricing and monitor supplier costs to preserve positive operating net margins."
-        : "Re-evaluate selling price, negotiate supplier variable costs, or reduce monthly overhead to achieve positive cash flow.",
+      feasibility: status === "CONDITIONALLY_FEASIBLE"
+        ? (severeFlags.length > 0 ? severeFlags.map(f => f.tip).join(" ") : "Refine cost projections and cash reserves.")
+        : (status === "FEASIBLE" ? "Maintain pricing and monitor supplier costs to preserve positive operating net margins." : "Re-evaluate selling price, negotiate supplier variable costs, or reduce monthly overhead to achieve positive cash flow."),
       financial: [
         unitGrossMargin <= 0
           ? "Increase unit selling price or negotiate bulk supplier rates to achieve positive contribution margins."
@@ -280,6 +492,8 @@ export const calculateLocalAudit = (finData: any) => {
         }
       } as MarketAnalysisData;
     })(),
+    severeFlags: evalRes.severeFlags,
+    fatalFlaws: evalRes.fatalFlaws,
     _fallback: true
   };
 };

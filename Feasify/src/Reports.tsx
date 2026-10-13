@@ -665,10 +665,10 @@ const Reports: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-base sm:text-lg tracking-wide uppercase">
-                      Official Verdict: {(selectedProject.aiAnalysis.status || "PENDING").replace("_", " ")}
+                      Official Verdict: {(selectedProject.aiAnalysis.status || "PENDING").replace(/_/g, " ")}
                     </h3>
                     <p className="text-xs sm:text-sm font-semibold opacity-90 mt-0.5">
-                      Academic Standing: {selectedProject.aiAnalysis.performanceGrade || "Satisfactory"} {selectedProject.aiAnalysis.performanceStatus ? `• ${selectedProject.aiAnalysis.performanceStatus}` : ""}
+                      Academic Standing: Grade {selectedProject.aiAnalysis.performanceGrade || "Satisfactory"}
                     </p>
                   </div>
                 </div>

@@ -3546,16 +3546,11 @@ const AdviserDashboard: React.FC = () => {
                                     : "bg-orange-500"
                                 }`}
                               >
-                                {feasibilityStatus?.replace("_", " ")}
+                                {feasibilityStatus?.replace(/_/g, " ")}
                               </span>
                               {performanceGrade && (
                                 <span className="inline-block px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold rounded-full">
                                   Grade: {performanceGrade}
-                                </span>
-                              )}
-                              {performanceStatus && (
-                                <span className="inline-block px-3 py-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-extrabold rounded-full">
-                                  {performanceStatus}
                                 </span>
                               )}
                             </div>

@@ -416,6 +416,9 @@ const sanitizeUserFacingText = (data) => {
       .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
       .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
       .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
+      .replace(/\s*\(PLV\s*[\d\.\s-]+\)/gi, "")
+      .replace(/\s*-\s*PLV\s*[\d\.\s-]+/gi, "")
+      .replace(/\bPLV\s*[\d\.\s-]+\b/gi, "")
       .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
       .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
       .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
@@ -1002,6 +1005,248 @@ function generateFallbackMarketAnalysis(financials) {
   };
 }
 
+// ==========================================
+// DEFENSE-GRADE FINANCIAL FEASIBILITY EVALUATION ENGINE
+// Aligned with PLV BA8 Capstone Grading Standards
+// ==========================================
+function evaluateDefenseFeasibility(financials, kb, businessType = "") {
+  const category = dynamicExemplars.normalizeCategory(businessType || financials.businessType || financials.category || "");
+
+  const agg = calculateAggregatedFinancials(financials);
+  const sellingPrice = agg.sellingPrice;
+  const variableCost = agg.variableCost;
+  const monthlySales = agg.monthlySales;
+  const monthlyRevenue = agg.monthlyRevenue;
+  const totalMonthlyVariableCosts = agg.totalMonthlyVariableCosts;
+  const operatingDays = Number(financials.operatingDays) || 300;
+  const isCapitalBorrowed = Boolean(financials.isCapitalBorrowed);
+  const interestRate = Number(financials.interestRate) || 0;
+
+  const equipmentList = financials.equipmentList || [];
+  const equipmentTotal = equipmentList.reduce(
+    (sum, item) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
+    0
+  );
+
+  const contribSum = Array.isArray(financials.contributorsList) && financials.contributorsList.length > 0
+    ? financials.contributorsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+    : 0;
+
+  const declaredCapital = contribSum > 0
+    ? contribSum
+    : (Number(financials.cashInvested) || Number(financials.startupCapital) || Number(financials.totalCapital) || Number(financials.proposalCapital) || 0);
+
+  const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
+
+  const cashReserve = declaredCapital > 0
+    ? Math.max(0, declaredCapital - equipmentTotal)
+    : (equipmentList.length > 0 ? 0 : declaredCapital);
+
+  const capitalDeficit = equipmentList.length > 0 && declaredCapital > 0 && equipmentTotal > declaredCapital;
+
+  const opexList = financials.opexList || [];
+  const monthlyOpex = opexList.length > 0
+    ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+    : (Number(financials.fixedCosts) || 0);
+
+  const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
+  const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
+
+  const annualRevenue = (monthlyRevenue / 30) * operatingDays;
+  const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
+  const annualNetProfitPreTax = annualRevenue - annualExpenses;
+  const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // 3% BMBE Tax
+  const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+  const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
+  const paybackPeriodMonths = annualNetProfitAfterTax > 0
+    ? (paybackBase / (annualNetProfitAfterTax / 12))
+    : Infinity;
+  const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Infinity (Never)" : `${paybackPeriodMonths.toFixed(1)} months`;
+
+  const unitGrossMargin = sellingPrice - variableCost;
+  const grossMarginPct = sellingPrice > 0 ? (unitGrossMargin / sellingPrice) * 100 : 0;
+  const netMarginPct = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
+  const cashRunwayMonths = monthlyOpex > 0 ? (cashReserve / monthlyOpex) : (cashReserve > 0 ? 12 : 0);
+
+  const unitContribution = Math.max(0, unitGrossMargin);
+  const bepUnits = unitContribution > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / unitContribution) : Infinity;
+  const bepRatio = monthlySales > 0 && bepUnits !== Infinity ? (bepUnits / monthlySales) * 100 : Infinity;
+
+  // Sector margin bounds
+  let bounds = { primeMin: 12, primeMax: 28, fantasyCap: 38, vulnerableFloor: 8, label: "General Enterprise" };
+  if (category.includes("Food")) {
+    bounds = { primeMin: 12, primeMax: 22, fantasyCap: 30, vulnerableFloor: 10, label: "Food & Beverage / Food Service" };
+  } else if (category.includes("Retail")) {
+    bounds = { primeMin: 8, primeMax: 16, fantasyCap: 25, vulnerableFloor: 6, label: "Retail & Consumer Goods" };
+  } else if (category.includes("Manufacturing")) {
+    bounds = { primeMin: 15, primeMax: 25, fantasyCap: 35, vulnerableFloor: 10, label: "Manufacturing & Production" };
+  } else if (category.includes("Service") || category.includes("Tech") || category.includes("Digital")) {
+    bounds = { primeMin: 20, primeMax: 32, fantasyCap: 40, vulnerableFloor: 12, label: "Services & Tech" };
+  }
+
+  // Fatal flaws (Immediate NOT_FEASIBLE)
+  const fatalFlaws = [];
+  if (unitGrossMargin <= 0) {
+    fatalFlaws.push("Selling price is less than or equal to unit production cost (negative unit margin).");
+  }
+  if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
+    fatalFlaws.push("Business operates at a net cash loss per month after operating expenses.");
+  }
+  if (capitalDeficit) {
+    fatalFlaws.push(`Equipment costs (PHP ${Math.round(equipmentTotal).toLocaleString()}) exceed declared capital (PHP ${Math.round(declaredCapital).toLocaleString()}), creating an immediate startup deficit.`);
+  }
+  if (paybackPeriodMonths > 48 || paybackPeriodMonths === Infinity) {
+    fatalFlaws.push("Capital recovery period exceeds 4 years or is never recovered with current earnings.");
+  }
+
+  // Severe warning flags (Downgrade to CONDITIONALLY_FEASIBLE)
+  const severeFlags = [];
+  if (netMarginPct > bounds.fantasyCap) {
+    severeFlags.push({
+      id: "fantasy-margin",
+      title: "Unrealistic High Net Profit Margin",
+      description: `Your net profit margin of ${netMarginPct.toFixed(1)}% is an unrealistic outlier for ${category} (standard student capstone ceiling is ${bounds.fantasyCap}%). Please check if monthly rent, worker salaries, electricity, or taxes were missed.`,
+      tip: `Check monthly OPEX: ensure you budgeted commercial stall rent, crew wages, electricity, and taxes so profit margins stay within realistic ${bounds.primeMin}%-${bounds.primeMax}% standards.`
+    });
+  } else if (netMarginPct > 0 && netMarginPct < bounds.vulnerableFloor) {
+    severeFlags.push({
+      id: "vulnerable-margin",
+      title: "Fragile Profit Margin",
+      description: `Your net profit margin of ${netMarginPct.toFixed(1)}% is below the ${bounds.vulnerableFloor}% safe cushion for ${category}. A minor rise in ingredient or supply costs will wipe out your profits.`,
+      tip: "Increase selling price slightly or negotiate lower supplier costs to build a safer profit buffer."
+    });
+  }
+
+  if (cashRunwayMonths < 1.0 && !capitalDeficit) {
+    severeFlags.push({
+      id: "low-runway",
+      title: "Low Cash Buffer for Bills",
+      description: `Your cash savings (PHP ${Math.round(cashReserve).toLocaleString()}) only cover ${cashRunwayMonths.toFixed(1)} months of monthly bills and rent. Allocate at least 1.5 to 2.0 months of cash reserve so you do not run out of money before sales stabilize.`,
+      tip: "Increase declared startup capital to ensure at least 1.5 to 2.0 months of fixed operating overhead is kept as a cash buffer."
+    });
+  }
+
+  if (bepRatio > 75 && bepUnits !== Infinity) {
+    severeFlags.push({
+      id: "high-bep",
+      title: "High Break-Even Sales Pressure",
+      description: `You must sell ${bepUnits.toLocaleString()} units (${bepRatio.toFixed(0)}% of your monthly goal) just to pay your bills. A slight 15% drop in sales will push the business into a loss.`,
+      tip: "Lower fixed monthly bills or improve unit profit margin to reduce the number of sales needed to break even."
+    });
+  }
+
+  if (paybackPeriodMonths > 0 && paybackPeriodMonths < 3.0) {
+    severeFlags.push({
+      id: "unrealistic-fast-payback",
+      title: "Unrealistically Fast Payback Period",
+      description: `An estimated payback period of ${paybackPeriodMonths.toFixed(1)} months is unusually fast for capital investments. Verify that startup equipment and pre-operating costs are fully budgeted.`,
+      tip: "Double-check your equipment list and pre-operating costs to make sure all startup assets were budgeted."
+    });
+  } else if (paybackPeriodMonths > 36.0 && paybackPeriodMonths <= 48.0) {
+    severeFlags.push({
+      id: "slow-payback",
+      title: "Slow Capital Payback",
+      description: `Earning back your initial capital takes ${paybackPeriodMonths.toFixed(1)} months (over 3 years), which poses a high risk of tying up money for too long.`,
+      tip: "Increase monthly sales volume or trim operating expenses to accelerate capital payback time."
+    });
+  }
+
+  // Determine status and score
+  let status = "FEASIBLE";
+  let score = 85;
+
+  if (fatalFlaws.length > 0) {
+    status = "NOT_FEASIBLE";
+    if (unitGrossMargin <= 0) score = 15;
+    else if (capitalDeficit) score = 35;
+    else if (paybackPeriodMonths > 48) score = 50;
+    else score = 30;
+  } else if (severeFlags.length > 0) {
+    status = "CONDITIONALLY_FEASIBLE";
+    score = Math.min(78, Math.max(70, Math.round(76 - (severeFlags.length - 1) * 2)));
+  } else {
+    status = "FEASIBLE";
+    let base = 84;
+    if (netMarginPct >= bounds.primeMin && netMarginPct <= bounds.primeMax) base += 4;
+    if (cashRunwayMonths >= 1.5) base += 3;
+    if (bepRatio <= 60) base += 3;
+    if (paybackPeriodMonths <= 24) base += 3;
+    score = Math.min(98, Math.max(80, base));
+  }
+
+  // Component scores
+  let financialScore = 88;
+  let riskScore = 90;
+  let marketScore = 80;
+
+  if (status === "NOT_FEASIBLE") {
+    financialScore = Math.min(45, score + 10);
+    riskScore = 30;
+    marketScore = monthlySales > 0 ? 60 : 40;
+  } else if (status === "CONDITIONALLY_FEASIBLE") {
+    financialScore = 75;
+    riskScore = cashRunwayMonths < 1.0 ? 68 : 74;
+    marketScore = 76;
+  } else {
+    financialScore = score >= 90 ? 94 : 88;
+    riskScore = cashRunwayMonths >= 2.0 ? 94 : 88;
+    marketScore = 85;
+  }
+
+  const performanceGrade = status === "NOT_FEASIBLE"
+    ? "Unsatisfactory"
+    : (status === "CONDITIONALLY_FEASIBLE" ? "Conditional" : (score >= 90 ? "Outstanding" : "Satisfactory"));
+
+  const performanceStatus = status === "NOT_FEASIBLE"
+    ? "Fail (Major Revisions Required)"
+    : (status === "CONDITIONALLY_FEASIBLE" ? "Conditional Pass (Revision Required)" : (score >= 90 ? "Pass (Highly Feasible)" : "Pass (Feasible with Minor Risks)"));
+
+  const performanceRecommendation = status === "NOT_FEASIBLE"
+    ? "Major structural or financial defects detected. Review production costs, capital adequacy, and monthly expenses before defense."
+    : (status === "CONDITIONALLY_FEASIBLE"
+      ? "Revisions required for panel defense: review the highlighted warning flags (unrealistic profit margins, cash runway, or break-even target) before final defense sign-off."
+      : "Strong, defensible study with healthy margins and realistic financial buffers. Ready for implementation.");
+
+  return {
+    category,
+    agg,
+    sellingPrice,
+    variableCost,
+    unitGrossMargin,
+    grossMarginPct,
+    monthlySales,
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    monthlyOpex,
+    monthlyInterest,
+    declaredCapital,
+    equipmentTotal,
+    cashReserve,
+    capitalDeficit,
+    cashRunwayMonths,
+    netMonthlyProfit,
+    netMarginPct,
+    annualRevenue,
+    annualExpenses,
+    annualNetProfitAfterTax,
+    paybackPeriodMonths,
+    paybackPeriodStr,
+    bepUnits,
+    bepRatio,
+    bounds,
+    fatalFlaws,
+    severeFlags,
+    status,
+    score,
+    performanceGrade,
+    performanceStatus,
+    performanceRecommendation,
+    metrics: { financial: financialScore, risk: riskScore, market: marketScore },
+    aiScores: { financial: financialScore, operational: riskScore, market: marketScore }
+  };
+}
+
 // ENDPOINT 1: Student-Facing Financial Audit
 app.post(
   [
@@ -1026,233 +1271,160 @@ app.post(
         return res.status(500).json({ error: "Missing API authorization key." });
       }
 
-      // ==========================================
-      // PROGRAMMATIC FINANCIAL AUDIT CALCULATIONS (MULTI-PRODUCT AWARE)
-      // ==========================================
-      const agg = calculateAggregatedFinancials(financials);
-      const sellingPrice = agg.sellingPrice;
-      const variableCost = agg.variableCost;
-      const monthlySales = agg.monthlySales;
-      const monthlyRevenue = agg.monthlyRevenue;
-      const totalMonthlyVariableCosts = agg.totalMonthlyVariableCosts;
-      const operatingDays = Number(financials.operatingDays) || 300;
-      const isCapitalBorrowed = financials.isCapitalBorrowed || false;
-      const interestRate = Number(financials.interestRate) || 0;
+      // Run defense evaluation engine
+      const evalResult = evaluateDefenseFeasibility(financials, kb, req.body.businessType || financials.businessType || financials.category);
+      const {
+        category,
+        agg,
+        sellingPrice,
+        variableCost,
+        unitGrossMargin,
+        grossMarginPct,
+        monthlySales,
+        monthlyRevenue,
+        totalMonthlyVariableCosts,
+        monthlyOpex,
+        monthlyInterest,
+        declaredCapital,
+        equipmentTotal,
+        cashReserve,
+        cashRunwayMonths,
+        netMonthlyProfit,
+        netMarginPct,
+        annualRevenue,
+        annualNetProfitAfterTax,
+        paybackPeriodMonths,
+        paybackPeriodStr,
+        bepUnits,
+        bepRatio,
+        bounds,
+        fatalFlaws,
+        severeFlags,
+        status,
+        score,
+        performanceGrade,
+        performanceStatus,
+        performanceRecommendation,
+        metrics,
+        aiScores
+      } = evalResult;
 
-      // 1. Sum up Equipment Cost (CapEx)
-      const equipmentList = financials.equipmentList || [];
-      const equipmentTotal = equipmentList.reduce(
-        (sum, item) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
-        0
-      );
-
-      // 2. Startup Capital Determination (Accurately resolves Contributor equity, Cash Invested, or Proposal Capital)
-      const contribSum = Array.isArray(financials.contributorsList) && financials.contributorsList.length > 0
-        ? financials.contributorsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
-        : 0;
-
-      const declaredCapital = contribSum > 0
-        ? contribSum
-        : (Number(financials.cashInvested) || Number(financials.startupCapital) || Number(financials.totalCapital) || Number(financials.proposalCapital) || 0);
-
-      const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
-
-      // 3. Cash Reserve = Contributed / Declared Capital - Equipment CapEx
-      const cashReserve = declaredCapital > 0
-        ? Math.max(0, declaredCapital - equipmentTotal)
-        : (equipmentList.length > 0 ? 0 : declaredCapital);
-
-      const capitalDeficit = equipmentList.length > 0 && declaredCapital > 0 && equipmentTotal > declaredCapital;
-
-      // 4. Sum up Monthly OPEX
-      const opexList = financials.opexList || [];
-      const monthlyOpex = opexList.length > 0
-        ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-        : (Number(financials.fixedCosts) || 0);
-
-      // 5. Calculate monthly financing interest
-      const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
-
-      // 6. Basic Monthly Margin Metrics
-      const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
-
-      // 7. Annualized calculations matching student panel
-      const annualRevenue = (monthlyRevenue / 30) * operatingDays;
-      const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
-      const annualNetProfitPreTax = annualRevenue - annualExpenses;
-      const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // 3% BMBE Tax
-      const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
-
-      // 8. Payback period in months
-      const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
-      const paybackPeriodMonths = annualNetProfitAfterTax > 0
-        ? (paybackBase / (annualNetProfitAfterTax / 12))
-        : Infinity;
-      const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Infinity (Never)" : `${paybackPeriodMonths.toFixed(1)} months`;
-
-      // 9. FEASIBILITY DECISION TREE
-      let status = "FEASIBLE";
-      let score = 85;
-
-      if (sellingPrice - variableCost <= 0) {
-        status = "NOT_FEASIBLE";
-        score = 15;
-      } else if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
-        status = "NOT_FEASIBLE";
-        score = 30;
-      } else {
-        // High feasibility: scale based on how fast the business pays back its capital
-        const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
-        status = "FEASIBLE";
-        score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
-      }
-
-      // Calculate component scores
-      const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
-      const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
-      const marketScore = monthlySales > 0 ? 80 : 50;
-
-      // Map score to Performance Matrix from knowledge base
-      const performanceInfo = mapScoreToPerformanceMatrix(score, kb.evaluation_framework.performance_matrix);
-
-      // Strict prompt forcing isolated data constraints, zero outside search, temperature 0
+      // Strict prompt with plain-English instructions and exact defense feedback
       const prompt = `
-You are a closed-domain mathematical auditing assistant evaluating a student's business FINANCIAL DATA.
-Do not use any outside general-world knowledge. Rely purely on the evaluation rules, numerical metrics, and the local knowledge base.
+You are an academic business feasibility defense auditing assistant for college students.
+Your job is to evaluate the student's business FINANCIAL DATA using clear, simple, and direct English.
 
 LOCAL KNOWLEDGE BASE CONTEXT (FOR REALISM & GRADING STANDARDS):
 ${JSON.stringify(kb.evaluation_framework, null, 2)}
 
-FEW-SHOT SUCCESSFUL BUSINESS EXEMPLARS FOR REFERENCE (CAPITAL STABILITY, COST & PRICING STRUCTURE):
+FEW-SHOT SUCCESSFUL BUSINESS EXEMPLARS FOR REFERENCE:
 ${JSON.stringify(dynamicExemplars.getCategoryMatchedExemplars(req.body.businessType || req.body.category || 'General', kb.exemplars), null, 2)}
 
-APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples):
-${JSON.stringify(kb.financial_input_examples, null, 2)}
+AUDITED BUSINESS SECTOR: "${category}"
+AUDITED FEASIBILITY STATUS: "${status}" (Score: ${score}/100, Grade: "${performanceGrade} - ${performanceStatus}")
 
-EVALUATION RULES:
-1. Gross Profit Margin Rule: Selling Price - COGS/Unit > 0 (The unit selling price must strictly exceed the direct unit production cost). If fails, status must be NOT_FEASIBLE and score must be 15.
-2. Profitability Check: A business must have positive Net Profit/Month and positive Annual Net Profit (After Tax) to be feasible. If Net Profit is less than or equal to 0, status must be NOT_FEASIBLE and score must be 30.
-3. Realism Audit: Compare the submitted financial data (startup capital, unit selling price, COGS/unit, and monthly OPEX) against the approved university feasibility studies under APPROVED UNIVERSITY BASES FOR FINANCIAL COMPARISONS (financial_input_examples). Focus on comparing the startup capital scale and the COGS-to-price ratios. Warn if they are extremely unrealistic, but DO NOT check or criticize for total capital reconciliation balance or cash reserve buffer quantities since those are NOT evaluated in this phase.
-4. STRICT JARGON, SCORE & INTERNAL BENCHMARK NAME BAN:
-- Do NOT output or refer to internal code names like "DF-01", "DF-02", "DF-03", or "DF" anywhere in your text.
-- Do NOT mention arbitrary numerical score points like "Score: 85/100", "Score: 30/100", or "X/100" in any of your narrative text. In academic and capstone defenses, arbitrary scores cannot be quantified. Instead, explain concepts and verdicts purely using real business metrics that students easily understand (such as "unit gross profit margin", "direct cost coverage", "monthly net profit", "OPEX coverage", and "capital recovery/payback period").
-- STRICT INTERNAL BENCHMARK CONFIDENTIALITY: The exemplars in your knowledge base (such as Mr. Cabbage, The Dory House, Empinoy, etc.) are strictly internal reference cases for your auditing logic. NEVER mention, quote, or cite the names of these benchmark businesses (e.g., NEVER write "Mr. Cabbage", "The Dory House", or "Empinoy" anywhere in your generated text). State all advice, pricing recommendations, and marketing tips directly to the user (e.g., write "Keep entry-level pricing accessible and offer value combos to encourage repeat purchases" instead of naming benchmarks).
-5. Market Indicators & Competitive Landscape Evaluation:
-Evaluate the submitted market indicators:
-- Competitor Density: If direct competitors <= 2, evaluate as positive (low market saturation, room to capture share). If direct competitors >= 3, evaluate as warning/risk (market saturation, requires distinct product differentiation or pricing advantage).
-- Foot Traffic & Anchors: If nearby establishments >= 1 (e.g. schools, transit, malls, markets), evaluate as positive (strong walk-in customer drivers with low ad spend). If 0 nearby establishments, evaluate as warning/risk (customer acquisition risk; requires high promotional ad spend).
-- Demographics & Pricing: Evaluate if unit selling price is realistic and accessible for the target demographic. Directly state pricing and combo recommendations without citing internal benchmark names.
-Write all market text in simple, straight-to-the-point English without arbitrary score numbers or benchmark names.
+AUDITED DEFENSE WARNING FLAGS DETECTED:
+${severeFlags.length > 0 ? severeFlags.map(f => `- ${f.title}: ${f.description}`).join('\n') : 'None. All indicators fall within healthy benchmark bounds.'}
 
-ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
-- Tone & Style: ${req.body.customAIRules?.tone || 'Default academic and constructive tone.'}
-- Dealbreakers: ${req.body.customAIRules?.dealbreakers || 'None specific.'}
-- Focus Areas: ${req.body.customAIRules?.focusAreas || 'General financial feasibility.'}
-- Formatting: ${req.body.customAIRules?.formatting || 'Follow standard output structure.'}
+${fatalFlaws.length > 0 ? `FATAL DEFECTS:\n${fatalFlaws.map(f => `- ${f}`).join('\n')}` : ''}
 
-SUBMITTED FINANCIAL DATA:
-- Average Selling Price per Unit: PHP ${sellingPrice.toFixed(2)}
-- Average Cost of Goods Sold (COGS) per Unit: PHP ${variableCost.toFixed(2)}
-- Total Monthly Sales Volume (Units Across Product Line): ${monthlySales}
-- Product Mix Count: ${agg.productCount} product(s)
-- Total Gross Monthly Revenue: PHP ${monthlyRevenue}
-- Total Monthly Variable Costs (COGS): PHP ${totalMonthlyVariableCosts}
-- Declared Startup Capital: PHP ${declaredCapital}
-- Sum of Equipment Startup Costs: PHP ${equipmentTotal}
-- Monthly Operating Expenses (OPEX): PHP ${monthlyOpex}
-- Monthly Financing Interest Cost: PHP ${monthlyInterest}
-- Cash/Working Capital Reserve: PHP ${cashReserve}
-- Net Profit/Month: PHP ${netMonthlyProfit}
-- Annual Revenue: PHP ${annualRevenue}
-- Annual Net Profit (After Tax): PHP ${annualNetProfitAfterTax}
-- Payback Period: ${paybackPeriodStr}
+SUBMITTED FINANCIAL METRICS:
+- Average Selling Price: PHP ${sellingPrice.toFixed(2)}
+- Average COGS / Unit: PHP ${variableCost.toFixed(2)}
+- Unit Contribution Margin: PHP ${unitGrossMargin.toFixed(2)} (${grossMarginPct.toFixed(1)}%)
+- Monthly Sales Volume: ${monthlySales} units
+- Monthly Gross Revenue: PHP ${Math.round(monthlyRevenue).toLocaleString()}
+- Total Monthly Production Cost (COGS): PHP ${Math.round(totalMonthlyVariableCosts).toLocaleString()}
+- Total Declared Startup Capital: PHP ${Math.round(declaredCapital).toLocaleString()}
+- Equipment Cost (CapEx): PHP ${Math.round(equipmentTotal).toLocaleString()}
+- Cash Buffer / Reserve: PHP ${Math.round(cashReserve).toLocaleString()} (Covers ${cashRunwayMonths.toFixed(1)} months of expenses)
+- Monthly Operating Expenses (OPEX): PHP ${Math.round(monthlyOpex).toLocaleString()}
+- Net Monthly Profit: PHP ${Math.round(netMonthlyProfit).toLocaleString()} (Net Margin: ${netMarginPct.toFixed(1)}%, Industry Healthy Range: ${bounds.primeMin}%-${bounds.primeMax}%, Fantasy Cap: ${bounds.fantasyCap}%)
+- Break-Even Point: ${bepUnits === Infinity ? 'N/A' : `${bepUnits.toLocaleString()} units (${bepRatio.toFixed(0)}% of monthly target)`}
+- Capital Payback Time: ${paybackPeriodStr}
 - Direct Competitors: ${Array.isArray(financials.directCompetitors) && financials.directCompetitors.length > 0 ? financials.directCompetitors.join(', ') : 'None specified'}
-- Other / Indirect Competitors: ${Array.isArray(financials.otherCompetitors) && financials.otherCompetitors.length > 0 ? financials.otherCompetitors.join(', ') : 'None specified'}
-- Nearby Demand Drivers / Establishments (ROI Factors): ${Array.isArray(financials.nearbyEstablishments) && financials.nearbyEstablishments.length > 0 ? financials.nearbyEstablishments.join(', ') : 'None specified'}
-- Peak Foot Traffic Schedule: ${financials.footTrafficPeak || 'Standard flow'}
+- Nearby Demand Drivers / Foot Traffic Anchors: ${Array.isArray(financials.nearbyEstablishments) && financials.nearbyEstablishments.length > 0 ? financials.nearbyEstablishments.join(', ') : 'None specified'}
 - Target Demographics: ${Array.isArray(financials.targetDemographics) && financials.targetDemographics.length > 0 ? financials.targetDemographics.join(', ') : 'General public'}
-- Market Demand & ROI Context Notes: ${financials.marketDemandNotes || financials.competitorNotes || financials.marketDemand || 'None provided'}
 
-MANDATORY OUTPUT VALUE ENFORCEMENT:
-Your generated JSON object MUST contain exactly these calculated metrics:
+MANDATORY OUTPUT CONSTRAINTS & TONE:
+1. WRITE IN SIMPLE, DIRECT PLAIN ENGLISH:
+   Use short, direct sentences that students easily understand without financial jargon.
+   - Do NOT write internal codes like "DF-01", "DF-02", or arbitrary score fractions like "85/100" in narrative text.
+   - Speak directly to the student (e.g. write "Your food stall earns PHP 20,000 profit each month, which is healthy" or "Your cash buffer only covers 2 weeks of rent and bills").
+2. DIRECT DEFENSE REVISION CHECKLIST:
+   When status is "CONDITIONALLY_FEASIBLE", explicitly tell the student what numbers to review in "improvementTips.feasibility" and "explanations.feasibility":
+   - If profit margin is an unrealistic outlier, say: "Check if commercial stall rent, worker salaries, electricity, or taxes were missed."
+   - If cash buffer is low, say: "Add more cash savings to cover at least 2 months of bills so you don't run out of money."
+   - If break-even is high, say: "Lower monthly operating costs or adjust pricing so you don't need to sell so many units just to pay bills."
+3. MANDATORY 4 STRUCTURED INSIGHTS (Plain English):
+   Your "insights" array MUST contain exactly these 4 cards:
+   - Card 1: title "Profit Margin Status" (explaining in plain words if margin is realistic or an unrealistic outlier).
+   - Card 2: title "Cash Runway Buffer" (explaining in plain words how many months of rent and operating bills the startup cash buffer can survive).
+   - Card 3: title "Break-Even Safety" (explaining how many items they must sell each month just to pay monthly bills).
+   - Card 4: title "Capital Payback Time" (explaining how long it takes to recover their capital).
+
+MANDATORY OUTPUT VALUES:
 - "score": ${score}
 - "status": "${status}"
-- "performanceGrade": "${performanceInfo.performanceGrade}"
-- "performanceStatus": "${performanceInfo.performanceStatus}"
-- "performanceRecommendation": "${performanceInfo.performanceRecommendation}"
-- "metrics": {
-    "financial": ${financialScore},
-    "risk": ${riskScore},
-    "market": ${marketScore}
-  }
-- "aiScores": {
-    "financial": ${financialScore},
-    "operational": ${riskScore},
-    "market": ${marketScore}
-  }
-
-Please write the explanations, insights, and improvement tips based strictly on the metrics, values, and realism rules above.
-CRITICALLY IMPORTANT: You MUST strictly apply the ADVISER'S CUSTOM AI RULES (Tone, Dealbreakers, Focus Areas, Formatting) when writing the text for 'explanations', 'insights', 'improvementTips', and 'aiScoreExplanations'. If the tone is goofy, write in a goofy tone. If formatting requires bullets, use bullets.
+- "performanceGrade": "${performanceGrade}"
+- "performanceStatus": "${performanceStatus}"
+- "performanceRecommendation": "${performanceRecommendation}"
+- "metrics": ${JSON.stringify(metrics)}
+- "aiScores": ${JSON.stringify(aiScores)}
 
 Your response must be a single stringified JSON object matching this structure:
 {
   "score": ${score},
   "status": "${status}",
-  "performanceGrade": "${performanceInfo.performanceGrade}",
-  "performanceStatus": "${performanceInfo.performanceStatus}",
-  "performanceRecommendation": "${performanceInfo.performanceRecommendation}",
-  "metrics": {
-    "financial": ${financialScore},
-    "risk": ${riskScore},
-    "market": ${marketScore}
-  },
+  "performanceGrade": "${performanceGrade}",
+  "performanceStatus": "${performanceStatus}",
+  "performanceRecommendation": "${performanceRecommendation}",
+  "metrics": ${JSON.stringify(metrics)},
+  "aiScores": ${JSON.stringify(aiScores)},
   "explanations": {
-    "feasibility": "Overall audit verdict explanation written in simple, clear business language without any internal technical codes (NEVER write 'DF-02', 'DF-01', or 'DF-03') and WITHOUT mentioning arbitrary score numbers (NEVER write 'Score: X/100'). Explicitly discuss the feasibility status, average unit gross profit margin, monthly net profit, and OPEX coverage.",
-    "financial": "Detailed analysis of unit margins, OPEX coverage, and net profit.",
-    "risk": "Breakdown of cash flow risks, capital recovery duration (payback period), and general budget stability.",
-    "market": "Assessment of volume adequacy, gross margins, and general price realism."
+    "feasibility": "Short 2-3 sentence plain English overview of whether the business is feasible, conditionally feasible, or not feasible, and why.",
+    "financial": "Short plain English explanation of selling price, monthly net profit, and profit margin.",
+    "risk": "Short plain English explanation of cash runway buffer, bills coverage, and capital payback.",
+    "market": "Short plain English explanation of sales volume target and competition."
   },
   "insights": [
-    { "type": "positive", "title": "Margin Status", "description": "Analysis of your unit gross margins" },
-    { "type": "warning", "title": "Profitability Status", "description": "Analysis of your net profit margins and profitability" },
-    { "type": "info", "title": "Payback Insight", "description": "Analysis of your estimated capital recovery time" }
+    { "type": "${status === 'CONDITIONALLY_FEASIBLE' && netMarginPct > bounds.fantasyCap ? 'warning' : (netMarginPct <= 0 ? 'warning' : 'positive')}", "title": "Profit Margin Status", "description": "Short plain English explanation of profit margin." },
+    { "type": "${cashRunwayMonths >= 1.5 ? 'positive' : (cashRunwayMonths >= 1.0 ? 'info' : 'warning')}", "title": "Cash Runway Buffer", "description": "Short plain English explanation of cash buffer covering months of expenses." },
+    { "type": "${bepRatio <= 65 ? 'positive' : (bepRatio <= 80 ? 'info' : 'warning')}", "title": "Break-Even Safety", "description": "Short plain English explanation of units needed to break even." },
+    { "type": "${paybackPeriodMonths <= 30 && paybackPeriodMonths >= 3 ? 'positive' : (paybackPeriodMonths <= 36 ? 'info' : 'warning')}", "title": "Capital Payback Time", "description": "Short plain English explanation of payback duration." }
   ],
   "improvementTips": {
-    "financial": ["Specific tip on unit cost, rent, or operational expense adjustment"],
-    "operations": ["Specific tip on equipment budget, location cost, or pricing realism adjustments"],
-    "marketing": ["Specific tip on pricing strategy or volume adjustments"]
-  },
-  "aiScores": {
-    "financial": ${financialScore},
-    "operational": ${riskScore},
-    "market": ${marketScore}
+    "feasibility": "${status === 'CONDITIONALLY_FEASIBLE' ? severeFlags.map(f => f.tip).join(' ') : (status === 'FEASIBLE' ? 'Keep pricing steady and monitor supply costs to maintain your healthy net profit.' : 'Review product pricing, eliminate capital deficit, and lower monthly expenses.')}",
+    "financial": ["Specific plain English tip on pricing or overhead expenses"],
+    "operations": ["Specific plain English tip on equipment budget, rent, or cash reserve"],
+    "marketing": ["Specific plain English tip on promotion or reaching target customers"]
   },
   "aiScoreExplanations": {
-    "financial": "Brief summary explanation evaluating margins and net profit without score digits.",
-    "operational": "Brief summary explanation evaluating equipment and operational expenses.",
-    "market": "Brief summary explanation evaluating volume and market capacity."
+    "financial": "Brief plain English summary of margins and net profit.",
+    "operational": "Brief plain English summary of equipment and cash runway.",
+    "market": "Brief plain English summary of volume and competition."
   },
   "marketAnalysis": {
-    "summary": "Short 1-2 sentence straight-to-the-point evaluation of the market indicators using simple English.",
+    "summary": "Short 1-2 sentence straight-to-the-point evaluation of market indicators in simple English.",
     "competitorInsight": {
       "status": "positive or warning",
       "badge": "e.g. Low Competition or Competitive Density",
-      "text": "Short concise takeaway on direct and indirect competitors in simple English."
+      "text": "Short concise takeaway on competitors in simple English."
     },
     "footTrafficInsight": {
       "status": "positive or warning",
-      "badge": "e.g. Strong Foot Traffic Anchor or Customer Acquisition Risk",
-      "text": "Short concise takeaway on foot traffic and nearby anchor establishments in simple English."
+      "badge": "e.g. Anchor Foot Traffic Present or Walk-in Customer Risk",
+      "text": "Short concise takeaway on foot traffic and nearby anchors in simple English."
     },
     "demographicInsight": {
-      "status": "positive or warning",
-      "badge": "e.g. Demographic Alignment or Pricing Strategy",
-      "text": "Short concise takeaway on target demographics and price alignment in simple English. Directly provide actionable advice without mentioning or naming any internal benchmark businesses."
+      "status": "positive",
+      "badge": "e.g. Demographic Alignment",
+      "text": "Short concise takeaway on target customers and pricing in simple English."
     }
   }
 }
 
-IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, typescript annotations, or trailing commas in the JSON response. For the 'type' field in the 'insights' array, you must select one of: 'positive', 'warning', 'info', or 'suggestion'.
+IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or comments. For the 'type' field in the 'insights' array, choose one of: 'positive', 'warning', 'info', or 'suggestion'.
 `;
 
       const { result, modelName } = await callGeminiCascade(prompt, {
@@ -1260,20 +1432,25 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
       });
       const textResponse = result.response.text();
       let parsedResponse = cleanAndParseJSON(textResponse);
-      
-      // Enforce the exact performance matrix fields programmatically
-      parsedResponse.performanceGrade = performanceInfo.performanceGrade;
-      parsedResponse.performanceStatus = performanceInfo.performanceStatus;
-      parsedResponse.performanceRecommendation = performanceInfo.performanceRecommendation;
+
+      // Enforce the exact programmatic metrics
+      parsedResponse.score = score;
+      parsedResponse.status = status;
+      parsedResponse.performanceGrade = performanceGrade;
+      parsedResponse.performanceStatus = performanceStatus;
+      parsedResponse.performanceRecommendation = performanceRecommendation;
+      parsedResponse.metrics = metrics;
+      parsedResponse.aiScores = aiScores;
+      parsedResponse.severeFlags = severeFlags;
+      parsedResponse.fatalFlaws = fatalFlaws;
 
       // Ensure marketAnalysis is always populated with valid structure
       if (!parsedResponse.marketAnalysis || typeof parsedResponse.marketAnalysis !== "object") {
         parsedResponse.marketAnalysis = generateFallbackMarketAnalysis(financials);
       }
 
-      // Sanitize user-facing text to remove any residual internal DF codes or arbitrary score numbers
+      // Sanitize user-facing text
       parsedResponse = sanitizeUserFacingText(parsedResponse);
-
       parsedResponse._fallback = false;
       parsedResponse._model = modelName;
 
@@ -1291,87 +1468,73 @@ IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, ty
         console.error("Failed writing to error.log:", logErr);
       }
 
-      // Fallback mechanism to ensure no crash (multi-product aware)
+      // Robust fallback defense calculation
       const financials = req.body.financialData || req.body.financials || req.body;
-      const agg = calculateAggregatedFinancials(financials);
-      const sellingPrice = agg.sellingPrice;
-      const variableCost = agg.variableCost; 
-      const monthlySales = agg.monthlySales;
-      const monthlyRevenue = agg.monthlyRevenue;
-      const totalMonthlyVariableCosts = agg.totalMonthlyVariableCosts;
-      const operatingDays = Number(financials.operatingDays) || 300;
-      const isCapitalBorrowed = financials.isCapitalBorrowed || false;
-      const interestRate = Number(financials.interestRate) || 0;
-      const equipmentList = financials.equipmentList || [];
-      const equipmentTotal = equipmentList.reduce(
-        (sum, item) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
-        0
-      );
-      const contribSum = Array.isArray(financials.contributorsList) && financials.contributorsList.length > 0
-        ? financials.contributorsList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
-        : 0;
-      const declaredCapital = contribSum > 0
-        ? contribSum
-        : (Number(financials.cashInvested) || Number(financials.startupCapital) || Number(financials.totalCapital) || Number(financials.proposalCapital) || 0);
-      const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
-      const opexList = financials.opexList || [];
-      const monthlyOpex = opexList.length > 0
-        ? opexList.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-        : (Number(financials.fixedCosts) || 0);
-      const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
-      const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
-      const annualRevenue = (monthlyRevenue / 30) * operatingDays;
-      const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
-      const annualNetProfitPreTax = annualRevenue - annualExpenses;
-      const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
-      const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
-
-      let status = "FEASIBLE";
-      let score = 85;
-      if (sellingPrice - variableCost <= 0) {
-        status = "NOT_FEASIBLE";
-        score = 15;
-      } else if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
-        status = "NOT_FEASIBLE";
-        score = 30;
-      } else {
-        const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
-        status = "FEASIBLE";
-        score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
-      }
-      const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
-      const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
-      const marketScore = monthlySales > 0 ? 80 : 50;
-
       const kb = getKnowledgeBase();
-      const performanceInfo = kb ? mapScoreToPerformanceMatrix(score, kb.evaluation_framework.performance_matrix) : {
-        performanceGrade: "Satisfactory", performanceStatus: "PASS (Feasible)", performanceRecommendation: "Mathematically sound and logical financial indicators."
-      };
+      const evalResult = evaluateDefenseFeasibility(financials, kb, req.body.businessType || financials.businessType || financials.category);
+
+      const defaultInsights = [
+        {
+          type: evalResult.status === "CONDITIONALLY_FEASIBLE" && evalResult.netMarginPct > evalResult.bounds.fantasyCap ? "warning" : (evalResult.netMarginPct <= 0 ? "warning" : "positive"),
+          title: "Profit Margin Status",
+          description: evalResult.netMarginPct > evalResult.bounds.fantasyCap
+            ? `Your net profit margin is ${evalResult.netMarginPct.toFixed(1)}%. This is unusually high for ${evalResult.category}. Check if commercial rent, employee wages, or utility bills were omitted.`
+            : (evalResult.netMarginPct <= 0
+              ? `Your net margin is negative (${evalResult.netMarginPct.toFixed(1)}%). Ongoing operations run at a monthly loss.`
+              : `Your net profit margin is ${evalResult.netMarginPct.toFixed(1)}%, which is healthy and realistic for a ${evalResult.category} business.`)
+        },
+        {
+          type: evalResult.cashRunwayMonths >= 1.5 ? "positive" : (evalResult.cashRunwayMonths >= 1.0 ? "info" : "warning"),
+          title: "Cash Runway Buffer",
+          description: evalResult.cashRunwayMonths >= 1.5
+            ? `Your cash reserve (PHP ${Math.round(evalResult.cashReserve).toLocaleString()}) covers ${evalResult.cashRunwayMonths.toFixed(1)} months of monthly expenses, providing a safe buffer.`
+            : `Your cash reserve (PHP ${Math.round(evalResult.cashReserve).toLocaleString()}) covers only ${evalResult.cashRunwayMonths.toFixed(1)} months of expenses. Allocate a larger cash buffer.`
+        },
+        {
+          type: evalResult.bepRatio <= 65 ? "positive" : (evalResult.bepRatio <= 80 ? "info" : "warning"),
+          title: "Break-Even Target",
+          description: evalResult.bepUnits === Infinity
+            ? "Break-even cannot be calculated due to zero or negative unit margins."
+            : `You need to sell ${evalResult.bepUnits.toLocaleString()} units each month (${evalResult.bepRatio.toFixed(0)}% of your target) just to cover fixed monthly bills.`
+        },
+        {
+          type: evalResult.paybackPeriodMonths <= 30 && evalResult.paybackPeriodMonths >= 3 ? "positive" : (evalResult.paybackPeriodMonths <= 36 ? "info" : "warning"),
+          title: "Capital Payback Time",
+          description: `Estimated investment payback takes ${evalResult.paybackPeriodStr} based on annual net earnings after tax.`
+        }
+      ];
 
       res.json({
-        score,
-        status,
-        performanceGrade: performanceInfo.performanceGrade,
-        performanceStatus: performanceInfo.performanceStatus,
-        performanceRecommendation: performanceInfo.performanceRecommendation,
-        metrics: { financial: financialScore, risk: riskScore, market: marketScore },
+        score: evalResult.score,
+        status: evalResult.status,
+        performanceGrade: evalResult.performanceGrade,
+        performanceStatus: evalResult.performanceStatus,
+        performanceRecommendation: evalResult.performanceRecommendation,
+        metrics: evalResult.metrics,
+        aiScores: evalResult.aiScores,
         explanations: {
-          feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}. ${status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : "Business shows negative margins — review costs."}`,
-          financial: "Detailed analysis of contribution margins, OPEX coverage, and net profit.",
-          risk: "Evaluation of startup capital recovery and fixed cost commitments.",
-          market: "Evaluation of sales volume and monthly revenue capacity."
+          feasibility: `Feasibility Assessment: ${evalResult.status === "FEASIBLE" ? "Feasible" : (evalResult.status === "CONDITIONALLY_FEASIBLE" ? "Conditionally Feasible" : "Not Feasible")}. ${evalResult.status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : (evalResult.status === "CONDITIONALLY_FEASIBLE" ? "Business is profitable but has warning flags requiring revision before final presentation." : "Business shows negative margins or capital deficit - review costs.")}`,
+          financial: `Average selling price of PHP ${evalResult.sellingPrice.toFixed(2)} produces PHP ${Math.round(evalResult.netMonthlyProfit).toLocaleString()} estimated monthly net profit (${evalResult.netMarginPct.toFixed(1)}% margin).`,
+          risk: `Cash buffer covers ${evalResult.cashRunwayMonths.toFixed(1)} months of operating bills. Capital payback is estimated at ${evalResult.paybackPeriodStr}.`,
+          market: `Projected monthly volume of ${evalResult.monthlySales.toLocaleString()} units produces PHP ${Math.round(evalResult.monthlyRevenue).toLocaleString()} gross monthly revenue.`
         },
-        insights: [
-          { type: status === "FEASIBLE" ? "positive" : "warning", title: "Automated Verdict", description: `Feasibility assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}.` }
-        ],
-        improvementTips: {},
-        aiScores: { financial: financialScore, operational: riskScore, market: marketScore },
+        insights: defaultInsights,
+        improvementTips: {
+          feasibility: evalResult.status === "CONDITIONALLY_FEASIBLE"
+            ? (evalResult.severeFlags.length > 0 ? evalResult.severeFlags.map(f => f.tip).join(" ") : "Refine cost projections and cash reserves.")
+            : (evalResult.status === "FEASIBLE" ? "Maintain pricing and monitor supplier costs to preserve positive operating net margins." : "Re-evaluate selling price, negotiate supplier variable costs, or reduce monthly overhead to achieve positive cash flow."),
+          financial: ["Audit recurring utility and overhead expenses to protect operating net margins."],
+          operations: ["Validate equipment quotation list to avoid unexpected initial capital expansion."],
+          marketing: ["Focus marketing on nearby anchor establishments to reliably meet sales volume."]
+        },
         aiScoreExplanations: {
           financial: "Evaluates unit contribution margins, OPEX coverage, and net profit.",
           operational: "Evaluates startup capital requirements and fixed cost commitments.",
           market: "Evaluates monthly volume and sales revenue capacity."
         },
         marketAnalysis: generateFallbackMarketAnalysis(financials),
+        severeFlags: evalResult.severeFlags,
+        fatalFlaws: evalResult.fatalFlaws,
         _fallback: true
       });
     }

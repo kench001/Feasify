@@ -54,6 +54,11 @@ import {
   normalizeProposalProducts,
   computeProductMetrics,
 } from "./utils/productCosting";
+import {
+  cleanUserFacingText,
+  calculateLocalAudit,
+  evaluateDefenseFeasibility,
+} from "./utils/feasibilityAudit";
 
 interface InsightItem {
   id: string;
@@ -74,45 +79,6 @@ export interface MarketAnalysisData {
   footTrafficInsight?: MarketPillarInsight;
   demographicInsight?: MarketPillarInsight;
 }
-
-// Helper to strip any confusing internal framework codes and arbitrary numeric scores (e.g. "30/100")
-const cleanUserFacingText = (data: any): any => {
-  if (typeof data === "string") {
-    return data
-      .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
-      .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
-      .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
-      .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
-      .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
-      .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
-      .replace(/\bDF-\d+\s+margin\s+test\b/gi, "gross margin test")
-      .replace(/\bpasses\s+(?:the\s+)?DF-\d+\s+test\b/gi, "maintains a positive gross profit margin")
-      .replace(/\bfails\s+(?:the\s+)?DF-\d+\s+test\b/gi, "has a negative or zero gross profit margin")
-      .replace(/\bpasses\s+DF-\d+\b/gi, "maintains positive gross profit")
-      .replace(/\bfails\s+DF-\d+\b/gi, "has negative gross profit")
-      .replace(/\bRule\s+DF-\d+[:\s]*/gi, "Gross Margin Rule: ")
-      .replace(/\(DF-\d+\)/gi, "")
-      .replace(/\bDF-\d+[:\s-]*/gi, "")
-      .replace(/[—–-]\s*(?:similar to|based on|like|aligned with)?\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*\s*[—–-]/gi, " ")
-      .replace(/(?:,\s*)?(?:similar to|based on|like|aligned with)\s*(?:proven\s+|local\s+)?benchmarks?(?:\s+(?:such as|like))?\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "")
-      .replace(/(?:proven\s+|local\s+)?benchmarks?\s*(?:such as|like)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)(?:\s*(?:and|,|or)\s*(?:Mr\.?\s*Cabbage|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy))*/gi, "proven market standards")
-      .replace(/\b(?:Mr\.?\s*Cabbage(?:\s*\(Brassica Foods\))?|The\s+Dory\s+House(?:\s+Co\.?)?|Dory\s+House|Empinoy)\b/gi, "market standards")
-      .replace(/\s{2,}/g, " ")
-      .replace(/\s+([,.])/g, "$1")
-      .trim();
-  }
-  if (Array.isArray(data)) {
-    return data.map(cleanUserFacingText);
-  }
-  if (data && typeof data === "object") {
-    const cleaned: Record<string, any> = {};
-    for (const key of Object.keys(data)) {
-      cleaned[key] = cleanUserFacingText(data[key]);
-    }
-    return cleaned;
-  }
-  return data;
-};
 
 // Helper to extract clean, active financial inputs from project/proposal data (supporting multi-month records & scenarios)
 const extractActiveFinancialData = (proj: any) => {
@@ -270,8 +236,12 @@ const AI_Analysis: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feasibilityScore, setFeasibilityScore] = useState(0);
   const [feasibilityStatus, setFeasibilityStatus] = useState<
-    "FEASIBLE" | "MODERATE" | "NOT_FEASIBLE" | "PENDING"
+    "FEASIBLE" | "CONDITIONALLY_FEASIBLE" | "NOT_FEASIBLE" | "MODERATE" | "PENDING"
   >("PENDING");
+  const [severeFlags, setSevereFlags] = useState<
+    { id: string; title: string; description: string; tip: string }[]
+  >([]);
+  const [fatalFlaws, setFatalFlaws] = useState<string[]>([]);
   const [metrics, setMetrics] = useState({
     feasibility: 0,
     financial: 0,
@@ -446,6 +416,18 @@ const AI_Analysis: React.FC = () => {
         setPerformanceGrade(proj.aiAnalysis.performanceGrade || "");
         setPerformanceStatus(proj.aiAnalysis.performanceStatus || "");
         setPerformanceRecommendation(proj.aiAnalysis.performanceRecommendation || "");
+        if (Array.isArray(proj.aiAnalysis.severeFlags)) {
+          setSevereFlags(proj.aiAnalysis.severeFlags);
+        } else {
+          const evalRes = evaluateDefenseFeasibility(activeFin);
+          setSevereFlags(evalRes.severeFlags || []);
+        }
+        if (Array.isArray(proj.aiAnalysis.fatalFlaws)) {
+          setFatalFlaws(proj.aiAnalysis.fatalFlaws);
+        } else {
+          const evalRes = evaluateDefenseFeasibility(activeFin);
+          setFatalFlaws(evalRes.fatalFlaws || []);
+        }
         setMetrics(
           proj.aiAnalysis.metrics || {
             feasibility: 0,
@@ -473,6 +455,8 @@ const AI_Analysis: React.FC = () => {
         setPerformanceGrade("");
         setPerformanceStatus("");
         setPerformanceRecommendation("");
+        setSevereFlags([]);
+        setFatalFlaws([]);
         setInsights([]);
         setExplanations({});
         setImprovementTips({});
@@ -482,234 +466,6 @@ const AI_Analysis: React.FC = () => {
       }
     }
   }, [location.state, projects, navigate]);
-
-  // Resilient Client-Side Financial Audit Engine (Zero-Crash Capstone Defense Guard)
-  const calculateLocalAudit = (finData: any) => {
-    const prods = (finData?.products && Array.isArray(finData.products) && finData.products.length > 0)
-      ? normalizeProposalProducts(finData)
-      : (finData?.monthlyRecords && finData.monthlyRecords[0]?.financials?.products
-        ? normalizeProposalProducts(finData.monthlyRecords[0].financials)
-        : []);
-
-    let monthlyRevenue = 0;
-    let totalMonthlyVariableCosts = 0;
-    let safeMonthlySales = 0;
-    let safeSellingPrice = 0;
-    let safeVariableCost = 0;
-
-    if (prods.length > 1) {
-      monthlyRevenue = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).revenue, 0);
-      totalMonthlyVariableCosts = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).cogsSold, 0);
-      safeMonthlySales = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).unitsSold, 0);
-      safeSellingPrice = safeMonthlySales > 0 ? monthlyRevenue / safeMonthlySales : 0;
-      safeVariableCost = safeMonthlySales > 0 ? totalMonthlyVariableCosts / safeMonthlySales : 0;
-    } else if (prods.length === 1) {
-      const m = computeProductMetrics(prods[0]);
-      monthlyRevenue = m.revenue;
-      totalMonthlyVariableCosts = m.cogsSold;
-      safeMonthlySales = m.unitsSold;
-      safeSellingPrice = m.netSellingPrice > 0 ? m.netSellingPrice : (m.sellingPrice > 0 ? m.sellingPrice : (Number(finData?.sellingPrice) || 0));
-      safeVariableCost = m.unitCost > 0 ? m.unitCost : (Number(finData?.variableCost) || 0);
-    } else {
-      safeSellingPrice = Number(finData?.sellingPrice) || 0;
-      safeVariableCost = Number(finData?.variableCost) || 0;
-      safeMonthlySales = Number(finData?.monthlySales) || 0;
-      monthlyRevenue = safeSellingPrice * safeMonthlySales;
-      totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
-    }
-
-    const safeOperatingDays = Number(finData?.operatingDays) || 300;
-    const isCapitalBorrowed = Boolean(finData?.isCapitalBorrowed);
-    const interestRate = Number(finData?.interestRate) || 0;
-
-    const equipmentList = finData?.equipmentList || [];
-    const equipmentTotal = equipmentList.reduce(
-      (sum: number, item: any) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
-      0
-    );
-
-    const contribSum =
-      Array.isArray(finData?.contributorsList) && finData.contributorsList.length > 0
-        ? finData.contributorsList.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
-        : 0;
-
-    const declaredCapital =
-      contribSum > 0
-        ? contribSum
-        : Number(finData?.cashInvested) ||
-          Number(finData?.startupCapital) ||
-          Number(finData?.totalCapital) ||
-          Number(finData?.proposalCapital) ||
-          0;
-
-    const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
-    const cashReserve =
-      declaredCapital > 0
-        ? Math.max(0, declaredCapital - equipmentTotal)
-        : equipmentList.length > 0
-        ? 0
-        : declaredCapital;
-
-    const opexList = finData?.opexList || [];
-    const monthlyOpex = opexList.length > 0
-      ? opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
-      : (Number(finData?.fixedCosts) || 0);
-
-    const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
-    const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
-
-    const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
-    const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * safeOperatingDays;
-    const annualNetProfitPreTax = annualRevenue - annualExpenses;
-    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
-    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
-
-    const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
-    const paybackPeriodMonths = annualNetProfitAfterTax > 0
-      ? (paybackBase / (annualNetProfitAfterTax / 12))
-      : Infinity;
-    const paybackPeriodStr = paybackPeriodMonths === Infinity ? "Never (Negative Cash Flow)" : `${paybackPeriodMonths.toFixed(1)} months`;
-
-    let status = "FEASIBLE";
-    let score = 85;
-
-    if (safeSellingPrice - safeVariableCost <= 0) {
-      status = "NOT_FEASIBLE";
-      score = 15;
-    } else if (netMonthlyProfit <= 0 || annualNetProfitAfterTax <= 0) {
-      status = "NOT_FEASIBLE";
-      score = 30;
-    } else {
-      const marginRatio = netMonthlyProfit / (monthlyOpex || 1);
-      status = "FEASIBLE";
-      score = Math.min(100, Math.max(70, Math.round(75 + Math.min(25, marginRatio * 2))));
-    }
-
-    const financialScore = status === "NOT_FEASIBLE" ? Math.min(45, score + 10) : 88;
-    const riskScore = status === "NOT_FEASIBLE" ? 30 : 90;
-    const marketScore = safeMonthlySales > 0 ? 80 : 50;
-
-    let performanceGrade = "Satisfactory";
-    let performanceStatus = "PASS (Feasible with Risks)";
-    let performanceRecommendation = "Mathematically sound and logical. Minor adjustments recommended.";
-
-    if (score >= 90) {
-      performanceGrade = "Outstanding";
-      performanceStatus = "PASS (Highly Feasible)";
-      performanceRecommendation = "Strong, well-designed study with realistic financial buffers. Ready for execution.";
-    } else if (score >= 75) {
-      performanceGrade = "Satisfactory";
-      performanceStatus = "PASS (Feasible with Risks)";
-      performanceRecommendation = "Mathematically sound and logical. Minor adjustments (such as increasing working capital or refining marketing) recommended.";
-    } else if (score >= 70) {
-      performanceGrade = "Conditional";
-      performanceStatus = "CONDITIONAL PASS";
-      performanceRecommendation = "Requires major revisions to either the operational or financial section before receiving a passing grade.";
-    } else {
-      performanceGrade = "Unsatisfactory";
-      performanceStatus = "FAIL";
-      performanceRecommendation = "Serious structural, operational, or financial issues requiring a complete rewrite or concept pivot.";
-    }
-
-    const unitGrossMargin = safeSellingPrice - safeVariableCost;
-    const marginTitle = prods.length > 1 ? "Blended Unit Margin" : "Unit Gross Margin";
-
-    return {
-      score,
-      status,
-      performanceGrade,
-      performanceStatus,
-      performanceRecommendation,
-      metrics: { financial: financialScore, risk: riskScore, market: marketScore },
-      explanations: {
-        feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : "Not Feasible"}. ${marginTitle} is ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit with estimated monthly net profit of ₱${Math.round(netMonthlyProfit).toLocaleString()}. Estimated payback period is ${paybackPeriodStr}.`,
-        financial: `Gross margin is ${safeSellingPrice > 0 ? Math.round((unitGrossMargin / safeSellingPrice) * 100) : 0}%. Projected monthly sales of ${safeMonthlySales.toLocaleString()} units produce ₱${Math.round(monthlyRevenue).toLocaleString()} gross monthly revenue across ${prods.length > 1 ? `${prods.length} products` : "product line"}.`,
-        risk: status === "FEASIBLE"
-          ? `Capital recovery amortizes in ${paybackPeriodStr}. Operating overhead of ₱${Math.round(monthlyOpex).toLocaleString()}/month is covered by contribution margin.`
-          : `Deficit cash flow detected: ongoing operations yield negative net margins, creating liquidity risk.`,
-        market: `Target monthly volume of ${safeMonthlySales.toLocaleString()} units produces annualized gross revenue of ₱${Math.round(annualRevenue).toLocaleString()} across ${safeOperatingDays} operating days.`
-      },
-      insights: [
-        {
-          id: "local-0",
-          type: unitGrossMargin > 0 ? "positive" : "warning",
-          title: marginTitle,
-          description: unitGrossMargin > 0
-            ? `Positive Gross Margin: Average selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) by ₱${unitGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per unit.`
-            : `Negative Unit Margin: Selling price (₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) is less than or equal to unit variable cost (₱${safeVariableCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Direct production costs exceed selling price.`
-        },
-        {
-          id: "local-1",
-          type: netMonthlyProfit > 0 ? "positive" : "warning",
-          title: "Operating Cash Flow",
-          description: netMonthlyProfit > 0
-            ? `Positive monthly operating profit of ₱${Math.round(netMonthlyProfit).toLocaleString()} after covering OPEX and financing obligations.`
-            : `Negative monthly net margin of ₱${Math.round(netMonthlyProfit).toLocaleString()}/month. Re-evaluate pricing or overhead.`
-        },
-        {
-          id: "local-2",
-          type: paybackPeriodMonths !== Infinity && paybackPeriodMonths <= 36 ? "positive" : "info",
-          title: "Capital Payback Duration",
-          description: `Estimated investment payback period is ${paybackPeriodStr}.`
-        }
-      ],
-      improvementTips: {
-        financial: [
-          unitGrossMargin <= 0
-            ? "Increase unit selling price or negotiate bulk supplier rates to achieve positive contribution margins."
-            : "Audit recurring utility and overhead expenses to protect operating net margins."
-        ],
-        operations: [
-          "Validate equipment quotation list to avoid unexpected initial capital expansion."
-        ],
-        marketing: [
-          "Focus marketing on core demographic segments to reliably meet targeted monthly sales volume."
-        ]
-      },
-      aiScores: { financial: financialScore, operational: riskScore, market: marketScore },
-      aiScoreExplanations: {
-        financial: `Evaluates unit contribution margins, OPEX coverage, and net profit.`,
-        operational: `Evaluates startup capital requirements and fixed cost commitments.`,
-        market: `Evaluates monthly volume and sales revenue capacity.`
-      },
-      marketAnalysis: (() => {
-        const directCount = Array.isArray(finData?.directCompetitors) ? finData.directCompetitors.length : 0;
-        const indirectCount = Array.isArray(finData?.otherCompetitors) ? finData.otherCompetitors.length : 0;
-        const nearbyCount = Array.isArray(finData?.nearbyEstablishments) ? finData.nearbyEstablishments.length : 0;
-        const demos = Array.isArray(finData?.targetDemographics) && finData.targetDemographics.length > 0
-          ? finData.targetDemographics.join(", ")
-          : "local residents and commuters";
-
-        return {
-          summary: directCount <= 2 && nearbyCount > 0
-            ? "The location demonstrates positive market viability with low direct competition and strong nearby foot traffic anchors."
-            : (nearbyCount === 0
-              ? "Direct competitor count is manageable, but the location lacks anchor establishments, meaning customer walk-ins will depend heavily on local promotions."
-              : "The area has an active commercial presence with established competitors; sustainable sales will require distinct product value or competitive pricing."),
-          competitorInsight: {
-            status: directCount <= 2 ? "positive" : "warning",
-            badge: directCount === 0 ? "Zero Direct Competition" : (directCount <= 2 ? "Manageable Competition" : "Competitive Density"),
-            text: directCount <= 2
-              ? `${directCount} direct competitor(s) and ${indirectCount} indirect competitor(s) listed. Low saturation gives your business ample room to capture local market share.`
-              : `${directCount} direct competitor(s) listed in the immediate vicinity. You will need clear menu differentiation or pricing advantage to prevent customer loss.`
-          },
-          footTrafficInsight: {
-            status: nearbyCount > 0 ? "positive" : "warning",
-            badge: nearbyCount > 0 ? "Anchor Foot Traffic Present" : "Customer Acquisition Risk",
-            text: nearbyCount > 0
-              ? `${nearbyCount} nearby establishment(s) listed. These anchors generate consistent daily foot traffic, reducing reliance on expensive marketing.`
-              : "No nearby anchor establishments listed. Without natural walk-in foot traffic, expect higher customer acquisition costs through social media or flyers."
-          },
-          demographicInsight: {
-            status: "positive",
-            badge: "Demographic Strategy",
-            text: `Focus your promotions on ${demos}. Keeping entry-level prices accessible and offering value combos encourages steady repeat purchases.`
-          }
-        } as MarketAnalysisData;
-      })(),
-      _fallback: true
-    };
-  };
 
   const executeAnalysis = async (data: any, pId: string) => {
     if (!pId) return;
@@ -796,6 +552,8 @@ const AI_Analysis: React.FC = () => {
       setPerformanceGrade(aiResult.performanceGrade || "");
       setPerformanceStatus(aiResult.performanceStatus || "");
       setPerformanceRecommendation(aiResult.performanceRecommendation || "");
+      setSevereFlags(aiResult.severeFlags || []);
+      setFatalFlaws(aiResult.fatalFlaws || []);
       setMetrics({
         feasibility: aiResult.score,
         financial: aiResult.metrics.financial,
@@ -850,6 +608,8 @@ const AI_Analysis: React.FC = () => {
         setPerformanceGrade(fallbackResult.performanceGrade);
         setPerformanceStatus(fallbackResult.performanceStatus);
         setPerformanceRecommendation(fallbackResult.performanceRecommendation);
+        setSevereFlags(fallbackResult.severeFlags || []);
+        setFatalFlaws(fallbackResult.fatalFlaws || []);
         setMetrics({
           feasibility: fallbackResult.score,
           financial: fallbackResult.metrics.financial,
@@ -1325,33 +1085,50 @@ const AI_Analysis: React.FC = () => {
                 className={`transition-opacity duration-300 ${!selectedProjectId || isAnalyzing ? "opacity-40 pointer-events-none" : "opacity-100"}`}
               >
               {/* Verdict Section */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm mb-8">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
                   <div className="flex-shrink-0">
                     <div
-                      className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner mx-auto md:mx-0 ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
+                      className={`flex items-center justify-center w-20 h-20 rounded-2xl shadow-inner mx-auto md:mx-0 ${
+                        feasibilityStatus === "FEASIBLE"
+                          ? "bg-emerald-500"
+                          : feasibilityStatus === "CONDITIONALLY_FEASIBLE"
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                      }`}
                     >
                       <Zap className="w-10 h-10 text-white" />
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col items-center md:items-start">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 mb-2 flex-wrap justify-center sm:justify-start">
+                    <div className="flex flex-col sm:flex-row items-center gap-2.5 mb-2.5 flex-wrap justify-center sm:justify-start">
                       <h2 className="text-2xl font-extrabold text-[#122244]">
                         Feasibility Verdict
                       </h2>
                       <span
-                        className={`inline-block px-3 py-1 text-white text-xs font-bold rounded-full ${feasibilityStatus === "FEASIBLE" ? "bg-green-500" : feasibilityStatus === "NOT_FEASIBLE" ? "bg-red-500" : "bg-orange-500"}`}
+                        className={`inline-block px-3 py-1 text-white text-xs font-black uppercase rounded-full shadow-2xs tracking-wide ${
+                          feasibilityStatus === "FEASIBLE"
+                            ? "bg-emerald-600"
+                            : feasibilityStatus === "CONDITIONALLY_FEASIBLE"
+                            ? "bg-amber-500"
+                            : "bg-rose-600"
+                        }`}
                       >
-                        {feasibilityStatus?.replace("_", " ")}
+                        {feasibilityStatus === "CONDITIONALLY_FEASIBLE"
+                          ? "CONDITIONALLY FEASIBLE"
+                          : feasibilityStatus?.replace(/_/g, " ")}
                       </span>
                       {performanceGrade && (
-                        <span className="inline-block px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold rounded-full">
+                        <span
+                          className={`inline-block px-3 py-1 text-xs font-bold rounded-full border ${
+                            feasibilityStatus === "FEASIBLE"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                              : feasibilityStatus === "CONDITIONALLY_FEASIBLE"
+                              ? "bg-amber-50 border-amber-200 text-amber-800"
+                              : "bg-rose-50 border-rose-200 text-rose-800"
+                          }`}
+                        >
                           Grade: {performanceGrade}
-                        </span>
-                      )}
-                      {performanceStatus && (
-                        <span className="inline-block px-3 py-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-extrabold rounded-full">
-                          {performanceStatus}
                         </span>
                       )}
                     </div>
@@ -1367,13 +1144,19 @@ const AI_Analysis: React.FC = () => {
                     )}
                     {improvementTips.feasibility && (
                       <div
-                        className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${feasibilityStatus === "FEASIBLE" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+                        className={`mt-3 inline-flex items-center gap-2 px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-medium border text-left ${
+                          feasibilityStatus === "FEASIBLE"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : feasibilityStatus === "CONDITIONALLY_FEASIBLE"
+                            ? "bg-amber-50 text-amber-900 border-amber-200"
+                            : "bg-rose-50 text-rose-900 border-rose-200"
+                        }`}
                       >
-                        <Lightbulb size={16} className="flex-shrink-0" />{" "}
+                        <Lightbulb size={16} className="flex-shrink-0 text-amber-600" />
                         <span>
-                          {feasibilityStatus === "FEASIBLE"
-                            ? "💡 Achievement:"
-                            : "Tip:"}{" "}
+                          <strong className="mr-1">
+                            {feasibilityStatus === "FEASIBLE" ? "Next Step:" : "Key Fix:"}
+                          </strong>
                           {improvementTips.feasibility}
                         </span>
                       </div>
@@ -1382,105 +1165,160 @@ const AI_Analysis: React.FC = () => {
                 </div>
               </div>
 
-              {/* Congratulations or Improvement Guide Section */}
+              {/* Action Guide: 3-Tier Defense System */}
               {feasibilityStatus === "FEASIBLE" ? (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200 p-6 md:p-8 shadow-sm mb-8">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
                     <div className="text-4xl sm:text-5xl">🎉</div>
-                    <div className="flex-1">
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 mb-2">
-                        Excellent News!
-                      </h3>
-                      <p className="text-green-800 font-medium mb-4 text-sm sm:text-base">
-                        Your feasibility study demonstrates strong business
-                        fundamentals. Your project shows:
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          Defense Ready
+                        </span>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-emerald-950">
+                          Excellent News! Ready for Defense
+                        </h3>
+                      </div>
+                      <p className="text-emerald-800 font-medium mb-4 text-sm sm:text-base">
+                        Your feasibility study demonstrates sound business fundamentals and realistic financial projections:
                       </p>
-                      <ul className="space-y-3 sm:space-y-2 text-green-700 text-sm text-left">
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                          <span>
-                            Solid financial projections and profit margins
-                          </span>
+                      <ul className="space-y-2.5 text-emerald-900 text-sm text-left">
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0 text-emerald-600" />
+                          <span><strong>Defensible Profit Margins:</strong> Net profit is positive and within normal commercial standards.</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                          <span>
-                            Adequate market demand and growth potential
-                          </span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0 text-emerald-600" />
+                          <span><strong>Cash Safety Buffer:</strong> Cash reserves cover recurring monthly bills without risk of immediate deficit.</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                          <span>
-                            Manageable risk profile with viable market
-                            positioning
-                          </span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0 text-emerald-600" />
+                          <span><strong>Realistic Capital Payback:</strong> Initial capital investments are projected to recover within 3 years.</span>
                         </li>
                       </ul>
-                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-green-200 text-left">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
-                          Recommended Next Steps:
+                      <div className="mt-5 p-4 bg-white/80 rounded-xl border border-emerald-200 text-left">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                          Recommended Defense Next Steps:
                         </p>
-                        <ul className="text-sm text-green-800 space-y-2 sm:space-y-1">
-                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Develop detailed implementation and execution plan</span></li>
-                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Finalize funding strategy and capital requirements</span></li>
-                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Create marketing and customer acquisition roadmap</span></li>
-                          <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Establish key performance indicators (KPIs) for monitoring</span></li>
+                        <ul className="text-sm text-emerald-900 space-y-1.5">
+                          <li className="flex gap-2"><span className="text-emerald-600 font-bold">✓</span> <span>Export your final feasibility report for your defense presentation slides.</span></li>
+                          <li className="flex gap-2"><span className="text-emerald-600 font-bold">✓</span> <span>Prepare supplier quotations to defend your raw material costs during Q&A.</span></li>
+                          <li className="flex gap-2"><span className="text-emerald-600 font-bold">✓</span> <span>Highlight your break-even sales target to show panelists your sales plan is achievable.</span></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : feasibilityStatus === "CONDITIONALLY_FEASIBLE" ? (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-300 p-6 md:p-8 shadow-sm mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                    <div className="text-4xl sm:text-5xl">⚠️</div>
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 text-amber-900 border border-amber-300">
+                          Action Required Before Defense
+                        </span>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-amber-950">
+                          Defense Revision Checklist
+                        </h3>
+                      </div>
+                      <p className="text-amber-900 font-medium mb-4 text-sm sm:text-base">
+                        Your project is conditionally viable, but defense panelists will challenge these specific numbers. Adjust them in <strong>Financial Input</strong> before your final defense:
+                      </p>
+
+                      {/* Dynamic List of Specific Severe Flags */}
+                      <div className="space-y-3 mb-5">
+                        {severeFlags && severeFlags.length > 0 ? (
+                          severeFlags.map((flag, idx) => (
+                            <div
+                              key={flag.id || idx}
+                              className="bg-white rounded-xl border border-amber-200 p-4 shadow-2xs text-left"
+                            >
+                              <div className="flex items-center justify-between mb-1.5 gap-2">
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                  <h4 className="font-bold text-[#122244] text-sm">
+                                    {flag.title}
+                                  </h4>
+                                </div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded">
+                                  Fix Needed
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-700 leading-relaxed mb-2">
+                                {flag.description}
+                              </p>
+                              <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-lg text-xs text-amber-900 font-medium flex items-start gap-2">
+                                <span className="font-extrabold text-amber-700 shrink-0">Action:</span>
+                                <span>{flag.tip}</span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-white rounded-xl border border-amber-200 p-4 text-left">
+                            <p className="text-xs text-gray-700">
+                              Review your profit margins and operating expenses to ensure they align with typical business benchmarks.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-white/80 rounded-xl border border-amber-200 text-left">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                          How to Clear These Flags:
+                        </p>
+                        <ul className="text-sm text-amber-950 space-y-1.5">
+                          <li className="flex gap-2"><span className="font-bold text-amber-700">1.</span> <span>Click <strong>Revise Financial Data</strong> below to update selling prices, overhead, or cash reserves.</span></li>
+                          <li className="flex gap-2"><span className="font-bold text-amber-700">2.</span> <span>Click <strong>Run Feasibility Analysis</strong> again to re-audit your revised numbers.</span></li>
+                          <li className="flex gap-2"><span className="font-bold text-amber-700">3.</span> <span>Once flags are cleared, your verdict will elevate to <strong>FEASIBLE</strong>.</span></li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-6 md:p-8 shadow-sm mb-8">
+                <div className="bg-gradient-to-r from-rose-50 to-red-50 rounded-2xl border-2 border-rose-300 p-6 md:p-8 shadow-sm mb-8">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-                    <div className="text-4xl sm:text-5xl">⚡</div>
-                    <div className="flex-1">
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mb-2">
-                        Path to Improved Feasibility
-                      </h3>
-                      <p className="text-amber-800 font-medium mb-4 text-sm sm:text-base">
-                        Your feasibility verdict indicates areas for improvement. Focus on these key areas:
+                    <div className="text-4xl sm:text-5xl">🛑</div>
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-200 text-rose-900 border border-rose-300">
+                          Critical Defense Warning
+                        </span>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-rose-950">
+                          Major Financial Revisions Required
+                        </h3>
+                      </div>
+                      <p className="text-rose-900 font-medium mb-4 text-sm sm:text-base">
+                        This study cannot pass defense in its current state due to critical financial deficits:
                       </p>
-                      <ul className="space-y-3 sm:space-y-2 text-amber-700 text-sm text-left">
-                        <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                          <span>
-                            <strong>Cost Structure:</strong> Review variable and
-                            fixed costs for optimization opportunities
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                          <span>
-                            <strong>Market Differentiation:</strong> Develop a
-                            unique value proposition to stand out from
-                            competitors
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                          <span>
-                            <strong>Revenue Optimization:</strong> Explore
-                            pricing strategies and upsell opportunities
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                          <span>
-                            <strong>Market Validation:</strong> Conduct deeper
-                            market research to validate demand assumptions
-                          </span>
-                        </li>
-                      </ul>
-                      <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-amber-200 text-left">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
-                          Action Items:
+                      <div className="space-y-2 mb-5">
+                        {fatalFlaws && fatalFlaws.length > 0 ? (
+                          fatalFlaws.map((flaw, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white rounded-xl border border-rose-200 p-3.5 shadow-2xs text-left flex items-start gap-2.5"
+                            >
+                              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                              <span className="text-xs text-rose-900 font-medium">{flaw}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-white rounded-xl border border-rose-200 p-3.5 text-left">
+                            <span className="text-xs text-rose-900 font-medium">
+                              Business operates at a net monthly loss or has negative gross margins.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 bg-white/80 rounded-xl border border-rose-200 text-left">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                          Required Revisions Before Defense:
                         </p>
-                        <ul className="text-sm text-amber-800 space-y-2 sm:space-y-1">
-                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">1.</span> <span>Revise financial projections with improved cost estimates</span></li>
-                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">2.</span> <span>Develop competitive differentiation strategy</span></li>
-                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">3.</span> <span>Validate market demand through surveys or pilot programs</span></li>
-                          <li className="flex gap-2"><span className="font-bold flex-shrink-0">4.</span> <span>Re-run analysis to track feasibility improvement</span></li>
+                        <ul className="text-sm text-rose-950 space-y-1.5">
+                          <li className="flex gap-2"><span className="font-bold text-rose-700">1.</span> <span>Ensure your unit selling price is higher than the unit cost of production.</span></li>
+                          <li className="flex gap-2"><span className="font-bold text-rose-700">2.</span> <span>Increase declared startup capital so it fully covers all initial equipment.</span></li>
+                          <li className="flex gap-2"><span className="font-bold text-rose-700">3.</span> <span>Adjust monthly sales volume or reduce fixed monthly bills to stop operating at a loss.</span></li>
                         </ul>
                       </div>
                     </div>
@@ -1955,41 +1793,86 @@ const AI_Analysis: React.FC = () => {
               </div>
 
               {/* Strategic Insights */}
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-                <h3 className="text-lg font-extrabold text-[#122244] mb-6 flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-[#c9a654]" /> Strategic
-                  Insights
-                </h3>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-gray-100 gap-2 mb-6">
+                  <div>
+                    <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-[#c9a654]" /> Strategic Insights & Financial Health
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Audited benchmarks for profit margins, cash safety buffer, break-even targets, and payback speed
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md shrink-0">
+                    4 Core Feasibility Pillars
+                  </span>
+                </div>
+
                 {insights.length > 0 ? (
-                  <div className="space-y-4">
-                    {insights.map((insight) => (
-                      <div
-                        key={insight.id}
-                        className="rounded-xl border p-5 flex gap-4 bg-gray-50/50 shadow-sm transition-all hover:bg-white"
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {insight.type === "positive" ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <AlertCircle className="w-5 h-5 text-orange-500" />
-                          )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {insights.map((insight) => {
+                      const isPos = insight.type === "positive";
+                      const isWarn = insight.type === "warning";
+                      return (
+                        <div
+                          key={insight.id}
+                          className={`rounded-xl border p-4 sm:p-5 flex flex-col justify-between transition-all shadow-2xs hover:shadow-xs bg-white ${
+                            isPos
+                              ? "border-emerald-200/90"
+                              : isWarn
+                              ? "border-amber-300"
+                              : "border-sky-200"
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isPos
+                                      ? "bg-emerald-50 text-emerald-600"
+                                      : isWarn
+                                      ? "bg-amber-50 text-amber-600"
+                                      : "bg-sky-50 text-sky-600"
+                                  }`}
+                                >
+                                  {isPos ? (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  ) : isWarn ? (
+                                    <AlertCircle className="w-4 h-4" />
+                                  ) : (
+                                    <Lightbulb className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <h4 className="font-extrabold text-[#122244] text-sm">
+                                  {insight.title}
+                                </h4>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                                  isPos
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    : isWarn
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : "bg-sky-50 text-sky-700 border border-sky-200"
+                                }`}
+                              >
+                                {isPos ? "Healthy" : isWarn ? "Needs Review" : "Good"}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                              {insight.description}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-bold text-[#122244] mb-1">
-                            {insight.title}
-                          </h4>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            {insight.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 bg-gray-50 border border-dashed border-gray-200 rounded-xl">
                     <Lightbulb className="w-8 h-8 text-gray-300 mb-3" />
                     <p className="text-gray-500 text-sm font-medium">
-                      Re-analyze to refresh insights.
+                      Run Feasibility Analysis to calculate strategic insights.
                     </p>
                   </div>
                 )}
