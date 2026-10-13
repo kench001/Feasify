@@ -355,135 +355,135 @@ const Auth: React.FC = () => {
 
   return (
     <>
-      <div className="min-h-screen flex flex-col min-[1131px]:flex-row bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-scroll bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')]">
+      <div className="min-h-dvh flex flex-col min-[1131px]:flex-row bg-[#031a38] relative bg-cover bg-center min-[1131px]:bg-scroll bg-[url('/BG.1-mobile.png')] min-[1131px]:bg-[url('/BG.1.png')]">
         {/* DESKTOP LEFT SIDE */}
         <div className="hidden min-[1131px]:block relative w-full min-[1131px]:w-1/2 overflow-hidden">
-          <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-10 md:px-12 md:py-14 lg:px-16 lg:py-20 text-white">
+          <div className="relative z-10 flex min-h-dvh flex-col justify-between px-8 py-10 md:px-12 md:py-12 lg:px-16 lg:py-16 text-white">
             <div>
-              <div className="flex items-center gap-3 mb-10">
+              <div className="flex items-center mb-8 h-16 overflow-hidden">
                 <img
                   src="Logo w Name.png"
                   alt="FeasiFy"
-                  className="h-80 w-auto object-contain"
-                  style={{ marginTop: "-160px" }}
+                  className="h-44 w-auto object-contain -my-14"
                 />
               </div>
 
-              <div className="max-w-md">
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight mb-6">
+              <div className="max-w-xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#c9a654]/15 border border-[#c9a654]/30 text-[#c9a654] text-xs font-semibold tracking-wide uppercase mb-5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654] animate-pulse"></span>
+                  Feasibility Intelligence Platform
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-[48px] font-extrabold leading-[1.14] tracking-tight text-white mb-4 drop-shadow-sm">
                   Make smarter decisions with data.
                 </h1>
-                <p className="text-sm md:text-base text-gray-300 mb-8 leading-relaxed">
-                  Analyze feasibility, track metrics and generate AI insights.
+                <p className="text-base lg:text-lg text-slate-200/90 leading-relaxed mb-8">
+                  Analyze feasibility, track key financial indicators, and generate AI-driven insights with rigor and precision.
                 </p>
 
-                <ul className="space-y-4">
+                <div className="space-y-3">
                   {[
-                    "Guided financial input",
-                    "AI feasibility scoring",
-                    "PDF export",
-                  ].map((text, i) => (
-                    <li
+                    {
+                      title: "Guided Financial Input",
+                      desc: "Structured worksheets for sales forecasts, costs, and operational assumptions.",
+                    },
+                    {
+                      title: "AI Feasibility Scoring",
+                      desc: "Automated risk analysis, viability scoring, and industry standard benchmarks.",
+                    },
+                    {
+                      title: "Defense-Ready PDF Export",
+                      desc: "Professional institutional documentation ready for review and panel defense.",
+                    },
+                  ].map((item, i) => (
+                    <div
                       key={i}
-                      className="flex items-center gap-3 text-sm text-gray-200"
+                      className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs transition hover:bg-white/10 hover:border-white/20"
                     >
-                      <div className="flex-shrink-0">
-                        <svg
-                          className="w-5 h-5 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
+                      <div className="flex-shrink-0 mt-0.5 w-6 h-6 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-[#c9a654]" />
                       </div>
-                      <span>{text}</span>
-                    </li>
+                      <div>
+                        <h3 className="text-sm font-semibold text-white leading-snug">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-slate-300 leading-relaxed mt-0.5">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             </div>
 
-            <div className="text-xs text-gray-400 italic">FeasiFy © 2026.</div>
+            <div className="flex items-center gap-3 text-xs text-slate-400 font-medium tracking-wide pt-8">
+              <span>FeasiFy © 2026</span>
+              <span>•</span>
+              <span>Pamantasan ng Lungsod ng Valenzuela</span>
+            </div>
           </div>
         </div>
 
         {/* MOBILE TOP BAR */}
-        <div className="min-[1131px]:hidden w-full bg-[#031a38]/70 px-5 py-6 overflow-hidden">
-          <div className="flex flex-col items-center text-center text-white gap-2">
-            <div className="flex items-center flex-shrink-0">
+        <div className="min-[1131px]:hidden w-full bg-[#031a38]/90 backdrop-blur-md px-4 py-5 sm:px-6 overflow-hidden border-b border-white/10">
+          <div className="flex flex-col items-center text-center text-white gap-2 max-w-sm mx-auto">
+            <div className="flex items-center flex-shrink-0 h-14 overflow-hidden">
               <img
                 src="Logo w Name.png"
                 alt="Feasify"
-                className="h-32 min-[764px]:h-48 w-auto object-contain"
-                style={{ marginTop: "-64px", marginBottom: "-64px" }}
+                className="h-40 w-auto object-contain -my-13"
               />
             </div>
-            <div className="max-w-xs min-[764px]:max-w-md">
-              <p className="text-sm sm:text-base min-[764px]:text-lg text-white/80 leading-snug m-0">
-                Analyze feasibility, track metrics and generate AI insights.
-              </p>
-            </div>
+            <p className="text-xs sm:text-sm text-slate-200 font-medium leading-snug m-0">
+              Analyze feasibility, track metrics, and generate AI insights.
+            </p>
           </div>
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="relative w-full min-[1131px]:w-1/2 flex items-center justify-center p-6 sm:p-10 min-[764px]:p-16 min-[1131px]:p-16 overflow-hidden">
-          <div className="absolute inset-0 opacity-15">
-            <svg
-              viewBox="0 0 800 800"
-              className="absolute right-[-15%] top-0 h-full w-[140%]"
-            >
-              <defs>
-                <pattern
-                  id="hexPattern"
-                  width="120"
-                  height="104"
-                  patternUnits="userSpaceOnUse"
-                >
-                  <path
-                    d="M60 0 L120 30 L120 74 L60 104 L0 74 L0 30 Z"
-                    fill="none"
-                    stroke="#d4af37"
-                    strokeWidth="1.5"
-                  />
-                </pattern>
-              </defs>
-              <rect width="800" height="800" fill="url(#hexPattern)" />
-            </svg>
-          </div>
-
-          <div className="relative w-full max-w-md min-[764px]:max-w-xl">
-            <div className="flex justify-center gap-4 min-[764px]:gap-8 min-[1131px]:gap-6 mb-10 min-[764px]:mb-14 min-[1131px]:mb-14">
+        <div className="relative w-full min-[1131px]:w-1/2 flex items-center justify-center p-4 sm:p-8 min-[764px]:p-12 min-[1131px]:p-12 overflow-hidden">
+          <div className="relative z-10 w-full max-w-[480px] lg:max-w-[500px]">
+            <div className="flex justify-center items-center gap-3.5 sm:gap-6 mb-4">
               <img
                 src="/Caba Logo.png"
                 alt="College of Business Administration"
-                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-14 w-14 sm:h-18 sm:w-18 min-[1131px]:h-20 min-[1131px]:w-20 object-contain rounded-full border-2 border-white bg-white p-1.5 shadow-lg shadow-black/5 transition hover:scale-105"
               />
               <img
                 src="/fm.jpg"
                 alt="Finance Executives"
-                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-14 w-14 sm:h-18 sm:w-18 min-[1131px]:h-20 min-[1131px]:w-20 object-contain rounded-full border-2 border-white bg-white p-1.5 shadow-lg shadow-black/5 transition hover:scale-105"
               />
               <img
                 src="/plv.jpg"
                 alt="Pamantasan ng Lungsod ng Valenzuela"
-                className="h-16 w-16 sm:h-20 sm:w-20 min-[764px]:h-32 min-[764px]:w-32 min-[1131px]:h-[100px] min-[1131px]:w-[100px] object-contain rounded-full border border-gray-300 bg-white p-1"
+                className="h-14 w-14 sm:h-18 sm:w-18 min-[1131px]:h-20 min-[1131px]:w-20 object-contain rounded-full border-2 border-white bg-white p-1.5 shadow-lg shadow-black/5 transition hover:scale-105"
               />
             </div>
 
-            <p className="text-center text-xs sm:text-sm min-[764px]:text-lg font-bold uppercase tracking-[0.3em] text-white min-[1131px]:text-black mb-12 min-[1131px]:mb-16">
-              Pamantasan ng Lungsod ng Valenzuela
-            </p>
+            <div className="text-center mb-6">
+              <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.25em] text-white/90 min-[1131px]:text-[#122244]">
+                Pamantasan ng Lungsod ng Valenzuela
+              </p>
+              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-[#c9a654] mt-1">
+                College of Business Administration & Accountancy
+              </p>
+            </div>
 
-            <div className="bg-white/95 p-6 sm:p-8 min-[764px]:p-12 min-[1131px]:p-10 rounded-2xl shadow-xl border border-gray-100/50 backdrop-blur-sm min-[764px]:max-w-xl mx-auto">
-              <form className="space-y-6" onSubmit={handleLogin} noValidate>
+            <div className="bg-white/95 p-6 sm:p-8 lg:p-9 rounded-2xl shadow-2xl border border-gray-100/90 backdrop-blur-md w-full mx-auto">
+              <div className="mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#122244] tracking-tight">
+                  Account Login
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Sign in with your institutional account to continue.
+                </p>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleLogin} noValidate>
                 {/* SUCCESS NOTICE */}
                 {successBanner && (
-                  <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                     <span>{successBanner}</span>
                   </div>
@@ -491,18 +491,18 @@ const Auth: React.FC = () => {
 
                 {/* API ERROR NOTICE */}
                 {apiError && (
-                  <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
                     <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                     <span>{apiError}</span>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Mail className="absolute start-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="email"
                       placeholder="you@plv.edu.ph"
@@ -510,24 +510,32 @@ const Auth: React.FC = () => {
                       onChange={(e) =>
                         setLoginForm({ ...loginForm, email: e.target.value })
                       }
-                      className={`w-full rounded-lg border px-4 py-3 pl-12 text-sm bg-gray-100 outline-none transition ${
-                        errors.email
-                          ? "border-red-300"
-                          : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"
-                      }`}
+                      className={`w-full rounded-xl border px-4 py-3.5 ps-12 text-sm text-slate-900 bg-white placeholder:text-slate-400 outline-none transition ${errors.email
+                          ? "border-red-400 ring-2 ring-red-100"
+                          : "border-slate-300 hover:border-slate-400 focus:border-[#0f4d96] focus:ring-4 focus:ring-[#0f4d96]/10"
+                        }`}
                     />
                   </div>
                   {errors.email && (
-                    <p className="mt-2 text-xs text-red-500">{errors.email}</p>
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">{errors.email}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleOpenForgotModal}
+                      className="text-xs font-semibold text-[#0f4d96] hover:text-[#0a3a7a] hover:underline transition cursor-pointer"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute start-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
@@ -535,45 +543,36 @@ const Auth: React.FC = () => {
                       onChange={(e) =>
                         setLoginForm({ ...loginForm, password: e.target.value })
                       }
-                      className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-100 outline-none transition ${
-                        errors.password
-                          ? "border-red-300"
-                          : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"
-                      }`}
+                      className={`w-full rounded-xl border px-4 py-3.5 ps-12 pe-12 text-sm text-slate-900 bg-white placeholder:text-slate-400 outline-none transition ${errors.password
+                          ? "border-red-400 ring-2 ring-red-100"
+                          : "border-slate-300 hover:border-slate-400 focus:border-[#0f4d96] focus:ring-4 focus:ring-[#0f4d96]/10"
+                        }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      className="absolute end-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                      title={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                        <EyeOff className="w-4 h-4" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="mt-2 text-xs text-red-500">
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">
                       {errors.password}
                     </p>
                   )}
-                  <div className="mt-2 text-right">
-                    <button
-                      type="button"
-                      onClick={handleOpenForgotModal}
-                      className="text-xs font-bold uppercase tracking-wider text-slate-800 hover:text-[#0f4d96] transition cursor-pointer"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="mt-8 w-full rounded-lg bg-[#0f4d96] px-6 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#0a3a7a] active:scale-[0.98] cursor-pointer"
+                  className="mt-2 min-h-[48px] w-full rounded-xl bg-[#0f4d96] px-6 py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-lg shadow-[#0f4d96]/20 transition-all hover:bg-[#0a3a7a] hover:shadow-[#0f4d96]/30 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Login
+                  <span>Login</span>
                 </button>
               </form>
             </div>
@@ -584,12 +583,12 @@ const Auth: React.FC = () => {
       {/* 1. FORGOT PASSWORD MODAL (Sends email) */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 sm:p-8 overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 sm:p-8 overflow-hidden max-h-[90dvh] overflow-y-auto">
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
+              className="absolute top-4 end-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -630,11 +629,10 @@ const Auth: React.FC = () => {
                           setForgotEmail(e.target.value);
                           if (forgotEmailError) setForgotEmailError("");
                         }}
-                        className={`w-full rounded-lg border px-4 py-3 pl-12 text-sm bg-gray-50 outline-none transition ${
-                          forgotEmailError
+                        className={`w-full rounded-lg border px-4 py-3 pl-12 text-sm bg-gray-50 outline-none transition ${forgotEmailError
                             ? "border-red-300 focus:border-red-500"
                             : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"
-                        }`}
+                          }`}
                         autoFocus
                       />
                     </div>
@@ -743,7 +741,7 @@ const Auth: React.FC = () => {
       {/* 2. SET NEW PASSWORD MODAL (Opened on reset link click or redirect) */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 sm:p-8 overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 sm:p-8 overflow-hidden max-h-[90dvh] overflow-y-auto">
             {!resetCompleteSuccess ? (
               <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -799,11 +797,10 @@ const Auth: React.FC = () => {
                             setResetErrors({ ...resetErrors, newPassword: "" });
                           }
                         }}
-                        className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-50 outline-none transition ${
-                          resetErrors.newPassword
+                        className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-50 outline-none transition ${resetErrors.newPassword
                             ? "border-red-300 focus:border-red-500"
                             : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"
-                        }`}
+                          }`}
                         autoFocus
                       />
                       <button
@@ -845,11 +842,10 @@ const Auth: React.FC = () => {
                             });
                           }
                         }}
-                        className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-50 outline-none transition ${
-                          resetErrors.confirmPassword
+                        className={`w-full rounded-lg border px-4 py-3 pl-12 pr-12 text-sm bg-gray-50 outline-none transition ${resetErrors.confirmPassword
                             ? "border-red-300 focus:border-red-500"
                             : "border-gray-300 focus:border-[#0f4d96] focus:ring-2 focus:ring-blue-100"
-                        }`}
+                          }`}
                       />
                       <button
                         type="button"
