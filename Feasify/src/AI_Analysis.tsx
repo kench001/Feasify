@@ -39,15 +39,17 @@ import {
   Building2,
   MapPin,
   ChevronUp,
+  TrendingUp,
 } from "lucide-react";
 import {
-  LineChart,
+  ComposedChart,
+  Bar,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 import {
@@ -261,6 +263,32 @@ const AI_Analysis: React.FC = () => {
   const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
   const [costGrowthRate, setCostGrowthRate] = useState<number>(8);
   const [showProFormaInputs, setShowProFormaInputs] = useState<boolean>(false);
+  const [chartMode, setChartMode] = useState<"grouped" | "stacked">("grouped");
+  const [visibleSeries, setVisibleSeries] = useState<Record<string, boolean>>({
+    Revenue: true,
+    COGS: true,
+    "Fixed Costs": true,
+    "Net Profit": true,
+  });
+
+  const toggleSeries = (key: string) => {
+    setVisibleSeries((prev) => {
+      const activeCount = Object.values(prev).filter(Boolean).length;
+      if (prev[key] && activeCount <= 1) {
+        return prev;
+      }
+      return { ...prev, [key]: !prev[key] };
+    });
+  };
+
+  const showAllSeries = () => {
+    setVisibleSeries({
+      Revenue: true,
+      COGS: true,
+      "Fixed Costs": true,
+      "Net Profit": true,
+    });
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -632,6 +660,146 @@ const AI_Analysis: React.FC = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Pro Forma Visual Configuration & Helpers
+  const proFormaSeriesConfig = [
+    {
+      key: "Revenue",
+      label: "Gross Revenue",
+      shortLabel: "Revenue",
+      color: "#059669",
+      lightBg: "bg-emerald-50",
+      borderActive: "border-emerald-500",
+      textActive: "text-emerald-700",
+      type: "bar",
+    },
+    {
+      key: "COGS",
+      label: "Cost of Goods Sold (COGS)",
+      shortLabel: "COGS",
+      color: "#e11d48",
+      lightBg: "bg-rose-50",
+      borderActive: "border-rose-500",
+      textActive: "text-rose-700",
+      type: "bar",
+    },
+    {
+      key: "Fixed Costs",
+      label: "Operating / Fixed Costs",
+      shortLabel: "Fixed Costs",
+      color: "#d97706",
+      lightBg: "bg-amber-50",
+      borderActive: "border-amber-500",
+      textActive: "text-amber-700",
+      type: "bar",
+    },
+    {
+      key: "Net Profit",
+      label: "Net Income / Profit",
+      shortLabel: "Net Profit",
+      color: "#2563eb",
+      lightBg: "bg-blue-50",
+      borderActive: "border-blue-500",
+      textActive: "text-blue-700",
+      type: "line",
+      strokeDasharray: "5 5",
+    },
+  ];
+
+  const formatProFormaCurrency = (val: number) => {
+    if (val === 0) return "₱0";
+    const abs = Math.abs(val);
+    const sign = val < 0 ? "-" : "";
+    if (abs >= 1_000_000) {
+      const num = abs / 1_000_000;
+      const formatted = num >= 10 || Number.isInteger(num) ? num.toFixed(0) : num.toFixed(1);
+      return `${sign}₱${formatted}M`;
+    }
+    if (abs >= 1_000) {
+      const num = abs / 1_000;
+      const formatted = num >= 100 || Number.isInteger(num) ? num.toFixed(0) : (abs % 100 === 0 ? num.toFixed(0) : num.toFixed(1));
+      return `${sign}₱${formatted}K`;
+    }
+    return `${sign}₱${abs.toLocaleString("en-PH")}`;
+  };
+
+  const ProFormaCustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+
+    const revItem = payload.find((p: any) => p.dataKey === "Revenue");
+    const netProfitItem = payload.find((p: any) => p.dataKey === "Net Profit");
+    const revenueVal = revItem ? Number(revItem.value) || 0 : 0;
+    const netProfitVal = netProfitItem ? Number(netProfitItem.value) || 0 : 0;
+    const netMargin =
+      revenueVal > 0 ? ((netProfitVal / revenueVal) * 100).toFixed(1) : null;
+
+    return (
+      <div className="bg-white/95 backdrop-blur-md border border-gray-200/90 rounded-xl shadow-xl p-3.5 min-w-[230px] transition-all text-xs">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+          <span className="font-extrabold text-[#122244] text-[13px] tracking-tight">
+            {label} Projection
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#c9a654] bg-[#c9a654]/10 px-2 py-0.5 rounded-full">
+            Executive Combo
+          </span>
+        </div>
+        <div className="space-y-2">
+          {payload.map((item: any) => {
+            const val = Number(item.value) || 0;
+            const config = proFormaSeriesConfig.find((c) => c.key === item.dataKey);
+            const percentOfRev =
+              revenueVal > 0 && item.dataKey !== "Revenue"
+                ? ((val / revenueVal) * 100).toFixed(1)
+                : null;
+
+            return (
+              <div
+                key={item.dataKey}
+                className="flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex-shrink-0 ${
+                      config?.type === "line"
+                        ? "w-3 h-1 rounded-full"
+                        : "w-2.5 h-2.5 rounded-xs"
+                    }`}
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-gray-600 font-semibold text-[11px]">
+                    {config ? config.shortLabel : item.name}:
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span
+                    className="font-bold text-[12px] block"
+                    style={{ color: item.color }}
+                  >
+                    {val < 0 ? `-₱${Math.abs(val).toLocaleString("en-PH")}` : `₱${val.toLocaleString("en-PH")}`}
+                  </span>
+                  {percentOfRev !== null && (
+                    <span className="text-[9px] text-gray-400 block font-normal">
+                      {percentOfRev}% of rev
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {netMargin !== null && (
+          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+              Net Profit Margin
+            </span>
+            <span className="text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+              {netMargin}%
+            </span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Calculate 5-Year Pro Forma Financial Statement
@@ -1605,86 +1773,218 @@ const AI_Analysis: React.FC = () => {
                   </div>
                 )}
 
-                {/* Pro Forma Chart */}
+                {/* Metric Filter Badges & View Switcher */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-1 flex items-center gap-1">
+                      <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+                      Metrics:
+                    </span>
+                    {(() => {
+                      const cData = getChartData();
+                      const yr5 = cData[cData.length - 1];
+                      return proFormaSeriesConfig.map((series) => {
+                        const isVisible = visibleSeries[series.key];
+                        const yr5Val = yr5 ? yr5[series.key as keyof typeof yr5] : null;
+
+                        return (
+                          <button
+                            key={series.key}
+                            type="button"
+                            onClick={() => toggleSeries(series.key)}
+                            title={`Click to ${isVisible ? "hide" : "show"} ${series.label}`}
+                            className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border cursor-pointer ${
+                              isVisible
+                                ? `${series.lightBg} ${series.borderActive} ${series.textActive} shadow-xs`
+                                : "bg-gray-50 border-gray-200 text-gray-400 opacity-60 hover:opacity-80"
+                            }`}
+                          >
+                            <span
+                              className={`transition-transform group-hover:scale-110 flex-shrink-0 ${
+                                series.type === "line"
+                                  ? "w-3 h-1 rounded-full"
+                                  : "w-2.5 h-2.5 rounded-xs"
+                              }`}
+                              style={{
+                                backgroundColor: isVisible ? series.color : "#9ca3af",
+                              }}
+                            />
+                            <span className={isVisible ? "font-bold text-[11px]" : "line-through text-gray-400 text-[11px]"}>
+                              {series.shortLabel}
+                            </span>
+                            {typeof yr5Val === "number" && (
+                              <span
+                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${
+                                  isVisible
+                                    ? "bg-white/80 text-gray-700 shadow-2xs"
+                                    : "bg-gray-200 text-gray-500"
+                                }`}
+                              >
+                                Yr 5: {formatProFormaCurrency(yr5Val)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start lg:self-auto">
+                    {/* View Mode Toggle: Grouped vs Stacked */}
+                    <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setChartMode("grouped")}
+                        className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-all cursor-pointer ${
+                          chartMode === "grouped"
+                            ? "bg-white text-[#122244] shadow-xs"
+                            : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      >
+                        Grouped Bars
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChartMode("stacked")}
+                        className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-all cursor-pointer ${
+                          chartMode === "stacked"
+                            ? "bg-white text-[#122244] shadow-xs"
+                            : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      >
+                        Stacked Costs
+                      </button>
+                    </div>
+
+                    {Object.values(visibleSeries).some((v) => !v) && (
+                      <button
+                        type="button"
+                        onClick={showAllSeries}
+                        className="text-[11px] font-bold text-gray-500 hover:text-[#c9a654] transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Executive Combo Chart Canvas */}
                 <div
-                  className="mb-6"
+                  className="mb-6 w-full relative"
                   style={{
-                    width: "100%",
-                    height: "450px",
-                    position: "relative",
+                    height: "430px",
                   }}
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
+                    <ComposedChart
                       data={getChartData()}
-                      margin={{ top: 10, right: 50, left: 60, bottom: 40 }}
+                      margin={{ top: 18, right: 30, left: 10, bottom: 20 }}
+                      barGap={chartMode === "grouped" ? 4 : 0}
+                      barCategoryGap="22%"
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <defs>
+                        {/* Revenue Bar Gradient */}
+                        <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+                          <stop offset="100%" stopColor="#047857" stopOpacity={0.85} />
+                        </linearGradient>
+                        {/* COGS Bar Gradient */}
+                        <linearGradient id="cogsBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#be123c" stopOpacity={0.8} />
+                        </linearGradient>
+                        {/* Fixed Costs Bar Gradient */}
+                        <linearGradient id="fixedCostsBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#b45309" stopOpacity={0.8} />
+                        </linearGradient>
+                        {/* Net Profit Flow Aura */}
+                        <linearGradient id="netProfitAura" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.25} />
+                          <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#f1f5f9"
+                        vertical={false}
+                      />
                       <XAxis
                         dataKey="year"
-                        tick={{ fill: "#6b7280", fontSize: 12 }}
-                        stroke="#d1d5db"
+                        tickLine={false}
+                        axisLine={{ stroke: "#e2e8f0" }}
+                        tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }}
+                        dy={8}
+                        padding={{ left: 24, right: 24 }}
                       />
                       <YAxis
-                        tick={{ fill: "#6b7280", fontSize: 12 }}
-                        stroke="#d1d5db"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
+                        tickFormatter={formatProFormaCurrency}
+                        width={65}
+                        dx={-4}
                       />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#ffffff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "0.5rem",
-                          padding: "8px",
-                        }}
-                        formatter={(value: any) =>
-                          typeof value === "number"
-                            ? `₱${value.toLocaleString("en-PH")}`
-                            : value
-                        }
-                        labelStyle={{ color: "#122244" }}
-                      />
-                      <Legend
-                        wrapperStyle={{ paddingTop: "20px" }}
-                        iconType="line"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="Revenue"
-                        stroke="#10b981"
-                        strokeWidth={3}
-                        dot={{ fill: "#10b981", r: 6 }}
-                        activeDot={{ r: 8 }}
-                        isAnimationActive={true}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="COGS"
-                        stroke="#ef4444"
-                        strokeWidth={3}
-                        dot={{ fill: "#ef4444", r: 6 }}
-                        activeDot={{ r: 8 }}
-                        isAnimationActive={true}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="Fixed Costs"
-                        stroke="#f59e0b"
-                        strokeWidth={3}
-                        dot={{ fill: "#f59e0b", r: 6 }}
-                        activeDot={{ r: 8 }}
-                        isAnimationActive={true}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="Net Profit"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        strokeDasharray="5 5"
-                        dot={{ fill: "#3b82f6", r: 6 }}
-                        activeDot={{ r: 8 }}
-                        isAnimationActive={true}
-                      />
-                    </LineChart>
+                      <Tooltip content={<ProFormaCustomTooltip />} />
+
+                      {visibleSeries["Revenue"] && (
+                        <Bar
+                          dataKey="Revenue"
+                          name="Revenue"
+                          fill="url(#revenueBarGrad)"
+                          radius={[6, 6, 0, 0]}
+                          maxBarSize={34}
+                        />
+                      )}
+                      {visibleSeries["COGS"] && (
+                        <Bar
+                          dataKey="COGS"
+                          name="COGS"
+                          stackId={chartMode === "stacked" ? "expenses" : undefined}
+                          fill="url(#cogsBarGrad)"
+                          radius={
+                            chartMode === "grouped" || !visibleSeries["Fixed Costs"] || !getChartData().some((d) => (d["Fixed Costs"] || 0) > 0)
+                              ? [6, 6, 0, 0]
+                              : [0, 0, 0, 0]
+                          }
+                          maxBarSize={34}
+                        />
+                      )}
+                      {visibleSeries["Fixed Costs"] && (
+                        <Bar
+                          dataKey="Fixed Costs"
+                          name="Fixed Costs"
+                          stackId={chartMode === "stacked" ? "expenses" : undefined}
+                          fill="url(#fixedCostsBarGrad)"
+                          radius={[6, 6, 0, 0]}
+                          maxBarSize={34}
+                        />
+                      )}
+                      {visibleSeries["Net Profit"] && (
+                        <Area
+                          type="monotone"
+                          dataKey="Net Profit"
+                          name="Net Profit"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          fill="url(#netProfitAura)"
+                          dot={{
+                            fill: "#ffffff",
+                            stroke: "#2563eb",
+                            strokeWidth: 2.5,
+                            r: 4.5,
+                          }}
+                          activeDot={{
+                            fill: "#2563eb",
+                            stroke: "#ffffff",
+                            strokeWidth: 3,
+                            r: 7,
+                          }}
+                        />
+                      )}
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
 
@@ -1714,7 +2014,7 @@ const AI_Analysis: React.FC = () => {
                         {getChartData().map((row, idx) => (
                           <td
                             key={idx}
-                            className="text-right px-4 py-3 text-green-600 font-bold"
+                            className="text-right px-4 py-3 text-emerald-600 font-bold"
                           >
                             ₱{row.Revenue.toLocaleString("en-PH")}
                           </td>
@@ -1727,7 +2027,7 @@ const AI_Analysis: React.FC = () => {
                         {getChartData().map((row, idx) => (
                           <td
                             key={idx}
-                            className="text-right px-4 py-3 text-red-600 font-bold"
+                            className="text-right px-4 py-3 text-rose-600 font-bold"
                           >
                             ₱{row.COGS.toLocaleString("en-PH")}
                           </td>
@@ -1755,7 +2055,7 @@ const AI_Analysis: React.FC = () => {
                             key={idx}
                             className={`text-right px-4 py-3 font-extrabold ${row["Net Profit"] >= 0
                               ? "text-blue-600"
-                              : "text-red-600"
+                              : "text-rose-600"
                               }`}
                           >
                             ₱{row["Net Profit"].toLocaleString("en-PH")}
