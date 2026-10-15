@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
 import { LanguageProvider } from "./context/LanguageContext";
 import "react-loading-skeleton/dist/skeleton.css";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 // Import your modules
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
@@ -29,54 +31,43 @@ function App() {
     <SkeletonTheme baseColor="#e8ecf0" highlightColor="#f4f6f8">
     <Router>
       <Routes>
-        {/* This is the starting page (Login/Signup) */}
+        {/* Public Routes */}
         <Route path="/" element={<Auth />} />
-
-        {/* Password Reset Handlers */}
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/action" element={<ResetPassword />} />
         <Route path="/__/auth/action" element={<ResetPassword />} />
 
-        {/* This is the Dashboard page users see after signing in */}
-        <Route path="/dashboard" element={<Dashboard />} />
-
-        {/* Projects module */}
-        <Route path="/projects" element={<Projects />} />
-
-        {/* Financial Input module */}
-        <Route path="/financial-input" element={<Financial_input />} />
-
-        {/* AI Analysis module */}
-        <Route path="/ai-analysis" element={<AI_Analysis />} />
-
-        {/* Reports module */}
-        <Route path="/reports" element={<Reports />} />
-
-        {/* Messages module */}
-        <Route path="/messages" element={<Messages />} />
-
-        {/* Student Profile / Settings module (combined in Settings with tabs) */}
-        <Route path="/profile" element={<SettingsPage defaultTab="profile" />} />
-        <Route path="/settings" element={<SettingsPage defaultTab="profile" />} />
-        <Route path="/audit-trail" element={<SettingsPage defaultTab="audit" />} />
-        <Route path="/notifications" element={<Notifications />} />
+        {/* Student / Common Authenticated Modules */}
+        <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["Student", "Adviser", "Chairperson"]}><Dashboard /></ProtectedRoute>} />
+        <Route path="/projects" element={<ProtectedRoute allowedRoles={["Student"]}><Projects /></ProtectedRoute>} />
+        <Route path="/financial-input" element={<ProtectedRoute allowedRoles={["Student"]}><Financial_input /></ProtectedRoute>} />
+        <Route path="/ai-analysis" element={<ProtectedRoute allowedRoles={["Student"]}><AI_Analysis /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute allowedRoles={["Student"]}><Reports /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute allowedRoles={["Student", "Adviser", "Chairperson"]}><Messages /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute allowedRoles={["Student"]}><SettingsPage defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute allowedRoles={["Student"]}><SettingsPage defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/audit-trail" element={<ProtectedRoute allowedRoles={["Student"]}><SettingsPage defaultTab="audit" /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute allowedRoles={["Student"]}><Notifications /></ProtectedRoute>} />
 
         {/* Admin / Chairperson Modules */}
-        <Route path="/admin/users" element={<ChairpersonModule />} />
-        <Route path="/admin/projects" element={<ChairpersonFeasib />} />
-        <Route path="/admin/chairpersonnotification" element={<ChairpersonNotifications />} />
-        <Route path="/admin/chairpersonsettings" element={<ChairpersonSettings defaultTab="profile" />} />
-        <Route path="/admin/settings" element={<ChairpersonSettings defaultTab="profile" />} />
-        <Route path="/admin/profile" element={<ChairpersonSettings defaultTab="profile" />} />
-        <Route path="/admin/audit-trail" element={<ChairpersonSettings defaultTab="audit" />} />
+        <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonModule /></ProtectedRoute>} />
+        <Route path="/admin/projects" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonFeasib /></ProtectedRoute>} />
+        <Route path="/admin/chairpersonnotification" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonNotifications /></ProtectedRoute>} />
+        <Route path="/admin/chairpersonsettings" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonSettings defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonSettings defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonSettings defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/admin/audit-trail" element={<ProtectedRoute allowedRoles={["Chairperson"]}><ChairpersonSettings defaultTab="audit" /></ProtectedRoute>} />
 
         {/* Adviser Modules */}
-        <Route path="/adviser/dashboard" element={<AdviserDashboard />} />
-        <Route path="/adviser/profile" element={<AdviserSettings defaultTab="profile" />} />
-        <Route path="/adviser/settings" element={<AdviserSettings defaultTab="profile" />} />
-        <Route path="/adviser/audit-trail" element={<AdviserSettings defaultTab="audit" />} />
-        <Route path="/adviser/airules" element={<AdviserAIRules />} />
-        <Route path="/adviser/notifications" element={<AdviserNotifications />} />
+        <Route path="/adviser/dashboard" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserDashboard /></ProtectedRoute>} />
+        <Route path="/adviser/profile" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserSettings defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/adviser/settings" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserSettings defaultTab="profile" /></ProtectedRoute>} />
+        <Route path="/adviser/audit-trail" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserSettings defaultTab="audit" /></ProtectedRoute>} />
+        <Route path="/adviser/airules" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserAIRules /></ProtectedRoute>} />
+        <Route path="/adviser/notifications" element={<ProtectedRoute allowedRoles={["Adviser", "Chairperson"]}><AdviserNotifications /></ProtectedRoute>} />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
     </SkeletonTheme>

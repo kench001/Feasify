@@ -3,7 +3,7 @@ import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, onSnapshot } from "firebase/firestore";
 import {
   Users,
   FileText,
@@ -54,10 +54,23 @@ const ChairpersonFeasib: React.FC = () => {
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (unsubProjects) { unsubProjects(); unsubProjects = undefined; }
-      if (!u || u.email !== "chairperson@gmail.com") {
-        navigate("/"); 
-      } else {
+      if (!u) {
+        navigate("/");
+        return;
+      }
+      if (u.email?.toLowerCase() === "chairperson@gmail.com") {
         unsubProjects = setupProjectsListener();
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists() && userDoc.data().role === "Chairperson") {
+          unsubProjects = setupProjectsListener();
+        } else {
+          navigate("/");
+        }
+      } catch {
+        navigate("/");
       }
     });
 

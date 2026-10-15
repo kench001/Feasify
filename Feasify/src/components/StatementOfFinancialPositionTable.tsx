@@ -471,6 +471,20 @@ export const StatementOfFinancialPositionTable: React.FC<StatementOfFinancialPos
               ))}
             </tr>
 
+            {/* Operating Advances / Line of Credit (if deficit occurs) */}
+            {data.some((col) => (col.operatingAdvancesPayable || 0) > 0) && (
+              <tr className="hover:bg-amber-50/20">
+                <td className={`${pItem} font-medium text-gray-800`} style={cellBorder}>
+                  Operating Advances / Line of Credit
+                </td>
+                {data.map((col) => (
+                  <td key={col.periodKey} className={`${pData} text-right tabular-nums font-medium text-gray-900`} style={cellBorder}>
+                    {formatNumber(col.operatingAdvancesPayable || 0)}
+                  </td>
+                ))}
+              </tr>
+            )}
+
             {/* Total Current Liabilities Subtotal Row */}
             <tr
               className="font-bold text-black"

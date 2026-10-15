@@ -381,7 +381,7 @@ const Financial_input: React.FC = () => {
     : [];
   const totalContributedSum = currentContribList.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
   const isCapitalMismatch = proposalCapRequirement > 0 && Math.abs(totalContributedSum - proposalCapRequirement) >= 0.01;
-  const isInputsBlocked = isCurrentMonthLocked || isCapitalMismatch;
+  const isInputsBlocked = isCurrentMonthLocked;
 
   // --- PHILIPPINE BMBE TAX CALCULATION (RA 9178) ---
   const calculateBMBETax = (annualRevenue: number) => {
@@ -2785,19 +2785,19 @@ const Financial_input: React.FC = () => {
                 })()}
               </div>
 
-              {/* CAPITAL MISMATCH WARNING BANNER */}
+              {/* CAPITAL MISMATCH ADVISORY BANNER */}
               {isCapitalMismatch && (
-                <div className="mb-6 p-4 sm:p-5 bg-red-50 border-2 border-red-500 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md animate-in fade-in duration-200">
+                <div className="mb-6 p-4 sm:p-5 bg-amber-50/90 border-2 border-amber-400 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-200">
                   <div className="flex items-start gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
-                      <AlertTriangle size={20} className="text-red-600" />
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                      <AlertTriangle size={20} className="text-amber-600" />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-black text-red-700 uppercase tracking-wider flex items-center gap-2">
-                        <span>Initial Capital Contributed Unbalanced — Input Module Locked</span>
+                      <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                        <span>Initial Capital Contributions Discrepancy — Balancing Advised</span>
                       </h4>
-                      <p className="text-xs text-red-800 leading-relaxed max-w-3xl font-medium">
-                        Total contributed capital is <strong className="text-red-950 font-black">₱{totalContributedSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>, which does not match the proposal capital requirement of <strong className="text-red-950 font-black">₱{proposalCapRequirement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Editing and inputs in the financial module are locked until the contributions equal the total capital.
+                      <p className="text-xs text-amber-900 leading-relaxed max-w-3xl font-medium">
+                        Total partner contributions currently equal <strong className="text-amber-950 font-black">₱{totalContributedSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>, differing from the proposal capital requirement of <strong className="text-amber-950 font-black">₱{proposalCapRequirement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. You can freely edit costs below, but contributions must balance before final submission.
                       </p>
                     </div>
                   </div>
@@ -2805,7 +2805,7 @@ const Financial_input: React.FC = () => {
                     type="button"
                     disabled={isCurrentMonthLocked}
                     onClick={handleAutoRebalanceContributors}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 shrink-0 self-end md:self-auto cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 shrink-0 self-end md:self-auto cursor-pointer"
                   >
                     <RefreshCw size={13} />
                     <span>Auto-Balance Capital</span>

@@ -38,6 +38,7 @@ export interface BalanceSheetPeriodData {
   withholdingTaxPayable: number;
   incomeTaxPayable: number;
   vatPayable: number;
+  operatingAdvancesPayable?: number;
   totalCurrentLiabilities: number;
   totalLiabilities: number;
 
@@ -253,10 +254,8 @@ export function generateFiveYearBalanceSheet(
   businessName: string = ""
 ): BalanceSheetPeriodData[] {
   const isCabbageBenchmark =
-    (businessName && /cabbage|brassica|root/i.test(businessName)) ||
-    Number(financials?.cashInvested) === 700000 ||
-    Number(financials?.startupCapital) === 860603 ||
-    Number(financials?.initialCapital) === 900000;
+    Boolean(financials?.isBenchmark) ||
+    (businessName && /root\s*['’]n\s*beans\s*\(exemplar\)/i.test(businessName));
 
   if (isCabbageBenchmark) {
     return ROOT_N_BEANS_BENCHMARK_PROJECTIONS;
@@ -326,10 +325,23 @@ export function generateFiveYearBalanceSheet(
     preOpInputVat +
     preOpNoncurrent;
 
-  const preOpCash = Math.max(10000, totalInitialCapital - preOpAllocatedAssets + preOpNoncurrent * 0.1);
+  const preOpNetCash = totalInitialCapital - preOpAllocatedAssets;
+  let preOpCash = 0;
+  let preOpAdvance = 0;
+
+  if (preOpNetCash >= 0) {
+    preOpCash = preOpNetCash;
+    preOpAdvance = 0;
+  } else {
+    preOpCash = 0;
+    preOpAdvance = Math.abs(preOpNetCash);
+  }
+
   const preOpTotalCurrent =
     preOpCash + preOpInventory + preOpSupplies + safeRentAdvance + safePrepaidOthers + preOpInputVat;
   const preOpTotalAssets = preOpTotalCurrent + preOpNoncurrent;
+  const preOpTotalLiab = preOpAdvance;
+  const preOpEquity = totalInitialCapital;
 
   const preOpsData: BalanceSheetPeriodData = {
     periodKey: "pre-ops",
@@ -356,10 +368,11 @@ export function generateFiveYearBalanceSheet(
     withholdingTaxPayable: 0,
     incomeTaxPayable: 0,
     vatPayable: 0,
-    totalCurrentLiabilities: 0,
-    totalLiabilities: 0,
-    partnersCapital: round(preOpTotalAssets),
-    totalEquity: round(preOpTotalAssets),
+    operatingAdvancesPayable: round(preOpAdvance),
+    totalCurrentLiabilities: round(preOpTotalLiab),
+    totalLiabilities: round(preOpTotalLiab),
+    partnersCapital: round(preOpEquity),
+    totalEquity: round(preOpEquity),
     totalLiabilitiesAndEquity: round(preOpTotalAssets),
   };
 
@@ -369,7 +382,7 @@ export function generateFiveYearBalanceSheet(
   const projectionYears = [2026, 2027, 2028, 2029, 2030];
   const revenueGrowthRate = 0.08; // 8% annual revenue expansion
   const costGrowthRate = 0.05; // 5% annual cost growth
-  let cumulativeEquity = preOpTotalAssets;
+  let cumulativeEquity = preOpEquity;
 
   projectionYears.forEach((year, idx) => {
     const yearIndex = idx + 1; // 1 to 5
@@ -391,25 +404,35 @@ export function generateFiveYearBalanceSheet(
     const totalNoncurrentNet =
       leaseholdNet + storeEquipNet + furnitureNet + kitchenNet + fireSafetyNet + cleaningNet;
 
-    // Annual Taxes and Net Profit
+    // Philippine Smart Taxation: BMBE (RA 9178) vs CREATE Act
     const annualDepreciation = totalGrossNoncurrent * 0.10;
     const operatingIncome = yearRevenue - yearCOGS - yearOpEx - annualDepreciation;
-    const incomeTax = Math.max(0, operatingIncome * 0.20);
-    const vatOrPercentageTax = yearRevenue * 0.03; // 3% Philippine BMBE/percentage tax
+    const isBmbeExempt = yearRevenue <= 3000000 && totalInitialCapital <= 3000000;
+    
+    let incomeTax = 0;
+    let vatOrPercentageTax = 0;
+
+    if (isBmbeExempt) {
+      incomeTax = 0;
+      vatOrPercentageTax = yearRevenue * 0.03; // 3% Philippine BMBE statutory percentage tax
+    } else {
+      incomeTax = Math.max(0, operatingIncome * 0.20); // 20% Corporate Income Tax under CREATE Act
+      vatOrPercentageTax = 0; // Regular enterprise pays VAT to customers (pass-through), not deducted from operating EBIT
+    }
     const netProfitAfterTax = operatingIncome - incomeTax - vatOrPercentageTax;
 
     cumulativeEquity += netProfitAfterTax;
 
-    // Liabilities (payables at year-end)
+    // Base Liabilities (payables at year-end)
     const utilPayable = (safeFixedCosts * 0.15) * costMultiplier;
     const sssPayable = 9540 * costMultiplier;
     const philHealthPayable = 3159 * costMultiplier;
     const hdmfPayable = 1200;
     const withholdingTax = (yearRevenue * 0.001) * costMultiplier;
     const incomeTaxPayable = incomeTax * 0.25;
-    const vatPayable = vatOrPercentageTax * 0.30;
+    const vatPayable = isBmbeExempt ? vatOrPercentageTax * 0.25 : Math.max(0, operatingIncome * 0.05);
 
-    const totalCurrentLiab =
+    const baseCurrentLiab =
       utilPayable +
       sssPayable +
       philHealthPayable +
@@ -417,7 +440,6 @@ export function generateFiveYearBalanceSheet(
       withholdingTax +
       incomeTaxPayable +
       vatPayable;
-    const totalLiabilities = totalCurrentLiab;
 
     // Assets: Inventory, Supplies, Prepaid Rent
     const inventory = (yearCOGS / 360) * 18; // 18 days buffer
@@ -426,15 +448,29 @@ export function generateFiveYearBalanceSheet(
     const prepaidOthers = 0;
     const inputVat = 0;
 
-    // Dynamic Balancing: Total Assets must equal Total Liabilities + Equity
-    const targetTotalAssets = totalLiabilities + cumulativeEquity;
-    const cash = Math.max(
-      25000,
-      targetTotalAssets - (totalNoncurrentNet + inventory + supplies + prepaidRent + prepaidOthers + inputVat)
-    );
+    // Dynamic Balancing: Total Assets MUST equal Total Liabilities + Equity
+    const nonCashCurrentAssets = inventory + supplies + prepaidRent + prepaidOthers + inputVat;
+    const nonCashTotalAssets = nonCashCurrentAssets + totalNoncurrentNet;
 
-    const totalCurrentAssets =
-      cash + inventory + supplies + prepaidRent + prepaidOthers + inputVat;
+    // Net cash position before short-term line of credit:
+    // (Cash - operatingAdvancesPayable) must equal (baseCurrentLiab + cumulativeEquity) - nonCashTotalAssets
+    const netCashPosition = (baseCurrentLiab + cumulativeEquity) - nonCashTotalAssets;
+
+    let cash = 0;
+    let operatingAdvancesPayable = 0;
+
+    if (netCashPosition >= 0) {
+      cash = netCashPosition;
+      operatingAdvancesPayable = 0;
+    } else {
+      // Working capital shortfall: maintain 0 cash and recognize short-term operating credit facility
+      cash = 0;
+      operatingAdvancesPayable = Math.abs(netCashPosition);
+    }
+
+    const totalCurrentLiabilities = baseCurrentLiab + operatingAdvancesPayable;
+    const totalLiabilities = totalCurrentLiabilities;
+    const totalCurrentAssets = cash + nonCashCurrentAssets;
     const totalAssets = totalCurrentAssets + totalNoncurrentNet;
     const finalTotalLiabAndEquity = totalLiabilities + cumulativeEquity;
 
@@ -464,7 +500,8 @@ export function generateFiveYearBalanceSheet(
       withholdingTaxPayable: round(withholdingTax),
       incomeTaxPayable: round(incomeTaxPayable),
       vatPayable: round(vatPayable),
-      totalCurrentLiabilities: round(totalCurrentLiab),
+      operatingAdvancesPayable: round(operatingAdvancesPayable),
+      totalCurrentLiabilities: round(totalCurrentLiabilities),
       totalLiabilities: round(totalLiabilities),
       partnersCapital: round(cumulativeEquity),
       totalEquity: round(cumulativeEquity),

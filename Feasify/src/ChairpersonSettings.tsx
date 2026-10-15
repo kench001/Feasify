@@ -190,12 +190,18 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
   // Auth & Chairperson Details Fetching
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u || u.email !== "chairperson@gmail.com") {
+      if (!u) {
         navigate("/");
         return;
       }
       try {
         const userDoc = await getDoc(doc(db, "users", u.uid));
+        const isChairEmail = u.email?.toLowerCase() === "chairperson@gmail.com";
+        const isChairRole = userDoc.exists() && userDoc.data().role === "Chairperson";
+        if (!isChairEmail && !isChairRole) {
+          navigate("/");
+          return;
+        }
         if (userDoc.exists()) {
           const data = userDoc.data();
           const firstName = data.firstName || "Chairperson";

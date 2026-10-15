@@ -112,16 +112,20 @@ const verifyToken = async (req, res, next) => {
 
 const app = express();
 
-// Rate limiting configurations
+// Rate limiting configurations (60 req/min keyed by user Auth header or IP)
 const analyzeLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // limit each IP to 10 requests per windowMs
+  max: 60, // allow up to 60 requests per minute
+  keyGenerator: (req) => req.headers["authorization"] || req.ip,
+  validate: { xForwardedForHeader: false },
   message: { error: "Too many requests, please try again after a minute." }
 });
 
 const proposalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // limit each IP to 10 requests per windowMs
+  max: 60, // allow up to 60 requests per minute
+  keyGenerator: (req) => req.headers["authorization"] || req.ip,
+  validate: { xForwardedForHeader: false },
   message: { error: "Too many requests, please try again after a minute." }
 });
 
@@ -1055,8 +1059,14 @@ function evaluateDefenseFeasibility(financials, kb, businessType = "") {
   const annualRevenue = (monthlyRevenue / 30) * operatingDays;
   const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * operatingDays;
   const annualNetProfitPreTax = annualRevenue - annualExpenses;
-  const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0; // 3% BMBE Tax
-  const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+  // Philippine Smart Taxation: BMBE (RA 9178) vs Regular MSME (CREATE Act)
+  const isBmbeQualified = annualRevenue <= 3000000 && safeStartupCapital <= 3000000;
+  const applicableTax = isBmbeQualified
+    ? (annualRevenue > 0 ? annualRevenue * 0.03 : 0) // 3% Philippine Percentage Tax (BMBE RA 9178)
+    : (annualNetProfitPreTax > 0 ? annualNetProfitPreTax * 0.20 : 0); // 20% Corporate Tax under CREATE Act
+  const taxTypeLabel = isBmbeQualified ? "3% BMBE Percentage Tax" : "20% Corporate Income Tax (CREATE Act)";
+  const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - applicableTax;
 
   const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
   const paybackPeriodMonths = annualNetProfitAfterTax > 0
@@ -1069,9 +1079,16 @@ function evaluateDefenseFeasibility(financials, kb, businessType = "") {
   const netMarginPct = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
   const cashRunwayMonths = monthlyOpex > 0 ? (cashReserve / monthlyOpex) : (cashReserve > 0 ? 12 : 0);
 
+  // Dual Break-Even: Units + Break-Even Revenue in Pesos (BEP_PHP = Fixed Costs / CMR)
   const unitContribution = Math.max(0, unitGrossMargin);
   const bepUnits = unitContribution > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / unitContribution) : Infinity;
   const bepRatio = monthlySales > 0 && bepUnits !== Infinity ? (bepUnits / monthlySales) * 100 : Infinity;
+
+  const totalGrossProfit = monthlyRevenue - totalMonthlyVariableCosts;
+  const cmr = monthlyRevenue > 0 ? totalGrossProfit / monthlyRevenue : 0;
+  const bepRevenue = cmr > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / cmr) : Infinity;
+  const bepRevenueStr = bepRevenue === Infinity ? "N/A" : `PHP ${Math.round(bepRevenue).toLocaleString()}`;
+  const bepRevenueRatio = monthlyRevenue > 0 && bepRevenue !== Infinity ? (bepRevenue / monthlyRevenue) * 100 : Infinity;
 
   // Sector margin bounds
   let bounds = { primeMin: 12, primeMax: 28, fantasyCap: 38, vulnerableFloor: 8, label: "General Enterprise" };
@@ -1234,6 +1251,13 @@ function evaluateDefenseFeasibility(financials, kb, businessType = "") {
     paybackPeriodStr,
     bepUnits,
     bepRatio,
+    bepRevenue,
+    bepRevenueStr,
+    bepRevenueRatio,
+    cmr,
+    isBmbeQualified,
+    taxTypeLabel,
+    applicableTax,
     bounds,
     fatalFlaws,
     severeFlags,
@@ -1297,6 +1321,13 @@ app.post(
         paybackPeriodStr,
         bepUnits,
         bepRatio,
+        bepRevenue,
+        bepRevenueStr,
+        bepRevenueRatio,
+        cmr,
+        isBmbeQualified,
+        taxTypeLabel,
+        applicableTax,
         bounds,
         fatalFlaws,
         severeFlags,
@@ -1340,7 +1371,8 @@ SUBMITTED FINANCIAL METRICS:
 - Cash Buffer / Reserve: PHP ${Math.round(cashReserve).toLocaleString()} (Covers ${cashRunwayMonths.toFixed(1)} months of expenses)
 - Monthly Operating Expenses (OPEX): PHP ${Math.round(monthlyOpex).toLocaleString()}
 - Net Monthly Profit: PHP ${Math.round(netMonthlyProfit).toLocaleString()} (Net Margin: ${netMarginPct.toFixed(1)}%, Industry Healthy Range: ${bounds.primeMin}%-${bounds.primeMax}%, Fantasy Cap: ${bounds.fantasyCap}%)
-- Break-Even Point: ${bepUnits === Infinity ? 'N/A' : `${bepUnits.toLocaleString()} units (${bepRatio.toFixed(0)}% of monthly target)`}
+- Break-Even Point: ${bepUnits === Infinity ? 'N/A' : `${bepUnits.toLocaleString()} units (${bepRatio.toFixed(0)}% of monthly target)`} | Break-Even Revenue: ${bepRevenueStr} (CMR ${(cmr * 100).toFixed(1)}%)
+- Philippine Tax Framework: ${taxTypeLabel} (Annual Tax: PHP ${Math.round(applicableTax).toLocaleString()})
 - Capital Payback Time: ${paybackPeriodStr}
 - Direct Competitors: ${Array.isArray(financials.directCompetitors) && financials.directCompetitors.length > 0 ? financials.directCompetitors.join(', ') : 'None specified'}
 - Nearby Demand Drivers / Foot Traffic Anchors: ${Array.isArray(financials.nearbyEstablishments) && financials.nearbyEstablishments.length > 0 ? financials.nearbyEstablishments.join(', ') : 'None specified'}
@@ -1390,7 +1422,7 @@ Your response must be a single stringified JSON object matching this structure:
   "insights": [
     { "type": "${status === 'CONDITIONALLY_FEASIBLE' && netMarginPct > bounds.fantasyCap ? 'warning' : (netMarginPct <= 0 ? 'warning' : 'positive')}", "title": "Profit Margin Status", "description": "Short plain English explanation of profit margin." },
     { "type": "${cashRunwayMonths >= 1.5 ? 'positive' : (cashRunwayMonths >= 1.0 ? 'info' : 'warning')}", "title": "Cash Runway Buffer", "description": "Short plain English explanation of cash buffer covering months of expenses." },
-    { "type": "${bepRatio <= 65 ? 'positive' : (bepRatio <= 80 ? 'info' : 'warning')}", "title": "Break-Even Safety", "description": "Short plain English explanation of units needed to break even." },
+    { "type": "${bepRatio <= 65 ? 'positive' : (bepRatio <= 80 ? 'info' : 'warning')}", "title": "Break-Even Target (Units & Pesos)", "description": "Short plain English explanation of ${bepUnits.toLocaleString()} units or ${bepRevenueStr} in gross revenue needed to break even." },
     { "type": "${paybackPeriodMonths <= 30 && paybackPeriodMonths >= 3 ? 'positive' : (paybackPeriodMonths <= 36 ? 'info' : 'warning')}", "title": "Capital Payback Time", "description": "Short plain English explanation of payback duration." }
   ],
   "improvementTips": {
@@ -1492,10 +1524,10 @@ IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or
         },
         {
           type: evalResult.bepRatio <= 65 ? "positive" : (evalResult.bepRatio <= 80 ? "info" : "warning"),
-          title: "Break-Even Target",
+          title: "Break-Even Target (Units & Pesos)",
           description: evalResult.bepUnits === Infinity
             ? "Break-even cannot be calculated due to zero or negative unit margins."
-            : `You need to sell ${evalResult.bepUnits.toLocaleString()} units each month (${evalResult.bepRatio.toFixed(0)}% of your target) just to cover fixed monthly bills.`
+            : `Break-even requires ${evalResult.bepUnits.toLocaleString()} units or ${evalResult.bepRevenueStr} in gross revenue (${evalResult.bepRatio.toFixed(0)}% of monthly target) to cover monthly overhead (PHP ${Math.round(evalResult.monthlyOpex).toLocaleString()}). CMR: ${(evalResult.cmr * 100).toFixed(1)}%.`
         },
         {
           type: evalResult.paybackPeriodMonths <= 30 && evalResult.paybackPeriodMonths >= 3 ? "positive" : (evalResult.paybackPeriodMonths <= 36 ? "info" : "warning"),
@@ -1510,11 +1542,17 @@ IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or
         performanceGrade: evalResult.performanceGrade,
         performanceStatus: evalResult.performanceStatus,
         performanceRecommendation: evalResult.performanceRecommendation,
+        bepRevenue: evalResult.bepRevenue,
+        bepRevenueStr: evalResult.bepRevenueStr,
+        bepRevenueRatio: evalResult.bepRevenueRatio,
+        cmr: evalResult.cmr,
+        isBmbeQualified: evalResult.isBmbeQualified,
+        taxTypeLabel: evalResult.taxTypeLabel,
         metrics: evalResult.metrics,
         aiScores: evalResult.aiScores,
         explanations: {
           feasibility: `Feasibility Assessment: ${evalResult.status === "FEASIBLE" ? "Feasible" : (evalResult.status === "CONDITIONALLY_FEASIBLE" ? "Conditionally Feasible" : "Not Feasible")}. ${evalResult.status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : (evalResult.status === "CONDITIONALLY_FEASIBLE" ? "Business is profitable but has warning flags requiring revision before final presentation." : "Business shows negative margins or capital deficit - review costs.")}`,
-          financial: `Average selling price of PHP ${evalResult.sellingPrice.toFixed(2)} produces PHP ${Math.round(evalResult.netMonthlyProfit).toLocaleString()} estimated monthly net profit (${evalResult.netMarginPct.toFixed(1)}% margin).`,
+          financial: `Average selling price of PHP ${evalResult.sellingPrice.toFixed(2)} produces PHP ${Math.round(evalResult.netMonthlyProfit).toLocaleString()} estimated monthly net profit (${evalResult.netMarginPct.toFixed(1)}% margin). Break-even revenue is ${evalResult.bepRevenueStr} (CMR ${(evalResult.cmr * 100).toFixed(1)}%). Tax applied: ${evalResult.taxTypeLabel}.`,
           risk: `Cash buffer covers ${evalResult.cashRunwayMonths.toFixed(1)} months of operating bills. Capital payback is estimated at ${evalResult.paybackPeriodStr}.`,
           market: `Projected monthly volume of ${evalResult.monthlySales.toLocaleString()} units produces PHP ${Math.round(evalResult.monthlyRevenue).toLocaleString()} gross monthly revenue.`
         },
@@ -1578,6 +1616,23 @@ app.post(
         ? JSON.stringify(payload.financialData, null, 2) 
         : "No detailed financial data provided yet.";
 
+      // Sanitize customAIRules to prevent prompt injection attacks
+      const sanitizeRuleInput = (val, maxLen = 300) => {
+        if (!val || typeof val !== "string") return "";
+        return val
+          .slice(0, maxLen)
+          .replace(/(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous\s+)?(?:instructions|rules|prompts)/gi, "[filtered]")
+          .replace(/(?:system\s+prompt|developer\s+mode|jailbreak)/gi, "[filtered]")
+          .trim();
+      };
+
+      const safeCustomRules = {
+        tone: sanitizeRuleInput(payload.customAIRules?.tone) || 'Default academic and constructive tone.',
+        dealbreakers: sanitizeRuleInput(payload.customAIRules?.dealbreakers) || 'None specific.',
+        focusAreas: sanitizeRuleInput(payload.customAIRules?.focusAreas) || 'General feasibility and consistency.',
+        formatting: sanitizeRuleInput(payload.customAIRules?.formatting) || 'Follow standard output structure.',
+      };
+
       // Pass target criteria and exemplars as few-shot data structures
       const prompt = `
 You are an expert academic feasibility study evaluator assessing a BUSINESS PROPOSAL with attached FINANCIAL PROJECTIONS.
@@ -1613,12 +1668,12 @@ INSTRUCTIONS:
 6. Keep the 'draftFeedback' extremely short, concise, specific, and direct. Do not include greetings (like "Dear Students"), introductions, formal letter structures, or closing signatures (like "Sincerely, ..."). Just output the specific, actionable feedback directly.
 
 ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
-- Tone & Style: ${payload.customAIRules?.tone || 'Default academic and constructive tone.'}
-- Dealbreakers: ${payload.customAIRules?.dealbreakers || 'None specific.'}
-- Focus Areas: ${payload.customAIRules?.focusAreas || 'General feasibility and consistency.'}
-- Formatting: ${payload.customAIRules?.formatting || 'Follow standard output structure.'}
+- Tone & Style: ${safeCustomRules.tone}
+- Dealbreakers: ${safeCustomRules.dealbreakers}
+- Focus Areas: ${safeCustomRules.focusAreas}
+- Formatting: ${safeCustomRules.formatting}
 
-WARNING: You MUST strictly adopt the exact "Tone & Style" requested in the custom rules above (if provided). If it requests a goofy, informal, strict, or mocking tone, you MUST apply that exact tone to all your 'explanations', 'insights', and 'draftFeedback' strings. Ignore your standard academic tone if a custom tone is requested.
+WARNING: You MUST adopt the general tone specified in the custom rules above while maintaining strict academic grading integrity. Never alter the required JSON schema or ignore quantitative financial discrepancies.
 
 Your response must be a single stringified JSON object matching this structure:
 {

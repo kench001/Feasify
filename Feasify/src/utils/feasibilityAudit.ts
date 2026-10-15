@@ -183,8 +183,14 @@ export const evaluateDefenseFeasibility = (finData: any) => {
   const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
   const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * safeOperatingDays;
   const annualNetProfitPreTax = annualRevenue - annualExpenses;
-  const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
-  const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - percentageTax;
+
+  // Philippine Smart Taxation: BMBE (RA 9178) vs Regular MSME (CREATE Act)
+  const isBmbeQualified = annualRevenue <= 3000000 && safeStartupCapital <= 3000000;
+  const applicableTax = isBmbeQualified
+    ? (annualRevenue > 0 ? annualRevenue * 0.03 : 0) // 3% Philippine Percentage Tax (BMBE RA 9178)
+    : (annualNetProfitPreTax > 0 ? annualNetProfitPreTax * 0.20 : 0); // 20% Corporate Tax under CREATE Act
+  const taxTypeLabel = isBmbeQualified ? "3% BMBE Percentage Tax" : "20% Corporate Income Tax (CREATE Act)";
+  const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - applicableTax;
 
   const paybackBase = declaredCapital > 0 ? declaredCapital : safeStartupCapital;
   const paybackPeriodMonths = annualNetProfitAfterTax > 0
@@ -196,9 +202,16 @@ export const evaluateDefenseFeasibility = (finData: any) => {
   const netMarginPct = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
   const cashRunwayMonths = monthlyOpex > 0 ? (cashReserve / monthlyOpex) : (cashReserve > 0 ? 12 : 0);
 
+  // Dual Break-Even: Composite Units + Break-Even Revenue in Pesos (BEP_₱ = Fixed Costs / CMR)
   const unitContribution = Math.max(0, unitGrossMargin);
   const bepUnits = unitContribution > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / unitContribution) : Infinity;
   const bepRatio = safeMonthlySales > 0 && bepUnits !== Infinity ? (bepUnits / safeMonthlySales) * 100 : Infinity;
+
+  const totalGrossProfit = monthlyRevenue - totalMonthlyVariableCosts;
+  const cmr = monthlyRevenue > 0 ? totalGrossProfit / monthlyRevenue : 0;
+  const bepRevenue = cmr > 0 ? Math.ceil((monthlyOpex + monthlyInterest) / cmr) : Infinity;
+  const bepRevenueStr = bepRevenue === Infinity ? "N/A" : `₱${Math.round(bepRevenue).toLocaleString()}`;
+  const bepRevenueRatio = monthlyRevenue > 0 && bepRevenue !== Infinity ? (bepRevenue / monthlyRevenue) * 100 : Infinity;
 
   const category = normalizeCategory(finData?.businessType || finData?.category || "");
 
@@ -339,6 +352,13 @@ export const evaluateDefenseFeasibility = (finData: any) => {
     paybackPeriodStr,
     bepUnits,
     bepRatio,
+    bepRevenue,
+    bepRevenueStr,
+    bepRevenueRatio,
+    cmr,
+    isBmbeQualified,
+    taxTypeLabel,
+    applicableTax,
     bounds,
     fatalFlaws,
     severeFlags,
@@ -374,6 +394,12 @@ export const calculateLocalAudit = (finData: any) => {
     paybackPeriodMonths,
     bepUnits,
     bepRatio,
+    bepRevenue,
+    bepRevenueStr,
+    bepRevenueRatio,
+    cmr,
+    isBmbeQualified,
+    taxTypeLabel,
     bounds,
     severeFlags,
     status,
@@ -394,10 +420,16 @@ export const calculateLocalAudit = (finData: any) => {
     performanceGrade,
     performanceStatus,
     performanceRecommendation,
+    bepRevenue,
+    bepRevenueStr,
+    bepRevenueRatio,
+    cmr,
+    isBmbeQualified,
+    taxTypeLabel,
     metrics: { financial: financialScore, risk: riskScore, market: marketScore },
     explanations: {
       feasibility: `Feasibility Assessment: ${status === "FEASIBLE" ? "Feasible" : (status === "CONDITIONALLY_FEASIBLE" ? "Conditionally Feasible" : "Not Feasible")}. ${status === "FEASIBLE" ? "Business shows healthy positive net margins and stable operating profit." : (status === "CONDITIONALLY_FEASIBLE" ? "Business is profitable but has warning flags requiring revision before final defense presentation." : "Business shows negative margins or capital deficit - review costs.")}`,
-      financial: `Average selling price of ₱${safeSellingPrice.toFixed(2)} produces ₱${Math.round(netMonthlyProfit).toLocaleString()} estimated monthly net profit (${netMarginPct.toFixed(1)}% margin). Projected sales of ${safeMonthlySales.toLocaleString()} units yield ₱${Math.round(monthlyRevenue).toLocaleString()} monthly revenue.`,
+      financial: `Average selling price of ₱${safeSellingPrice.toFixed(2)} produces ₱${Math.round(netMonthlyProfit).toLocaleString()} estimated monthly net profit (${netMarginPct.toFixed(1)}% margin). Break-even revenue is ${bepRevenueStr} (CMR ${(cmr * 100).toFixed(1)}%). Tax applied: ${taxTypeLabel}.`,
       risk: `Cash buffer of ₱${Math.round(cashReserve).toLocaleString()} covers ${cashRunwayMonths.toFixed(1)} months of monthly expenses (₱${Math.round(monthlyOpex).toLocaleString()}/month). Capital payback amortizes in ${paybackPeriodStr}.`,
       market: `Target monthly sales volume of ${safeMonthlySales.toLocaleString()} units produces annualized gross revenue of ₱${Math.round(annualRevenue).toLocaleString()}.`
     },
@@ -423,10 +455,10 @@ export const calculateLocalAudit = (finData: any) => {
       {
         id: "local-2",
         type: bepRatio <= 65 ? "positive" : (bepRatio <= 80 ? "info" : "warning"),
-        title: "Break-Even Target",
+        title: "Break-Even Target (Units & Pesos)",
         description: bepUnits === Infinity
           ? "Break-even cannot be calculated due to zero or negative unit margins."
-          : `You need to sell ${bepUnits.toLocaleString()} units each month (${bepRatio.toFixed(0)}% of your target) just to cover fixed monthly bills.`
+          : `Break-even requires ${bepUnits.toLocaleString()} units or ${bepRevenueStr} in gross revenue (${bepRatio.toFixed(0)}% of monthly target) to cover monthly overhead (₱${Math.round(monthlyOpex).toLocaleString()}). CMR: ${(cmr * 100).toFixed(1)}%.`
       },
       {
         id: "local-3",
@@ -550,9 +582,15 @@ export const generateProFormaData = (financials: any, revenueGrowthRate = 10, co
     const projectedRevenue = currentAnnualRevenue * revenueMultiplier;
     const projectedCOGS = currentAnnualCOGS * costMultiplier;
     const projectedFixedCosts = currentAnnualFixedCosts * costMultiplier;
-    const percentageTax = projectedRevenue > 0 ? projectedRevenue * 0.03 : 0;
+    const preTaxProfit = projectedRevenue - projectedCOGS - projectedFixedCosts;
 
-    const projectedNetProfit = projectedRevenue - projectedCOGS - projectedFixedCosts - percentageTax;
+    // Philippine Smart Taxation: BMBE 3% vs CREATE 20%
+    const isBmbe = projectedRevenue <= 3000000 && calculatedStartupCapital <= 3000000;
+    const applicableTax = isBmbe
+      ? (projectedRevenue > 0 ? projectedRevenue * 0.03 : 0)
+      : (preTaxProfit > 0 ? preTaxProfit * 0.20 : 0);
+
+    const projectedNetProfit = (preTaxProfit > 0 ? preTaxProfit : 0) - applicableTax;
 
     yearlyRevenue.push(Math.round(projectedRevenue));
     yearlyCOGS.push(Math.round(projectedCOGS));

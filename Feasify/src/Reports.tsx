@@ -40,7 +40,7 @@ import {
 import domtoimage from "dom-to-image";
 import { jsPDF } from "jspdf";
 import { normalizeProposalProducts, computeProductMetrics } from "./utils/productCosting";
-import { cleanUserFacingText, calculateLocalAudit, type MarketAnalysisData } from "./utils/feasibilityAudit";
+import { cleanUserFacingText, calculateLocalAudit, generateProFormaData, type MarketAnalysisData } from "./utils/feasibilityAudit";
 
 const Reports: React.FC = () => {
   const navigate = useNavigate();
@@ -170,46 +170,382 @@ const Reports: React.FC = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current || !selectedProject) return;
+    if (!selectedProject) return;
     setIsDownloading(true);
     try {
-      const dataUrl = await domtoimage.toPng(reportRef.current, {
-        quality: 1,
-        bgcolor: "#ffffff",
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top left",
-        },
+      const finData = selectedProject.financialData || {};
+      const activeFin =
+        finData.monthlyRecords &&
+        Array.isArray(finData.monthlyRecords) &&
+        finData.monthlyRecords.length > 0
+          ? finData.monthlyRecords[finData.monthlyRecords.length - 1]?.financials || finData
+          : finData;
+
+      const localAudit = calculateLocalAudit({
+        ...activeFin,
+        businessName: selectedProject.name,
+        totalCapital: selectedProject.totalCapital,
+        products: selectedProject.products,
       });
 
+      const proForma = generateProFormaData(activeFin);
+
+      const status = (selectedProject.aiAnalysis?.status || localAudit.status || "FEASIBLE").replace(/_/g, " ");
+      const score = selectedProject.aiAnalysis?.score ?? localAudit.score ?? 85;
+      const grade = selectedProject.aiAnalysis?.performanceGrade || localAudit.performanceGrade || "Satisfactory";
+      const recommendation = cleanUserFacingText(
+        selectedProject.aiAnalysis?.performanceRecommendation ||
+        localAudit.performanceRecommendation ||
+        "Study is mathematically sound. Ready for implementation."
+      );
+
       const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth(); // 210mm
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
-      const margin = 8; // 8mm margin
-      const maxContentWidth = pageWidth - margin * 2; // 194mm
-      const maxContentHeight = pageHeight - margin * 2; // 281mm
+      const margin = 12;
+      const contentWidth = 186; // 210 - 24
 
-      const elWidth = reportRef.current.offsetWidth || 800;
-      const elHeight = reportRef.current.offsetHeight || 1100;
+      // --- HEADER ---
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8);
+      pdf.setTextColor(201, 166, 84); // Gold #c9a654
+      pdf.text("FEASIFY INTELLIGENCE ENGINE  •  EXECUTIVE FEASIBILITY AUDIT", margin, 14);
 
-      // Calculate proportional dimensions so report strictly fits 1 page
-      let renderWidth = maxContentWidth;
-      let renderHeight = (elHeight * maxContentWidth) / elWidth;
+      pdf.setFontSize(16);
+      pdf.setTextColor(18, 34, 68); // Navy #122244
+      const titleLines = pdf.splitTextToSize(selectedProject.name, contentWidth - 45);
+      pdf.text(titleLines.slice(0, 2), margin, 21);
 
-      if (renderHeight > maxContentHeight) {
-        renderHeight = maxContentHeight;
-        renderWidth = (elWidth * maxContentHeight) / elHeight;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(100, 116, 139); // Slate
+      const dateStr = selectedProject.aiAnalysis?.lastRun
+        ? new Date(selectedProject.aiAnalysis.lastRun).toLocaleDateString()
+        : new Date().toLocaleDateString();
+      pdf.text(
+        `Analysis Date: ${dateStr}  •  Academic Feasibility Evaluation  •  PLV BA8 Capstone Standards`,
+        margin,
+        27
+      );
+
+      // Gold Accent Line
+      pdf.setDrawColor(201, 166, 84);
+      pdf.setLineWidth(0.6);
+      pdf.line(margin, 29, margin + contentWidth, 29);
+
+      // --- VERDICT BANNER (Y: 32 - 47) ---
+      const verdictY = 32;
+      const isFeasible = status === "FEASIBLE";
+      const isNotFeasible = status === "NOT FEASIBLE";
+
+      if (isFeasible) {
+        pdf.setFillColor(236, 253, 245);
+        pdf.setDrawColor(167, 243, 208);
+      } else if (isNotFeasible) {
+        pdf.setFillColor(254, 242, 242);
+        pdf.setDrawColor(254, 202, 202);
+      } else {
+        pdf.setFillColor(255, 251, 235);
+        pdf.setDrawColor(253, 230, 138);
       }
+      pdf.roundedRect(margin, verdictY, contentWidth, 16, 2, 2, "FD");
 
-      const x = (pageWidth - renderWidth) / 2;
-      const y = (pageHeight - renderHeight) / 2;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10.5);
+      if (isFeasible) pdf.setTextColor(6, 95, 70);
+      else if (isNotFeasible) pdf.setTextColor(153, 27, 27);
+      else pdf.setTextColor(146, 64, 14);
 
-      pdf.addImage(dataUrl, "PNG", x, y, renderWidth, renderHeight, undefined, "FAST");
+      pdf.text(`OFFICIAL VERDICT: ${status}`, margin + 4, verdictY + 6);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      pdf.text(`Academic Standing: Grade ${grade} (Composite Rating: ${score}/100)`, margin + 4, verdictY + 11.5);
+
+      // Right-side Advisory Note
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.5);
+      pdf.text("ADVISORY NOTE:", 112, verdictY + 5);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      const recLines = pdf.splitTextToSize(recommendation, 80);
+      pdf.text(recLines.slice(0, 2), 112, verdictY + 9);
+
+      // --- SECTION I: FINANCIAL PERFORMANCE OVERVIEW (Y: 51 - 74) ---
+      const sec1Y = 51;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(18, 34, 68);
+      pdf.text("I. FINANCIAL VIABILITY & CAPITAL RECOVERY", margin, sec1Y);
+
+      const cardW = (contentWidth - 9) / 4; // ~44.25mm
+      const cardH = 17;
+      const cardY = sec1Y + 3;
+
+      const finCards = [
+        {
+          label: "INITIAL CAPITAL",
+          val: `₱${financialOverview.startupCapital.toLocaleString()}`,
+          sub: "Total Project CapEx",
+          color: [15, 23, 42]
+        },
+        {
+          label: "ANNUAL SALES",
+          val: `₱${financialOverview.annualRevenue.toLocaleString()}`,
+          sub: "Gross Turnover",
+          color: [15, 23, 42]
+        },
+        {
+          label: "NET ANNUAL PROFIT",
+          val: `₱${financialOverview.netAnnualProfit.toLocaleString()}`,
+          sub: "After-Tax Net Income",
+          color: financialOverview.netAnnualProfit >= 0 ? [16, 120, 60] : [220, 38, 38]
+        },
+        {
+          label: "BREAK-EVEN & PAYBACK",
+          val: localAudit.bepRevenueStr || "N/A",
+          sub: `Recovery: ${financialOverview.paybackPeriodFormatted}`,
+          color: [15, 23, 42]
+        }
+      ];
+
+      finCards.forEach((c, idx) => {
+        const cx = margin + idx * (cardW + 3);
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(cx, cardY, cardW, cardH, 1.5, 1.5, "FD");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(c.label, cx + 3, cardY + 4.5);
+
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(c.color[0], c.color[1], c.color[2]);
+        pdf.text(c.val, cx + 3, cardY + 10.5);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(c.sub, cx + 3, cardY + 14.5);
+      });
+
+      // --- SECTION II: 5-YEAR PRO-FORMA FINANCIAL SUMMARY TABLE (Y: 76 - 120) ---
+      const sec2Y = 74;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(18, 34, 68);
+      pdf.text("II. FIVE-YEAR PRO-FORMA FINANCIAL SUMMARY (PHP)", margin, sec2Y);
+
+      const tableY = sec2Y + 3;
+      const colW0 = 51;
+      const colWRest = (contentWidth - colW0) / 5; // 27mm each
+      const rowH = 6.8;
+
+      // Table Header Row
+      pdf.setFillColor(18, 34, 68);
+      pdf.rect(margin, tableY, contentWidth, rowH, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text("Financial Indicator", margin + 3, tableY + 4.5);
+      proForma.yearLabels.forEach((yr, i) => {
+        const xPos = margin + colW0 + i * colWRest + colWRest / 2;
+        pdf.text(yr, xPos, tableY + 4.5, { align: "center" });
+      });
+
+      const tableRows = [
+        { label: "Gross Sales Revenue", data: proForma.yearlyRevenue },
+        { label: "Cost of Goods Sold (COGS)", data: proForma.yearlyCOGS },
+        { label: "Operating Overhead (OPEX)", data: proForma.yearlyFixedCosts },
+        {
+          label: `Applicable Tax (${localAudit.isBmbeQualified ? "3% BMBE" : "20% CREATE"})`,
+          data: proForma.yearlyRevenue.map((rev, i) => {
+            const cogs = proForma.yearlyCOGS[i] || 0;
+            const opex = proForma.yearlyFixedCosts[i] || 0;
+            const pretax = rev - cogs - opex;
+            return localAudit.isBmbeQualified
+              ? Math.round(rev * 0.03)
+              : Math.round(pretax > 0 ? pretax * 0.20 : 0);
+          })
+        },
+        { label: "Projected Net Profit After Tax", data: proForma.yearlyNetProfit, isBold: true }
+      ];
+
+      tableRows.forEach((row, rIdx) => {
+        const ry = tableY + (rIdx + 1) * rowH;
+        pdf.setFillColor(rIdx % 2 === 0 ? 255 : 248, rIdx % 2 === 0 ? 255 : 250, rIdx % 2 === 0 ? 255 : 252);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.rect(margin, ry, contentWidth, rowH, "FD");
+
+        pdf.setFont("helvetica", row.isBold ? "bold" : "normal");
+        pdf.setFontSize(6.8);
+        pdf.setTextColor(row.isBold ? 18 : 51, row.isBold ? 34 : 65, row.isBold ? 68 : 85);
+        pdf.text(row.label, margin + 3, ry + 4.5);
+
+        row.data.forEach((val, i) => {
+          const xPos = margin + colW0 + i * colWRest + colWRest / 2;
+          const valStr = `₱${val.toLocaleString()}`;
+          if (row.isBold) {
+            if (val >= 0) pdf.setTextColor(16, 120, 60);
+            else pdf.setTextColor(220, 38, 38);
+          }
+          pdf.text(valStr, xPos, ry + 4.5, { align: "center" });
+        });
+      });
+
+      // --- SECTION III: MARKET VIABILITY & COMPETITIVE POSITION (Y: 122 - 164) ---
+      const sec3Y = 120;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(18, 34, 68);
+      pdf.text("III. MARKET VIABILITY & DEMAND ANCHORS", margin, sec3Y);
+
+      // Market Assessment summary callout
+      const mktY = sec3Y + 3;
+      pdf.setFillColor(255, 251, 235);
+      pdf.setDrawColor(253, 230, 138);
+      pdf.roundedRect(margin, mktY, contentWidth, 9, 1.5, 1.5, "FD");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(146, 64, 14);
+      pdf.text("Market Viability Finding: ", margin + 3, mktY + 5.5);
+      pdf.setFont("helvetica", "normal");
+      const summaryClean = cleanUserFacingText(marketAnalysis?.summary || "Location demonstrates viable demand anchors with manageable competitor density.");
+      const summaryCut = summaryClean.length > 120 ? summaryClean.slice(0, 117) + "..." : summaryClean;
+      pdf.text(summaryCut, margin + 36, mktY + 5.5);
+
+      // 3 Market Pillar Cards
+      const pColW = (contentWidth - 6) / 3; // ~60mm
+      const pColH = 24;
+      const pColY = mktY + 11;
+
+      const pillars = [
+        {
+          title: "COMPETITOR DENSITY",
+          badge: marketAnalysis?.competitorInsight?.badge || "Manageable Saturation",
+          desc: cleanUserFacingText(marketAnalysis?.competitorInsight?.text || "Direct competitor count is within standard commercial tolerance.")
+        },
+        {
+          title: "FOOT TRAFFIC & ANCHORS",
+          badge: marketAnalysis?.footTrafficInsight?.badge || "Anchor Drivers Active",
+          desc: cleanUserFacingText(marketAnalysis?.footTrafficInsight?.text || "Nearby commercial establishments provide steady pedestrian traffic.")
+        },
+        {
+          title: "DEMOGRAPHIC STRATEGY",
+          badge: marketAnalysis?.demographicInsight?.badge || "Target Audience Aligned",
+          desc: cleanUserFacingText(marketAnalysis?.demographicInsight?.text || "Value pricing aligns well with local demographic willingness to pay.")
+        }
+      ];
+
+      pillars.forEach((p, i) => {
+        const px = margin + i * (pColW + 3);
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(px, pColY, pColW, pColH, 1.5, 1.5, "FD");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(18, 34, 68);
+        pdf.text(p.title, px + 3, pColY + 4.5);
+
+        pdf.setFillColor(241, 245, 249);
+        pdf.rect(px + 3, pColY + 6.5, pColW - 6, 4.5, "F");
+        pdf.setFontSize(6);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(p.badge.toUpperCase(), px + 4, pColY + 9.8);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.2);
+        pdf.setTextColor(100, 116, 139);
+        const pLines = pdf.splitTextToSize(p.desc, pColW - 6);
+        pdf.text(pLines.slice(0, 3), px + 3, pColY + 14);
+      });
+
+      // --- SECTION IV: STRATEGIC DEFENSE INSIGHTS & ACTION PLAN (Y: 168 - 238) ---
+      const sec4Y = 168;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(18, 34, 68);
+      pdf.text("IV. STRATEGIC DEFENSE AUDIT & ACTION RECOMMENDATIONS", margin, sec4Y);
+
+      const insightsList = (selectedProject.aiAnalysis?.insights || localAudit.insights || []).slice(0, 3);
+      const insY = sec4Y + 3;
+
+      insightsList.forEach((ins: any, i: number) => {
+        const iy = insY + i * 13;
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(margin, iy, contentWidth, 11, 1.5, 1.5, "FD");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(7.2);
+        pdf.setTextColor(18, 34, 68);
+        pdf.text(`•  ${ins.title}`, margin + 3, iy + 4.2);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.3);
+        pdf.setTextColor(71, 85, 105);
+        const insLines = pdf.splitTextToSize(cleanUserFacingText(ins.description || ""), contentWidth - 8);
+        pdf.text(insLines.slice(0, 2), margin + 5, iy + 8.2);
+      });
+
+      // Priority Feasibility Action Banner
+      const actionY = insY + 3 * 13 + 1;
+      const actionText = cleanUserFacingText(
+        selectedProject.aiAnalysis?.improvementTips?.feasibility ||
+        localAudit.improvementTips?.feasibility ||
+        "Maintain current pricing structure and verify supplier quotes prior to panel defense."
+      );
+      pdf.setFillColor(238, 242, 255);
+      pdf.setDrawColor(199, 210, 254);
+      pdf.roundedRect(margin, actionY, contentWidth, 12, 1.5, 1.5, "FD");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(49, 46, 129);
+      pdf.text("PRIORITY DEFENSE ADVISORY ACTION:", margin + 3, actionY + 4.2);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(6.3);
+      pdf.setTextColor(67, 56, 202);
+      const actionLines = pdf.splitTextToSize(actionText, contentWidth - 8);
+      pdf.text(actionLines.slice(0, 2), margin + 3, actionY + 8.2);
+
+      // --- FOOTER (Y: 242 - 252) ---
+      const footerY = 242;
+      pdf.setDrawColor(203, 213, 225);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin, footerY, margin + contentWidth, footerY);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text(
+        "Feasify Intelligence Engine  •  Official Academic Feasibility Study  •  Pamantasan ng Lungsod ng Valenzuela",
+        margin,
+        footerY + 4.5
+      );
+      pdf.text(
+        "Page 1 of 1  •  Strict 1-Page Defense Executive Summary  •  Confidential",
+        margin + contentWidth,
+        footerY + 4.5,
+        { align: "right" }
+      );
+
       const safeName = selectedProject.name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
-      pdf.save(`${safeName}_Feasibility_Report.pdf`);
+      pdf.save(`${safeName}_Executive_Feasibility_Report.pdf`);
     } catch (error) {
-      console.error("CRITICAL PDF ERROR:", error);
-      alert("Failed to generate PDF.");
+      console.error("Vector PDF Error, attempting fallback:", error);
+      try {
+        if (!reportRef.current) throw error;
+        const dataUrl = await domtoimage.toPng(reportRef.current, { quality: 1, bgcolor: "#ffffff" });
+        const fallbackPdf = new jsPDF("p", "mm", "a4");
+        fallbackPdf.addImage(dataUrl, "PNG", 8, 8, 194, 281, undefined, "FAST");
+        const safeName = selectedProject.name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+        fallbackPdf.save(`${safeName}_Feasibility_Report.pdf`);
+      } catch (err2) {
+        alert("Failed to generate PDF. Please try again.");
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -298,8 +634,11 @@ const Reports: React.FC = () => {
     const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
     const annualExpenses = ((totalMonthlyVariableCosts + monthlyOpex + monthlyInterest) / 30) * safeOperatingDays;
     const annualNetProfitPreTax = annualRevenue - annualExpenses;
-    const percentageTax = annualRevenue > 0 ? annualRevenue * 0.03 : 0;
-    const annualNetProfitAfterTax = annualNetProfitPreTax > 0 ? (annualNetProfitPreTax - percentageTax) : annualNetProfitPreTax;
+    const isBmbe = annualRevenue <= 3000000 && safeStartupCapital <= 3000000;
+    const applicableTax = isBmbe
+      ? (annualRevenue > 0 ? annualRevenue * 0.03 : 0)
+      : (annualNetProfitPreTax > 0 ? annualNetProfitPreTax * 0.20 : 0);
+    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - applicableTax;
 
     let paybackPeriodFormatted = "N/A";
     if (annualNetProfitAfterTax > 0 && safeStartupCapital > 0) {

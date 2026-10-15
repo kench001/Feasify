@@ -7,7 +7,7 @@ import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, getDoc, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import emailjs from "@emailjs/browser";
 import {
@@ -130,10 +130,23 @@ const ChairpersonModule: React.FC = () => {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (unsubUsers) { unsubUsers(); unsubUsers = undefined; }
-      if (!u || u.email !== "chairperson@gmail.com") {
-        navigate("/"); 
-      } else {
+      if (!u) {
+        navigate("/");
+        return;
+      }
+      if (u.email?.toLowerCase() === "chairperson@gmail.com") {
         unsubUsers = setupUsersListener();
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists() && userDoc.data().role === "Chairperson") {
+          unsubUsers = setupUsersListener();
+        } else {
+          navigate("/");
+        }
+      } catch {
+        navigate("/");
       }
     });
 

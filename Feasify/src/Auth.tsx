@@ -170,10 +170,13 @@ const Auth: React.FC = () => {
         });
       }
 
-      // ROUTING LOGIC
       if (isFirstLogin) {
         navigate("/profile", {
           state: { showWelcome: true, firstName, forcePasswordChange: true },
+        });
+      } else if (role === "Chairperson") {
+        navigate("/admin/users", {
+          state: { showWelcome: true, firstName },
         });
       } else if (role === "Adviser") {
         navigate("/adviser/dashboard", {
