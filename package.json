@@ -4,7 +4,11 @@
     "description": "Master controller for Frontend and Backend",
     "main": "index.js",
     "scripts": {
-        "dev": "concurrently \"npm run dev --prefix Feasify\" \"node feasify-backend/index.js\""
+        "dev": "concurrently -n \"VITE,BACKEND\" -c \"cyan,green\" \"npm run dev --prefix Feasify\" \"npm run dev --prefix feasify-backend\"",
+        "dev:node": "concurrently -n \"VITE,BACKEND\" -c \"cyan,green\" \"npm run dev --prefix Feasify\" \"npm run start --prefix feasify-backend\"",
+        "server": "npm run dev --prefix feasify-backend",
+        "build": "npm run build --prefix Feasify",
+        "test": "npm test --prefix feasify-backend"
     },
     "devDependencies": {
         "concurrently": "^9.1.0"

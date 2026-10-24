@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate, useLocation } from "react-router-dom";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import MobileBurgerButton from "./components/MobileBurgerButton";
+import SidebarCloseButton from "./components/SidebarCloseButton";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -326,7 +329,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
-      <div className="flex min-h-screen bg-gray-50/50 overflow-hidden">
+      <div className="flex min-h-screen bg-gray-50/50">
         {/* Mobile Backdrop */}
         {isSidebarOpen && (
           <div
@@ -336,121 +339,172 @@ const Dashboard: React.FC = () => {
         )}
 
         <aside
-          className={`flex w-64 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+          className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
         >
-          <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          {/* Logo Section */}
+          <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
+            {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
+              <img
+                src="/Logo.png"
+                alt="FeasiFy"
+                className="w-full h-full object-contain scale-[1.35]"
+                style={{ transform: "scale(1.35)" }}
+              />
+            </div>
+            {/* dashboard logo when sidebar is hovered or on mobile */}
             <img
               src="/dashboard logo.png"
               alt="FeasiFy"
-              className="w-70 h-20 object-contain"
+              className="h-10.5 w-auto max-h-[42px] max-w-[170px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
             />
+            <SidebarCloseButton onClick={() => setIsSidebarOpen(false)} />
           </div>
 
-          <nav className="flex-1 p-4 space-y-4 mt-2">
-            <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold bg-[#c9a654] text-white transition-all shadow-md">
-                <LayoutDashboard className="w-4 h-4" /> Dashboard
-              </button>
-              <button
-                onClick={() => navigate("/projects")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Folder className="w-4 h-4" /> Business Proposal
-              </button>
-              <button
-                onClick={() => navigate("/financial-input")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <FileEdit className="w-4 h-4" /> Financial Input
-              </button>
-              <button
-                onClick={() => navigate("/ai-analysis")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Zap className="w-4 h-4" /> AI Feasibility Analysis
-              </button>
-              <button
-                onClick={() => navigate("/reports")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <BarChart3 className="w-4 h-4" /> Reports
-              </button>
-              <button
-                onClick={() => navigate("/messages")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <MessageCircle className="w-4 h-4" /> Message
-              </button>
-            </div>
-
-            <div className="pt-4 border-t border-white/10 space-y-1">
-              <button
-                onClick={() => navigate("/profile")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <User className="w-4 h-4" /> Profile
-              </button>
-              <button
-                onClick={() => navigate("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Settings className="w-4 h-4" /> Settings
-              </button>
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <ShieldAlert className="w-4 h-4" /> Logout
-              </button>
-            </div>
+          <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
+            <button
+              title="Dashboard"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-[#122244] transition-all shadow-md"
+            >
+              <LayoutDashboard className="w-5 h-5 shrink-0 text-[#122244]" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Dashboard
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/projects"); }}
+              title="Business Proposal"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <Folder className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Business Proposal
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/financial-input"); }}
+              title="Financial Input"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <FileEdit className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Financial Input
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/ai-analysis"); }}
+              title="AI Feasibility Analysis"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <Zap className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                AI Feasibility Analysis
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/reports"); }}
+              title="Reports"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <BarChart3 className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Reports
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/messages"); }}
+              title="Message"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <MessageCircle className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Message
+              </span>
+            </button>
+            <button
+              onClick={() => { setIsSidebarOpen(false); navigate("/settings"); }}
+              title="Settings"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+            >
+              <Settings className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Settings
+              </span>
+            </button>
           </nav>
 
-          <div className="p-4 border-t border-white/10 bg-black/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-                {getInitials(userName)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate text-white">
-                  {userName || "User"}
-                </p>
-                <p className="text-[10px] text-gray-400 truncate">Student</p>
-              </div>
-              <button
-                onClick={() => navigate("/notifications")}
-                className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative flex-shrink-0"
-                title="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadNotificationCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-                )}
-              </button>
-            </div>
+          {/* Bottom Logout Button */}
+          <div className="p-3 border-t border-white/10 shrink-0">
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              title="Logout"
+              className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            >
+              <ShieldAlert className="w-5 h-5 shrink-0 text-red-400" />
+              <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+                Logout
+              </span>
+            </button>
           </div>
         </aside>
 
         <main
-          className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? "lg:ml-64" : "ml-0"}`}
+          className="flex-1 transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0"
         >
-          <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-            <SidebarIcon
-              className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            />
-            <span className="mx-2">|</span>
-            <span className="font-semibold text-gray-900">FeasiFy</span>
-            <span>›</span>
-            <span className="font-semibold text-gray-900">Dashboard</span>
+          <div className="bg-white border-b border-gray-200/80 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-20">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+              <span
+                className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
+                onClick={() => navigate("/dashboard")}
+              >
+                FeasiFy
+              </span>
+              <span className="text-gray-400 shrink-0">›</span>
+              <span className="font-semibold text-gray-900 truncate">Dashboard</span>
+              <span className="text-gray-300 hidden sm:inline shrink-0">|</span>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide hidden sm:inline-block shrink-0">
+                Student Portal
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate("/notifications")}
+                className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+                )}
+              </button>
+              <div className="h-6 w-px bg-gray-200"></div>
+              <div
+                onClick={() => navigate("/settings")}
+                className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                  {getInitials(userName)}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-bold text-gray-900 leading-tight">
+                    {userName || "User"}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-medium">Student</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="p-6 md:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
               <div>
-                <h1 className="text-3xl font-extrabold text-[#3d2c23]">
+                <h1 className="text-3xl font-extrabold text-[#3d2c23] dark:text-white">
                   Dashboard
                 </h1>
-                <p className="text-sm text-gray-500 mt-1 italic">
+                <p className="text-sm text-gray-500 dark:text-gray-300 mt-1 italic">
                   Overview of your feasibility studies and key metrics
                 </p>
               </div>
@@ -731,7 +785,7 @@ const Dashboard: React.FC = () => {
 
         {showWelcomeToast && (
           <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-white border-b-4 border-[#c9a654] shadow-2xl p-5 rounded-xl z-50 animate-in slide-in-from-top-5 fade-in duration-300 flex items-center gap-4 w-11/12 max-w-lg">
-            <CheckCircle className="w-7 h-7 text-[#c9a654] shrink-0" />
+            <CheckCircle2 className="w-7 h-7 text-[#c9a654] shrink-0" />
             <div className="flex-1">
               <h4 className="font-bold text-gray-900 text-base">
                 Login Successful
@@ -786,6 +840,8 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Floating Back to Top Button */}
+        <ScrollToTopButton />
       </div>
     </>
   );

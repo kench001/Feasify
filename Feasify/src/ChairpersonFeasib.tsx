@@ -3,14 +3,13 @@ import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, onSnapshot } from "firebase/firestore";
 import {
   Users,
   FileText,
   User,
   Settings,
   ShieldAlert,
-  Sidebar as SidebarIcon,
   Search,
   TrendingUp,
   CheckCircle2,
@@ -19,6 +18,10 @@ import {
   Bell,
   Clock
 } from "lucide-react";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import CustomDropdown from "./components/CustomDropdown";
+import MobileBurgerButton from "./components/MobileBurgerButton";
+import SidebarCloseButton from "./components/SidebarCloseButton";
 
 interface ProjectData {
   id: string;
@@ -51,10 +54,23 @@ const ChairpersonFeasib: React.FC = () => {
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (unsubProjects) { unsubProjects(); unsubProjects = undefined; }
-      if (!u || u.email !== "chairperson@gmail.com") {
-        navigate("/"); 
-      } else {
+      if (!u) {
+        navigate("/");
+        return;
+      }
+      if (u.email?.toLowerCase() === "chairperson@gmail.com") {
         unsubProjects = setupProjectsListener();
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists() && userDoc.data().role === "Chairperson") {
+          unsubProjects = setupProjectsListener();
+        } else {
+          navigate("/");
+        }
+      } catch {
+        navigate("/");
       }
     });
 
@@ -246,7 +262,7 @@ const ChairpersonFeasib: React.FC = () => {
   const negativeFeasibilityCount = projects.filter(p => p.aiStatus === "NOT_FEASIBLE" || p.status === "Not Feasible").length;
 
   return (
-    <div className="flex min-h-screen bg-gray-50/30 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50/30">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -256,73 +272,123 @@ const ChairpersonFeasib: React.FC = () => {
       )}
       {/* ADMIN SIDEBAR */}
       <aside
-        className={`flex w-72 bg-[#122244] text-white flex-col fixed inset-y-0 shadow-xl z-[60] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
       >
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <img src="/dashboard logo.png" alt="FeasiFy" className="w-70 h-20 object-contain" />
+        {/* Logo Section */}
+        <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
+          {/* Logo.png when sidebar is folded (default) inside circular border with shadow effect */}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden hidden lg:flex lg:group-hover:hidden shrink-0 select-none pointer-events-none">
+            <img
+              src="/Logo.png"
+              alt="FeasiFy"
+              className="w-full h-full object-contain scale-[1.35]"
+              style={{ transform: "scale(1.35)" }}
+            />
+          </div>
+          {/* dashboard logo when sidebar is hovered or on mobile */}
+          <img
+            src="/dashboard logo.png"
+            alt="FeasiFy"
+            className="h-10.5 w-auto max-h-[42px] max-w-[200px] object-contain select-none pointer-events-none block lg:hidden lg:group-hover:block shrink-0"
+          />
+          <SidebarCloseButton onClick={() => setIsSidebarOpen(false)} />
         </div>
 
-        <nav className="flex-1 p-4 space-y-8 mt-4">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-2">
-              <button onClick={() => navigate('/admin/users')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Users className="w-5 h-5" /> User Accounts Management
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold bg-[#c9a654] text-white transition-all shadow-md">
-                <FileText className="w-5 h-5" /> Business Feasibility Management
-              </button>
-              <button onClick={() => navigate('/admin/audit-trail')} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Clock className="w-5 h-5" /> Audit Trail
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Account</p>
-            <div className="space-y-1">
-              <button onClick={() => navigate('/admin/profile')}className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <User className="w-5 h-5" /> Profile
-              </button>
-              <button onClick={() => navigate('/admin/chairpersonsettings')} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <Settings className="w-5 h-5" /> Settings
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                <ShieldAlert className="w-5 h-5" /> Logout
-              </button>
-            </div>
-          </div>
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
+          <button
+            onClick={() => { setIsSidebarOpen(false); navigate('/admin/users'); }}
+            title="User Accounts Management"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+          >
+            <Users className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              User Accounts Management
+            </span>
+          </button>
+          <button
+            title="Business Feasibility Management"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-bold bg-[#c9a654] text-[#122244] transition-all shadow-md"
+          >
+            <FileText className="w-5 h-5 shrink-0 text-[#122244]" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Business Feasibility Management
+            </span>
+          </button>
+          <button
+            onClick={() => { setIsSidebarOpen(false); navigate('/admin/chairpersonsettings'); }}
+            title="Settings"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-gray-200 hover:text-white hover:bg-white/10 transition-colors group"
+          >
+            <Settings className="w-5 h-5 shrink-0 text-[#c9a654] group-hover:text-[#f0c242] transition-colors" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Settings
+            </span>
+          </button>
         </nav>
 
-        <div className="p-4 border-t border-white/10 bg-black/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#c9a654] flex items-center justify-center font-bold text-sm">
-              {getInitials(userName)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-white">{userName}</p>
-              <p className="text-[10px] text-gray-400 truncate">FM Chairperson</p>
-            </div>
-            <button
-              onClick={() => navigate("/admin/chairpersonnotification")}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all relative shrink-0"
-              title="Notifications"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-              )}
-            </button>
-          </div>
+        {/* Bottom Logout Button */}
+        <div className="p-3 border-t border-white/10 shrink-0">
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            title="Logout"
+            className="w-full flex items-center gap-3.5 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0 text-red-400" />
+            <span className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-75 truncate whitespace-nowrap">
+              Logout
+            </span>
+          </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className={`flex-1 transition-all duration-300 ease-in-out min-h-screen ${isSidebarOpen ? 'lg:ml-72' : 'ml-0'}`}>
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-2 text-sm text-gray-500">
-          <SidebarIcon className="w-4 h-4 cursor-pointer hover:text-gray-800 transition-colors" onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-          <span className="mx-2">|</span>
-          <span className="font-semibold text-gray-900">FeasiFy</span>
+      <main className="flex-1 transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+            <span
+              className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
+              onClick={() => navigate("/admin/users")}
+            >
+              FeasiFy
+            </span>
+            <span className="text-gray-400 shrink-0">›</span>
+            <span className="font-semibold text-gray-900 truncate">Feasibility Projects</span>
+            <span className="text-gray-300 hidden sm:inline shrink-0">|</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#122244] text-white shadow-xs tracking-wide whitespace-nowrap hidden sm:inline-block shrink-0">
+              Chairperson Portal
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/admin/chairpersonnotification")}
+              className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white"></span>
+              )}
+            </button>
+            <div className="h-6 w-px bg-gray-200"></div>
+            <div
+              onClick={() => navigate("/admin/chairpersonsetting")}
+              className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#c9a654] text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                {getInitials(userName)}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-gray-900 leading-tight">
+                  {userName || "Chairperson"}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">FM Chairperson</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -406,27 +472,23 @@ const ChairpersonFeasib: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 w-full md:w-auto text-sm">
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-gray-500 font-semibold whitespace-nowrap">Section:</span>
-                <select 
+                <CustomDropdown 
                   value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                >
-                  {uniqueSections.map((section, idx) => (
-                    <option key={idx} value={section}>{section}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedSection(val)}
+                  options={uniqueSections.map((sec) => ({ value: sec, label: sec }))}
+                  className="w-full sm:w-44"
+                  buttonClassName="py-2 text-xs font-semibold"
+                />
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-gray-500 font-semibold whitespace-nowrap">Adviser:</span>
-                <select 
+                <CustomDropdown 
                   value={selectedAdviser}
-                  onChange={(e) => setSelectedAdviser(e.target.value)}
-                  className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50"
-                >
-                  {uniqueAdvisers.map((adviser, idx) => (
-                    <option key={idx} value={adviser}>{adviser}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedAdviser(val)}
+                  options={uniqueAdvisers.map((adv) => ({ value: adv, label: adv }))}
+                  className="w-full sm:w-48"
+                  buttonClassName="py-2 text-xs font-semibold"
+                />
               </div>
             </div>
           </div>
@@ -497,6 +559,8 @@ const ChairpersonFeasib: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Scroll to Top */}
+      <ScrollToTopButton />
     </div>
   );
 };

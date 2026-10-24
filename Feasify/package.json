@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "vite": "vite",
-    "server": "cd ../feasify-backend && npm run dev",
     "dev": "vite",
+    "server": "npm run dev --prefix ../feasify-backend",
+    "dev:all": "concurrently -n \"VITE,BACKEND\" -c \"cyan,green\" \"vite\" \"npm run dev --prefix ../feasify-backend\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

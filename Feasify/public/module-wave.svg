@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 360" fill="none" preserveAspectRatio="none">
+  <defs>
+    <!-- Layer 1: Feasify Signature Yellow / Gold Wave -->
+    <linearGradient id="feasifyTopWave" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5ce58" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#e5b83b" stop-opacity="0.95" />
+      <stop offset="80%" stop-color="#c9a654" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#d4af37" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Layer 1.5: Feasify Shimmering Gold Accent Contour -->
+    <linearGradient id="feasifyGoldAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fef08a" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#fde047" stop-opacity="0.85" />
+    </linearGradient>
+
+    <!-- Layer 2: Middle rich navy/royal blue wave -->
+    <linearGradient id="feasifyMidWave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1f3b6c" />
+      <stop offset="50%" stop-color="#244580" />
+      <stop offset="100%" stop-color="#1b345f" />
+    </linearGradient>
+
+    <!-- Layer 3: Deep base navy wave -->
+    <linearGradient id="feasifyBaseNavy" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0c1832" />
+      <stop offset="55%" stop-color="#122244" />
+      <stop offset="100%" stop-color="#0a1428" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Top Wave (Soft blue ribbon sweeping up high on the right) -->
+  <path
+    d="M0,225 C280,235 540,305 780,305 C1040,305 1260,225 1440,115 L1440,360 L0,360 Z"
+    fill="url(#feasifyTopWave)"
+  />
+
+  <!-- 1b. Gold accent contour line along the crest of the top wave -->
+  <path
+    d="M0,225 C280,235 540,305 780,305 C1040,305 1260,225 1440,115"
+    stroke="url(#feasifyGoldAccent)"
+    stroke-width="2.5"
+    fill="none"
+    opacity="0.85"
+  />
+
+  <!-- 2. Middle Wave (Rich Navy) -->
+  <path
+    d="M0,260 C260,268 520,320 790,320 C1060,320 1280,265 1440,195 L1440,360 L0,360 Z"
+    fill="url(#feasifyMidWave)"
+  />
+
+  <!-- 3. Base Wave (Deep Feasify Navy) -->
+  <path
+    d="M0,288 C250,295 520,335 800,335 C1080,335 1300,300 1440,250 L1440,360 L0,360 Z"
+    fill="url(#feasifyBaseNavy)"
+  />
+</svg>

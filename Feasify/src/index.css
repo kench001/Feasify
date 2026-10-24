@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ========================================================================= */
 /* GLOBAL CUSTOM SCROLLBAR - BRAND GOLD (#c9a654) WITH TRANSPARENT TRACK   */
 /* ========================================================================= */
@@ -133,3 +135,257 @@
   background-color: #ffffff !important;
 }
 
+/* ========================================================================= */
+/* PRINT STYLES FOR FINANCIAL FEASIBILITY STATEMENTS                         */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: portrait;
+    margin: 5mm 5mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-single-page {
+    height: 100% !important;
+    max-height: 100vh !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    overflow: hidden !important;
+  }
+}
+
+/* ========================================================================= */
+/* DARK MODE SYSTEM                                                          */
+/* ========================================================================= */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b1120;
+  color: #f1f5f9;
+}
+
+html.dark main,
+html.dark [class*="bg-gray-50"],
+html.dark [class*="bg-slate-50"],
+html.dark [class*="bg-zinc-50"] {
+  background-color: #0d1527 !important;
+}
+
+html.dark .bg-white {
+  background-color: #151f38 !important;
+  color: #f8fafc;
+}
+
+html.dark [class*="bg-gray-100"],
+html.dark [class*="bg-slate-100"],
+html.dark [class*="bg-zinc-100"] {
+  background-color: #172442 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Card and section tint variations in dark mode - replacing pale colors with FeasiFy theme */
+html.dark [class*="bg-blue-50"] {
+  background-color: rgba(18, 34, 68, 0.75) !important;
+  border-color: rgba(201, 166, 84, 0.3) !important;
+}
+
+html.dark [class*="bg-amber-50"],
+html.dark [class*="bg-yellow-50"] {
+  background-color: rgba(201, 166, 84, 0.14) !important;
+  border-color: rgba(201, 166, 84, 0.35) !important;
+}
+
+html.dark [class*="bg-emerald-50"],
+html.dark [class*="bg-green-50"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark [class*="bg-red-50"] {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+html.dark [class*="bg-purple-50"] {
+  background-color: rgba(147, 51, 234, 0.14) !important;
+  border-color: rgba(147, 51, 234, 0.3) !important;
+}
+
+html.dark [class*="bg-indigo-50"] {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+html.dark [class*="bg-teal-50"] {
+  background-color: rgba(20, 184, 166, 0.14) !important;
+  border-color: rgba(20, 184, 166, 0.3) !important;
+}
+
+/* Border overrides */
+html.dark [class*="border-gray-100"],
+html.dark [class*="border-gray-200"],
+html.dark [class*="border-slate-100"],
+html.dark [class*="border-slate-200"] {
+  border-color: #233358 !important;
+}
+
+/* Text readability in dark mode - ensure no black / dark unreadable text */
+html.dark .text-black,
+html.dark .text-\[\#3d2c23\],
+html.dark .text-gray-900,
+html.dark .text-slate-900,
+html.dark .text-zinc-900 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-\[\#122244\] {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-gray-800,
+html.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-gray-400,
+html.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Inputs, selects, and textareas */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #0b1324 !important;
+  color: #f8fafc !important;
+  border-color: #233358 !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #c9a654 !important;
+  box-shadow: 0 0 0 2px rgba(201, 166, 84, 0.25) !important;
+}
+
+html.dark input:disabled,
+html.dark select:disabled,
+html.dark textarea:disabled {
+  background-color: #121c33 !important;
+  color: #64748b !important;
+}
+
+/* Hover backgrounds */
+html.dark .hover\:bg-gray-50:hover,
+html.dark [class*="hover:bg-gray-50"]:hover {
+  background-color: #1a2745 !important;
+}
+
+html.dark .hover\:bg-gray-100:hover,
+html.dark [class*="hover:bg-gray-100"]:hover {
+  background-color: #1f3056 !important;
+}
+
+html.dark .divide-gray-100> :not([hidden])~ :not([hidden]),
+html.dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
+  border-color: #233358 !important;
+}
+
+/* ========================================================================= */
+/* UNIFORM SELECT & DROPDOWN LIST STYLING                                    */
+/* ========================================================================= */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
+  padding-right: 2.5rem !important;
+  border-radius: 0.75rem !important;
+  border-color: #e5e7eb;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+select:hover {
+  border-color: #c9a654;
+}
+
+select:focus {
+  outline: none !important;
+  border-color: #c9a654 !important;
+  box-shadow: 0 0 0 2px rgba(201, 166, 84, 0.2) !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c9a654' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M5 15l7-7 7 7'%3e%3c/path%3e%3c/svg%3e");
+}
+
+select option {
+  padding: 0.5rem 0.75rem;
+  background-color: #ffffff;
+  color: #122244;
+}
+
+select option:checked {
+  background-color: #fef9ee !important;
+  color: #c9a654 !important;
+  font-weight: 600;
+}
+
+/* ========================================================================= */
+/* MODULE WAVE BACKGROUND (FEASIFY PALETTE) - BOTTOM ONLY                    */
+/* ========================================================================= */
+main {
+  position: relative;
+  isolation: isolate;
+}
+
+main::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: clamp(200px, 30vh, 380px);
+  background-image: url("/module-wave.svg");
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  background-size: 100% 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+html.dark main::after {
+  background-image: url("/module-wave-dark.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: bottom right !important;
+}
+
+
