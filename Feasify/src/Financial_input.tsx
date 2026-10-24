@@ -804,7 +804,7 @@ const Financial_input: React.FC = () => {
           (data.memberIds && data.memberIds.includes(uid))
         ) {
           userGroupId = doc.id;
-          activeProposalId = data.activeProposalId || "";
+          activeProposalId = (data.isSetup && data.status === "Active Business") ? (data.activeProposalId || "") : "";
         }
       });
       if (userGroupId && activeProposalId) {
@@ -1412,7 +1412,7 @@ const Financial_input: React.FC = () => {
                 No Active Business Setup
               </h2>
               <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-                Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock Financial Input.
+                Please submit a business proposal, have it approved by your adviser, and have your team leader complete <strong>Company Setup</strong> in the <strong>Business Proposal</strong> module to unlock Financial Input.
               </p>
               <button
                 onClick={() => navigate("/projects")}

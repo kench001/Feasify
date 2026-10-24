@@ -66,6 +66,7 @@ import {
   Image as ImageIcon,
   ArrowUp,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
@@ -208,6 +209,7 @@ interface GroupData {
     | "Approved Proposal"
     | "Active Business";
   activeProposalId?: string;
+  approvedProposalId?: string;
   mission?: string;
   vision?: string;
   objectives?: string[];
@@ -630,18 +632,16 @@ const Projects: React.FC = () => {
       // --- VIEW TRANSITIONS: driven by GROUP state changes only ---
       // This fires when the group document changes (isSetup, joinedMembers, activeProposalId).
       // It does NOT fire when proposals change, so typing in a form never triggers a view reset.
-      if (leader && !g.isSetup) {
-        setActiveView("leader-setup");
-      } else if (member && (!g.joinedMembers || !g.joinedMembers.includes(uid))) {
+      if (member && (!g.joinedMembers || !g.joinedMembers.includes(uid))) {
         setActiveView("member-join");
-      } else if (g.activeProposalId) {
+      } else if (g.isSetup && g.activeProposalId && g.status === "Active Business") {
         sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
         setActiveView("active-business");
       } else {
         // No special group state — only reset view if currently in a stale/invalid state.
         // Preserve "dashboard" and any user-navigated position so open forms stay open.
         setActiveView(prev => {
-          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || prev === "active-business") {
+          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || (!g.isSetup && prev === "active-business")) {
             return "dashboard";
           }
           return prev; // Keep current view — user may be filling out a form
@@ -748,14 +748,12 @@ const Projects: React.FC = () => {
         await fetchGroupDetails(g);
         const fetchedProposals = await fetchProposals(g.id);
 
-        if (leader && !g.isSetup) {
-          setActiveView("leader-setup");
-        } else if (
+        if (
           member &&
           (!g.joinedMembers || !g.joinedMembers.includes(uid))
         ) {
           setActiveView("member-join");
-        } else if (g.activeProposalId && fetchedProposals.some(p => p.id === g.activeProposalId)) {
+        } else if (g.isSetup && g.activeProposalId && g.status === "Active Business" && fetchedProposals.some(p => p.id === g.activeProposalId)) {
           sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
           setActiveView("active-business");
         } else {
@@ -992,16 +990,28 @@ const Projects: React.FC = () => {
 
       const finalCompanyName = setupCompanyName.trim() || userGroup.title || "Feasibility Project";
 
-      await updateDoc(doc(db, "groups", userGroup.id), {
+      const approvedProp = proposals.find(
+        (p) => p.status === "Approved" || p.status === "APPROVED" || p.id === userGroup.approvedProposalId || p.id === userGroup.activeProposalId
+      );
+      const targetActiveProposalId = approvedProp?.id || userGroup.activeProposalId || userGroup.approvedProposalId || "";
+
+      const updatePayload: any = {
         companyName: finalCompanyName,
         title: finalCompanyName,
         companyLogo: finalLogoUrl || "",
         isSetup: true,
-        status: "Drafting",
+        status: "Active Business",
         mission: setupMission.trim(),
         vision: setupVision.trim(),
         objectives: validObjectives,
-      });
+      };
+
+      if (targetActiveProposalId) {
+        updatePayload.activeProposalId = targetActiveProposalId;
+        sessionStorage.setItem("lastSelectedProjectId", targetActiveProposalId);
+      }
+
+      await updateDoc(doc(db, "groups", userGroup.id), updatePayload);
 
       // Audit Log
       logAuditEvent({
@@ -1010,34 +1020,58 @@ const Projects: React.FC = () => {
         userRole: "Student Leader",
         action: "UPDATE",
         sectionCode: userGroup.section || "Unassigned",
-        description: `Updated Team/Company setup for "${finalCompanyName}"`,
+        description: `Completed Company Setup for "${finalCompanyName}"`,
         recordId: userGroup.id,
-        newValue: { companyName: finalCompanyName, mission: setupMission.trim(), vision: setupVision.trim() }
+        newValue: { companyName: finalCompanyName, mission: setupMission.trim(), vision: setupVision.trim(), status: "Active Business" }
       });
 
       setUserGroup((prev) =>
         prev
           ? {
               ...prev,
-              companyName: finalCompanyName,
-              title: finalCompanyName,
-              companyLogo: finalLogoUrl || "",
-              isSetup: true,
-              status: "Drafting",
-              mission: setupMission.trim(),
-              vision: setupVision.trim(),
-              objectives: validObjectives,
+              ...updatePayload,
             }
           : null,
       );
       setShowSetupModal(false);
-      setActiveView("dashboard");
+      setActiveView(targetActiveProposalId ? "active-business" : "dashboard");
+      setToastTitle("Company Setup Complete");
+      setToastMessage(`Official company "${finalCompanyName}" has been successfully set up! Financial Input is now unlocked.`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
     } catch (error) {
       console.error(error);
       alert("Failed to finish team setup. Please try again.");
     } finally {
       setIsUploadingLogo(false);
     }
+  };
+
+  const openCompanySetup = (targetProposal?: ProposalData) => {
+    const propToUse = targetProposal || proposals.find(
+      (p) => p.status === "Approved" || p.status === "APPROVED" || p.id === userGroup?.approvedProposalId || p.id === userGroup?.activeProposalId
+    );
+
+    const initialName = userGroup?.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name"
+      ? userGroup.companyName
+      : (propToUse?.businessName || (userGroup?.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project" ? userGroup.title : ""));
+
+    const initialLogo = userGroup?.companyLogo || propToUse?.businessLogo || "";
+    const initialMission = userGroup?.mission || propToUse?.missionStatement || "";
+    const initialVision = userGroup?.vision || propToUse?.visionStatement || "";
+    const initialObjectives = userGroup?.objectives && userGroup.objectives.length > 0
+      ? userGroup.objectives
+      : [""];
+
+    setSetupCompanyName(initialName);
+    setCompanyNameQuery(initialName);
+    setSetupLogoPreview(initialLogo);
+    setSetupLogoFile(null);
+    setSetupMission(initialMission);
+    setSetupVision(initialVision);
+    setSetupObjectives(initialObjectives);
+    setSetupErrors({});
+    setShowSetupModal(true);
   };
 
   const updateFinancialData = (fieldUpdates: Partial<FinancialProposalData>, customProposal = currentProposal) => {
@@ -1820,6 +1854,13 @@ const Projects: React.FC = () => {
   const activeBusiness = proposals.find(
     (p) => p.id === userGroup?.activeProposalId,
   );
+  const approvedProposal = proposals.find(
+    (p) =>
+      p.status === "Approved" ||
+      p.status === "APPROVED" ||
+      p.id === userGroup?.approvedProposalId ||
+      Boolean(userGroup?.activeProposalId && p.id === userGroup?.activeProposalId),
+  );
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">
@@ -1865,23 +1906,10 @@ const Projects: React.FC = () => {
                   You're assigned as Group Leader!
                 </h2>
                 <button
-                  onClick={() => {
-                    const rawCompName = (userGroup?.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name")
-                      ? userGroup.companyName
-                      : (userGroup?.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project" ? userGroup.title : "");
-                    setSetupCompanyName(rawCompName);
-                    setCompanyNameQuery(rawCompName);
-                    setSetupLogoPreview(userGroup?.companyLogo || "");
-                    setSetupLogoFile(null);
-                    setSetupMission(userGroup?.mission || "");
-                    setSetupVision(userGroup?.vision || "");
-                    setSetupObjectives(userGroup?.objectives && userGroup.objectives.length > 0 ? userGroup.objectives : [""]);
-                    setSetupErrors({});
-                    setShowSetupModal(true);
-                  }}
+                  onClick={() => openCompanySetup(approvedProposal)}
                   className="flex items-center gap-2 px-6 py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all"
                 >
-                  <Star className="w-4 h-4 fill-current" /> Set up team
+                  <Building2 className="w-4 h-4" /> Set Up Company
                 </button>
               </div>
             </div>
@@ -1910,16 +1938,22 @@ const Projects: React.FC = () => {
           )}
 
           {activeView === "dashboard" && userGroup && (() => {
-            const currentCompanyName = (userGroup.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name")
+            const currentCompanyName = userGroup.isSetup && userGroup.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name"
               ? userGroup.companyName
-              : (userGroup.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project"
+              : (approvedProposal?.businessName || (userGroup.title && userGroup.title !== "Pending Business Name" && userGroup.title !== "Pending Company Name" && userGroup.title !== "Feasibility Project"
                 ? userGroup.title
-                : "Pending Company Name");
+                : (userGroup.leaderName ? `${userGroup.leaderName}'s Team` : "Feasibility Team")));
+
+            const phaseBadge = userGroup.isSetup
+              ? { text: "VENTURE ACTIVE", color: "bg-green-600" }
+              : approvedProposal
+              ? { text: "PROPOSAL APPROVED — SETUP PENDING", color: "bg-emerald-600" }
+              : { text: "PROPOSAL PHASE (STEP 1 OF 3)", color: "bg-[#4285F4]" };
 
             return (
               <div>
                 <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                  Company Name
+                  {userGroup.isSetup ? "Company Profile" : "Business Proposals"}
                 </h1>
                 <div className="bg-[#122244] rounded-xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row items-center justify-between p-6 text-white relative">
                   <div className="flex items-center gap-6 z-10 w-full md:w-auto">
@@ -1938,8 +1972,8 @@ const Projects: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest bg-[#4285F4] px-2 py-1 rounded">
-                          PROPOSAL PHASE
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${phaseBadge.color} px-2 py-1 rounded text-white`}>
+                          {phaseBadge.text}
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 text-gray-300">
                           <User className="w-3 h-3" /> SECTION:{" "}
@@ -1950,22 +1984,11 @@ const Projects: React.FC = () => {
                         <h1 className="text-2xl font-bold mb-1">
                           {currentCompanyName}
                         </h1>
-                        {isLeader && (
+                        {isLeader && userGroup.isSetup && (
                           <button
-                            onClick={() => {
-                              const cn = currentCompanyName !== "Pending Company Name" ? currentCompanyName : "";
-                              setSetupCompanyName(cn);
-                              setCompanyNameQuery(cn);
-                              setSetupLogoPreview(userGroup.companyLogo || "");
-                              setSetupLogoFile(null);
-                              setSetupMission(userGroup.mission || "");
-                              setSetupVision(userGroup.vision || "");
-                              setSetupObjectives(userGroup.objectives && userGroup.objectives.length > 0 ? userGroup.objectives : [""]);
-                              setSetupErrors({});
-                              setShowSetupModal(true);
-                            }}
+                            onClick={() => openCompanySetup(approvedProposal)}
                             className="p-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors"
-                            title="Edit Team Info"
+                            title="Edit Company Info"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -1986,6 +2009,43 @@ const Projects: React.FC = () => {
                     <span className="text-[10px] uppercase ml-1">View Team</span>
                   </button>
                 </div>
+
+                {/* STAGE 3 CALLOUT: Proposal Approved, Company Setup Pending */}
+                {approvedProposal && !userGroup.isSetup && (
+                  <div className="mb-6 p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border-2 border-emerald-300 rounded-2xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold border border-emerald-200">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded">
+                            Step 3: Company Setup
+                          </span>
+                          <span className="text-xs font-bold text-emerald-800">
+                            Proposal Approved: <span className="underline">{approvedProposal.businessName}</span>
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-[#122244]">
+                          {isLeader ? "Complete Company Setup to Activate Venture" : "Awaiting Leader to Complete Company Setup"}
+                        </h3>
+                        <p className="text-xs text-gray-600 mt-1 max-w-xl">
+                          {isLeader
+                            ? "Your adviser approved your proposal! Finalize your official company name with DTI & SEC verification, upload company logo, and confirm mission, vision, and objectives to unlock Financial Input."
+                            : "Your adviser has approved your group's business proposal. Your team leader must complete official Company Setup before financial planning unlocks."}
+                        </p>
+                      </div>
+                    </div>
+                    {isLeader && (
+                      <button
+                        onClick={() => openCompanySetup(approvedProposal)}
+                        className="w-full md:w-auto px-6 py-3 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 flex-shrink-0 active:scale-95"
+                      >
+                        <Building2 className="w-4 h-4" /> Set Up Company
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Mission / Vision / Objectives card */}
                 {(userGroup.mission || userGroup.vision || (userGroup.objectives && userGroup.objectives.length > 0)) && (
@@ -2071,18 +2131,18 @@ const Projects: React.FC = () => {
                         setSaveStatus("All changes saved");
                         setActiveView("form");
                       }}
-                      disabled={!!activeBusiness || proposals.length >= 3}
+                      disabled={Boolean(activeBusiness || proposals.length >= 3 || approvedProposal)}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        activeBusiness || proposals.length >= 3
+                        activeBusiness || proposals.length >= 3 || approvedProposal
                           ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                       }`}
                     >
                       + New Proposal
                     </button>
-                    {(activeBusiness || proposals.length >= 3) && (
+                    {(activeBusiness || proposals.length >= 3 || approvedProposal) && (
                       <div className="absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                        {activeBusiness ? "Already has Approved Business" : "Maximum of 3 proposals reached."}
+                        {approvedProposal ? "A business proposal is already approved" : activeBusiness ? "Already has Approved Business" : "Maximum of 3 proposals reached."}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
                       </div>
                     )}
@@ -2197,28 +2257,33 @@ const Projects: React.FC = () => {
                           </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                           {isApproved ? (
-                            userGroup?.activeProposalId === proposal.id ? (
+                            userGroup?.isSetup && (userGroup?.activeProposalId === proposal.id || activeBusiness?.id === proposal.id) ? (
                               <button
                                 onClick={() => setActiveView("active-business")}
                                 className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
                               >
                                 <FileText className="w-4 h-4" /> View Details
                               </button>
+                            ) : !userGroup?.isSetup ? (
+                              isLeader ? (
+                                <button
+                                  onClick={() => openCompanySetup(proposal)}
+                                  className="px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto bg-green-600 hover:bg-green-700 shadow-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                                  title="Complete company setup for this approved proposal"
+                                >
+                                  <Building2 className="w-4 h-4" /> Set Up Company
+                                </button>
+                              ) : (
+                                <span className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-lg border border-green-200">
+                                  Approved (Setup Pending)
+                                </span>
+                              )
                             ) : (
                               <button
-                                onClick={() => {
-                                  setCurrentProposal(proposal);
-                                  setShowLockInModal(true);
-                                }}
-                                disabled={!!activeBusiness}
-                                className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto transition-all ${
-                                  activeBusiness 
-                                    ? "bg-gray-400 cursor-not-allowed opacity-70" 
-                                    : "bg-green-600 hover:bg-green-700 shadow-md"
-                                }`}
-                                title={activeBusiness ? "Another business is already setup" : ""}
+                                onClick={() => setActiveView("active-business")}
+                                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
                               >
-                                Setup Approved Business
+                                <FileText className="w-4 h-4" /> View Details
                               </button>
                             )
                           ) : (
@@ -3899,9 +3964,9 @@ const Projects: React.FC = () => {
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex justify-between items-start text-center relative text-[#122244]">
               <div className="w-full">
-                <h2 className="text-2xl font-extrabold">Team Setup</h2>
+                <h2 className="text-2xl font-extrabold">{userGroup?.isSetup ? "Edit Company Profile" : "Official Company Setup"}</h2>
                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">
-                  {userGroup?.isSetup ? "Edit team & company information" : "Name your company, upload logo & review assigned members"}
+                  {userGroup?.isSetup ? "Edit official company information" : (approvedProposal ? `Setup company profile for "${approvedProposal.businessName}"` : "Register company name, logo & details")}
                 </p>
               </div>
               <button
@@ -4160,7 +4225,7 @@ const Projects: React.FC = () => {
                   className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {userGroup?.isSetup ? "Save Changes" : "Finish Setup"}
+                  {userGroup?.isSetup ? "Save Changes" : "Finish Company Setup"}
                 </button>
               </div>
 

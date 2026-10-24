@@ -166,7 +166,7 @@ const AI_Analysis: React.FC = () => {
           (gData.memberIds && gData.memberIds.includes(uid))
         ) {
           userGroupId = doc.id;
-          activeProposalId = gData.activeProposalId || "";
+          activeProposalId = (gData.isSetup && gData.status === "Active Business") ? (gData.activeProposalId || "") : "";
         }
       });
 
@@ -618,7 +618,7 @@ const AI_Analysis: React.FC = () => {
               No Active Business Setup
             </h2>
             <p className="text-gray-500 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-              Please submit a business proposal and have it approved by your adviser, then set it as your group's active business in the <strong>Business Proposal</strong> module to unlock AI Feasibility Analysis.
+              Please submit a business proposal, have it approved by your adviser, and have your team leader complete <strong>Company Setup</strong> in the <strong>Business Proposal</strong> module to unlock AI Feasibility Analysis.
             </p>
             <button
               onClick={() => navigate("/projects")}

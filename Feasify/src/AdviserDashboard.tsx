@@ -37,6 +37,8 @@ interface GroupData {
   section: string;
   status?: 'Drafting' | 'Pending Review' | 'Approved Proposal' | 'Active Business';
   activeProposalId?: string;
+  approvedProposalId?: string;
+  isSetup?: boolean;
 }
 
 interface FeedbackItem {
@@ -770,7 +772,16 @@ const AdviserDashboard: React.FC = () => {
     setIsSaving(true);
     try {
       let newStatus: ProposalData['status'] = proposal.status;
-      if (action === 'Approve' || action === 'Approved') newStatus = 'Approved';
+      if (action === 'Approve' || action === 'Approved') {
+        const groupProps = proposalsByGroup[targetGroup.id] || groupProposals || [];
+        const existingApproved = groupProps.find(p => (p.status === 'Approved' || p.status === 'APPROVED') && p.id !== proposal.id);
+        if (existingApproved) {
+          alert(`Another proposal ("${existingApproved.businessName || 'Untitled'}") is already approved for this group. Only 1 proposal can be approved per group. Please reject or revise the existing approved proposal before approving another.`);
+          setIsSaving(false);
+          return;
+        }
+        newStatus = 'Approved';
+      }
       else if (action === 'Reject' || action === 'Rejected') newStatus = 'Rejected';
       else if (action === 'Revision' || action === 'Revision Required') newStatus = 'Revision Required';
       else if (action === 'Under Review') newStatus = 'Under Review';
@@ -835,29 +846,26 @@ const AdviserDashboard: React.FC = () => {
         if (proposal.financialData && !proposal.originalProposalFinancials) {
           updatePayload.originalProposalFinancials = proposal.financialData;
         }
-        await updateDoc(doc(db, "groups", targetGroup.id), {
+        const groupUpdatePayload: any = {
           status: newGroupStatus,
           businessName: proposal.businessName,
           businessLogo: proposal.businessLogo || "",
           title: proposal.businessName,
-          activeProposalId: proposal.id
-        });
+          approvedProposalId: proposal.id,
+        };
+        if (targetGroup.isSetup) {
+          groupUpdatePayload.activeProposalId = proposal.id;
+        }
+
+        await updateDoc(doc(db, "groups", targetGroup.id), groupUpdatePayload);
         setGroups(prev => prev.map(g => g.id === targetGroup.id ? {
           ...g,
-          status: newGroupStatus,
-          businessName: proposal.businessName,
-          businessLogo: proposal.businessLogo || "",
-          title: proposal.businessName,
-          activeProposalId: proposal.id
+          ...groupUpdatePayload,
         } : g));
         if (selectedGroup && selectedGroup.id === targetGroup.id) {
           setSelectedGroup(prev => prev ? {
             ...prev,
-            status: newGroupStatus,
-            businessName: proposal.businessName,
-            businessLogo: proposal.businessLogo || "",
-            title: proposal.businessName,
-            activeProposalId: proposal.id
+            ...groupUpdatePayload,
           } : null);
         }
       }
