@@ -698,10 +698,10 @@ const Dashboard: React.FC = () => {
                   <Package className="w-6 h-6" />
                 </div>
                 <h4 className="font-extrabold text-base text-[#122244] mb-1 group-hover:text-[#c9a654] transition-colors">
-                  Financial Input & Balance Sheet
+                  Financial Input & Costing
                 </h4>
                 <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                  Simulate selling prices, manage itemized OpEx and machinery, and inspect real-time balance sheets.
+                  Simulate selling prices, manage itemized OpEx and machinery, and inspect real-time costing metrics.
                 </p>
                 <span className="text-xs font-bold text-[#c9a654] flex items-center gap-1">
                   Open Workspace <ArrowRight className="w-3.5 h-3.5" />

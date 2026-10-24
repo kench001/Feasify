@@ -35,7 +35,6 @@ import {
   Info,
   Plus,
   Trash2,
-  Scale,
   FileSpreadsheet,
   Activity,
   Layers,
@@ -149,8 +148,6 @@ const Financial_input: React.FC = () => {
   const [editingDraftName, setEditingDraftName] = useState("");
   const [taxTab, setTaxTab] = useState<"log" | "math">("math");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-
-  const [activeModuleTab, setActiveModuleTab] = useState<"operations" | "balance-sheet">("operations");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
@@ -713,29 +710,7 @@ const Financial_input: React.FC = () => {
     addRow(`Total Project Cost (PHP)`, totalProjectCost);
     addRow();
 
-    addRow(`=== 3. STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) ===`);
-    addRow(`ASSETS`);
-    addRow(`Cash on Hand (15%)`, cashOnHand.toFixed(2));
-    addRow(`Cash in Bank (85%)`, cashInBank.toFixed(2));
-    addRow(`Merchandise & Materials Inventory (15%)`, rawMaterialInventory.toFixed(2));
-    addRow(`Total Current Assets`, totalCurrentAssets.toFixed(2));
-    addRow(`Property, Plant & Equipment (Gross)`, grossPPE.toFixed(2));
-    addRow(`Less: Accumulated Depreciation (10%)`, `-${annualDepreciation.toFixed(2)}`);
-    addRow(`Total Non-Current Assets (Net)`, totalNonCurrentAssets.toFixed(2));
-    addRow(`TOTAL ASSETS`, totalAssets.toFixed(2));
-    addRow();
-
-    addRow(`LIABILITIES & OWNER'S EQUITY`);
-    addRow(`Accounts Payable`, safeAccountsPayable.toFixed(2));
-    addRow(`Utilities Payable`, safeUtilitiesPayable.toFixed(2));
-    addRow(`Total Current Liabilities`, totalCurrentLiabilities.toFixed(2));
-    addRow(`Initial Capital Contributed`, initialEquity.toFixed(2));
-    addRow(`Add: Retained Net Profit (After Tax)`, annualNetProfitAfterTax.toFixed(2));
-    addRow(`Ending Capital (Owner's Net Worth)`, endingOwnerEquity.toFixed(2));
-    addRow(`TOTAL LIABILITIES & OWNER'S EQUITY`, totalLiabilitiesAndEquity.toFixed(2));
-    addRow();
-
-    addRow(`=== 4. FINANCIAL RATIOS & FEASIBILITY INDICATORS ===`);
+    addRow(`=== 3. FINANCIAL RATIOS & FEASIBILITY INDICATORS ===`);
     addRow(`Payback Period`, `${paybackYears > 0 ? `${paybackYears} Years ` : ""}${paybackMonths} Months ${paybackDays} Days`);
     addRow(`Current Ratio`, `${currentRatio}x`);
     addRow(`Inventory Turnover`, `${inventoryTurnover} times/year`);
@@ -1765,34 +1740,8 @@ const Financial_input: React.FC = () => {
                 )}
               </div>
 
-              {/* TAB BAR NAVIGATION */}
-              <div className="flex space-x-2 border-b border-gray-200 mb-8 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setActiveModuleTab("operations")}
-                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${activeModuleTab === "operations"
-                    ? "bg-[#122244] text-white border-[#122244] shadow-md"
-                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  <Package className={`w-4 h-4 ${activeModuleTab === "operations" ? "text-[#c9a654]" : "text-gray-400"}`} />
-                  Operational Inputs & Costing
-                </button>
-
-                <button
-                  onClick={() => setActiveModuleTab("balance-sheet")}
-                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold rounded-xl transition-all border shrink-0 ${activeModuleTab === "balance-sheet"
-                    ? "bg-[#122244] text-white border-[#122244] shadow-md"
-                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  <Scale className={`w-4 h-4 ${activeModuleTab === "balance-sheet" ? "text-[#c9a654]" : "text-gray-400"}`} />
-                  Balance Sheet (Financial Position)
-                </button>
-              </div>
-
-              {/* === TAB 1: OPERATIONAL INPUTS & COSTING === */}
-              {activeModuleTab === "operations" && (
-                <div className="space-y-8 animate-in fade-in duration-200">
+              {/* OPERATIONAL INPUTS & COSTING */}
+              <div className="space-y-8 animate-in fade-in duration-200">
                   {/* HERO METRIC CARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-[#122244]">
                     {/* 1. Monthly Revenue */}
@@ -2461,7 +2410,7 @@ const Financial_input: React.FC = () => {
                             onBlur={() => handleAutoSave()}
                             className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-[#122244] focus:bg-white focus:border-[#c9a654] outline-none disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                           />
-                          <p className="text-[9px] text-gray-400 mt-1 italic">Recorded under Owner's Equity in the Balance Sheet</p>
+                          <p className="text-[9px] text-gray-400 mt-1 italic">Recorded as Initial Owner's Capital</p>
                         </div>
                       </div>
 
@@ -2640,189 +2589,6 @@ const Financial_input: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* === TAB 2: INTERACTIVE BALANCE SHEET (STATEMENT OF FINANCIAL POSITION) === */}
-              {activeModuleTab === "balance-sheet" && (
-                <div className="space-y-6 animate-in fade-in duration-200 text-[#122244]">
-                  {/* BALANCE CHECK HEADER BANNER */}
-                  <div className="bg-[#122244] text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-white/10">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Scale className="w-5 h-5 text-[#c9a654]" />
-                        <h2 className="text-xl font-extrabold tracking-wide">
-                          Statement of Financial Position (Balance Sheet)
-                        </h2>
-                      </div>
-                      <p className="text-xs text-gray-300">
-                        Real-time snapshot of business assets, obligations, and net owner's equity.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-xl">
-                      <ShieldCheck className="w-4 h-4 text-green-400" />
-                      <span className="text-xs font-bold text-green-300 uppercase tracking-wider">
-                        Balance Verified: ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* TWO COLUMN STATEMENT OF FINANCIAL POSITION */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                    {/* ASSETS COLUMN */}
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                      <div className="border-b pb-4 flex justify-between items-center">
-                        <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div> ASSETS (What Business Owns)
-                        </h3>
-                        <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
-                          ₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      {/* Current Assets */}
-                      <div className="space-y-3">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Assets</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Cash on Hand</span>
-                              <span className="text-[10px] text-gray-400 block">15% allocated for daily store operations</span>
-                            </div>
-                            <span className="font-extrabold text-[#122244]">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Cash in Bank</span>
-                              <span className="text-[10px] text-gray-400 block">85% secured reserve in business accounts</span>
-                            </div>
-                            <span className="font-extrabold text-[#122244]">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Merchandise & Materials Inventory</span>
-                              <span className="text-[10px] text-gray-400 block">Ending inventory estimated at 15% of COGS</span>
-                            </div>
-                            <span className="font-extrabold text-[#122244]">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-blue-800 border-t border-gray-100 px-1">
-                            <span>Total Current Assets:</span>
-                            <span className="text-sm font-black">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Non-Current Assets */}
-                      <div className="space-y-3 pt-4 border-t border-gray-100">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Non-Current Assets</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Property, Plant & Equipment (Gross)</span>
-                              <span className="text-[10px] text-gray-400 block">Machinery & store equipment list</span>
-                            </div>
-                            <span className="font-bold text-gray-700">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-red-600">
-                            <div>
-                              <span className="font-bold">Less: Accumulated Depreciation</span>
-                              <span className="text-[10px] text-gray-400 block">10% annual straight-line depreciation</span>
-                            </div>
-                            <span className="font-bold">(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-purple-800 border-t border-gray-100 px-1">
-                            <span>Total Non-Current Assets (Net):</span>
-                            <span className="text-sm font-black">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Total Assets Summary */}
-                      <div className="p-4 bg-blue-50/70 border-2 border-blue-200 rounded-xl flex justify-between items-center">
-                        <span className="font-black text-sm uppercase tracking-wider text-blue-950">TOTAL ASSETS:</span>
-                        <span className="text-xl font-black text-blue-900">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-
-                    {/* LIABILITIES & EQUITY COLUMN */}
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-                      <div className="border-b pb-4 flex justify-between items-center">
-                        <h3 className="font-extrabold text-sm uppercase tracking-widest text-[#122244] flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-[#c9a654]"></div> LIABILITIES & OWNER'S EQUITY
-                        </h3>
-                        <span className="text-xs font-black text-[#b59545] bg-amber-50 px-2.5 py-1 rounded-lg">
-                          ₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      {/* Current Liabilities */}
-                      <div className="space-y-3">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Current Liabilities (Obligations)</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Accounts Payable</span>
-                              <span className="text-[10px] text-gray-400 block">Short-term supplier obligations (20% of COGS)</span>
-                            </div>
-                            <span className="font-extrabold text-[#122244]">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Utilities Payable</span>
-                              <span className="text-[10px] text-gray-400 block">Accrued operating expenses (15% of OpEx)</span>
-                            </div>
-                            <span className="font-extrabold text-[#122244]">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-red-800 border-t border-gray-100 px-1">
-                            <span>Total Current Liabilities:</span>
-                            <span className="text-sm font-black">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Owner's Equity */}
-                      <div className="space-y-3 pt-4 border-t border-gray-100">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Owner's Equity (Net Worth)</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="font-bold text-gray-800">Initial Capital</span>
-                              <span className="text-[10px] text-gray-400 block">Cash starting investment</span>
-                            </div>
-                            <span className="font-bold text-gray-700">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg text-green-700">
-                            <div>
-                              <span className="font-bold">Add: Retained Net Income (After Tax)</span>
-                              <span className="text-[10px] text-gray-400 block">Annual net profit from operations (net of 3% BMBE tax)</span>
-                            </div>
-                            <span className="font-bold">+₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 font-bold text-xs text-[#b59545] border-t border-gray-100 px-1">
-                            <span>Ending Capital (Owner's Net Worth):</span>
-                            <span className="text-sm font-black text-[#c9a654]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Total Liabilities & Equity Summary */}
-                      <div className="p-4 bg-amber-50/70 border-2 border-amber-200 rounded-xl flex justify-between items-center">
-                        <span className="font-black text-sm uppercase tracking-wider text-amber-950">TOTAL LIABILITIES & EQUITY:</span>
-                        <span className="text-xl font-black text-[#c9a654]">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </main>
@@ -2963,7 +2729,7 @@ const Financial_input: React.FC = () => {
                     Important: Month {currentMonthNumber} will be permanently locked
                   </p>
                   <p className="text-[11px] text-amber-800">
-                    Once confirmed, this month's product costing, operating expenses, and balance sheet inputs will be saved and <strong>cannot be edited again</strong>.
+                    Once confirmed, this month's product costing and operating expenses will be saved and <strong>cannot be edited again</strong>.
                   </p>
                 </div>
 
@@ -3037,7 +2803,7 @@ const Financial_input: React.FC = () => {
                       <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Editable</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Download full operational costing, double-entry balance sheet, and financial ratios for Microsoft Excel or Google Sheets.
+                      Download full operational costing and financial ratios for Microsoft Excel or Google Sheets.
                     </p>
                   </div>
                 </button>
@@ -3244,105 +3010,6 @@ const Financial_input: React.FC = () => {
             ) : (
               <p className="text-gray-500 italic">Equipment Capital: ₱{safeStartupCapital.toLocaleString()}</p>
             )}
-          </div>
-        </div>
-
-        {/* SECTION 3: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
-        <div className="mb-5">
-          <div className="flex justify-between items-center border-b-2 border-[#122244] pb-1 mb-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[#122244]">
-              2. Statement of Financial Position (Balance Sheet)
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-[11px] font-serif">
-            {/* ASSETS */}
-            <div className="space-y-1.5 pr-4">
-              <h3 className="font-bold text-[#122244] border-b border-gray-800 pb-1 mb-3 uppercase tracking-wide">
-                ASSETS
-              </h3>
-
-              <div className="space-y-1.5">
-                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide">Current Assets</p>
-                <div className="flex justify-between pl-3">
-                  <span>Cash on Hand (15%)</span>
-                  <span>₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between pl-3">
-                  <span>Cash in Bank (85%)</span>
-                  <span>₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between pl-3">
-                  <span>Merchandise & Materials Inventory</span>
-                  <span>₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
-                  <span>Total Current Assets</span>
-                  <span>₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-
-                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide pt-3">Non-Current Assets</p>
-                <div className="flex justify-between pl-3">
-                  <span>Property, Plant & Equipment (Gross)</span>
-                  <span>₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between pl-3">
-                  <span>Less: Accumulated Depreciation (10%)</span>
-                  <span>(₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
-                </div>
-                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
-                  <span>Total Non-Current Assets (Net PPE)</span>
-                  <span>₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-
-                <div className="flex justify-between font-bold pt-2 mt-5 border-t border-b-4 border-double border-gray-900 text-[12px] uppercase tracking-wide pl-1">
-                  <span>TOTAL ASSETS</span>
-                  <span>₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* LIABILITIES & OWNER'S EQUITY */}
-            <div className="space-y-1.5 pl-4 border-l border-gray-200">
-              <h3 className="font-bold text-[#122244] border-b border-gray-800 pb-1 mb-3 uppercase tracking-wide">
-                LIABILITIES & EQUITY
-              </h3>
-
-              <div className="space-y-1.5">
-                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide">Current Liabilities</p>
-                <div className="flex justify-between pl-3">
-                  <span>Accounts Payable (20% of COGS)</span>
-                  <span>₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between pl-3">
-                  <span>Utilities & OpEx Payable (15% of OpEx)</span>
-                  <span>₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
-                  <span>Total Current Liabilities</span>
-                  <span>₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-
-                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide pt-3">Owner's Equity</p>
-                <div className="flex justify-between pl-3">
-                  <span>Initial Cash Capital</span>
-                  <span>₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between pl-3">
-                  <span>Add: Retained Net Profit (After Tax)</span>
-                  <span>₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between font-bold pt-1 mt-1 border-t border-gray-400 pl-3">
-                  <span>Ending Owner's Capital</span>
-                  <span>₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-
-                <div className="flex justify-between font-bold pt-2 mt-5 border-t border-b-4 border-double border-gray-900 text-[12px] uppercase tracking-wide pl-1">
-                  <span>TOTAL LIABILITIES & EQUITY</span>
-                  <span>₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

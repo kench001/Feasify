@@ -10,7 +10,7 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
+  FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
 import { logAuditEvent } from "./services/auditLogger";
@@ -167,7 +167,6 @@ const AdviserDashboard: React.FC = () => {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "balance-sheet">("operations");
 
   // AI Analysis State
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
@@ -1039,27 +1038,8 @@ const AdviserDashboard: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        {/* SUB-TABS NAVIGATION */}
-        <div className="flex bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner">
-          <button
-            type="button"
-            onClick={() => setAdviserFinTab("operations")}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "operations" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-[#c9a654]" /> Operational Projections
-          </button>
-          <button
-            type="button"
-            onClick={() => setAdviserFinTab("balance-sheet")}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "balance-sheet" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-          >
-            <Scale className="w-3.5 h-3.5 text-blue-600" /> Balance Sheet (Financial Position)
-          </button>
-        </div>
-
-        {/* TAB 1: OPERATIONAL PROJECTIONS & COSTING */}
-        {adviserFinTab === "operations" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+        {/* OPERATIONAL PROJECTIONS & COSTING */}
+        <div className="space-y-6 animate-in fade-in duration-200">
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-4 shadow-sm border border-gray-100">
@@ -1218,119 +1198,6 @@ const AdviserDashboard: React.FC = () => {
               )}
             </div>
           </div>
-        )}
-
-        {/* TAB 2: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
-        {adviserFinTab === "balance-sheet" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Balance Verified Badge */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                <div>
-                  <p className="font-extrabold text-emerald-900 text-sm">Balanced Statement of Financial Position</p>
-                  <p className="text-xs text-emerald-700">Assets = Liabilities + Owner's Equity (Verified Double-Entry Standard)</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-600 text-white font-black text-xs rounded-lg uppercase tracking-wider">
-                Balanced ✓
-              </span>
-            </div>
-
-            {/* Two-Column Balance Sheet */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* ASSETS */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>ASSETS (What Business Owns)</span>
-                  <span className="text-green-600">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-                
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Assets (Liquid)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash on Hand (15% Cash Drawer):</span>
-                    <span className="font-bold text-gray-900">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash in Bank (85% Bank Account):</span>
-                    <span className="font-bold text-gray-900">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Merchandise & Raw Materials Inventory:</span>
-                    <span className="font-bold text-gray-900">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Assets:</span>
-                    <span className="text-[#122244]">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Non-Current Assets (Long-Term)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Property, Plant & Equipment (Gross):</span>
-                    <span className="font-bold text-gray-900">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
-                    <span>Less: Accumulated Depreciation (10%/yr):</span>
-                    <span className="font-bold">-₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Non-Current Assets (Net PPE):</span>
-                    <span className="text-[#122244]">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL ASSETS:</span>
-                    <span className="text-green-400">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* LIABILITIES & OWNER'S EQUITY */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>LIABILITIES & OWNER'S EQUITY</span>
-                  <span className="text-blue-600">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Liabilities (Short-Term Obligations)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Accounts Payable (20% of COGS):</span>
-                    <span className="font-bold text-gray-900">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Utilities & OpEx Payable (15% of OpEx):</span>
-                    <span className="font-bold text-gray-900">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Liabilities:</span>
-                    <span className="text-red-600">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Owner's Equity (Net Worth)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Initial Capital Contributed:</span>
-                    <span className="font-bold text-gray-900">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Add: Retained Net Income (After Tax):</span>
-                    <span className="font-bold text-emerald-600">₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Ending Owner's Capital:</span>
-                    <span className="text-[#122244]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL LIABILITIES & EQUITY:</span>
-                    <span className="text-blue-400">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
