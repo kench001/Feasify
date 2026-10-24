@@ -1225,7 +1225,8 @@ const Projects: React.FC = () => {
     if (checkBusinessName(dataToSave.businessName, copyrightDB || undefined).isCopyrighted) return;
     if (checkTagline(dataToSave.tagline, copyrightDB || undefined).isCopyrighted) return;
 
-    // Enforce 3 proposals maximum on auto-save
+    // Enforce leader-only and 3 proposals maximum when creating a new proposal
+    if (!dataToSave.id && !isLeader) return;
     if (!dataToSave.id && proposals.length >= 3) return;
 
     setIsSaving(true);
@@ -1269,6 +1270,15 @@ const Projects: React.FC = () => {
       setToastMessage("Team information not found. Please ensure you are logged into an active student team.");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 5000);
+      return;
+    }
+
+    // Only leader can add a new business proposal
+    if (!currentProposal.id && !isLeader) {
+      setToastTitle("Leader Only");
+      setToastMessage("Only the team leader is capable of adding a new business proposal.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
       return;
     }
 
@@ -2116,6 +2126,13 @@ const Projects: React.FC = () => {
                   <div className="relative group">
                     <button
                       onClick={() => {
+                        if (!isLeader) {
+                          setToastTitle("Leader Only");
+                          setToastMessage("Only the team leader is capable of adding a new business proposal.");
+                          setShowToast(true);
+                          setTimeout(() => setShowToast(false), 4000);
+                          return;
+                        }
                         if (proposals.length >= 3) {
                           setToastTitle("Proposal Limit Reached");
                           setToastMessage("Maximum of 3 proposals reached. Each team can submit at most 3 proposals.");
@@ -2131,18 +2148,24 @@ const Projects: React.FC = () => {
                         setSaveStatus("All changes saved");
                         setActiveView("form");
                       }}
-                      disabled={Boolean(activeBusiness || proposals.length >= 3 || approvedProposal)}
+                      disabled={Boolean(!isLeader || activeBusiness || proposals.length >= 3 || approvedProposal)}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        activeBusiness || proposals.length >= 3 || approvedProposal
+                        !isLeader || activeBusiness || proposals.length >= 3 || approvedProposal
                           ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                       }`}
                     >
                       + New Proposal
                     </button>
-                    {(activeBusiness || proposals.length >= 3 || approvedProposal) && (
+                    {(!isLeader || activeBusiness || proposals.length >= 3 || approvedProposal) && (
                       <div className="absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
-                        {approvedProposal ? "A business proposal is already approved" : activeBusiness ? "Already has Approved Business" : "Maximum of 3 proposals reached."}
+                        {!isLeader
+                          ? "Only the team leader can add a new business proposal"
+                          : approvedProposal
+                          ? "A business proposal is already approved"
+                          : activeBusiness
+                          ? "Already has Approved Business"
+                          : "Maximum of 3 proposals reached."}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
                       </div>
                     )}
@@ -2169,13 +2192,18 @@ const Projects: React.FC = () => {
                 </div>
 
                 {proposals.length === 0 ? (
-                  <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-20 flex flex-col items-center justify-center text-center">
+                  <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-20 flex flex-col items-center justify-center text-center p-6">
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
                       <FileText className="w-8 h-8 text-gray-300" />
                     </div>
                     <h3 className="text-lg font-bold text-[#122244]">
                       No proposals yet
                     </h3>
+                    <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                      {isLeader
+                        ? "Click '+ New Proposal' above to start drafting your team's business proposals."
+                        : "Only your team leader is capable of adding a new business proposal."}
+                    </p>
                   </div>
                 ) : filteredProposals.length === 0 ? (
                   <p className="text-center text-gray-500 py-12">
