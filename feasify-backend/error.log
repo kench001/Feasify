@@ -135,3 +135,44 @@ Error: AbortError: This operation was aborted
     at async callGeminiWithRetry (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:205:22)
     at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:622:22
 
+[2026-10-24T06:37:32.928Z] AI Analysis Error:
+Request: {
+  "projectId": "LJQ4gUx8x7iWx4Q7n8fS",
+  "financialData": {
+    "sellingPrice": 12133,
+    "monthlySales": 0,
+    "variableCost": 0,
+    "fixedCosts": 0,
+    "startupCapital": 12312343,
+    "competitorCount": 0,
+    "marketDemand": "Medium",
+    "operatingDays": 300,
+    "equipmentList": [
+      {
+        "total": 1230,
+        "name": "test1",
+        "unitPrice": 1230,
+        "quantity": 1,
+        "id": "eq-1792822432734"
+      },
+      {
+        "unitPrice": 1230,
+        "name": "test1",
+        "quantity": 1,
+        "id": "eq-1792822434662",
+        "total": 1230
+      }
+    ],
+    "opexList": [],
+    "isCapitalBorrowed": false,
+    "interestRate": 0
+  }
+}
+Error: AbortError: This operation was aborted
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:381:20)
+    at async generateContent (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiWithRetry (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:227:22)
+    at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:920:22
+

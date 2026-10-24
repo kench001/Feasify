@@ -2052,6 +2052,19 @@ const AdviserDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Advisory Disclaimer */}
+                        <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+                          <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold text-[#122244] uppercase tracking-wider text-[10px] block mb-0.5">
+                              Advisory Disclaimer
+                            </span>
+                            <p className="text-[11px] text-gray-600 leading-relaxed">
+                              AI feasibility metrics serve solely as advisory guidance to assist students. Do not fully rely on this assessment as a definitive judgment—validate business assumptions and adviser evaluations independently.
+                            </p>
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
                             const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';

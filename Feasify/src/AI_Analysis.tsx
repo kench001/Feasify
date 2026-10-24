@@ -29,6 +29,7 @@ import {
   Lightbulb,
   DollarSign,
   Bell,
+  Info,
 } from "lucide-react";
 import {
   LineChart,
@@ -751,6 +752,19 @@ const AI_Analysis: React.FC = () => {
                         </span>
                       </div>
                     )}
+
+                    {/* AI Verdict Disclaimer */}
+                    <div className="mt-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 w-full text-left flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-extrabold text-[#122244] uppercase tracking-wider text-[10px] block mb-0.5">
+                          Advisory Disclaimer
+                        </span>
+                        <p className="text-[11px] text-gray-600 leading-relaxed">
+                          The verdict and recommendations provided by the AI serve solely as guidance to help students explore and evaluate their proposal. Do not fully rely on this assessment as a final or definitive judgment—always validate assumptions and consult your research adviser.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
