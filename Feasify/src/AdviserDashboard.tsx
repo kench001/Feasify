@@ -10,10 +10,12 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu
+  FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu,
+  Download
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics } from "./Projects";
 import { logAuditEvent } from "./services/auditLogger";
+import { fetchSectionExportData, generateSectionPDF } from "./services/sectionExportService";
 
 interface StudentData {
   id: string;
@@ -126,6 +128,7 @@ const AdviserDashboard: React.FC = () => {
   const [groupProposals, setGroupProposals] = useState<ProposalData[]>([]);
   const [proposalsByGroup, setProposalsByGroup] = useState<Record<string, ProposalData[]>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // View & Tab States
   const [activeView, setActiveView] = useState<'dashboard' | 'group-details' | 'active-business'>('dashboard');
@@ -601,6 +604,51 @@ const AdviserDashboard: React.FC = () => {
       alert("Failed to create group.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExportSectionPDF = async (targetSection?: string) => {
+    const sectionToExport = targetSection || activeSection || "ALL";
+    if (!sectionToExport || sectionToExport === "Unassigned") {
+      alert("No valid section selected for export.");
+      return;
+    }
+
+    setIsExportingPDF(true);
+    try {
+      const exportData = await fetchSectionExportData(
+        sectionToExport,
+        adviserSections,
+        userName
+      );
+
+      if (!exportData || exportData.groups.length === 0) {
+        const proceedEmpty = window.confirm(
+          `Section "${sectionToExport}" currently has no registered groups. Do you still want to generate the PDF report?`
+        );
+        if (!proceedEmpty) {
+          setIsExportingPDF(false);
+          return;
+        }
+      }
+
+      generateSectionPDF(exportData);
+
+      await logAuditEvent({
+        userId: auth.currentUser?.uid || "unknown",
+        userName: userName || "Adviser",
+        userRole: "Adviser",
+        action: "EXPORT_REPORT",
+        targetType: "Section",
+        targetId: sectionToExport,
+        details: `Exported PDF section report for ${sectionToExport} with ${exportData.groups.length} groups, ${exportData.totalStudents} students, and ${exportData.totalProposals} proposals.`,
+        sectionCode: sectionToExport,
+      });
+    } catch (error) {
+      console.error("Failed to export section PDF:", error);
+      alert("Failed to export section PDF. Please check your connection and try again.");
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -1257,41 +1305,83 @@ const AdviserDashboard: React.FC = () => {
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
             <div className="space-y-1">
-            <button
-              onClick={() => {
-                setActiveSection("ALL");
-                setupSectionListener("ALL");
-              }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
+            <div
+              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
                 activeSection === "ALL"
                   ? "bg-[#c9a654] text-white"
                   : "bg-white/5 text-gray-300 hover:text-white hover:bg-white/10"
               }`}
             >
-              <span>My Sections</span>
-              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                All
-              </span>
-            </button>
+              <button
+                onClick={() => {
+                  setActiveSection("ALL");
+                  setupSectionListener("ALL");
+                }}
+                className="flex-1 flex items-center justify-between py-1 text-left"
+              >
+                <span>My Sections</span>
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold mr-2">
+                  All
+                </span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExportSectionPDF("ALL");
+                }}
+                disabled={isExportingPDF}
+                title="Export all sections PDF report"
+                className={`p-1.5 rounded transition-colors ${
+                  activeSection === "ALL"
+                    ? "text-white hover:bg-white/20"
+                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="pl-4 pr-2 py-2 space-y-1.5">
               {adviserSections.map((sectionName) => (
-                <button
+                <div
                   key={sectionName}
-                  onClick={() => {
-                    setActiveSection(sectionName);
-                    const s = sectionSettingsMap[sectionName];
-                    setMinMembers(s?.minMembers ?? 8);
-                    setMaxMembers(s?.maxMembers ?? 10);
-                    setupSectionListener(sectionName);
-                  }}
-                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
+                  className={`group flex items-center justify-between rounded-lg transition-all ${
                     activeSection === sectionName
                       ? "bg-[#c9a654] text-white font-bold shadow-sm"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                      : "hover:bg-white/5"
                   }`}
                 >
-                  {sectionName}
-                </button>
+                  <button
+                    onClick={() => {
+                      setActiveSection(sectionName);
+                      const s = sectionSettingsMap[sectionName];
+                      setMinMembers(s?.minMembers ?? 8);
+                      setMaxMembers(s?.maxMembers ?? 10);
+                      setupSectionListener(sectionName);
+                    }}
+                    className={`flex-1 text-left text-sm px-3 py-2 ${
+                      activeSection === sectionName
+                        ? "text-white"
+                        : "text-gray-400 group-hover:text-white"
+                    }`}
+                  >
+                    {sectionName}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExportSectionPDF(sectionName);
+                    }}
+                    disabled={isExportingPDF}
+                    title={`Export ${sectionName} PDF report`}
+                    className={`p-1.5 mr-1.5 rounded transition-colors ${
+                      activeSection === sectionName
+                        ? "text-white hover:bg-white/20"
+                        : "text-gray-500 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
             {/* Audit Trail Nav Link under Main Menu */}
@@ -1373,6 +1463,19 @@ const AdviserDashboard: React.FC = () => {
 
               {/* === REORDERED TOP BUTTONS === */}
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleExportSectionPDF(activeSection)}
+                  disabled={isExportingPDF}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-[#122244] font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm disabled:opacity-50"
+                  title={`Export ${activeSection === "ALL" ? "all sections" : `section ${activeSection}`} to PDF`}
+                >
+                  {isExportingPDF ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#c9a654]" />
+                  ) : (
+                    <Download className="w-4 h-4 text-[#c9a654]" />
+                  )}
+                  <span>{isExportingPDF ? "Exporting..." : "Export Section PDF"}</span>
+                </button>
                 <button onClick={() => setShowAllStudentsModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"><Users className="w-4 h-4" /> View All Students</button>
                 <button onClick={() => setShowAutoGroupConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#122244] text-white font-semibold text-sm rounded-lg hover:bg-[#0a142e] transition-colors shadow-md"><Archive className="w-4 h-4" /> Auto-Group</button>
                 <button onClick={() => { setShowCreateLeaderModal(true); setSelectedLeaderId(""); setSelectedMemberIds([]); }} className="flex items-center gap-2 px-4 py-2 bg-[#d4af37] text-white font-semibold text-sm rounded-lg hover:bg-[#c19b28] transition-colors shadow-md"><UserPlus className="w-4 h-4" /> Create Group</button>
