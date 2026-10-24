@@ -10,8 +10,6 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check, Download,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu,
-  Download
   Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock,
   Folder, Store, MapPin, Compass, Building2
 } from "lucide-react";
@@ -1253,16 +1251,11 @@ const AdviserDashboard: React.FC = () => {
         setGroups(prev => prev.map(g => g.id === targetGroup.id ? {
           ...g,
           ...groupUpdatePayload,
-        });
-        setGroups(prev => prev.map(g => g.id === targetGroup.id ? {
-          ...g,
-          status: newGroupStatus,
         } : g));
         if (selectedGroup && selectedGroup.id === targetGroup.id) {
           setSelectedGroup(prev => prev ? {
             ...prev,
             ...groupUpdatePayload,
-            status: newGroupStatus,
           } : null);
         }
       }
@@ -1620,13 +1613,6 @@ const AdviserDashboard: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        {/* OPERATIONAL PROJECTIONS & COSTING */}
-        <div className="space-y-6 animate-in fade-in duration-200">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <div className="bg-white rounded-xl border-l-4 border-l-green-500 p-4 shadow-sm border border-gray-100">
-                <span className="text-[9px] font-bold text-gray-400 uppercase block">Monthly Revenue</span>
-                <p className="text-xl font-black text-[#122244]">₱{monthlyRevenue.toLocaleString()}</p>
         {/* MULTI-MONTH SELECTOR (Synchronized with student monthly records) */}
         {monthlyRecords && monthlyRecords.length > 0 && (
           <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
@@ -2590,88 +2576,6 @@ const AdviserDashboard: React.FC = () => {
         </div>
 
         {/* SIDEBAR NAVIGATION */}
-        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-8">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-            <div className="space-y-1">
-            <div
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
-                activeSection === "ALL"
-                  ? "bg-[#c9a654] text-white"
-                  : "bg-white/5 text-gray-300 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <button
-                onClick={() => {
-                  setActiveSection("ALL");
-                  setupSectionListener("ALL");
-                }}
-                className="flex-1 flex items-center justify-between py-1 text-left"
-              >
-                <span>My Sections</span>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold mr-2">
-                  All
-                </span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleExportSectionPDF("ALL");
-                }}
-                disabled={isExportingPDF}
-                title="Export all sections PDF report"
-                className={`p-1.5 rounded transition-colors ${
-                  activeSection === "ALL"
-                    ? "text-white hover:bg-white/20"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div className="pl-4 pr-2 py-2 space-y-1.5">
-              {adviserSections.map((sectionName) => (
-                <div
-                  key={sectionName}
-                  className={`group flex items-center justify-between rounded-lg transition-all ${
-                    activeSection === sectionName
-                      ? "bg-[#c9a654] text-white font-bold shadow-sm"
-                      : "hover:bg-white/5"
-                  }`}
-                >
-                  <button
-                    onClick={() => {
-                      setActiveSection(sectionName);
-                      const s = sectionSettingsMap[sectionName];
-                      setMinMembers(s?.minMembers ?? 8);
-                      setMaxMembers(s?.maxMembers ?? 10);
-                      setupSectionListener(sectionName);
-                    }}
-                    className={`flex-1 text-left text-sm px-3 py-2 ${
-                      activeSection === sectionName
-                        ? "text-white"
-                        : "text-gray-400 group-hover:text-white"
-                    }`}
-                  >
-                    {sectionName}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleExportSectionPDF(sectionName);
-                    }}
-                    disabled={isExportingPDF}
-                    title={`Export ${sectionName} PDF report`}
-                    className={`p-1.5 mr-1.5 rounded transition-colors ${
-                      activeSection === sectionName
-                        ? "text-white hover:bg-white/20"
-                        : "text-gray-500 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* Main Sections / Dashboard */}
           <button
@@ -3787,6 +3691,10 @@ const AdviserDashboard: React.FC = () => {
                                   <div className="bg-[#122244] h-1.5 rounded-full transition-all duration-500" style={{ width: `${barWidth}%` }}></div>
                                 </div>
                                 <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
                       {/* 2. Congratulations or Improvement Guide Section */}
                       {feasibilityStatus === "FEASIBLE" ? (
                         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm">

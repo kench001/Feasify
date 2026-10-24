@@ -1315,10 +1315,8 @@ const Financial_input: React.FC = () => {
           data.leaderId === uid ||
           (data.memberIds && data.memberIds.includes(uid))
         ) {
-          userGroupId = doc.id;
           activeProposalId = (data.isSetup && data.status === "Active Business") ? (data.activeProposalId || "") : "";
           foundGroupId = doc.id;
-          activeProposalId = data.activeProposalId || "";
           if (data.leaderId === uid) {
             setIsLeader(true);
           }
@@ -3092,8 +3090,6 @@ const Financial_input: React.FC = () => {
                 )}
               </div>
 
-              {/* OPERATIONAL INPUTS & COSTING */}
-              <div className="space-y-8 animate-in fade-in duration-200">
               {/* TAB BAR NAVIGATION */}
               <div className="flex space-x-2 border-b border-gray-200 mb-8 overflow-x-auto pb-1">
                 <button
@@ -6277,17 +6273,8 @@ const Financial_input: React.FC = () => {
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-            </div>
           )}
         </main>
-          )}
-
-                      {/* Floating Back to Top Button */}
-                      <ScrollToTopButton />
-                    </main>
 
         {/* CREATE DRAFT MODAL */}
                   {showCreateDraftModal && (
@@ -6731,65 +6718,6 @@ const Financial_input: React.FC = () => {
                       <p><strong className="text-gray-900">Currency:</strong> Philippine Peso (PHP ₱)</p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 flex gap-2.5 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateDraftModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCreateNewDraft(newDraftName, newDraftCloneCurrent)}
-                  className="flex items-center gap-1.5 px-5 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
-                >
-                  <Plus size={13} className="text-[#c9a654]" />
-                  <span>Create Draft</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LOCK & PROCEED CONFIRMATION MODAL */}
-        {showLockConfirmModal && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-              onClick={() => setShowLockConfirmModal(false)}
-            />
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-in zoom-in-95 duration-200 border border-gray-100 relative text-[#122244]">
-              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-                <div className="w-11 h-11 bg-amber-50 border border-amber-200 text-[#c9a654] rounded-xl flex items-center justify-center font-black shrink-0">
-                  <Lock className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-[#122244]">
-                    Finalize Month {currentMonthNumber}?
-                  </h3>
-                  <p className="text-xs text-gray-400">Lock current inputs and proceed to next month</p>
-                </div>
-              </div>
-
-              <div className="py-5 space-y-3">
-                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2 leading-relaxed">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                    Important: Month {currentMonthNumber} will be permanently locked
-                  </p>
-                  <p className="text-[11px] text-amber-800">
-                    Once confirmed, this month's product costing and operating expenses will be saved and <strong>cannot be edited again</strong>.
-                  </p>
-                </div>
-
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  <strong>Month {currentMonthNumber + 1}</strong> will be created with your current configuration carried forward as a starting point. You will be able to edit and customize financials for Month {currentMonthNumber + 1}.
-                </p>
-              </div>
 
                   {/* SECTION 1: OPERATIONAL COSTING & PROJECTIONS */}
                   <div className="mb-5">
@@ -6882,11 +6810,6 @@ const Financial_input: React.FC = () => {
                         <p className="text-gray-500 italic">Total Monthly OpEx: ₱{safeFixedCosts.toLocaleString()}/mo</p>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Download full operational costing and financial ratios for Microsoft Excel or Google Sheets.
-                    </p>
-                  </div>
-                </button>
 
                     {/* CapEx Equipment */}
                     <div className="border border-gray-300 rounded p-2.5 text-[11px]">
@@ -6945,49 +6868,6 @@ const Financial_input: React.FC = () => {
                             <span>Total Current Assets</span>
                             <span>₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
-
-          {/* CapEx Equipment */}
-          <div className="border border-gray-300 rounded p-2.5 text-[11px]">
-            <h3 className="font-bold text-[#122244] uppercase mb-1.5 border-b pb-1">Machinery & Equipment (CapEx)</h3>
-            {financials.equipmentList && financials.equipmentList.length > 0 ? (
-              <table className="w-full text-left">
-                <tbody className="divide-y divide-gray-100">
-                  {financials.equipmentList.map((eq: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="py-0.5 text-gray-700">{eq.name} ({eq.quantity || 1}x)</td>
-                      <td className="py-0.5 text-right font-bold">₱{Number(eq.total || 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                  <tr className="font-black border-t border-gray-300">
-                    <td className="py-1">Total Equipment CapEx:</td>
-                    <td className="py-1 text-right text-[#122244]">₱{safeStartupCapital.toLocaleString()}</td>
-                  </tr>
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-gray-500 italic">Equipment Capital: ₱{safeStartupCapital.toLocaleString()}</p>
-            )}
-          </div>
-        </div>
-
-        {/* SIGN-OFF BLOCK */}
-        <div className="pt-4 border-t border-gray-300 grid grid-cols-2 gap-8 text-[11px]">
-          <div>
-            <p className="text-gray-500 mb-6">Prepared and certified by Proponent:</p>
-            <div className="border-b border-gray-400 w-44 mb-1"></div>
-            <p className="font-bold text-gray-900">{userName || "Student Proponent"}</p>
-            <p className="text-[9px] text-gray-500">Business Proponent / Team Leader</p>
-          </div>
-          <div>
-            <p className="text-gray-500 mb-6">Reviewed & Approved by Adviser:</p>
-            <div className="border-b border-gray-400 w-44 mb-1"></div>
-            <p className="font-bold text-gray-900">Faculty Research Adviser</p>
-            <p className="text-[9px] text-gray-500">Feasibility Evaluation Committee</p>
-          </div>
-        </div>
-      </div>
-    </>
-  );
                           <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wide pt-3">Non-Current Assets</p>
                           <div className="flex justify-between pl-3">
                             <span>Property, Plant & Equipment (Gross)</span>

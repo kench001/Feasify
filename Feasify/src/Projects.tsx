@@ -915,16 +915,6 @@ const Projects: React.FC = () => {
               ...prev,
               ...updatePayload,
             }
-            ...prev,
-            companyName: finalCompanyName,
-            title: finalCompanyName,
-            companyLogo: finalLogoUrl || "",
-            isSetup: true,
-            status: "Drafting",
-            mission: setupMission.trim(),
-            vision: setupVision.trim(),
-            objectives: validObjectives,
-          }
           : null,
       );
       setShowSetupModal(false);
@@ -2554,15 +2544,10 @@ const Projects: React.FC = () => {
                       }}
                       disabled={Boolean(!isLeader || activeBusiness || proposals.length >= 3 || approvedProposal)}
                       className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${
-                        !isLeader || activeBusiness || proposals.length >= 3 || approvedProposal
+                       !isLeader || activeBusiness || proposals.length >= 3 || approvedProposal
                           ? "bg-gray-400 cursor-not-allowed opacity-70 text-white" 
                           : "bg-[#c9a654] text-white hover:bg-[#b59545]"
                       }`}
-                      disabled={!!activeBusiness || proposals.length >= 3}
-                      className={`flex items-center gap-2 px-5 py-2.5 font-bold rounded-lg shadow-md transition-all text-sm ${activeBusiness || proposals.length >= 3
-                        ? "bg-gray-400 cursor-not-allowed opacity-70 text-white"
-                        : "bg-[#c9a654] text-white hover:bg-[#b59545]"
-                        }`}
                     >
                       + New Proposal
                     </button>
@@ -2737,63 +2722,6 @@ const Projects: React.FC = () => {
                               </button>
                               {!isRejected && (
                                 <div className="relative group">
-                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                            {isApproved ? (
-                              userGroup?.activeProposalId === proposal.id ? (
-                                <button
-                                  onClick={() => setActiveView("active-business")}
-                                  className="px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 w-full sm:w-auto flex items-center justify-center gap-2 transition-all shadow-sm"
-                                >
-                                  <FileText className="w-4 h-4" /> View Details
-                                </button>
-                              ) : (
-                                <div className="flex items-center gap-2 w-full sm:w-auto">
-                                  <button
-                                    onClick={() => {
-                                      setCurrentProposal(proposal);
-                                      setHighlightMissingFields(false);
-                                      setShowSubmissionFailureModal(false);
-                                      setSubmissionFailureReasons([]);
-                                      setIsEditingMode(false);
-                                      setActiveView("form");
-                                    }}
-                                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm rounded-lg flex items-center gap-1.5 transition-colors"
-                                  >
-                                    <FileText className="w-4 h-4" /> View
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setCurrentProposal(proposal);
-                                      setShowLockInModal(true);
-                                    }}
-                                    disabled={!!activeBusiness}
-                                    className={`px-5 py-2.5 text-white font-bold text-sm rounded-lg w-full sm:w-auto flex items-center justify-center gap-1.5 transition-all ${activeBusiness
-                                      ? "bg-gray-400 cursor-not-allowed opacity-70"
-                                      : "bg-green-600 hover:bg-green-700 shadow-md"
-                                      }`}
-                                    title={activeBusiness ? "Another business is already setup" : "Activate this approved proposal as the official business"}
-                                  >
-                                    <Zap className="w-4 h-4" /> Activate Business
-                                  </button>
-                                </div>
-                              )
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setCurrentProposal(proposal);
-                                    setHighlightMissingFields(false);
-                                    setShowSubmissionFailureModal(false);
-                                    setSubmissionFailureReasons([]);
-                                    setIsEditingMode(false);
-                                    setActiveView("form");
-                                  }}
-                                  className="px-5 py-2 bg-blue-50 text-[#4285F4] font-bold text-sm rounded-lg hover:bg-blue-100 flex items-center gap-2"
-                                >
-                                  <FileText className="w-4 h-4" /> Open
-                                </button>
-                                {!isRejected && (
-                                  <div className="relative group">
                                     <button
                                       onClick={() => {
                                         setCurrentProposal(proposal);
