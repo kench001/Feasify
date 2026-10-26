@@ -34,6 +34,7 @@ import {
   TrendingUp,
   Target,
   Sidebar as SidebarIcon,
+  Scale,
   CheckCircle2,
   Bell,
   Calendar,
