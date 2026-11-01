@@ -474,7 +474,10 @@ const AI_Analysis: React.FC = () => {
         const wasFallback = proj.aiAnalysis._fallback === true;
         setIsFallback(wasFallback);
         if (wasFallback) {
-          console.warn("🛡️ [Feasify Engine] Loaded previous analysis generated via Verified Local Mode.");
+          console.warn(
+            "🛡️ [Feasify Engine] Loaded previous analysis generated via Verified Local Mode.",
+            proj.aiAnalysis._fallbackReason || "No fallback reason recorded.",
+          );
         } else {
           console.log(`🤖 [Live AI] Loaded analysis generated via Gemini (${proj.aiAnalysis._model || "Cloud AI"})`);
         }
@@ -531,7 +534,7 @@ const AI_Analysis: React.FC = () => {
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+      const timeout = setTimeout(() => controller.abort(), 90000); // Allow backend Gemini timeout + fallback response
 
       const response = await fetch(`${backendUrl}/api/analyze`, {
         method: "POST",
@@ -600,7 +603,10 @@ const AI_Analysis: React.FC = () => {
       const isFallbackResult = aiResult._fallback === true;
       setIsFallback(isFallbackResult);
       if (isFallbackResult) {
-        console.warn("🛡️ [Feasify Engine] Backend used verified local calculations (Cloud AI unavailable).");
+        console.warn(
+          "🛡️ [Feasify Engine] Backend used verified local calculations (Cloud AI unavailable).",
+          aiResult._fallbackReason || "No fallback reason recorded.",
+        );
       } else {
         console.log(`🤖 [Live AI] Analysis generated successfully via Gemini (${aiResult._model || "Cloud AI"})`);
       }
@@ -617,6 +623,9 @@ const AI_Analysis: React.FC = () => {
           ...fallbackResult,
           insights: fallbackInsights,
           lastRun: new Date().toISOString(),
+          _fallbackReason: e?.name === "AbortError"
+            ? "Backend request timed out after 90 seconds."
+            : (e?.message || "Backend request failed."),
         };
 
         // Save fallback audit to Firebase so reports stay populated

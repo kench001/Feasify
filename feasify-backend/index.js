@@ -246,10 +246,9 @@ const getGroupProposalCount = async (groupId) => {
 };
 
 
-// Reliable Multi-Model Cascade for Gemini
+// Low-latency Gemini model used for structured feasibility feedback
 const GEMINI_MODELS_CASCADE = [
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
 ];
 
 // Multi-model cascade: attempts primary model, failing over seamlessly to secondary candidates if quota or rate-limit is encountered
@@ -268,7 +267,7 @@ async function callGeminiCascade(prompt, generationConfig = {}) {
       });
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 35000);
+      const timeout = setTimeout(() => controller.abort(), 75000);
 
       const result = await model.generateContent(prompt, {
         signal: controller.signal,
@@ -1460,7 +1459,8 @@ IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or
 `;
 
       const { result, modelName } = await callGeminiCascade(prompt, {
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        maxOutputTokens: 4096
       });
       const textResponse = result.response.text();
       let parsedResponse = cleanAndParseJSON(textResponse);
@@ -1573,7 +1573,10 @@ IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or
         marketAnalysis: generateFallbackMarketAnalysis(financials),
         severeFlags: evalResult.severeFlags,
         fatalFlaws: evalResult.fatalFlaws,
-        _fallback: true
+        _fallback: true,
+        _fallbackReason: error?.name === "AbortError"
+          ? "Gemini generation timed out after 75 seconds."
+          : (error?.message || "Gemini generation failed.")
       });
     }
   }
