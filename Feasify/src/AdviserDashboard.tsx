@@ -614,12 +614,13 @@ const AdviserDashboard: React.FC = () => {
         await updateDoc(doc(db, "proposals", viewingProposal.id!), updatePayload);
 
         try {
-          await fetch(`http://localhost:5000/api/proposals/${viewingProposal.id}/status`, {
+          const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+          await fetch(`${backendUrl}/api/proposals/${viewingProposal.id}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               status: viewingProposal.status,
-              remarks: currentInput,
+              adviserRemarks: currentInput,
             })
           });
         } catch {}
@@ -672,7 +673,7 @@ const AdviserDashboard: React.FC = () => {
       const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
       
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+      const timeout = setTimeout(() => controller.abort(), 150000); // Allow Render cold start + Gemini response
 
       const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
         method: "POST",
