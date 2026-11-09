@@ -343,7 +343,7 @@ const AI_Analysis: React.FC = () => {
     try {
       const groupQ = query(
         collection(db, "groups"),
-        where("section", "==", section),
+        where("section", "in", [section, "ALL"]),
       );
       const groupSnap = await getDocs(groupQ);
       let userGroupId = "";

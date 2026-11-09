@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
 
   const setupProjectListener = (uid: string, section: string) => {
     setIsLoadingStats(true);
-    const q = query(collection(db, "groups"), where("section", "==", section));
+    const q = query(collection(db, "groups"), where("section", "in", [section, "ALL"]));
 
     let unsubscribeProposals: (() => void) | undefined;
 
@@ -166,6 +166,15 @@ const Dashboard: React.FC = () => {
           data.leaderId === uid ||
           (data.memberIds && data.memberIds.includes(uid))
         );
+      });
+
+      // Auto-heal any matching group that had section "ALL"
+      myGroups.forEach(dSnap => {
+        const dData = dSnap.data();
+        if ((dData.section || "").toUpperCase() === "ALL" || !dData.section) {
+          updateDoc(doc(db, "groups", dSnap.id), { section })
+            .catch(err => console.error("Auto-heal in Dashboard:", err));
+        }
       });
 
       if (myGroups.length === 0) {

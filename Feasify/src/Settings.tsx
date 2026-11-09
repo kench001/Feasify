@@ -137,12 +137,10 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   const [isLoadingTeammates, setIsLoadingTeammates] = useState(true);
 
   // Modals for Profile
-  const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState({
     firstName: "",
     lastName: "",
-    username: "",
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
@@ -153,7 +151,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
-  const [newUsername, setNewUsername] = useState("");
   const [pwdData, setPwdData] = useState({ current: "", new: "", confirm: "" });
   const [forcePwdData, setForcePwdData] = useState({ new: "", confirm: "" });
 
@@ -272,7 +269,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
   const fetchTeamDetails = async (uid: string, section: string) => {
     setIsLoadingTeammates(true);
     try {
-      const q = query(collection(db, "groups"), where("section", "==", section));
+      const q = query(collection(db, "groups"), where("section", "in", [section, "ALL"]));
       const snap = await getDocs(q);
       let userGroup: any = null;
       let groupRole = "Member";
@@ -482,21 +479,16 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
     setShowEditProfileModal(true);
   };
 
-  // Save Edit Profile
+  // Save Edit Profile (Full Name)
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError("");
     setModalSuccess("");
     const trimmedFirst = editProfileForm.firstName.trim();
     const trimmedLast = editProfileForm.lastName.trim();
-    const trimmedUsername = editProfileForm.username.trim().toLowerCase();
 
     if (!trimmedFirst || !trimmedLast) {
       setModalError("First name and last name cannot be empty.");
-      return;
-    }
-    if (!trimmedUsername) {
-      setModalError("User handle cannot be empty.");
       return;
     }
 
@@ -508,7 +500,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
       await updateDoc(doc(db, "users", user.uid), {
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        username: trimmedUsername,
         updatedAt: new Date(),
       });
 
@@ -518,7 +509,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
         ...prev,
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        username: trimmedUsername,
       }));
 
       await logAuditEvent({
@@ -527,7 +517,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
         userRole: profileData.roleInGroup || "Student",
         action: "UPDATE",
         sectionCode: profileData.section || "N/A",
-        description: `Student updated profile details (${newFullName}, @${trimmedUsername})`,
+        description: `Student updated full name (${newFullName})`,
       });
 
       setModalSuccess("Profile updated successfully!");
@@ -973,10 +963,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                   <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md">
                     {getInitials(userName)}
                   </div>
-                  <h3 className="text-xl font-bold text-[#122244]">{userName}</h3>
-                  <p className="text-gray-500 font-semibold text-sm mb-2">
-                    @{profileData.username}
-                  </p>
+                  <h3 className="text-xl font-bold text-[#122244] mb-3">{userName}</h3>
                   <button
                     onClick={handleOpenEditProfile}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-[#c9a654]/15 text-[#122244] hover:text-[#b59545] rounded-xl text-xs font-bold transition-all mb-3 cursor-pointer shadow-xs"
@@ -1020,15 +1007,12 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                          User Handle
+                          Full Name
                         </label>
                         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
-                          <span className="truncate">@{profileData.username}</span>
+                          <span className="truncate">{userName}</span>
                           <button
-                            onClick={() => {
-                              setNewUsername(profileData.username);
-                              setShowUsernameModal(true);
-                            }}
+                            onClick={handleOpenEditProfile}
                             className="text-[#c9a654] hover:text-[#b59545] font-bold text-xs ml-2 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 rounded-md transition-colors"
                           >
                             Update
@@ -1526,7 +1510,7 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-[#122244] flex items-center gap-2">
-                <Edit2 className="w-5 h-5 text-[#c9a654]" /> Edit Profile Details
+                <Edit2 className="w-5 h-5 text-[#c9a654]" /> Update Full Name
               </h3>
               <button
                 onClick={() => setShowEditProfileModal(false)}
@@ -1572,18 +1556,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                   className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
                 />
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  User Handle
-                </label>
-                <input
-                  type="text"
-                  value={editProfileForm.username}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, username: e.target.value })}
-                  required
-                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
-                />
-              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1596,61 +1568,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                   type="submit"
                   disabled={isLoading}
                   className="flex-1 px-4 py-2 rounded-xl bg-[#c9a654] hover:bg-[#b59545] text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Profile"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: UPDATE USERNAME */}
-      {showUsernameModal && (
-        <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-[#122244] mb-4">Update User Handle</h3>
-            <form onSubmit={handleChangeUsername} className="space-y-4">
-              {modalError && (
-                <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-semibold">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {modalError}
-                </div>
-              )}
-              {modalSuccess && (
-                <div className="bg-green-50 text-green-600 text-xs p-3 rounded-lg flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  {modalSuccess}
-                </div>
-              )}
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  New User Handle
-                </label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder={`@${profileData.username}`}
-                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowUsernameModal(false);
-                    setModalError("");
-                    setModalSuccess("");
-                  }}
-                  className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-2 rounded-xl bg-[#c9a654] hover:bg-[#b59545] text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
                 </button>

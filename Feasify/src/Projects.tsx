@@ -472,7 +472,7 @@ const Projects: React.FC = () => {
     let activeProposalsUnsub: (() => void) | undefined;
     let currentListenedGroupId: string | null = null;
 
-    const q = query(collection(db, "groups"), where("section", "==", section));
+    const q = query(collection(db, "groups"), where("section", "in", [section, "ALL"]));
 
     const groupUnsub = onSnapshot(q, async (querySnapshot) => {
       let foundGroup: GroupData | null = null;
@@ -490,7 +490,43 @@ const Projects: React.FC = () => {
         }
       });
 
+      if (foundGroup) {
+        // Auto-heal group section if it was saved as "ALL" or empty
+        if ((foundGroup.section || "").toUpperCase() === "ALL" || !foundGroup.section) {
+          foundGroup.section = section;
+          updateDoc(doc(db, "groups", foundGroup.id), { section: section })
+            .catch(err => console.error("Auto-healed group section in Projects:", err));
+        }
+      }
+
       if (!foundGroup) {
+        // Fallback auto-healing: Check if user is assigned to a group whose section was mistakenly set to "ALL"
+        try {
+          const leaderQ = query(collection(db, "groups"), where("leaderId", "==", uid));
+          const leaderSnap = await getDocs(leaderQ);
+          if (!leaderSnap.empty) {
+            const docToFix = leaderSnap.docs[0];
+            const gData = docToFix.data();
+            if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
+              await updateDoc(doc(db, "groups", docToFix.id), { section: section });
+              return;
+            }
+          } else {
+            const memberQ = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
+            const memberSnap = await getDocs(memberQ);
+            if (!memberSnap.empty) {
+              const docToFix = memberSnap.docs[0];
+              const gData = docToFix.data();
+              if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
+                await updateDoc(doc(db, "groups", docToFix.id), { section: section });
+                return;
+              }
+            }
+          }
+        } catch (healErr) {
+          console.error("Student group auto-heal error:", healErr);
+        }
+
         setIsLoading(false);
         setActiveView("no-group");
         if (activeProposalsUnsub) { activeProposalsUnsub(); activeProposalsUnsub = undefined; currentListenedGroupId = null; }
@@ -594,7 +630,7 @@ const Projects: React.FC = () => {
     try {
       const q = query(
         collection(db, "groups"),
-        where("section", "==", section),
+        where("section", "in", [section, "ALL"]),
       );
       const querySnapshot = await getDocs(q);
       let foundGroup: GroupData | null = null;
@@ -611,6 +647,43 @@ const Projects: React.FC = () => {
           member = true;
         }
       });
+
+      if (foundGroup) {
+        if ((foundGroup.section || "").toUpperCase() === "ALL" || !foundGroup.section) {
+          foundGroup.section = section;
+          updateDoc(doc(db, "groups", foundGroup.id), { section: section })
+            .catch(err => console.error("Auto-healed group section in fetchUserGroup:", err));
+        }
+      } else {
+        // Fallback auto-healing in one-time fetch
+        try {
+          const leaderQ = query(collection(db, "groups"), where("leaderId", "==", uid));
+          const leaderSnap = await getDocs(leaderQ);
+          if (!leaderSnap.empty) {
+            const docToFix = leaderSnap.docs[0];
+            const gData = docToFix.data();
+            if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
+              await updateDoc(doc(db, "groups", docToFix.id), { section: section });
+              foundGroup = { ...gData, id: docToFix.id, section } as GroupData;
+              leader = true;
+            }
+          } else {
+            const memberQ = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
+            const memberSnap = await getDocs(memberQ);
+            if (!memberSnap.empty) {
+              const docToFix = memberSnap.docs[0];
+              const gData = docToFix.data();
+              if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
+                await updateDoc(doc(db, "groups", docToFix.id), { section: section });
+                foundGroup = { ...gData, id: docToFix.id, section } as GroupData;
+                member = true;
+              }
+            }
+          }
+        } catch (healErr) {
+          console.error("fetchUserGroup auto-heal error:", healErr);
+        }
+      }
 
       if (foundGroup) {
         const g = foundGroup as GroupData;

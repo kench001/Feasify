@@ -313,15 +313,23 @@ const AdviserDashboard: React.FC = () => {
       .then(snap => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentData))))
       .catch(console.error);
 
-    // Live listener for groups
-    const groupQuery = section === "ALL"
-      ? query(collection(db, "groups"), where("section", "in", activeList.slice(0, 30)))
-      : query(collection(db, "groups"), where("section", "==", section));
+    // Live listener for groups (including "ALL" to catch and auto-heal any misassigned groups)
+    const querySections = Array.from(new Set([...activeList, "ALL"])).slice(0, 30);
+    const groupQuery = query(collection(db, "groups"), where("section", "in", querySections));
 
     let unsubProposals: (() => void) | undefined;
 
     const unsubGroups = onSnapshot(groupQuery, (groupSnap) => {
-      const groupDocs = groupSnap.docs;
+      // Filter out orphaned "ALL" groups if viewing a specific section and the leader doesn't belong to it
+      const groupDocs = groupSnap.docs.filter(d => {
+        const gSec = (d.data().section || "").trim();
+        if (section === "ALL" || gSec === section) return true;
+        if (!gSec || gSec.toUpperCase() === "ALL") {
+          const studentLeader = students.find(s => s.id === d.data().leaderId);
+          return studentLeader ? studentLeader.section === section : true;
+        }
+        return false;
+      });
       const groupIds = groupDocs.map(d => d.id);
 
       // Clean up old proposals listener, set up new one
@@ -371,9 +379,33 @@ const AdviserDashboard: React.FC = () => {
         const fetchedGroups = groupDocs.map(d => {
           const gData = d.data();
           const pInfo = proposalMap[d.id] || {};
+          let sec = (gData.section || "").trim();
+
+          // Auto-heal existing groups where section is "ALL", "All", or empty
+          if (!sec || sec.toUpperCase() === "ALL") {
+            const studentLeader = students.find(s => s.id === gData.leaderId);
+            if (studentLeader?.section) {
+              sec = studentLeader.section.trim();
+              updateDoc(doc(db, "groups", d.id), { section: sec })
+                .catch(err => console.error("Auto-heal group section failed:", err));
+            } else if (gData.leaderId) {
+              getDoc(doc(db, "users", gData.leaderId)).then(userSnap => {
+                if (userSnap.exists() && userSnap.data().section) {
+                  const resolvedSec = (userSnap.data().section || "").trim();
+                  if (resolvedSec) {
+                    updateDoc(doc(db, "groups", d.id), { section: resolvedSec })
+                      .catch(err => console.error("Auto-heal group section from user doc failed:", err));
+                    setGroups(prev => prev.map(g => g.id === d.id ? { ...g, section: resolvedSec } : g));
+                  }
+                }
+              }).catch(console.error);
+            }
+          }
+
           return {
             id: d.id,
             ...gData,
+            section: sec,
             businessName: gData.businessName || pInfo.businessName || "",
             businessLogo: gData.businessLogo || pInfo.businessLogo || "",
             status: gData.status || 'Drafting'
@@ -807,14 +839,36 @@ const AdviserDashboard: React.FC = () => {
 
   // --- LOGIC: MULTI-STEP CREATE GROUP ---
   const handleCreateGroup = async () => {
-    if (!selectedLeaderId || !activeSection) return;
+    if (!selectedLeaderId) return;
     setIsLoading(true);
     try {
       const leader = students.find(s => s.id === selectedLeaderId);
-      if (!leader) return;
+      if (!leader) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Determine the right section: leader's actual section should always take precedence
+      let targetSection = (leader.section || "").trim();
+      if (!targetSection) {
+        try {
+          const leaderDoc = await getDoc(doc(db, "users", leader.id));
+          if (leaderDoc.exists()) {
+            targetSection = (leaderDoc.data().section || "").trim();
+          }
+        } catch (e) {
+          console.error("Failed to fetch leader user doc for section:", e);
+        }
+      }
+      if (!targetSection && activeSection && activeSection !== "ALL") {
+        targetSection = activeSection.trim();
+      }
+      if (!targetSection) {
+        targetSection = "Unassigned";
+      }
 
       const docRef = await addDoc(collection(db, "groups"), {
-        section: activeSection,
+        section: targetSection,
         leaderId: leader.id,
         leaderName: `${leader.firstName} ${leader.lastName}`,
         title: "Pending Business Name",
@@ -830,7 +884,7 @@ const AdviserDashboard: React.FC = () => {
         title: "Pending Business Name",
         memberIds: selectedMemberIds,
         status: 'Drafting',
-        section: activeSection
+        section: targetSection
       };
 
       setGroups(prev => [...prev, newGroup]);
@@ -841,10 +895,10 @@ const AdviserDashboard: React.FC = () => {
         userName: userName,
         userRole: "Adviser",
         action: "CREATE",
-        sectionCode: activeSection,
-        description: `Created new team group with leader ${leader.firstName} ${leader.lastName}`,
+        sectionCode: targetSection,
+        description: `Created new team group in section ${targetSection} with leader ${leader.firstName} ${leader.lastName}`,
         recordId: docRef.id,
-        newValue: { section: activeSection, leaderName: `${leader.firstName} ${leader.lastName}` }
+        newValue: { section: targetSection, leaderName: `${leader.firstName} ${leader.lastName}` }
       });
 
       // Send Notification to leader and members
@@ -852,7 +906,7 @@ const AdviserDashboard: React.FC = () => {
         sendNotification({
           userId: leader.id,
           title: "You are now Team Leader! 🌟",
-          message: `You have been designated as the Team Leader for your group in section ${activeSection} by adviser ${userName}.`,
+          message: `You have been designated as the Team Leader for your group in section ${targetSection} by adviser ${userName}.`,
           type: "group",
           link: "/projects",
           senderName: userName
@@ -863,7 +917,7 @@ const AdviserDashboard: React.FC = () => {
       if (otherMembers.length > 0) {
         sendBatchNotification(otherMembers, {
           title: "Added to Group",
-          message: `You have been added to ${leader.firstName}'s group in section ${activeSection} by adviser ${userName}.`,
+          message: `You have been added to ${leader.firstName}'s group in section ${targetSection} by adviser ${userName}.`,
           type: "group",
           link: "/projects",
           senderName: userName
@@ -947,9 +1001,10 @@ const AdviserDashboard: React.FC = () => {
         ? (adviserSections.length > 0 ? adviserSections : [activeSection])
         : [activeSection];
 
-      const groupsQuery = activeSection === "ALL"
-        ? query(collection(db, "groups"), where("section", "in", targetSections.slice(0, 30)))
-        : query(collection(db, "groups"), where("section", "==", activeSection));
+      const querySections = activeSection === "ALL"
+        ? Array.from(new Set([...targetSections, "ALL"])).slice(0, 30)
+        : [activeSection];
+      const groupsQuery = query(collection(db, "groups"), where("section", "in", querySections));
       const freshGroupsSnap = await getDocs(groupsQuery);
       const existingGroups = freshGroupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as GroupData));
 
@@ -2527,7 +2582,11 @@ const AdviserDashboard: React.FC = () => {
   const groupCardsBySection = (groupsList: GroupData[]) => {
     const map: Record<string, GroupData[]> = {};
     groupsList.forEach((g) => {
-      const sec = (g.section || "Unassigned").trim();
+      let sec = (g.section || "").trim();
+      if (!sec || sec.toUpperCase() === "ALL") {
+        const studentLeader = students.find(s => s.id === g.leaderId);
+        sec = (studentLeader?.section || "").trim() || sec || "Unassigned";
+      }
       if (!map[sec]) map[sec] = [];
       map[sec].push(g);
     });

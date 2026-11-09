@@ -125,7 +125,8 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
   const [sectionSettingsSuccess, setSectionSettingsSuccess] = useState("");
 
   // Modals & Forms
-  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [editNameForm, setEditNameForm] = useState({ firstName: "", lastName: "" });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
   const [showForcePasswordSuccess, setShowForcePasswordSuccess] = useState(false);
@@ -135,7 +136,6 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
-  const [newUsername, setNewUsername] = useState("");
   const [pwdData, setPwdData] = useState({ current: "", new: "", confirm: "" });
   const [forcePwdData, setForcePwdData] = useState({ new: "", confirm: "" });
 
@@ -383,24 +383,45 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
     }
   };
 
-  // Handle Username Update
-  const handleChangeUsername = async (e: React.FormEvent) => {
+  // Handle Full Name Update
+  const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError("");
     setModalSuccess("");
-    const trimmed = newUsername.trim();
-    if (!trimmed || trimmed === profileData.username) return;
+    const trimmedFirst = editNameForm.firstName.trim();
+    const trimmedLast = editNameForm.lastName.trim();
+    if (!trimmedFirst || !trimmedLast) {
+      setModalError("First name and last name cannot be empty.");
+      return;
+    }
     setIsLoading(true);
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, "users", user.uid), { username: trimmed }, { merge: true });
-        setProfileData((prev) => ({ ...prev, username: trimmed }));
-        setModalSuccess("Username updated successfully!");
-        setTimeout(() => setShowUsernameModal(false), 1500);
+        await updateDoc(doc(db, "users", user.uid), {
+          firstName: trimmedFirst,
+          lastName: trimmedLast,
+        });
+        const newFullName = `${trimmedFirst} ${trimmedLast}`;
+        setUserName(newFullName);
+        setProfileData((prev) => ({
+          ...prev,
+          firstName: trimmedFirst,
+          lastName: trimmedLast,
+        }));
+        await logAuditEvent({
+          userId: user.uid,
+          userName: newFullName,
+          userRole: "Adviser",
+          action: "UPDATE",
+          sectionCode: activeSection || "ALL",
+          description: `Adviser updated full name (${newFullName})`,
+        });
+        setModalSuccess("Full name updated successfully!");
+        setTimeout(() => setShowNameModal(false), 1200);
       }
     } catch (error: any) {
-      setModalError(error.message || "Failed to update username.");
+      setModalError(error.message || "Failed to update full name.");
     } finally {
       setIsLoading(false);
     }
@@ -774,10 +795,7 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                   <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md">
                     {getInitials(userName)}
                   </div>
-                  <h3 className="text-xl font-bold text-[#122244]">{userName}</h3>
-                  <p className="text-gray-500 font-semibold text-sm mb-4">
-                    @{profileData.username}
-                  </p>
+                  <h3 className="text-xl font-bold text-[#122244] mb-4">{userName}</h3>
                   <div className="w-full space-y-3 pt-4 mt-4 border-t border-gray-200">
                     <div className="flex justify-between items-center text-xs font-bold text-gray-500">
                       <span>ROLE</span>
@@ -821,14 +839,19 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                          User Handle
+                          Full Name
                         </label>
                         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
-                          <span className="truncate">@{profileData.username}</span>
+                          <span className="truncate">{userName}</span>
                           <button
                             onClick={() => {
-                              setNewUsername(profileData.username);
-                              setShowUsernameModal(true);
+                              setEditNameForm({
+                                firstName: profileData.firstName,
+                                lastName: profileData.lastName,
+                              });
+                              setModalError("");
+                              setModalSuccess("");
+                              setShowNameModal(true);
                             }}
                             className="text-[#c9a654] hover:text-[#b59545] font-bold text-xs ml-2 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 rounded-md transition-colors"
                           >
@@ -1375,12 +1398,12 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
         </div>
       </main>
 
-      {/* MODAL: UPDATE USERNAME */}
-      {showUsernameModal && (
+      {/* MODAL: UPDATE FULL NAME */}
+      {showNameModal && (
         <div className="fixed inset-0 bg-[#122244]/80 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-[#122244] mb-4">Update User Handle</h3>
-            <form onSubmit={handleChangeUsername} className="space-y-4">
+            <h3 className="text-xl font-bold text-[#122244] mb-4">Update Full Name</h3>
+            <form onSubmit={handleUpdateName} className="space-y-4">
               {modalError && (
                 <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-semibold">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1395,13 +1418,25 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
               )}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  New User Handle
+                  First Name
                 </label>
                 <input
                   type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder={`@${profileData.username}`}
+                  value={editNameForm.firstName}
+                  onChange={(e) => setEditNameForm({ ...editNameForm, firstName: e.target.value })}
+                  required
+                  className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={editNameForm.lastName}
+                  onChange={(e) => setEditNameForm({ ...editNameForm, lastName: e.target.value })}
+                  required
                   className="w-full mt-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-[#c9a654]/50 transition-all"
                 />
               </div>
@@ -1409,7 +1444,7 @@ const AdviserSettings: React.FC<AdviserSettingsProps> = ({ defaultTab = "profile
                 <button
                   type="button"
                   onClick={() => {
-                    setShowUsernameModal(false);
+                    setShowNameModal(false);
                     setModalError("");
                     setModalSuccess("");
                   }}

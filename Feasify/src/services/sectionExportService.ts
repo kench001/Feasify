@@ -96,20 +96,27 @@ export const fetchSectionExportData = async (
   // 2. Fetch Groups
   let groupDocs: any[] = [];
   if (sectionsToQuery.length > 0) {
-    const groupsQuery = isAll
-      ? query(
-          collection(db, "groups"),
-          where("section", "in", sectionsToQuery.slice(0, 30))
-        )
-      : query(
-          collection(db, "groups"),
-          where("section", "==", targetSection)
-        );
+    const querySections = isAll
+      ? Array.from(new Set([...sectionsToQuery, "ALL"])).slice(0, 30)
+      : [targetSection, "ALL"];
+    const groupsQuery = query(
+      collection(db, "groups"),
+      where("section", "in", querySections)
+    );
     const gSnap = await getDocs(groupsQuery);
     groupDocs = gSnap.docs;
   }
 
-  const rawGroups = groupDocs.map((d) => ({ id: d.id, ...d.data() }));
+  const rawGroups = groupDocs
+    .map((d) => {
+      const data = d.data();
+      let sec = (data.section || "").trim();
+      if (!sec || sec.toUpperCase() === "ALL") {
+        sec = (studentsMap[data.leaderId]?.section || "").trim() || sec;
+      }
+      return { id: d.id, ...data, section: sec };
+    })
+    .filter((g) => isAll || g.section === targetSection);
   const groupIds = rawGroups.map((g) => g.id);
 
   // 3. Fetch Proposals (chunked by 30)
