@@ -1,0 +1,202 @@
+[
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-001",
+    "scenario": "Team with 0 proposals query returns count 0 and allowed=true",
+    "status": "PASSED",
+    "durationMs": 38.8184,
+    "details": ""
+  },
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-002",
+    "scenario": "Team successfully creates 1st proposal",
+    "status": "PASSED",
+    "durationMs": 46.469299999999976,
+    "details": ""
+  },
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-003",
+    "scenario": "Team successfully creates 2nd proposal",
+    "status": "PASSED",
+    "durationMs": 2.664799999999957,
+    "details": ""
+  },
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-004",
+    "scenario": "Team successfully creates 3rd proposal (reaches ceiling)",
+    "status": "PASSED",
+    "durationMs": 2.3349000000000046,
+    "details": ""
+  },
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-005",
+    "scenario": "Count check at 3 proposals reports allowed=false",
+    "status": "PASSED",
+    "durationMs": 2.100500000000011,
+    "details": ""
+  },
+  {
+    "category": "Proposal Limit",
+    "testId": "TC-PROP-006",
+    "scenario": "4th proposal attempt strictly rejected with HTTP 400 and proposalLimitReached flag",
+    "status": "PASSED",
+    "durationMs": 1.8424999999999727,
+    "details": ""
+  },
+  {
+    "category": "Proposal Lifecycle",
+    "testId": "TC-PROP-007",
+    "scenario": "Status update to 'Under Review' succeeds with remarks",
+    "status": "PASSED",
+    "durationMs": 1.9019999999999868,
+    "details": ""
+  },
+  {
+    "category": "Proposal Lifecycle",
+    "testId": "TC-PROP-008",
+    "scenario": "Invalid status value is rejected with 400 Bad Request",
+    "status": "PASSED",
+    "durationMs": 1.8081999999999994,
+    "details": ""
+  },
+  {
+    "category": "Security Audit",
+    "testId": "TC-SEC-001",
+    "scenario": "Audit logs endpoint rejects unauthenticated request with 401",
+    "status": "PASSED",
+    "durationMs": 2.6071000000000026,
+    "details": ""
+  },
+  {
+    "category": "Security Audit",
+    "testId": "TC-SEC-002",
+    "scenario": "VULNERABILITY PROOF: PUT /api/proposals/:id/status allows unauthenticated status alteration",
+    "status": "FAILED",
+    "durationMs": 1.5582999999999743,
+    "details": "CRITICAL FLAW CONFIRMED: Endpoint lacks verifyToken middleware, allowing anyone to approve proposals."
+  },
+  {
+    "category": "Security Audit",
+    "testId": "TC-SEC-003",
+    "scenario": "SQL Injection payload handled safely without crash or leakage",
+    "status": "PASSED",
+    "durationMs": 5.9454000000000065,
+    "details": ""
+  },
+  {
+    "category": "Security Audit",
+    "testId": "TC-SEC-004",
+    "scenario": "XSS script payload handled safely without reflection vulnerability",
+    "status": "PASSED",
+    "durationMs": 3.898900000000026,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-001",
+    "scenario": "DTI handles boundary length 150 chars without error",
+    "status": "PASSED",
+    "durationMs": 0.057999999999992724,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-002",
+    "scenario": "DTI rejects length > 150 chars with validation error",
+    "status": "PASSED",
+    "durationMs": 0.029699999999991178,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-003",
+    "scenario": "DTI normalizes multiple spaces and trims whitespace cleanly",
+    "status": "FAILED",
+    "durationMs": 0.027899999999988268,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-004",
+    "scenario": "SEC cleanly strips Corp., Inc., and Corporation suffixes for matching",
+    "status": "PASSED",
+    "durationMs": 0.559599999999989,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-005",
+    "scenario": "Well-known brand 'Goldilocks' triggers trademark collision alert",
+    "status": "PASSED",
+    "durationMs": 4.253499999999974,
+    "details": ""
+  },
+  {
+    "category": "Name Checker",
+    "testId": "TC-NAME-006",
+    "scenario": "DTI NOT_FOUND result provides official link and avoids claiming official availability",
+    "status": "PASSED",
+    "durationMs": 0.5412999999999784,
+    "details": ""
+  },
+  {
+    "category": "Financial Math",
+    "testId": "TC-FIN-001",
+    "scenario": "Fundamental Balance Sheet Equation: Assets == Liabilities + Equity holds exactly",
+    "status": "PASSED",
+    "durationMs": 0.007000000000061846,
+    "details": ""
+  },
+  {
+    "category": "Financial Math",
+    "testId": "TC-FIN-002",
+    "scenario": "Break-Even units and revenue calculations match Philippine SME formula standard",
+    "status": "PASSED",
+    "durationMs": 0.0030000000000427463,
+    "details": ""
+  },
+  {
+    "category": "Financial Math",
+    "testId": "TC-FIN-003",
+    "scenario": "Philippine BMBE (RA 9178) 0% Income Tax exemption vs CREATE Act 20% computes accurately",
+    "status": "PASSED",
+    "durationMs": 0.00329999999996744,
+    "details": ""
+  },
+  {
+    "category": "Performance",
+    "testId": "TC-PERF-001",
+    "scenario": "Baseline (1 User): Latency=4.0ms, Throughput=238.3 req/sec",
+    "status": "PASSED",
+    "durationMs": 4.195699999999988,
+    "details": ""
+  },
+  {
+    "category": "Performance",
+    "testId": "TC-PERF-002",
+    "scenario": "Low Traffic (10 Users): Latency=36.2ms, Median=39.0ms, p95=39.5ms, RPS=246.2",
+    "status": "PASSED",
+    "durationMs": 40.6114,
+    "details": ""
+  },
+  {
+    "category": "Performance",
+    "testId": "TC-PERF-003",
+    "scenario": "Moderate Traffic (25 Users): Latency=14.6ms, p95=16.7ms, RPS=1369.4",
+    "status": "PASSED",
+    "durationMs": 18.255999999999972,
+    "details": ""
+  },
+  {
+    "category": "Performance",
+    "testId": "TC-PERF-004",
+    "scenario": "High Traffic (50 Users): Latency=26.4ms, p95=33.5ms, RPS=1400.0",
+    "status": "PASSED",
+    "durationMs": 35.71500000000003,
+    "details": ""
+  }
+]

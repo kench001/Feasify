@@ -1,0 +1,14 @@
+Bug ID,Module,Issue Title,Severity,Priority,Affected File,Root Cause,Remediation Summary,Status
+FEASIFY-BUG-001,Tooling,Broken ESLint Flat Config,Medium,P3,Feasify/eslint.config.cjs,reactHooks.configs.flat.recommended undefined in v5,Use reactHooks.configs.recommended,Open
+FEASIFY-BUG-002,Settings,ReferenceError in Settings.tsx,High,P2,Feasify/src/Settings.tsx,newUsername and setShowUsernameModal undeclared,Declare state variables in component,Open
+FEASIFY-BUG-003,Proposals,Direct Firestore Writes Bypass 3-Limit,High,P2,Feasify/src/Projects.tsx,Client addDoc call bypasses backend count,Route writes through backend API,Open
+FEASIFY-BUG-004,NameChecker,Sandbox Whitespace Not Collapsed,Low,P4,feasify-backend/services/nameChecker/dti/DTIProvider.js,Query string passed un-collapsed into result,Pass this.normalize(query) to buildResult,Open
+FEASIFY-BUG-005,Security,Unauthenticated Proposal Status Mutation,Critical,P1,feasify-backend/index.js,PUT endpoint lacks verifyToken middleware,Attach verifyToken middleware,Open
+FEASIFY-BUG-006,Security,Plaintext Passwords in Firestore,Critical,P1,Feasify/src/ChairpersonModule.tsx,Generated password copied into user document,Delete password attribute before setDoc,Open
+FEASIFY-BUG-007,Security,Unauthenticated Gemini AI API Access,High,P2,feasify-backend/index.js,Missing verifyToken on /api/analyze endpoints,Attach verifyToken to protect quota,Open
+FEASIFY-BUG-008,Security,Hardcoded Chairperson Privilege Email,High,P2,Feasify/src/components/ProtectedRoute.tsx,chairperson@gmail.com hardcoded override,Enforce DB role verification,Open
+FEASIFY-BUG-009,Adviser,Null Dereference Risk in Financial Tab,Medium,P3,Feasify/src/AdviserDashboard.tsx,activeProposal.products accessed without guard,Add optional chaining activeProposal?.products,Open
+FEASIFY-BUG-010,Security,Hardcoded EmailJS Public Key,Medium,P3,Feasify/src/ChairpersonModule.tsx,Literal string key in component source,Move to VITE_EMAILJS_PUBLIC_KEY,Open
+FEASIFY-BUG-011,Security,Permissive Wildcard CORS Configuration,Medium,P3,feasify-backend/index.js,cors() defaults to origin *,Restrict to authorized FRONTEND_URL,Open
+FEASIFY-BUG-012,Performance,Monolithic 3.36 MB Client Bundle,Low,P4,Feasify/src/App.tsx,Synchronous imports without code splitting,Implement React.lazy for major routes,Open
+FEASIFY-BUG-013,Types,ContributorItem Interface Property Mismatch,Low,P4,Feasify/src/utils/cabbageBenchmark.ts,role property missing on ContributorItem type,Add role optional field to interface,Open

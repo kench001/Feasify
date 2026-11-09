@@ -11,7 +11,8 @@
         "test": "npm test --prefix feasify-backend"
     },
     "devDependencies": {
-        "concurrently": "^9.1.0"
+        "concurrently": "^9.1.0",
+        "marked": "^18.1.3"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",

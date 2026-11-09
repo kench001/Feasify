@@ -1,0 +1,43 @@
+Test Case ID,Module,Test Scenario,Expected Result,Actual Result,Status,Severity
+TC-AUTH-001,Authentication,Valid Student Login,Redirect to /dashboard,Redirected to /dashboard,Passed,Normal
+TC-AUTH-002,Authentication,Invalid Password Handling,Show error alert modal,Error alert modal displayed,Passed,Normal
+TC-AUTH-003,Authentication,Password Recovery Dispatch,Firebase reset email sent,Reset email dispatched,Passed,Normal
+TC-AUTH-004,Authentication,Hardcoded Chairperson Privilege,Email chairperson@gmail.com becomes Chairperson,Bypasses DB role and grants Chairperson,Passed,Design Concern
+TC-AUTH-005,Authentication,Session Expiration & Logout,Session cleared and redirect to /,User signed out and redirect to /,Passed,Normal
+TC-RBAC-001,Access Control,Student Route Protection,Block access to /admin/users,ProtectedRoute redirects to /dashboard,Passed,Normal
+TC-RBAC-002,Access Control,Adviser Route Protection,Block access to /admin/settings,ProtectedRoute redirects to /adviser/dashboard,Passed,Normal
+TC-RBAC-003,Access Control,Student Profile Username Update,Username updated and logged,Throws ReferenceError: newUsername is not defined,Failed,High
+TC-PROP-001,Proposal Management,0 Proposals Baseline,Count is 0; Create button enabled,Count 0; creation modal accessible,Passed,Normal
+TC-PROP-002,Proposal Management,1st Proposal Creation,Proposal saved with proposalNumber=1,Saved to Firestore with number 1,Passed,Normal
+TC-PROP-003,Proposal Management,2nd Proposal Creation,Proposal saved with proposalNumber=2,Saved to Firestore with number 2,Passed,Normal
+TC-PROP-004,Proposal Management,3rd Proposal Creation (Limit Ceiling),Proposal saved with proposalNumber=3,Saved to Firestore; limit reached,Passed,Normal
+TC-PROP-005,Proposal Management,4th Proposal Creation Attempt (Client),Toast displays limit reached,Blocked by client state check; toast shown,Passed,Normal
+TC-PROP-006,Proposal Management,4th Proposal Creation Attempt (API),HTTP 400 proposalLimitReached=true,Responded HTTP 400 proposalLimitReached=true,Passed,Normal
+TC-PROP-007,Proposal Management,Browser Refresh at Limit,State restored and creation disabled,sessionStorage and snapshot restore state,Passed,Normal
+TC-PROP-008,Proposal Management,Edit Existing Proposal at Limit,Update permitted; count remains 3,updateDoc executed; count remains 3,Passed,Normal
+TC-PROP-009,Proposal Management,Direct Firestore Client Injection,Firestore rejects 4th proposal,Allowed! Missing DB-level quota rule,Failed,High
+TC-PROP-010,Proposal Management,Simultaneous Submissions Race Condition,Exactly 1 succeeds; 4th blocked,Vulnerable to TOCTOU race condition,Failed,High
+TC-BTN-001,Submit Button,Form Field Validation on Submit,Modal highlights missing fields,submissionFailureReasons modal shown,Passed,Normal
+TC-BTN-002,Submit Button,Negative Capital Validation,Reject with negative capital error,checkTotalCapital flagged error,Passed,Normal
+TC-BTN-003,Submit Button,Loading State & Double Click Prevention,Button disabled with spinner,isSubmitting disables button with loader,Passed,Normal
+TC-BTN-004,Submit Button,Submission Success Feedback,Green toast displayed; status updated,Status badge updated; toast displayed,Passed,Normal
+TC-FIN-001,Financial Input,Product Costing Calculation,Correct unit COGS and revenue,Math engine computes exact COGS/revenue,Passed,Normal
+TC-FIN-002,Financial Input,Operating Expenses Normalization,OPEX monthly/annual aggregated,normalizeOpexList aggregates OPEX cleanly,Passed,Normal
+TC-FIN-003,Financial Input,Balance Sheet Accounting Invariant,Assets == Liabilities + Equity holds,Assets == Liabilities + Equity holds exactly,Passed,Normal
+TC-FIN-004,Financial Input,Severe Deficit Handling (CapEx > Capital),Balance sheet reflects liability offset,Balance sheet reflects liability offset,Passed,Normal
+TC-FIN-005,Financial Input,Philippine BMBE vs Regular Tax,BMBE computes 0% income tax,Income tax reflects 0% with 3% tax handled,Passed,Normal
+TC-NAME-001,Name Checker,Empty Query Handling,Return ERROR with prompt to enter name,Status ERROR returned with validation msg,Passed,Normal
+TC-NAME-002,Name Checker,Maximum Length Boundary (>150 chars),Return ERROR query exceeds 150 chars,Rejected with ERROR exceeds 150 chars,Passed,Normal
+TC-NAME-003,Name Checker,Whitespace Normalization,Internal multiple spaces collapsed,Trims edges but preserves internal spaces in sandbox,Failed,Low
+TC-NAME-004,Name Checker,Trademark Collision Alert,Flag protected brand conflict,Alert returned with brand goldilocks,Passed,Normal
+TC-NAME-005,Name Checker,Nonexistent Business Name Result,Returns NOT_FOUND with official BNRS link,Returns NOT_FOUND; does not claim available,Passed,Normal
+TC-NAME-006,Name Checker,SEC eSPARC Reservation Distinction,Explicit disclaimer directing to eSPARC,Explicit disclaimer shown directing to eSPARC,Passed,Normal
+TC-MAP-001,Location Map,Leaflet Map Initialization,Map container initializes with OSM,Map renders with custom red pin,Passed,Normal
+TC-MAP-002,Location Map,Interactive Marker Drag/Click,Pin moves; Nominatim reverse geocodes,Clean address formatted without raw coords,Passed,Normal
+TC-MAP-003,Location Map,Philippine Landmark Search,Instant autocomplete from local catalog,Autocomplete displays landmark cleanly,Passed,Normal
+TC-MAP-004,Location Map,Address Persistence on Reopen,Saved address restored from Firestore,Address restored from proposal document,Passed,Normal
+TC-ADV-001,Adviser Workflow,Assigned Section Proposal Visibility,Only assigned sections visible,Proposals filtered strictly by section,Passed,Normal
+TC-ADV-002,Adviser Workflow,Proposal Evaluation & Remarks,Remarks saved and status updated,Firestore updated; notification sent,Passed,Normal
+TC-ADV-003,Adviser Workflow,Proposal Status Mutation Auth Check,PUT requires Authorization token,PUT allows unauthenticated mutation!,Failed,Critical
+TC-CHAIR-001,Chairperson,Batch Student Import via Excel,Accounts created and profiles saved,Students created and credentials dispatched,Passed,Normal
+TC-CHAIR-002,Chairperson,Plaintext Password Storage Check,Password must NOT be in Firestore doc,Plaintext password stored in users doc!,Failed,Critical

@@ -7,10 +7,6 @@ import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
 import CustomDropdown, { type DropdownOption } from "./components/CustomDropdown";
 import {
-  checkDTI,
-  checkSEC,
-  checkName,
-  OFFICIAL_SOURCES,
   type NameCheckResult
 } from "./services/nameCheckerService";
 import { useNavigate } from "react-router-dom";
@@ -43,7 +39,6 @@ import {
   Users,
   Settings,
   ShieldAlert,
-  Sidebar as SidebarIcon,
   Star,
   Bell,
   Check,
@@ -60,22 +55,13 @@ import {
   AlertCircle,
   Save,
   Loader2,
-  ChevronDown,
-  ChevronUp,
   Plus,
   Trash2,
   Calculator,
-  TrendingUp,
-  Package,
   Info,
   Upload,
   Image as ImageIcon,
-  ArrowUp,
-  ShieldCheck,
   Building2,
-  FileSpreadsheet,
-  Download,
-  Copy,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import TextareaAutosize from 'react-textarea-autosize';
@@ -118,6 +104,7 @@ interface GroupData {
   id: string;
   leaderId: string;
   leaderName: string;
+  facultyId?: string;
   title: string;
   companyName?: string;
   companyLogo?: string;
@@ -145,16 +132,6 @@ interface FeedbackItem {
   role: string;
   date: string;
 }
-
-export {
-  type IngredientItem,
-  type ProductCostingItem,
-  type EquipmentItem,
-  type FinancialProposalData,
-  handlePreventNegative,
-  handlePasteNonNegative,
-  normalizeProposalProducts,
-} from "./utils/productCosting";
 
 import {
   type IngredientItem,
@@ -479,7 +456,7 @@ const Projects: React.FC = () => {
       let leader = false;
       let member = false;
 
-      querySnapshot.forEach((document) => {
+      for (const document of querySnapshot.docs) {
         const data = document.data() as GroupData;
         if (data.leaderId === uid) {
           foundGroup = { ...data, id: document.id };
@@ -488,7 +465,7 @@ const Projects: React.FC = () => {
           foundGroup = { ...data, id: document.id };
           member = true;
         }
-      });
+      }
 
       if (foundGroup) {
         // Auto-heal group section if it was saved as "ALL" or empty
@@ -637,7 +614,7 @@ const Projects: React.FC = () => {
       let leader = false;
       let member = false;
 
-      querySnapshot.forEach((document) => {
+      for (const document of querySnapshot.docs) {
         const data = document.data() as GroupData;
         if (data.leaderId === uid) {
           foundGroup = { ...data, id: document.id };
@@ -646,7 +623,7 @@ const Projects: React.FC = () => {
           foundGroup = { ...data, id: document.id };
           member = true;
         }
-      });
+      }
 
       if (foundGroup) {
         if ((foundGroup.section || "").toUpperCase() === "ALL" || !foundGroup.section) {
@@ -948,7 +925,7 @@ const Projects: React.FC = () => {
       const finalCompanyName = setupCompanyName.trim() || userGroup.title || "Feasibility Project";
 
       const approvedProp = proposals.find(
-        (p) => p.status === "Approved" || p.status === "APPROVED" || p.id === userGroup.approvedProposalId || p.id === userGroup.activeProposalId
+        (p) => p.status === "Approved" || (p.status as string) === "APPROVED" || p.id === userGroup.approvedProposalId || p.id === userGroup.activeProposalId
       );
       const targetActiveProposalId = approvedProp?.id || userGroup.activeProposalId || userGroup.approvedProposalId || "";
 
@@ -1006,7 +983,7 @@ const Projects: React.FC = () => {
 
   const openCompanySetup = (targetProposal?: ProposalData) => {
     const propToUse = targetProposal || proposals.find(
-      (p) => p.status === "Approved" || p.status === "APPROVED" || p.id === userGroup?.approvedProposalId || p.id === userGroup?.activeProposalId
+      (p) => p.status === "Approved" || (p.status as string) === "APPROVED" || p.id === userGroup?.approvedProposalId || p.id === userGroup?.activeProposalId
     );
 
     const initialName = userGroup?.companyName && userGroup.companyName !== "Pending Business Name" && userGroup.companyName !== "Pending Company Name"
@@ -2298,7 +2275,7 @@ const Projects: React.FC = () => {
   const approvedProposal = proposals.find(
     (p) =>
       p.status === "Approved" ||
-      p.status === "APPROVED" ||
+      (p.status as string) === "APPROVED" ||
       p.id === userGroup?.approvedProposalId ||
       Boolean(userGroup?.activeProposalId && p.id === userGroup?.activeProposalId),
   );
