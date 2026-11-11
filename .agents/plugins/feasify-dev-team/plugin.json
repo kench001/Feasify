@@ -1,0 +1,7 @@
+{
+  "name": "feasify-dev-team",
+  "displayName": "Feasify Dev Subagents",
+  "description": "Domain-specific subagents for Feasify development across front-end, back-end, database, QA/testing, AI & financial math, and security/architecture.",
+  "version": "1.0.0"
+}
+

@@ -472,7 +472,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
     setEditProfileForm({
       firstName: profileData.firstName,
       lastName: profileData.lastName,
-      username: profileData.username,
     });
     setModalError("");
     setModalSuccess("");
@@ -527,39 +526,6 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
       }, 1200);
     } catch (err: any) {
       setModalError(err.message || "Failed to update profile.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Username Update
-  const handleChangeUsername = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setModalError("");
-    setModalSuccess("");
-    const trimmed = newUsername.trim().toLowerCase();
-    if (!trimmed || trimmed === profileData.username) return;
-    setIsLoading(true);
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        await setDoc(doc(db, "users", user.uid), { username: trimmed }, { merge: true });
-        setProfileData((prev) => ({ ...prev, username: trimmed }));
-        await logAuditEvent({
-          userId: user.uid,
-          userName: userName || "Student",
-          userRole: profileData.roleInGroup || "Student",
-          action: "UPDATE",
-          sectionCode: profileData.section || "N/A",
-          description: `Updated handle to @${trimmed}`,
-          oldValue: { username: profileData.username },
-          newValue: { username: trimmed },
-        });
-        setModalSuccess("Username updated successfully!");
-        setTimeout(() => setShowUsernameModal(false), 1500);
-      }
-    } catch (error: any) {
-      setModalError(error.message || "Failed to update username.");
     } finally {
       setIsLoading(false);
     }
