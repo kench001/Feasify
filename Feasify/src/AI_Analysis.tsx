@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { AIAnalysisLoading } from "./AIAnalysisLoading";
+import AIAdvisoryModal from "./components/AIAdvisoryModal";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
@@ -30,6 +31,8 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Sparkles,
   Lightbulb,
   DollarSign,
   Bell,
@@ -260,6 +263,28 @@ const AI_Analysis: React.FC = () => {
   const [marketAnalysis, setMarketAnalysis] = useState<MarketAnalysisData | null>(null);
   const [hasNewerInputs, setHasNewerInputs] = useState(false);
 
+  // AI Advisory Acknowledgment Modal States
+  const [isAdvisoryModalOpen, setIsAdvisoryModalOpen] = useState(() => {
+    return typeof window !== "undefined" && sessionStorage.getItem("ai_ack_pending") === "true";
+  });
+  const [advisoryModalKey, setAdvisoryModalKey] = useState(0);
+
+  const handleAcknowledgeAdvisory = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("ai_ack_pending");
+    }
+    setIsAdvisoryModalOpen(false);
+  };
+
+  const triggerAnalysis = (finDataToUse?: any, pIdToUse?: string) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("ai_ack_pending", "true");
+    }
+    setAdvisoryModalKey((prev) => prev + 1);
+    setIsAdvisoryModalOpen(true);
+    executeAnalysis(finDataToUse || financials, pIdToUse || selectedProjectId);
+  };
+
   // Pro Forma Financial Statement States
   const [revenueGrowthRate, setRevenueGrowthRate] = useState<number>(15);
   const [costGrowthRate, setCostGrowthRate] = useState<number>(8);
@@ -436,7 +461,12 @@ const AI_Analysis: React.FC = () => {
       const isExplicitRun = Boolean(location.state?.runAnalysis);
 
       if (isExplicitRun) {
-        console.log("⚡ [AI Analysis] Explicit 'Run Analysis' clicked. Executing feasibility evaluation...");
+        console.log("⚡ [AI Analysis] Explicit 'Run Analysis' clicked. Triggering advisory modal and executing feasibility evaluation...");
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("ai_ack_pending", "true");
+        }
+        setAdvisoryModalKey((prev) => prev + 1);
+        setIsAdvisoryModalOpen(true);
         executeAnalysis(activeFin, proj.id);
         navigate(location.pathname, { replace: true, state: {} });
       } else if (proj.aiAnalysis) {
@@ -501,6 +531,11 @@ const AI_Analysis: React.FC = () => {
 
   const executeAnalysis = async (data: any, pId: string) => {
     if (!pId) return;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("ai_ack_pending", "true");
+    }
+    setAdvisoryModalKey((prev) => prev + 1);
+    setIsAdvisoryModalOpen(true);
     setIsAnalyzing(true);
     setAnalysisError(null);
     setIsFallback(false);
@@ -906,6 +941,12 @@ const AI_Analysis: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">
+      {/* AI Advisory Acknowledgment Modal */}
+      <AIAdvisoryModal
+        key={advisoryModalKey}
+        isOpen={isAdvisoryModalOpen}
+        onAcknowledge={handleAcknowledgeAdvisory}
+      />
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -1096,7 +1137,7 @@ const AI_Analysis: React.FC = () => {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
-                onClick={() => executeAnalysis(financials, selectedProjectId)}
+                onClick={() => triggerAnalysis(financials, selectedProjectId)}
                 className="flex items-center gap-2 px-6 py-3 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4 text-[#c9a654]" /> Retry Feasibility Analysis
@@ -1150,7 +1191,7 @@ const AI_Analysis: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => executeAnalysis(financials, selectedProjectId)}
+                onClick={() => triggerAnalysis(financials, selectedProjectId)}
                 disabled={!selectedProjectId || isAnalyzing}
                 className={`w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm flex-shrink-0 disabled:opacity-50 ${
                   hasNewerInputs
@@ -1179,7 +1220,7 @@ const AI_Analysis: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  onClick={() => triggerAnalysis(financials, selectedProjectId)}
                   disabled={isAnalyzing}
                   className="px-4 py-2 bg-[#c9a654] hover:bg-[#b59545] text-white text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 flex items-center gap-1.5 active:scale-95 cursor-pointer"
                 >
@@ -1196,7 +1237,7 @@ const AI_Analysis: React.FC = () => {
                 </div>
                 <p className="text-sm text-red-600">{analysisError}</p>
                 <button
-                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  onClick={() => triggerAnalysis(financials, selectedProjectId)}
                   className="self-start px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm rounded-lg transition-colors"
                 >
                   Try Again
@@ -1219,6 +1260,44 @@ const AI_Analysis: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* AI Advisory Disclaimer Banner */}
+            <div
+              role="region"
+              aria-label="AI Advisory Disclaimer"
+              className="mb-8 p-4 sm:py-5 sm:px-6 bg-[#fef9ee] border border-[#f59e0b] rounded-2xl shadow-xs flex items-center gap-4 sm:gap-5.5 transition-all"
+            >
+              <div className="flex-shrink-0 flex items-center justify-center">
+                <svg
+                  className="w-9 h-9 sm:w-10 sm:h-10 text-[#f59e0b] drop-shadow-2xs"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                    fill="#f59e0b"
+                  />
+                  <path
+                    d="M12 9v4m0 3.5h.01"
+                    stroke="#ffffff"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <div className="w-[1.5px] self-stretch min-h-[40px] bg-[#f59e0b]/60 flex-shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-[#6d280e] text-base sm:text-[18px] tracking-tight mb-1">
+                  AI Advisory Disclaimer
+                </h3>
+                <p className="text-xs sm:text-[13.5px] text-gray-800 leading-relaxed font-normal">
+                  The verdict and recommendations provided by the AI serve solely as guidance to help students explore and evaluate their proposal. Do not fully rely on this assessment as a final or definitive judgment—always validate assumptions and consult your research adviser.
+                </p>
+              </div>
+            </div>
 
             <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
@@ -1251,7 +1330,7 @@ const AI_Analysis: React.FC = () => {
                   Your business proposal and financial inputs are set up. Click below to run a comprehensive feasibility audit on product margins, capital adequacy, and market viability.
                 </p>
                 <button
-                  onClick={() => executeAnalysis(financials, selectedProjectId)}
+                  onClick={() => triggerAnalysis(financials, selectedProjectId)}
                   disabled={isAnalyzing}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#c9a654] hover:bg-[#b59545] text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                 >
@@ -1295,6 +1374,10 @@ const AI_Analysis: React.FC = () => {
                         {feasibilityStatus === "CONDITIONALLY_FEASIBLE"
                           ? "CONDITIONALLY FEASIBLE"
                           : feasibilityStatus?.replace(/_/g, " ")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border bg-amber-50 border-amber-200 text-amber-800 shadow-2xs">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+                        AI-Generated Assessment
                       </span>
                       {performanceGrade && (
                         <span
@@ -1340,17 +1423,12 @@ const AI_Analysis: React.FC = () => {
                       </div>
                     )}
 
-                    {/* AI Verdict Disclaimer */}
-                    <div className="mt-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 w-full text-left flex items-start gap-2.5">
-                      <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-extrabold text-[#122244] uppercase tracking-wider text-[10px] block mb-0.5">
-                          Advisory Disclaimer
-                        </span>
-                        <p className="text-[11px] text-gray-600 leading-relaxed">
-                          The verdict and recommendations provided by the AI serve solely as guidance to help students explore and evaluate their proposal. Do not fully rely on this assessment as a final or definitive judgment—always validate assumptions and consult your research adviser.
-                        </p>
-                      </div>
+                    {/* Compact Advisory Reminder below Key Fix section */}
+                    <div className="mt-3.5 flex items-center gap-2 text-xs text-gray-500 w-full text-left">
+                      <Info className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
+                      <span className="text-[11px] text-gray-500 leading-normal">
+                        <strong className="text-gray-700 font-semibold">Advisory Reminder:</strong> AI-generated evaluation. Validate all findings and next steps with your research adviser.
+                      </span>
                     </div>
                   </div>
                 </div>
