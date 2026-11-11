@@ -5,6 +5,11 @@ import ScrollToTopButton from "./components/ScrollToTopButton";
 import CustomDropdown from "./components/CustomDropdown";
 import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
+import {
+  DEFAULT_PAGE_SIZE,
+  paginateItems,
+  TablePagination
+} from "./components/TablePagination";
 import { auth, db, signOutUser, adminCreateUserAuth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, getDoc, serverTimestamp, doc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
@@ -66,9 +71,14 @@ const ChairpersonModule: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Tab State
+  // Tab & Pagination State
   const [activeTab, setActiveTab] = useState<"Students" | "Advisers">("Students");
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
   // Modals
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -635,6 +645,12 @@ const ChairpersonModule: React.FC = () => {
       return 0;
     });
 
+  const { pageItems: paginatedUsers, safePage } = paginateItems(
+    filteredUsers,
+    currentPage,
+    DEFAULT_PAGE_SIZE
+  );
+
   return (
     <div className="flex min-h-screen bg-gray-50/30">
       {/* Mobile Backdrop */}
@@ -895,7 +911,7 @@ const ChairpersonModule: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => (
+                    paginatedUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-900">{user.studentId || "—"}</td>
                         <td className="px-6 py-4 font-bold text-[#122244]">{`${user.firstName || ''} ${user.lastName || ''}`}</td>
@@ -921,6 +937,16 @@ const ChairpersonModule: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {!isLoading && (
+              <TablePagination
+                currentPage={safePage}
+                totalItems={filteredUsers.length}
+                pageSize={DEFAULT_PAGE_SIZE}
+                itemLabel={activeTab === "Advisers" ? "faculty members" : "students"}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         </div>
       </main>
