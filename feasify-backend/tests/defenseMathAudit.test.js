@@ -1,5 +1,35 @@
 const assert = require("node:assert");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 const { describe, it } = require("node:test");
+const dynamicExemplars = require("../services/dynamicExemplars");
+
+function loadBackendMathEngine() {
+  const indexPath = path.join(__dirname, "..", "index.js");
+  const source = fs.readFileSync(indexPath, "utf-8");
+  const startMarker = "function calculateAggregatedFinancials(";
+  const endMarker = "// ENDPOINT 1: Student-Facing Financial Audit";
+  const startIdx = source.indexOf(startMarker);
+  const endIdx = source.indexOf(endMarker);
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+    throw new Error("Could not locate calculateAggregatedFinancials / evaluateDefenseFeasibility in index.js");
+  }
+  const snippet = `${source.slice(startIdx, endIdx)}\nmodule.exports = { calculateAggregatedFinancials, evaluateDefenseFeasibility };`;
+  const context = {
+    module: { exports: {} },
+    dynamicExemplars,
+    Number,
+    Math,
+    Array,
+    Infinity,
+    isNaN,
+  };
+  vm.runInNewContext(snippet, context, { filename: indexPath });
+  return context.module.exports;
+}
+
+const { calculateAggregatedFinancials, evaluateDefenseFeasibility } = loadBackendMathEngine();
 
 function calculateBalanceSheetPeriod(monthIndex, finData, priorPeriod = null) {
   const equipmentList = finData.equipmentList || [];
@@ -134,5 +164,130 @@ describe("Final Defense Mathematical Audit", () => {
     const largeTax = isBmbeLarge ? largeRev * 0.03 : largePretaxNet * 0.20;
     assert.strictEqual(isBmbeLarge, false);
     assert.strictEqual(largeTax, 200000);
+  });
+});
+
+describe("Backend calculateAggregatedFinancials & Defense Evaluation Parity", () => {
+  it("Single empty-placeholder product falls back to scalar sellingPrice, variableCost, and monthlySales", () => {
+    const fin = {
+      businessType: "Food & Beverage",
+      products: [
+        {
+          id: "prod-1",
+          name: "",
+          quantityYield: "",
+          batchesPerMonth: "1",
+          unitsSold: "",
+          ingredients: [],
+          markupPercentage: "100",
+          sellingPrice: "",
+          applyVat: true,
+          vatRate: 12,
+        },
+      ],
+      sellingPrice: 100,
+      variableCost: 40,
+      monthlySales: 500,
+      fixedCosts: 18000,
+      startupCapital: 100000,
+      equipmentList: [{ total: 40000 }],
+      operatingDays: 300,
+    };
+
+    const agg = calculateAggregatedFinancials(fin);
+    assert.strictEqual(agg.monthlySales, 500);
+    assert.strictEqual(agg.sellingPrice, 100);
+    assert.strictEqual(agg.variableCost, 40);
+    assert.strictEqual(agg.monthlyRevenue, 50000);
+    assert.strictEqual(agg.totalMonthlyVariableCosts, 20000);
+    assert.strictEqual(agg.isMultiProduct, false);
+    assert.strictEqual(agg.productCount, 1);
+
+    const evalResult = evaluateDefenseFeasibility(fin, {}, "Food & Beverage");
+    assert.strictEqual(evalResult.status, "FEASIBLE");
+    assert.strictEqual(evalResult.score, 93);
+  });
+
+  it("Single placeholder product with quantityYield: 0 and null/undefined unitsSold also uses scalar fallback", () => {
+    const fin = {
+      products: [{ quantityYield: 0, unitsSold: null, sellingPrice: "" }],
+      sellingPrice: 80,
+      variableCost: 30,
+      monthlySales: 400,
+    };
+
+    const agg = calculateAggregatedFinancials(fin);
+    assert.strictEqual(agg.monthlySales, 400);
+    assert.strictEqual(agg.monthlyRevenue, 32000);
+    assert.strictEqual(agg.totalMonthlyVariableCosts, 12000);
+    assert.strictEqual(agg.sellingPrice, 80);
+    assert.strictEqual(agg.variableCost, 30);
+  });
+
+  it("Honors explicit unitsSold === 0 and '0' without scalar fallback when yield > 0", () => {
+    for (const explicitZero of [0, "0"]) {
+      const fin = {
+        products: [
+          {
+            quantityYield: "100",
+            batchesPerMonth: "1",
+            unitsSold: explicitZero,
+            productionCost: "4000",
+            sellingPrice: "100",
+            applyVat: true,
+            vatRate: 12,
+          },
+        ],
+        sellingPrice: 100,
+        variableCost: 40,
+        monthlySales: 500,
+        fixedCosts: 10000,
+        startupCapital: 50000,
+      };
+
+      const agg = calculateAggregatedFinancials(fin);
+      assert.strictEqual(agg.monthlySales, 0);
+      assert.strictEqual(agg.monthlyRevenue, 0);
+      assert.strictEqual(agg.totalMonthlyVariableCosts, 0);
+      assert.strictEqual(agg.variableCost, 40);
+      assert.ok(Math.abs(agg.sellingPrice - 100 / 1.12) < 1e-9);
+
+      const evalResult = evaluateDefenseFeasibility(fin, {}, "Food & Beverage");
+      assert.strictEqual(evalResult.status, "NOT_FEASIBLE");
+    }
+  });
+
+  it("Honors explicit unitsSold === 0 and '0' without scalar fallback even when quantityYield is empty/0", () => {
+    for (const explicitZero of [0, "0"]) {
+      const fin = {
+        products: [{ quantityYield: "", unitsSold: explicitZero, sellingPrice: "" }],
+        sellingPrice: 100,
+        variableCost: 40,
+        monthlySales: 500,
+      };
+
+      const agg = calculateAggregatedFinancials(fin);
+      assert.strictEqual(agg.monthlySales, 0);
+      assert.strictEqual(agg.monthlyRevenue, 0);
+      assert.strictEqual(agg.totalMonthlyVariableCosts, 0);
+    }
+  });
+
+  it("Does not use single-product scalar fallback when multiple products exist with zero yield", () => {
+    const fin = {
+      products: [
+        { quantityYield: "", unitsSold: "" },
+        { quantityYield: "", unitsSold: "" },
+      ],
+      sellingPrice: 100,
+      variableCost: 40,
+      monthlySales: 500,
+    };
+
+    const agg = calculateAggregatedFinancials(fin);
+    assert.strictEqual(agg.monthlySales, 0);
+    assert.strictEqual(agg.monthlyRevenue, 0);
+    assert.strictEqual(agg.isMultiProduct, true);
+    assert.strictEqual(agg.productCount, 2);
   });
 });
