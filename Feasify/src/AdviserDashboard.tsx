@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
 import ActiveBusinessDetailView from "./components/ActiveBusinessDetailView";
+import type { ResolvedAIAnalysisData } from "./utils/aiAnalysisHelpers";
+import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
+import AIAdvisoryModal from "./components/AIAdvisoryModal";
 import { logAuditEvent } from "./services/auditLogger";
 import { fetchSectionExportData, generateSectionPDF } from "./services/sectionExportService";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
@@ -185,6 +188,24 @@ const AdviserDashboard: React.FC = () => {
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   const [modalAiResult, setModalAiResult] = useState<any>(null);
+  // AI Advisory Modal State
+  const [isAdvisoryModalOpen, setIsAdvisoryModalOpen] = useState(() => {
+    try {
+      return typeof window !== "undefined" && sessionStorage.getItem("adviser_ai_ack_pending") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [advisoryModalKey, setAdvisoryModalKey] = useState(0);
+
+  const handleAcknowledgeAdvisory = () => {
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("adviser_ai_ack_pending");
+      }
+    } catch {}
+    setIsAdvisoryModalOpen(false);
+  };
   const [customAIRules, setCustomAIRules] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -562,6 +583,34 @@ const AdviserDashboard: React.FC = () => {
     setViewingProposal(null);
   };
 
+  const handleActiveBusinessExportPDF = async (proposal: ProposalData, aiData: ResolvedAIAnalysisData) => {
+    if (!proposal) return;
+    setIsExportingPdf(true);
+    try {
+      await exportProposalAnalysisPDF({
+        proposal,
+        aiResult: {
+          overallScore: aiData.score,
+          verdict: aiData.status,
+          strengths: aiData.insights.filter((item) => item.type === "positive"),
+          weaknesses: aiData.insights.filter((item) => item.type === "warning"),
+          recommendations: aiData.insights.filter((item) => item.type === "info" || item.type === "suggestion"),
+          realityCheck: aiData.explanations.market || aiData.explanations.feasibility,
+          _fallback: aiData._fallback,
+        },
+        currentRemarks: feedbackInput,
+        adviserName: userName,
+        groupTitle: selectedGroup?.title || "Student Group",
+        sectionCode: selectedGroup?.section || activeSection || "Unassigned",
+      });
+    } catch (err) {
+      console.error("PDF export error:", err);
+      alert("Failed to export PDF. Please try again.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!viewingProposal) return;
     setIsExportingPdf(true);
@@ -658,6 +707,13 @@ const AdviserDashboard: React.FC = () => {
 
   const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("adviser_ai_ack_pending", "true");
+      }
+    } catch {}
+    setAdvisoryModalKey((prev) => prev + 1);
+    setIsAdvisoryModalOpen(true);
     setIsAiAnalyzing(true);
     setAiAnalysisError(null);
 
@@ -2227,6 +2283,10 @@ const AdviserDashboard: React.FC = () => {
             onFeedbackInputChange={setFeedbackInput}
             onSubmitFeedback={handleSubmitFeedback}
             isSavingFeedback={isSaving}
+            onExportAnalysis={(aiData) => handleActiveBusinessExportPDF(activeProposal, aiData)}
+            onReanalyze={() => handleAIAnalysis(activeProposal)}
+            isExportingAnalysis={isExportingPdf}
+            isAnalyzing={isAiAnalyzing}
           />
         )}
 
@@ -2607,6 +2667,8 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* AI Advisory Disclaimer Banner */}
+                        <AIAdvisoryDisclaimerBanner />
                         {modalAiResult._fallback && (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
                             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
@@ -3309,6 +3371,13 @@ const AdviserDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* AI Advisory Acknowledgment Modal */}
+      <AIAdvisoryModal
+        key={advisoryModalKey}
+        isOpen={isAdvisoryModalOpen}
+        onAcknowledge={handleAcknowledgeAdvisory}
+      />
 
       {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
       <ScrollToTopButton />

@@ -7,13 +7,16 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  Download,
   FileText,
   Folder,
   Layers,
   Lock,
+  Loader2,
   MapPin,
   MessageCircle,
   Package,
+  RefreshCw,
   Send,
   ShieldCheck,
   Sparkles,
@@ -32,6 +35,7 @@ import {
   resolveSyncedAIAnalysis,
   resolveProposalMonthAndDraft,
   toEpochMs,
+  type ResolvedAIAnalysisData,
 } from "../utils/aiAnalysisHelpers";
 import type { ChairpersonRosterMember } from "../services/chairpersonFeasibilityService";
 import { getOtherRelevantInformation } from "../utils/proposalDetails";
@@ -54,6 +58,10 @@ export interface ActiveBusinessDetailViewProps {
   onFeedbackInputChange?: (val: string) => void;
   onSubmitFeedback?: () => void;
   isSavingFeedback?: boolean;
+  onExportAnalysis?: (aiData: ResolvedAIAnalysisData) => void;
+  onReanalyze?: () => void;
+  isExportingAnalysis?: boolean;
+  isAnalyzing?: boolean;
 }
 
 const getInitials = (name?: string): string => {
@@ -106,6 +114,10 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
   onFeedbackInputChange,
   onSubmitFeedback,
   isSavingFeedback = false,
+  onExportAnalysis,
+  onReanalyze,
+  isExportingAnalysis = false,
+  isAnalyzing = false,
 }) => {
   const [activeTab, setActiveTab] = useState<"Profile" | "Financial" | "AI">(
     "Profile"
@@ -2057,6 +2069,46 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
 
               return (
                 <div className="space-y-6 min-w-0">
+                  {(onExportAnalysis || onReanalyze) && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
+                        <div className="p-1.5 bg-yellow-100/50 rounded-md">
+                          <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                        </div>
+                        AI Feasibility Analysis
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {onExportAnalysis && (
+                          <button
+                            type="button"
+                            onClick={() => onExportAnalysis(synced.aiData)}
+                            disabled={isExportingAnalysis}
+                            className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
+                            title="Export Analysis & Financials as PDF"
+                          >
+                            {isExportingAnalysis ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#c9a654]" />
+                            ) : (
+                              <Download className="w-3 h-3 text-[#c9a654]" />
+                            )}
+                            Export PDF
+                          </button>
+                        )}
+                        {onReanalyze && (
+                          <button
+                            type="button"
+                            onClick={onReanalyze}
+                            disabled={isAnalyzing}
+                            className="text-xs font-bold text-gray-500 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm cursor-pointer disabled:opacity-50"
+                            title="Re-analyze Proposal"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${isAnalyzing ? "animate-spin text-[#c9a654]" : "text-gray-400"}`} />
+                            {isAnalyzing ? "Analyzing..." : "Re-analyze"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {/* Multi-Month & Scenario Draft Selector */}
                   {renderMonthAndDraftSelector(
                     synced.context.monthlyRecords,
