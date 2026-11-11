@@ -13721,3 +13721,169 @@ Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generative
     at async callGeminiCascade (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:272:22)
     at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1461:37
 
+[2026-11-11T08:48:50.390Z] AI Evaluation Error:
+Request: {
+  "projectId": "xzaX4HNaL5palMp196JO",
+  "businessName": "EggSarap",
+  "businessType": "Food & Beverage",
+  "totalCapital": "2000000",
+  "tagline": "Eggsarap talaga",
+  "targetMarket": "Teenagers to young adults",
+  "missionStatement": "Test mission",
+  "visionStatement": "Test Vission",
+  "productDescription": "Products with eggs",
+  "priceRanges": "low to mid prices ranges",
+  "proposedLocation": "SM Mall of Asia (MOA), Seaside Blvd, Pasay, Brgy. 76, Metro Manila, Philippines",
+  "promotionalStrategy": "Ads and Soc med posting",
+  "financialData": {
+    "startupCapital": "2000000",
+    "unitCost": "",
+    "markupPercentage": "100",
+    "variableCost": "",
+    "markupAmount": "",
+    "interestRate": "",
+    "isCapitalBorrowed": false,
+    "sellingPrice": "",
+    "computedSellingPrice": "",
+    "contributorsCount": "2",
+    "productionCost": "0",
+    "quantityYield": "",
+    "products": [
+      {
+        "unitsSold": "",
+        "name": "Eggdesal",
+        "applyVat": true,
+        "id": "prod-1",
+        "markupPercentage": "100",
+        "quantityYield": "",
+        "sellingPrice": "",
+        "vatRate": 12,
+        "ingredients": [],
+        "batchesPerMonth": ""
+      },
+      {
+        "name": "Egg pudding",
+        "unitsSold": "",
+        "markupPercentage": "100",
+        "id": "prod-1794386727974",
+        "quantityYield": "",
+        "sellingPrice": "",
+        "batchesPerMonth": "1",
+        "vatRate": 12,
+        "applyVat": true,
+        "ingredients": []
+      }
+    ],
+    "equipmentList": [
+      {
+        "quantity": 1,
+        "id": "eq-1794386733241",
+        "unitPrice": 10000,
+        "total": 10000,
+        "name": "Oven"
+      },
+      {
+        "name": "Refrigarator",
+        "quantity": 1,
+        "total": 10000,
+        "id": "eq-1794386733885",
+        "unitPrice": 10000
+      }
+    ]
+  },
+  "customAIRules": {
+    "focusAreas": "",
+    "dealbreakers": "",
+    "formatting": "",
+    "tone": ""
+  }
+}
+Error: SyntaxError: Expected ':' after property name in JSON at position 1678 (line 1 column 1679)
+    at JSON.parse (<anonymous>)
+    at cleanAndParseJSON (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:348:17)
+    at C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1780:30
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+[2026-11-11T08:52:36.902Z] AI Evaluation Error:
+Request: {
+  "projectId": "xzaX4HNaL5palMp196JO",
+  "businessName": "EggSarap",
+  "businessType": "Food & Beverage",
+  "totalCapital": "2000000",
+  "tagline": "Eggsarap talaga",
+  "targetMarket": "Teenagers to young adults",
+  "missionStatement": "Test mission",
+  "visionStatement": "Test Vission",
+  "productDescription": "Products with eggs",
+  "priceRanges": "low to mid prices ranges",
+  "proposedLocation": "SM Mall of Asia (MOA), Seaside Blvd, Pasay, Brgy. 76, Metro Manila, Philippines",
+  "promotionalStrategy": "Ads and Soc med posting",
+  "financialData": {
+    "startupCapital": "2000000",
+    "unitCost": "",
+    "markupPercentage": "100",
+    "variableCost": "",
+    "markupAmount": "",
+    "interestRate": "",
+    "isCapitalBorrowed": false,
+    "sellingPrice": "",
+    "computedSellingPrice": "",
+    "contributorsCount": "2",
+    "productionCost": "0",
+    "quantityYield": "",
+    "products": [
+      {
+        "unitsSold": "",
+        "name": "Eggdesal",
+        "applyVat": true,
+        "id": "prod-1",
+        "markupPercentage": "100",
+        "quantityYield": "",
+        "sellingPrice": "",
+        "vatRate": 12,
+        "ingredients": [],
+        "batchesPerMonth": ""
+      },
+      {
+        "name": "Egg pudding",
+        "unitsSold": "",
+        "markupPercentage": "100",
+        "id": "prod-1794386727974",
+        "quantityYield": "",
+        "sellingPrice": "",
+        "batchesPerMonth": "1",
+        "vatRate": 12,
+        "applyVat": true,
+        "ingredients": []
+      }
+    ],
+    "equipmentList": [
+      {
+        "quantity": 1,
+        "id": "eq-1794386733241",
+        "unitPrice": 10000,
+        "total": 10000,
+        "name": "Oven"
+      },
+      {
+        "name": "Refrigarator",
+        "quantity": 1,
+        "total": 10000,
+        "id": "eq-1794386733885",
+        "unitPrice": 10000
+      }
+    ]
+  },
+  "customAIRules": {
+    "focusAreas": "",
+    "dealbreakers": "",
+    "formatting": "",
+    "tone": ""
+  }
+}
+Error: SyntaxError: Expected ':' after property name in JSON at position 1397 (line 1 column 1398)
+    at JSON.parse (<anonymous>)
+    at cleanAndParseJSON (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:348:17)
+    at C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1780:30
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+

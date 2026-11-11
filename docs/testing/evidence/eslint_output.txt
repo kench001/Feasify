@@ -1,0 +1,26 @@
+﻿
+> feasify@0.0.0 lint
+> eslint .
+
+node.exe : 
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Oops! Something went wrong! :(
+
+ESLint: 9.39.5
+
+TypeError: Cannot read properties of undefined (reading 'recommended')
+    at Object.<anonymous> (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\Feasify\eslint.config.cjs:11:27)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at cjsLoader (node:internal/modules/esm/translators:309:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:202:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:345:25)

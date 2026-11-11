@@ -1,0 +1,41 @@
+﻿======================================================================
+  FEASIFY AUTOMATED QA, SECURITY, AND STRESS TESTING ASSESSMENT
+======================================================================
+
+
+--- SUITE 1: 3-Proposal Limit (Phase 2.3 - 10 Scenarios) ---
+  Γ£ô [PASS] Case 1: Student has 0 proposals -> count=0, allowed=true (28.70 ms)
+  Γ£ô [PASS] Case 2: Student creates 1st proposal -> proposalNumber=1, allowed=true (19.50 ms)
+  Γ£ô [PASS] Case 3: Student creates 2nd proposal -> proposalNumber=2, allowed=true (3.19 ms)
+  Γ£ô [PASS] Case 4: Student creates 3rd proposal -> proposalNumber=3, allowed=false (max reached) (2.12 ms)
+  Γ£ô [PASS] Case 5: Student attempts to create 4th proposal -> HTTP 400 rejection (1.05 ms)
+  Γ£ô [PASS] Case 6: Student refreshes browser -> state persists, allowed=false (1.51 ms)
+  Γ£ô [PASS] Case 7: Student attempts to bypass limit via /api/proposals POST -> blocked with 400 (1.73 ms)
+  Γ£ô [PASS] Case 8: Simultaneous proposal submissions race condition check (7.51 ms)
+  Γ£ô [PASS] Case 9: Student edits existing proposal after reaching limit -> updates allowed (1.05 ms)
+  Γ£ô [PASS] Case 10: Proposal status counting rule validation (0.67 ms)
+
+--- SUITE 2: Security & Vulnerability Auditing (Phase 8) ---
+  Γ£ô [PASS] Vulnerability Discovery: PUT /api/proposals/:proposalId/status accepts unauthenticated calls (0.87 ms)
+  Γ£ô [PASS] Vulnerability Discovery: Invalid status strings are rejected (0.69 ms)
+  Γ£ô [PASS] Rate Limiter Defense Check on protected endpoints (4.96 ms)
+  Γ£ô [PASS] CORS and Header Hygiene check (0.77 ms)
+
+--- SUITE 3: Performance & Stress Testing (Phase 9 Concurrency Levels) ---
+  ≡ƒôè Concurrency   1 VUs: Total 2 reqs | Req/s: 240.75 | Avg:   4.13 ms | Median:   5.31 ms | p95:   5.31 ms | Error: 0.0%
+  ≡ƒôè Concurrency  10 VUs: Total 20 reqs | Req/s: 365.57 | Avg:  24.47 ms | Median:  26.81 ms | p95:  42.96 ms | Error: 0.0%
+  ≡ƒôè Concurrency  25 VUs: Total 50 reqs | Req/s: 399.34 | Avg:  56.41 ms | Median:  63.15 ms | p95:  94.33 ms | Error: 0.0%
+  ≡ƒôè Concurrency  50 VUs: Total 100 reqs | Req/s: 472.44 | Avg:  93.02 ms | Median: 100.74 ms | p95: 157.32 ms | Error: 0.0%
+  ≡ƒôè Concurrency 100 VUs: Total 200 reqs | Req/s: 416.02 | Avg: 211.21 ms | Median: 226.08 ms | p95: 367.25 ms | Error: 0.0%
+
+--- SUITE 4: Name Checker & Legal Guardrails (Phase 3) ---
+  Γ£ô [PASS] Empty input returns 400 error status (0.98 ms)
+  Γ£ô [PASS] Well-known brand 'Jollibee' triggers trademark conflict across all territorial scopes (3.14 ms)
+  Γ£ô [PASS] DTI sandbox verification returns accurate BNRS portal link (3.53 ms)
+  Γ£ô [PASS] SEC company lookup distinguishes eSPARC reservation vs registered search (2.37 ms)
+
+======================================================================
+TEST SUMMARY: 18 PASSED / 0 FAILED (18 total)
+======================================================================
+
+Assessment evidence saved to assessmentEvidence.json
