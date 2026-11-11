@@ -878,8 +878,9 @@ app.post("/api/exemplars/evaluate-candidate", async (req, res) => {
 
 // Helper to calculate multi-product or single-product financial aggregates
 function calculateAggregatedFinancials(financials) {
-  const prods = Array.isArray(financials.products) && financials.products.length > 0
-    ? financials.products
+  const safeFinancials = financials && typeof financials === "object" ? financials : {};
+  const prods = Array.isArray(safeFinancials.products) && safeFinancials.products.length > 0
+    ? safeFinancials.products
     : null;
 
   if (prods && prods.length > 0) {
@@ -887,6 +888,7 @@ function calculateAggregatedFinancials(financials) {
     let totalCOGS = 0;
     let totalUnitsSold = 0;
     let totalUnitsProduced = 0;
+    let singleProductMetrics = null;
 
     prods.forEach((p) => {
       const ingredients = Array.isArray(p.ingredients) ? p.ingredients : [];
@@ -896,14 +898,19 @@ function calculateAggregatedFinancials(financials) {
         : (Number(p.productionCost) || 0);
 
       const batchYield = Number(p.quantityYield) || 0;
-      const batchesPerMonth = (p.batchesPerMonth !== undefined && p.batchesPerMonth !== "" && !isNaN(Number(p.batchesPerMonth)) && Number(p.batchesPerMonth) > 0)
+      const batchesPerMonth = (p.batchesPerMonth !== undefined && p.batchesPerMonth !== null && p.batchesPerMonth !== "" && !isNaN(Number(p.batchesPerMonth)) && Number(p.batchesPerMonth) > 0)
         ? Number(p.batchesPerMonth)
         : 1;
 
       const produced = batchYield * batchesPerMonth;
       totalUnitsProduced += produced;
 
-      const sold = (p.unitsSold !== undefined && p.unitsSold !== "" && !isNaN(Number(p.unitsSold)))
+      const hasExplicitUnitsSold =
+        p.unitsSold !== undefined &&
+        p.unitsSold !== null &&
+        p.unitsSold !== "" &&
+        !isNaN(Number(p.unitsSold));
+      const sold = hasExplicitUnitsSold
         ? Math.min(produced > 0 ? produced : Infinity, Math.max(0, Number(p.unitsSold)))
         : produced;
       totalUnitsSold += sold;
@@ -920,7 +927,7 @@ function calculateAggregatedFinancials(financials) {
       const computedVatInclusivePrice = computedBasePrice * (1 + vatMultiplier);
       const suggestedSellingPrice = applyVat ? computedVatInclusivePrice : computedBasePrice;
 
-      const rawSellingPrice = (p.sellingPrice !== undefined && p.sellingPrice !== "" && !isNaN(Number(p.sellingPrice)))
+      const rawSellingPrice = (p.sellingPrice !== undefined && p.sellingPrice !== null && p.sellingPrice !== "" && !isNaN(Number(p.sellingPrice)))
         ? Number(p.sellingPrice)
         : (suggestedSellingPrice > 0 ? Number(suggestedSellingPrice.toFixed(2)) : 0);
 
@@ -929,7 +936,69 @@ function calculateAggregatedFinancials(financials) {
         : rawSellingPrice;
 
       totalRevenue += netSellingPrice * sold;
+
+      if (prods.length === 1) {
+        singleProductMetrics = {
+          hasExplicitUnitsSold,
+          explicitSoldValue: hasExplicitUnitsSold ? Math.max(0, Number(p.unitsSold)) : null,
+          unitCost,
+          rawSellingPrice,
+          netSellingPrice
+        };
+      }
     });
+
+    if (prods.length === 1 && singleProductMetrics) {
+      const hasExplicitZeroSold =
+        (totalUnitsProduced > 0 && singleProductMetrics.hasExplicitUnitsSold) ||
+        (singleProductMetrics.hasExplicitUnitsSold && singleProductMetrics.explicitSoldValue === 0);
+      const scalarMonthlySales = Math.max(0, Number(safeFinancials.monthlySales) || 0);
+      const useScalarFallback =
+        totalUnitsProduced === 0 &&
+        !hasExplicitZeroSold &&
+        totalRevenue === 0 &&
+        scalarMonthlySales > 0;
+
+      if (useScalarFallback) {
+        const sellingPrice = Math.max(0, Number(safeFinancials.sellingPrice) || 0);
+        const variableCost = Math.max(0, Number(safeFinancials.variableCost) || 0);
+        const monthlySales = scalarMonthlySales;
+        const monthlyRevenue = sellingPrice * monthlySales;
+        const totalMonthlyVariableCosts = variableCost * monthlySales;
+
+        return {
+          monthlySales,
+          monthlyRevenue,
+          totalMonthlyVariableCosts,
+          sellingPrice,
+          variableCost,
+          isMultiProduct: false,
+          productCount: 1
+        };
+      }
+
+      const monthlySales = totalUnitsSold;
+      const monthlyRevenue = totalRevenue;
+      const totalMonthlyVariableCosts = totalCOGS;
+      const sellingPrice = singleProductMetrics.netSellingPrice > 0
+        ? singleProductMetrics.netSellingPrice
+        : (singleProductMetrics.rawSellingPrice > 0
+          ? singleProductMetrics.rawSellingPrice
+          : Math.max(0, Number(safeFinancials.sellingPrice) || 0));
+      const variableCost = singleProductMetrics.unitCost > 0
+        ? singleProductMetrics.unitCost
+        : Math.max(0, Number(safeFinancials.variableCost) || 0);
+
+      return {
+        monthlySales,
+        monthlyRevenue,
+        totalMonthlyVariableCosts,
+        sellingPrice,
+        variableCost,
+        isMultiProduct: false,
+        productCount: 1
+      };
+    }
 
     const monthlySales = totalUnitsSold;
     const monthlyRevenue = totalRevenue;
@@ -943,15 +1012,15 @@ function calculateAggregatedFinancials(financials) {
       totalMonthlyVariableCosts,
       sellingPrice,
       variableCost,
-      isMultiProduct: true,
+      isMultiProduct: prods.length > 1,
       productCount: prods.length
     };
   }
 
   // Single-product fallback
-  const sellingPrice = Number(financials.sellingPrice) || 0;
-  const variableCost = Number(financials.variableCost) || 0;
-  const monthlySales = Number(financials.monthlySales) || 0;
+  const sellingPrice = Math.max(0, Number(safeFinancials.sellingPrice) || 0);
+  const variableCost = Math.max(0, Number(safeFinancials.variableCost) || 0);
+  const monthlySales = Math.max(0, Number(safeFinancials.monthlySales) || 0);
   const monthlyRevenue = sellingPrice * monthlySales;
   const totalMonthlyVariableCosts = variableCost * monthlySales;
 

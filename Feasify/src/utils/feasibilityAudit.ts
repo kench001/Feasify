@@ -103,12 +103,21 @@ export const normalizeCategory = (typeStr = ""): string => {
   return "General Enterprise";
 };
 
-// Defense-grade multi-factor financial feasibility evaluation engine
-export const evaluateDefenseFeasibility = (finData: any) => {
+// Shared base monthly operational & capital metrics resolver used by both audit & pro forma engines
+const resolveBaseMonthlyMetrics = (finData: any) => {
+  const monthlyRecords = Array.isArray(finData?.monthlyRecords) ? finData.monthlyRecords : [];
+  const activeMonthIdx =
+    typeof finData?.activeMonthIndex === "number" &&
+    finData.activeMonthIndex >= 0 &&
+    finData.activeMonthIndex < monthlyRecords.length
+      ? finData.activeMonthIndex
+      : Math.max(0, monthlyRecords.length - 1);
+  const fallbackRecordFin = monthlyRecords[activeMonthIdx]?.financials;
+
   const prods = (finData?.products && Array.isArray(finData.products) && finData.products.length > 0)
     ? normalizeProposalProducts(finData)
-    : (finData?.monthlyRecords && finData.monthlyRecords[0]?.financials?.products
-      ? normalizeProposalProducts(finData.monthlyRecords[0].financials)
+    : (fallbackRecordFin?.products && Array.isArray(fallbackRecordFin.products) && fallbackRecordFin.products.length > 0
+      ? normalizeProposalProducts(fallbackRecordFin)
       : []);
 
   let monthlyRevenue = 0;
@@ -125,42 +134,63 @@ export const evaluateDefenseFeasibility = (finData: any) => {
     safeVariableCost = safeMonthlySales > 0 ? totalMonthlyVariableCosts / safeMonthlySales : 0;
   } else if (prods.length === 1) {
     const m = computeProductMetrics(prods[0]);
-    monthlyRevenue = m.revenue;
-    totalMonthlyVariableCosts = m.cogsSold;
-    safeMonthlySales = m.unitsSold;
-    safeSellingPrice = m.netSellingPrice > 0 ? m.netSellingPrice : (m.sellingPrice > 0 ? m.sellingPrice : (Number(finData?.sellingPrice) || 0));
-    safeVariableCost = m.unitCost > 0 ? m.unitCost : (Number(finData?.variableCost) || 0);
+    const hasExplicitZeroSold =
+      m.totalUnitsProduced > 0 &&
+      prods[0].unitsSold !== undefined &&
+      prods[0].unitsSold !== "";
+    const useScalarFallback =
+      m.totalUnitsProduced === 0 &&
+      !hasExplicitZeroSold &&
+      m.revenue === 0 &&
+      (Number(finData?.monthlySales) || 0) > 0;
+
+    if (useScalarFallback) {
+      safeSellingPrice = Math.max(0, Number(finData?.sellingPrice) || 0);
+      safeVariableCost = Math.max(0, Number(finData?.variableCost) || 0);
+      safeMonthlySales = Math.max(0, Number(finData?.monthlySales) || 0);
+      monthlyRevenue = safeSellingPrice * safeMonthlySales;
+      totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
+    } else {
+      monthlyRevenue = m.revenue;
+      totalMonthlyVariableCosts = m.cogsSold;
+      safeMonthlySales = m.unitsSold;
+      safeSellingPrice = m.netSellingPrice > 0 ? m.netSellingPrice : (m.sellingPrice > 0 ? m.sellingPrice : Math.max(0, Number(finData?.sellingPrice) || 0));
+      safeVariableCost = m.unitCost > 0 ? m.unitCost : Math.max(0, Number(finData?.variableCost) || 0);
+    }
   } else {
-    safeSellingPrice = Number(finData?.sellingPrice) || 0;
-    safeVariableCost = Number(finData?.variableCost) || 0;
-    safeMonthlySales = Number(finData?.monthlySales) || 0;
+    safeSellingPrice = Math.max(0, Number(finData?.sellingPrice) || 0);
+    safeVariableCost = Math.max(0, Number(finData?.variableCost) || 0);
+    safeMonthlySales = Math.max(0, Number(finData?.monthlySales) || 0);
     monthlyRevenue = safeSellingPrice * safeMonthlySales;
     totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
   }
 
-  const safeOperatingDays = Number(finData?.operatingDays) || 300;
+  const safeOperatingDays = Math.max(1, Number(finData?.operatingDays) || 300);
   const isCapitalBorrowed = Boolean(finData?.isCapitalBorrowed);
-  const interestRate = Number(finData?.interestRate) || 0;
+  const interestRate = Math.max(0, Number(finData?.interestRate) || 0);
 
-  const equipmentList = finData?.equipmentList || [];
+  const equipmentList = Array.isArray(finData?.equipmentList) ? finData.equipmentList : [];
   const equipmentTotal = equipmentList.reduce(
-    (sum: number, item: any) => sum + (Number(item.total) || (Number(item.quantity) * Number(item.unitPrice)) || 0),
+    (sum: number, item: any) =>
+      sum + Math.max(0, Number(item?.total) || ((Number(item?.quantity) || 0) * (Number(item?.unitPrice) || 0)) || 0),
     0
   );
 
   const contribSum =
     Array.isArray(finData?.contributorsList) && finData.contributorsList.length > 0
-      ? finData.contributorsList.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+      ? finData.contributorsList.reduce((sum: number, c: any) => sum + Math.max(0, Number(c?.amount) || 0), 0)
       : 0;
 
-  const declaredCapital =
+  const declaredCapital = Math.max(
+    0,
     contribSum > 0
       ? contribSum
       : Number(finData?.cashInvested) ||
         Number(finData?.startupCapital) ||
         Number(finData?.totalCapital) ||
         Number(finData?.proposalCapital) ||
-        0;
+        0
+  );
 
   const safeStartupCapital = equipmentTotal > 0 ? equipmentTotal : declaredCapital;
   const cashReserve =
@@ -172,12 +202,50 @@ export const evaluateDefenseFeasibility = (finData: any) => {
 
   const capitalDeficit = equipmentList.length > 0 && declaredCapital > 0 && equipmentTotal > declaredCapital;
 
-  const opexList = finData?.opexList || [];
+  const opexList = Array.isArray(finData?.opexList) ? finData.opexList : [];
   const monthlyOpex = opexList.length > 0
-    ? opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
-    : (Number(finData?.fixedCosts) || 0);
+    ? opexList.reduce((sum: number, item: any) => sum + Math.max(0, Number(item?.amount) || 0), 0)
+    : Math.max(0, Number(finData?.fixedCosts) || 0);
 
   const monthlyInterest = isCapitalBorrowed ? (safeStartupCapital * (interestRate / 100)) / 12 : 0;
+
+  return {
+    prods,
+    safeSellingPrice,
+    safeVariableCost,
+    safeMonthlySales,
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    safeOperatingDays,
+    equipmentList,
+    equipmentTotal,
+    declaredCapital,
+    safeStartupCapital,
+    cashReserve,
+    capitalDeficit,
+    monthlyOpex,
+    monthlyInterest,
+  };
+};
+
+// Defense-grade multi-factor financial feasibility evaluation engine
+export const evaluateDefenseFeasibility = (finData: any) => {
+  const {
+    prods,
+    safeSellingPrice,
+    safeVariableCost,
+    safeMonthlySales,
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    safeOperatingDays,
+    equipmentTotal,
+    declaredCapital,
+    safeStartupCapital,
+    cashReserve,
+    capitalDeficit,
+    monthlyOpex,
+    monthlyInterest,
+  } = resolveBaseMonthlyMetrics(finData);
   const netMonthlyProfit = monthlyRevenue - totalMonthlyVariableCosts - monthlyOpex - monthlyInterest;
 
   const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
@@ -378,12 +446,9 @@ export const calculateLocalAudit = (finData: any) => {
   const evalRes = evaluateDefenseFeasibility(finData);
   const {
     category,
-    prods,
     safeSellingPrice,
-    safeVariableCost,
     unitGrossMargin,
     safeMonthlySales,
-    monthlyRevenue,
     monthlyOpex,
     cashReserve,
     cashRunwayMonths,
@@ -411,8 +476,6 @@ export const calculateLocalAudit = (finData: any) => {
     riskScore,
     marketScore
   } = evalRes;
-
-  const marginTitle = prods.length > 1 ? "Blended Unit Margin" : "Unit Gross Margin";
 
   return {
     score,
@@ -537,47 +600,25 @@ export const generateProFormaData = (financials: any, revenueGrowthRate = 10, co
   const yearlyNetProfit: number[] = [];
   const yearLabels: string[] = [];
 
-  const prods = (financials?.products && Array.isArray(financials.products) && financials.products.length > 0)
-    ? normalizeProposalProducts(financials)
-    : [];
+  const {
+    monthlyRevenue,
+    totalMonthlyVariableCosts,
+    safeOperatingDays,
+    safeStartupCapital,
+    monthlyOpex,
+    monthlyInterest,
+  } = resolveBaseMonthlyMetrics(financials);
 
-  let monthlyRevenue = 0;
-  let totalMonthlyVariableCosts = 0;
-
-  if (prods.length > 1) {
-    monthlyRevenue = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).revenue, 0);
-    totalMonthlyVariableCosts = prods.reduce((sum: number, p: any) => sum + computeProductMetrics(p).cogsSold, 0);
-  } else if (prods.length === 1) {
-    const m = computeProductMetrics(prods[0]);
-    monthlyRevenue = m.revenue;
-    totalMonthlyVariableCosts = m.cogsSold;
-  } else {
-    const safeSellingPrice = Number(financials?.sellingPrice) || 0;
-    const safeMonthlySales = Number(financials?.monthlySales) || 0;
-    const safeVariableCost = Number(financials?.variableCost) || 0;
-    monthlyRevenue = safeSellingPrice * safeMonthlySales;
-    totalMonthlyVariableCosts = safeVariableCost * safeMonthlySales;
-  }
-
-  const safeFixedCosts = financials?.opexList && financials.opexList.length > 0
-    ? financials.opexList.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
-    : (Number(financials?.fixedCosts) || 0);
-
-  const safeOperatingDays = Number(financials?.operatingDays) || 300;
-
-  const calculatedStartupCapital = financials?.equipmentList && financials.equipmentList.length > 0
-    ? financials.equipmentList.reduce((sum: any, item: any) => sum + (Number(item.total) || 0), 0)
-    : (Number(financials?.startupCapital) || 0);
-
-  const monthlyInterest = financials?.isCapitalBorrowed ? (calculatedStartupCapital * (Number(financials?.interestRate || 0) / 100)) / 12 : 0;
+  const safeRevGrowthRate = Number.isFinite(Number(revenueGrowthRate)) ? Number(revenueGrowthRate) : 10;
+  const safeCostGrowthRate = Number.isFinite(Number(costGrowthRate)) ? Number(costGrowthRate) : 5;
 
   const currentAnnualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
   const currentAnnualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
-  const currentAnnualFixedCosts = ((safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
+  const currentAnnualFixedCosts = ((monthlyOpex + monthlyInterest) / 30) * safeOperatingDays;
 
   for (let year = 1; year <= 5; year++) {
-    const revenueMultiplier = Math.pow(1 + revenueGrowthRate / 100, year - 1);
-    const costMultiplier = Math.pow(1 + costGrowthRate / 100, year - 1);
+    const revenueMultiplier = Math.pow(1 + safeRevGrowthRate / 100, year - 1);
+    const costMultiplier = Math.pow(1 + safeCostGrowthRate / 100, year - 1);
 
     const projectedRevenue = currentAnnualRevenue * revenueMultiplier;
     const projectedCOGS = currentAnnualCOGS * costMultiplier;
@@ -585,12 +626,12 @@ export const generateProFormaData = (financials: any, revenueGrowthRate = 10, co
     const preTaxProfit = projectedRevenue - projectedCOGS - projectedFixedCosts;
 
     // Philippine Smart Taxation: BMBE 3% vs CREATE 20%
-    const isBmbe = projectedRevenue <= 3000000 && calculatedStartupCapital <= 3000000;
+    const isBmbe = projectedRevenue <= 3000000 && safeStartupCapital <= 3000000;
     const applicableTax = isBmbe
       ? (projectedRevenue > 0 ? projectedRevenue * 0.03 : 0)
       : (preTaxProfit > 0 ? preTaxProfit * 0.20 : 0);
 
-    const projectedNetProfit = (preTaxProfit > 0 ? preTaxProfit : 0) - applicableTax;
+    const projectedNetProfit = preTaxProfit - applicableTax;
 
     yearlyRevenue.push(Math.round(projectedRevenue));
     yearlyCOGS.push(Math.round(projectedCOGS));

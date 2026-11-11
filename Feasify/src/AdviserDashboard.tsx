@@ -10,11 +10,12 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check, Download,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock,
-  Folder, Store, MapPin, Compass, Building2
+  FileSpreadsheet, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock,
+  Folder, Store, MapPin, Compass
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
-import { cleanUserFacingText, derivePerformanceGrade, calculateLocalAudit, type MarketAnalysisData } from "./utils/feasibilityAudit";
+import { resolveSyncedAIAnalysis, resolveProposalMonthAndDraft, toEpochMs } from "./utils/aiAnalysisHelpers";
+import FeasibilityAnalysisReport from "./components/FeasibilityAnalysisReport";
 import { logAuditEvent } from "./services/auditLogger";
 import { fetchSectionExportData, generateSectionPDF } from "./services/sectionExportService";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
@@ -183,7 +184,7 @@ const AdviserDashboard: React.FC = () => {
   const [isRemarksSaving, setIsRemarksSaving] = useState(false);
   const [remarksSavedNotice, setRemarksSavedNotice] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "market" | "balance-sheet">("operations");
+  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "market">("operations");
   const [adviserSelectedMonthIndex, setAdviserSelectedMonthIndex] = useState<number>(0);
   const [adviserSelectedDraftId, setAdviserSelectedDraftId] = useState<string>("");
   const [adviserExpandedProducts, setAdviserExpandedProducts] = useState<Record<string, boolean>>({});
@@ -486,6 +487,16 @@ const AdviserDashboard: React.FC = () => {
     fetchGroupProposals(group.id);
   };
 
+  const openActiveBusinessView = (proposal: ProposalData) => {
+    setActiveProposal(proposal);
+    const ctx = resolveProposalMonthAndDraft(proposal);
+    setAdviserSelectedMonthIndex(ctx.monthlyRecords ? ctx.monthIndex : 0);
+    setAdviserSelectedDraftId(ctx.monthlyRecords && ctx.drafts ? ctx.draftId : "");
+    setActiveView('active-business');
+    setActiveBusinessTab('Profile');
+    setAdviserFinTab('operations');
+  };
+
   const handleOpenActiveBusiness = async (group: GroupData) => {
     setSelectedGroup(group);
     const teamProps = proposalsByGroup[group.id] || [];
@@ -509,39 +520,11 @@ const AdviserDashboard: React.FC = () => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const pData = { id: docSnap.id, ...docSnap.data() } as ProposalData;
-        setActiveProposal(pData);
-        const finData = pData.financialData;
-        if (finData?.monthlyRecords && Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0) {
-          const initIdx = finData.activeMonthIndex !== undefined 
-            ? Math.min(Math.max(0, finData.activeMonthIndex), finData.monthlyRecords.length - 1)
-            : Math.max(0, finData.monthlyRecords.length - 1);
-          setAdviserSelectedMonthIndex(initIdx);
-          const rec = finData.monthlyRecords[initIdx];
-          setAdviserSelectedDraftId(rec?.activeDraftId || rec?.drafts?.[0]?.id || "");
-        } else {
-          setAdviserSelectedMonthIndex(0);
-          setAdviserSelectedDraftId("");
-        }
-        setActiveView('active-business');
-        setActiveBusinessTab('Profile');
+        openActiveBusinessView(pData);
       } else {
         const fallback = teamProps.find(p => p.id === propId);
         if (fallback) {
-          setActiveProposal(fallback);
-          const finData = fallback.financialData;
-          if (finData?.monthlyRecords && Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0) {
-            const initIdx = finData.activeMonthIndex !== undefined 
-              ? Math.min(Math.max(0, finData.activeMonthIndex), finData.monthlyRecords.length - 1)
-              : Math.max(0, finData.monthlyRecords.length - 1);
-            setAdviserSelectedMonthIndex(initIdx);
-            const rec = finData.monthlyRecords[initIdx];
-            setAdviserSelectedDraftId(rec?.activeDraftId || rec?.drafts?.[0]?.id || "");
-          } else {
-            setAdviserSelectedMonthIndex(0);
-            setAdviserSelectedDraftId("");
-          }
-          setActiveView('active-business');
-          setActiveBusinessTab('Profile');
+          openActiveBusinessView(fallback);
         } else {
           alert("Could not load the active proposal details.");
         }
@@ -550,21 +533,7 @@ const AdviserDashboard: React.FC = () => {
       console.error(e);
       const fallback = teamProps.find(p => p.id === propId);
       if (fallback) {
-        setActiveProposal(fallback);
-        const finData = fallback.financialData;
-        if (finData?.monthlyRecords && Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0) {
-          const initIdx = finData.activeMonthIndex !== undefined 
-            ? Math.min(Math.max(0, finData.activeMonthIndex), finData.monthlyRecords.length - 1)
-            : Math.max(0, finData.monthlyRecords.length - 1);
-          setAdviserSelectedMonthIndex(initIdx);
-          const rec = finData.monthlyRecords[initIdx];
-          setAdviserSelectedDraftId(rec?.activeDraftId || rec?.drafts?.[0]?.id || "");
-        } else {
-          setAdviserSelectedMonthIndex(0);
-          setAdviserSelectedDraftId("");
-        }
-        setActiveView('active-business');
-        setActiveBusinessTab('Profile');
+        openActiveBusinessView(fallback);
       } else {
         alert("Failed to fetch business details.");
       }
@@ -1443,6 +1412,87 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
+  const renderMonthAndDraftSelector = (
+    monthlyRecords: any[] | null,
+    currentMonthIndex: number,
+    currentMonthRecord: any,
+    drafts: any[] | null,
+    currentDraft: any
+  ) => {
+    if (!monthlyRecords || monthlyRecords.length === 0) return null;
+
+    return (
+      <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar flex-1">
+            {monthlyRecords.map((rec: any, idx: number) => {
+              const isSelected = idx === currentMonthIndex;
+              const isLocked = !!rec.isLocked;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setAdviserSelectedMonthIndex(idx);
+                    setAdviserSelectedDraftId(rec.activeDraftId || rec.drafts?.[0]?.id || "");
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
+                    isSelected
+                      ? "bg-[#122244] text-white border-[#122244] shadow-sm"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                  }`}
+                >
+                  <Folder className="w-3.5 h-3.5 text-[#c9a654]" />
+                  <span>Month {rec.month || idx + 1}</span>
+                  {isLocked ? (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 font-bold flex items-center gap-0.5">
+                      <Lock className="w-2.5 h-2.5" /> LOCKED
+                    </span>
+                  ) : (
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isSelected ? "bg-green-500/30 text-green-300" : "bg-green-100 text-green-700"}`}>
+                      • ACTIVE
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-200 shrink-0">
+            Viewing Month {currentMonthRecord?.month || currentMonthIndex + 1}
+          </span>
+        </div>
+
+        {/* DRAFTS BAR */}
+        {drafts && drafts.length > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-100 overflow-x-auto text-xs custom-scrollbar">
+            <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap flex items-center gap-1 shrink-0">
+              <Layers className="w-3 h-3 text-[#c9a654]" /> Month {currentMonthRecord?.month || currentMonthIndex + 1} Drafts:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {drafts.map((d: any) => {
+                const isDraftSelected = (d.id === (currentDraft?.id || drafts[0].id));
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setAdviserSelectedDraftId(d.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      isDraftSelected
+                        ? "bg-[#122244] text-white shadow-xs"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+                    }`}
+                  >
+                    {d.name || "Draft"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Financial Calculations for Read-Only Display (100% Synchronized with Financial_input.tsx)
   const renderFinancialData = () => {
     const rawFin = activeProposal?.financialData || (activeProposal as any)?.originalProposalFinancials;
@@ -1511,8 +1561,6 @@ const AdviserDashboard: React.FC = () => {
     const totalMultiVariableCost = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).cogsSold, 0);
     const totalMultiYield = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).totalUnitsProduced, 0);
     const totalMultiUnitsSold = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).unitsSold, 0);
-    const totalMultiEndingInventory = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).endingInventoryValue, 0);
-    const totalMultiVat = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).totalVat, 0);
 
     const safeSellingPrice = normalizedProducts.length > 1 && totalMultiUnitsSold > 0
       ? totalMultiRevenue / totalMultiUnitsSold
@@ -1549,11 +1597,7 @@ const AdviserDashboard: React.FC = () => {
     const monthlyNetProfitMargin = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
 
     const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
-    const annualExpenses = ((totalMonthlyVariableCosts + safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
-    const annualNetProfitPreTax = annualRevenue - annualExpenses;
-
     const annualTax = annualRevenue * 0.03;
-    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - annualTax;
 
     const unitContributionMargin = safeSellingPrice - safeVariableCost;
     const breakEvenUnits = unitContributionMargin > 0 ? Math.ceil(safeFixedCosts / unitContributionMargin) : "N/A";
@@ -1578,79 +1622,18 @@ const AdviserDashboard: React.FC = () => {
     const safePermitsLicenses = Number(fin.permitsLicensesInitial) || 0;
     const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital + safeRenovationCosts + safePermitsLicenses;
 
-    // Section 4: Current Assets
-    const operatingCashBuffer = Math.max(0, netMonthlyProfit * 12);
-    const totalLiquidCash = safeCashInvested + operatingCashBuffer;
-    const cashOnHand = totalLiquidCash * 0.15;
-    const cashInBank = totalLiquidCash * 0.85;
-    const rawMaterialInventory = totalMonthlyVariableCosts * 0.15;
-    const finishedGoodsInventory = totalMultiEndingInventory;
-    const totalInventory = rawMaterialInventory + finishedGoodsInventory;
-
-    const totalAnnualOpEx = (safeFixedCosts / 30) * safeOperatingDays;
-    const safeEndingSuppliesPercent = Number(fin.endingSuppliesPercent ?? 30);
-    const suppliesEndingInventory = (totalAnnualOpEx * 0.08) * (safeEndingSuppliesPercent / 100);
-
-    const safeSalesDiscountPercent = Number(fin.salesDiscountPercent ?? 5);
-    const safeSalesReturnsPercent = Number(fin.salesReturnsPercent ?? 2);
-    const annualGrossSales = annualRevenue;
-    const annualSalesDiscount = (annualGrossSales * safeSalesDiscountPercent) / 100;
-    const annualSalesReturns = (annualGrossSales * safeSalesReturnsPercent) / 100;
-    const annualNetSales = Math.max(0, annualGrossSales - annualSalesDiscount - annualSalesReturns);
-    const safeAccountsReceivable = Number(fin.accountsReceivable) || (annualNetSales * 0.03);
-
-    const totalCurrentAssets = cashOnHand + cashInBank + totalInventory + suppliesEndingInventory + safeAccountsReceivable;
-
-    // Non-Current Assets
-    const grossPPE = safeStartupCapital;
-    const leaseholdImprovementsGross = safeRenovationCosts;
-    const totalGrossNonCurrent = grossPPE + leaseholdImprovementsGross;
-    const annualDepreciation = (grossPPE * 0.10) + (leaseholdImprovementsGross * 0.10);
-    const totalNonCurrentAssets = Math.max(0, totalGrossNonCurrent - annualDepreciation);
-    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
-
-    // Current Liabilities
-    const safeAccountsPayable = Number(fin.accountsPayable) || (totalMonthlyVariableCosts * 0.20);
-    const safeUtilitiesPayable = Number(fin.utilitiesPayable) || (safeFixedCosts * 0.15);
-    const safeSalariesPayable = Number(fin.salariesPayable) || (safeSalariesInitial > 0 ? safeSalariesInitial / 2 : safeFixedCosts * 0.15);
-    const safeTaxesPayable = Number(fin.taxesPayable) || annualTax;
-    const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable + safeSalariesPayable + safeTaxesPayable;
-
-    // Owner's Equity
-    const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : safeStartupCapital;
-    const endingOwnerEquity = totalAssets - totalCurrentLiabilities;
-    const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
-
-    // Financial Ratios
-    const currentRatio = totalCurrentLiabilities > 0 
-      ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) 
-      : (totalCurrentAssets > 0 ? "99.9" : "0.0");
-    const quickRatio = totalCurrentLiabilities > 0
-      ? ((cashOnHand + cashInBank + safeAccountsReceivable) / totalCurrentLiabilities).toFixed(2)
-      : "0.0";
-    const debtRatio = totalAssets > 0 ? ((totalCurrentLiabilities / totalAssets) * 100).toFixed(1) : "0.0";
-    const equityRatio = totalAssets > 0 ? ((endingOwnerEquity / totalAssets) * 100).toFixed(1) : "0.0";
-    const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
-    const avgInventory = totalInventory > 0 ? totalInventory : 1;
-    const inventoryTurnover = avgInventory > 0 ? (annualCOGS / avgInventory).toFixed(1) : "0.0";
-    const numTurnover = Number(inventoryTurnover) || 0;
-    const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
-    const currentAssetTurnover = totalCurrentAssets > 0 
-      ? (annualNetSales / totalCurrentAssets).toFixed(2) 
-      : "0.0";
-
-    const monthlyCashInflow = annualNetProfitAfterTax > 0 ? (annualNetProfitAfterTax / 12) : 0;
-    let paybackYears = 0;
-    let paybackMonths = 0;
-    let paybackDays = 0;
-    if (monthlyCashInflow > 0 && safeStartupCapital > 0) {
-      const totalMonths = safeStartupCapital / monthlyCashInflow;
-      paybackYears = Math.floor(totalMonths / 12);
-      paybackMonths = Math.floor(totalMonths % 12);
-      paybackDays = Math.round((totalMonths % 1) * 30);
-    }
-    const rawROI = safeStartupCapital > 0 ? (annualNetProfitAfterTax / safeStartupCapital) * 100 : 0;
-    const estimatedAnnualROI = isNaN(rawROI) ? "0.0" : rawROI.toFixed(1);
+    // Formatted Hero KPI strings & responsive sizing so values stay cleanly within card bounds
+    const monthlyExpensesTotal = totalMonthlyVariableCosts + safeFixedCosts;
+    const formattedMonthlyRevenue = `₱${monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formattedMonthlyExpenses = `₱${monthlyExpensesTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const breakEvenDisplay = typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits;
+    const formattedGrossMargin = `${grossProfitMargin.toFixed(1)}%`;
+    const formattedNetProfit = `${netMonthlyProfit < 0 ? "-" : ""}₱${Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const getHeroValueSizeClass = (val: string) => {
+      if (val.length >= 16) return "text-sm sm:text-base";
+      if (val.length >= 13) return "text-base sm:text-lg";
+      return "text-lg sm:text-xl";
+    };
 
     // Product expansion helpers
     const toggleProductExpand = (key: string) => {
@@ -1672,78 +1655,15 @@ const AdviserDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* MULTI-MONTH SELECTOR (Synchronized with student monthly records) */}
-        {monthlyRecords && monthlyRecords.length > 0 && (
-          <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar flex-1">
-                {monthlyRecords.map((rec: any, idx: number) => {
-                  const isSelected = idx === currentMonthIndex;
-                  const isLocked = !!rec.isLocked;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setAdviserSelectedMonthIndex(idx);
-                        setAdviserSelectedDraftId(rec.activeDraftId || rec.drafts?.[0]?.id || "");
-                      }}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
-                        isSelected
-                          ? "bg-[#122244] text-white border-[#122244] shadow-sm"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
-                      }`}
-                    >
-                      <Folder className="w-3.5 h-3.5 text-[#c9a654]" />
-                      <span>Month {rec.month || idx + 1}</span>
-                      {isLocked ? (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 font-bold flex items-center gap-0.5">
-                          <Lock className="w-2.5 h-2.5" /> LOCKED
-                        </span>
-                      ) : (
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isSelected ? "bg-green-500/30 text-green-300" : "bg-green-100 text-green-700"}`}>
-                          • ACTIVE
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-200 shrink-0">
-                Viewing Month {currentMonthRecord?.month || currentMonthIndex + 1}
-              </span>
-            </div>
-
-            {/* DRAFTS BAR */}
-            {drafts && drafts.length > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 overflow-x-auto text-xs custom-scrollbar">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap flex items-center gap-1 shrink-0">
-                  <Layers className="w-3 h-3 text-[#c9a654]" /> Month {currentMonthRecord?.month || currentMonthIndex + 1} Drafts:
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {drafts.map((d: any) => {
-                    const isDraftSelected = (d.id === (currentDraft?.id || drafts[0].id));
-                    return (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => setAdviserSelectedDraftId(d.id)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          isDraftSelected
-                            ? "bg-[#122244] text-white shadow-xs"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
-                        }`}
-                      >
-                        {d.name || "Draft"}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+        {renderMonthAndDraftSelector(
+          monthlyRecords,
+          currentMonthIndex,
+          currentMonthRecord,
+          drafts,
+          currentDraft
         )}
 
-        {/* SUB-TABS NAVIGATION (Matches student portal exactly: Operational, Market, Balance Sheet) */}
+        {/* SUB-TABS NAVIGATION (Operational & Market) */}
         <div className="flex bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner">
           <button
             type="button"
@@ -1759,40 +1679,42 @@ const AdviserDashboard: React.FC = () => {
           >
             <Target className="w-3.5 h-3.5 text-[#c9a654]" /> Market & Competitive Indicators
           </button>
-          <button
-            type="button"
-            onClick={() => setAdviserFinTab("balance-sheet")}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "balance-sheet" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-          >
-            <Scale className="w-3.5 h-3.5 text-blue-600" /> Balance Sheet (Financial Position)
-          </button>
         </div>
 
         {/* TAB 1: OPERATIONAL INPUTS & COSTING */}
         {adviserFinTab === "operations" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* 5 KPI Hero Cards (100% Synchronized with student portal) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            {/* 5 KPI Hero Cards (3+2 symmetrical bento on xl+, 2+2+1 on sm/lg, stacked on mobile) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3.5">
               {/* 1. Monthly Revenue */}
-              <div className="bg-white rounded-xl border-l-4 border-l-emerald-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-emerald-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Monthly Revenue</span>
-                  <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">
-                    ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedMonthlyRevenue)} font-black text-emerald-600 tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={formattedMonthlyRevenue}
+                  >
+                    {formattedMonthlyRevenue}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   {normalizedProducts.length > 1 ? (
                     <>
                       <span>Sales: {safeMonthlySales.toLocaleString()} units sold</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`${safeUnitsProduced.toLocaleString()} produced • ${normalizedProducts.length} Products`}
+                      >
                         {safeUnitsProduced.toLocaleString()} produced • {normalizedProducts.length} Products
                       </p>
                     </>
                   ) : (
                     <>
                       <span>Price × Units Sold</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × ${safeMonthlySales.toLocaleString()} sold (${safeUnitsProduced.toLocaleString()} produced)`}
+                      >
                         ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {safeMonthlySales.toLocaleString()} sold ({safeUnitsProduced.toLocaleString()} produced)
                       </p>
                     </>
@@ -1801,25 +1723,34 @@ const AdviserDashboard: React.FC = () => {
               </div>
 
               {/* 2. Monthly Expenses */}
-              <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Monthly Expenses</span>
-                  <p className="text-xl sm:text-2xl font-black text-red-600 mt-0.5">
-                    ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedMonthlyExpenses)} font-black text-red-600 tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={formattedMonthlyExpenses}
+                  >
+                    {formattedMonthlyExpenses}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   {normalizedProducts.length > 1 ? (
                     <>
                       <span>COGS (Units Sold) + Fixed</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`₱${totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+                      >
                         ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                     </>
                   ) : (
                     <>
                       <span>[(COGS/Unit × Sold) + Fixed]</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`(₱${safeVariableCost.toFixed(2)} × ${safeMonthlySales.toLocaleString()} sold) + ₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+                      >
                         (₱{safeVariableCost.toFixed(2)} × {safeMonthlySales.toLocaleString()} sold) + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                     </>
@@ -1828,45 +1759,57 @@ const AdviserDashboard: React.FC = () => {
               </div>
 
               {/* 3. Break-Even Point */}
-              <div className="bg-white rounded-xl border-l-4 border-l-[#c9a654] p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-[#c9a654] p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Break-Even Point</span>
-                  <p className="text-xl sm:text-2xl font-black text-[#c9a654] mt-0.5">
-                    {typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits}{" "}
+                  <p
+                    className={`${getHeroValueSizeClass(`${breakEvenDisplay} units`)} font-black text-[#c9a654] tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={`${breakEvenDisplay} units`}
+                  >
+                    {breakEvenDisplay}{" "}
                     <span className="text-[10px] text-gray-400 font-normal">units</span>
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>Monthly OpEx / Margin per Unit</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / ₱${Math.max(0, safeSellingPrice - safeVariableCost).toFixed(2)}`}
+                  >
                     ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / ₱{Math.max(0, safeSellingPrice - safeVariableCost).toFixed(2)}
                   </p>
                 </div>
               </div>
 
               {/* 4. Gross Margin */}
-              <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-3 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Gross Margin</span>
-                  <p className={`text-xl sm:text-2xl font-black mt-0.5 ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}>
-                    {grossProfitMargin.toFixed(1)}%
+                  <p
+                    className={`${getHeroValueSizeClass(formattedGrossMargin)} font-black tabular-nums tracking-tight whitespace-nowrap mt-0.5 ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}
+                    title={formattedGrossMargin}
+                  >
+                    {formattedGrossMargin}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>[(Revenue - COGS) / Revenue]</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`(₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱${totalMonthlyVariableCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}) / ₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                  >
                     (₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}) / ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
                 </div>
               </div>
 
               {/* 5. Net Profit / Mo */}
-              <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+              <div className={`sm:col-span-2 xl:col-span-3 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Net Profit / Mo</span>
                     <span
-                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
                         netMonthlyProfit >= 0
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                           : "bg-red-50 text-red-600 border border-red-200/60"
@@ -1876,14 +1819,20 @@ const AdviserDashboard: React.FC = () => {
                       {monthlyNetProfitMargin >= 0 ? "+" : ""}{monthlyNetProfitMargin.toFixed(1)}%
                     </span>
                   </div>
-                  <p className={`text-xl sm:text-2xl font-black mt-0.5 ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}>
-                    {netMonthlyProfit < 0 ? "-" : ""}₱{Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedNetProfit)} font-black tabular-nums tracking-tight whitespace-nowrap mt-0.5 ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}
+                    title={formattedNetProfit}
+                  >
+                    {formattedNetProfit}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>Revenue - Expenses</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
-                    ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { maximumFractionDigits: 0 })}{monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱${monthlyExpensesTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}${monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}`}
+                  >
+                    ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{monthlyExpensesTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}{monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}
                   </p>
                 </div>
               </div>
@@ -2364,189 +2313,6 @@ const AdviserDashboard: React.FC = () => {
                     </p>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
-        {adviserFinTab === "balance-sheet" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Balance Verified Badge */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="font-extrabold text-emerald-900 text-sm">Balanced Statement of Financial Position</p>
-                  <p className="text-xs text-emerald-700">Assets = Liabilities + Owner's Equity (Verified Double-Entry Standard)</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-600 text-white font-black text-xs rounded-lg uppercase tracking-wider">
-                Balanced ✓
-              </span>
-            </div>
-
-            {/* Two-Column Balance Sheet */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* ASSETS */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>ASSETS (What Business Owns)</span>
-                  <span className="text-green-600">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-                
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Assets (Liquid)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash on Hand (15% Cash Drawer):</span>
-                    <span className="font-bold text-gray-900">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash in Bank (85% Bank Account):</span>
-                    <span className="font-bold text-gray-900">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Merchandise & Raw Materials Inventory:</span>
-                    <span className="font-bold text-gray-900">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {finishedGoodsInventory > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Finished Goods Inventory:</span>
-                      <span className="font-bold text-gray-900">₱{finishedGoodsInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {safeAccountsReceivable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Accounts Receivable:</span>
-                      <span className="font-bold text-gray-900">₱{safeAccountsReceivable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Assets:</span>
-                    <span className="text-[#122244]">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Non-Current Assets (Long-Term)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Property, Plant & Equipment (Gross):</span>
-                    <span className="font-bold text-gray-900">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {leaseholdImprovementsGross > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Leasehold Improvements (Gross):</span>
-                      <span className="font-bold text-gray-900">₱{leaseholdImprovementsGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
-                    <span>Less: Accumulated Depreciation (10%/yr):</span>
-                    <span className="font-bold">-₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Non-Current Assets (Net PPE):</span>
-                    <span className="text-[#122244]">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL ASSETS:</span>
-                    <span className="text-green-400">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* LIABILITIES & OWNER'S EQUITY */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>LIABILITIES & OWNER'S EQUITY</span>
-                  <span className="text-blue-600">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Liabilities (Short-Term)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Accounts Payable (20% of COGS):</span>
-                    <span className="font-bold text-gray-900">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Utilities & OpEx Payable (15% of OpEx):</span>
-                    <span className="font-bold text-gray-900">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {safeSalariesPayable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Salaries Payable:</span>
-                      <span className="font-bold text-gray-900">₱{safeSalariesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {safeTaxesPayable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Taxes Payable (3% Percentage Tax):</span>
-                      <span className="font-bold text-gray-900">₱{safeTaxesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Liabilities:</span>
-                    <span className="text-red-600">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Owner's Equity (Net Worth)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Initial Capital Contributed:</span>
-                    <span className="font-bold text-gray-900">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Add: Retained Net Income (After Tax):</span>
-                    <span className="font-bold text-emerald-600">₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Ending Owner's Capital:</span>
-                    <span className="text-[#122244]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL LIABILITIES & EQUITY:</span>
-                    <span className="text-blue-400">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Ratios Grid */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-              <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b border-gray-100 pb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#c9a654]" /> Automated Financial Ratios & Feasibility Indicators
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Current Ratio</span>
-                  <p className="text-lg font-black text-[#122244] mt-1">{currentRatio}x</p>
-                  <span className="text-[9px] text-gray-500">Liquidity Buffer</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Quick Ratio</span>
-                  <p className="text-lg font-black text-[#122244] mt-1">{quickRatio}x</p>
-                  <span className="text-[9px] text-gray-500">Acid-Test Ratio</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Debt Ratio</span>
-                  <p className="text-lg font-black text-red-600 mt-1">{debtRatio}%</p>
-                  <span className="text-[9px] text-gray-500">Liabilities / Assets</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Equity Ratio</span>
-                  <p className="text-lg font-black text-blue-600 mt-1">{equityRatio}%</p>
-                  <span className="text-[9px] text-gray-500">Equity / Assets</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Inventory Turnover</span>
-                  <p className="text-lg font-black text-[#c9a654] mt-1">{inventoryTurnover}x</p>
-                  <span className="text-[9px] text-gray-500">{avgAgeOfInventory} days avg age</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Annual ROI</span>
-                  <p className="text-lg font-black text-green-600 mt-1">{estimatedAnnualROI}%</p>
-                  <span className="text-[9px] text-gray-500">
-                    Payback: {paybackYears > 0 ? `${paybackYears}y ` : ""}{paybackMonths}m
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -3371,27 +3137,31 @@ const AdviserDashboard: React.FC = () => {
             </div>
 
             {/* Banner Header */}
-            <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-8 text-white relative border border-gray-800">
-              <div className="flex items-center gap-6 w-full">
-                <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
+            <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-5 sm:p-8 text-white relative border border-gray-800">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full min-w-0">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-2xl sm:text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
                   {getInitials(activeProposal.businessName)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                     <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> ACTIVE BUSINESS CHARTER</span>
                     <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3" /> SECTION: {selectedGroup.section}</span>
                     <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold rounded flex items-center gap-1"><Lock className="w-3 h-3" /> READ-ONLY ADVISER VIEW</span>
                   </div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold mb-1 tracking-tight truncate">{activeProposal.businessName}</h1>
-                  <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-1 tracking-tight truncate" title={activeProposal.businessName}>
+                    {activeProposal.businessName}
+                  </h1>
+                  <p className="text-sm text-gray-400 font-medium truncate" title={`${activeProposal.businessType} • Adviser: ${userName}`}>
+                    {activeProposal.businessType} • Adviser: {userName}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
                   <button
                     onClick={() => {
                       setActiveView('group-details');
                       fetchGroupProposals(selectedGroup.id);
                     }}
-                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-white/10"
+                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-white/10 whitespace-nowrap"
                   >
                     <Users className="w-4 h-4" /> Group History
                   </button>
@@ -3430,7 +3200,7 @@ const AdviserDashboard: React.FC = () => {
 
             {/* Tab Content & Roster Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 min-w-0 space-y-6">
 
                 {/* TAB: BUSINESS PROFILE */}
                 {activeBusinessTab === 'Profile' && (
@@ -3443,14 +3213,14 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-6 flex divide-x divide-gray-200 text-center border border-gray-100">
-                      <div className="flex-1 pr-6">
+                    <div className="bg-gray-50 rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-200 text-center border border-gray-100">
+                      <div className="flex-1 min-w-0 pb-4 sm:pb-0 sm:pr-6">
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Initial Capital</p>
-                        <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-green-600 tabular-nums break-words">₱{activeProposal.totalCapital || "0"}</p>
                       </div>
-                      <div className="flex-1 pl-6">
+                      <div className="flex-1 min-w-0 pt-4 sm:pt-0 sm:pl-6">
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Business Type</p>
-                        <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
+                        <p className="text-lg sm:text-xl font-bold text-[#122244] break-words">{activeProposal.businessType || "Uncategorized"}</p>
                       </div>
                     </div>
 
@@ -3608,29 +3378,13 @@ const AdviserDashboard: React.FC = () => {
 
                 {/* TAB: AI ANALYSIS */}
                 {activeBusinessTab === 'AI' && (() => {
-                  const rawFin = activeProposal.financialData || (activeProposal as any)?.originalProposalFinancials;
-                  const monthlyRecords = (rawFin?.monthlyRecords && Array.isArray(rawFin.monthlyRecords) && rawFin.monthlyRecords.length > 0)
-                    ? rawFin.monthlyRecords
-                    : null;
-                  const currentMonthIndex = monthlyRecords
-                    ? Math.min(Math.max(0, adviserSelectedMonthIndex), monthlyRecords.length - 1)
-                    : 0;
-                  const currentMonthRecord = monthlyRecords ? monthlyRecords[currentMonthIndex] : null;
-                  const drafts = currentMonthRecord?.drafts && Array.isArray(currentMonthRecord.drafts) && currentMonthRecord.drafts.length > 0
-                    ? currentMonthRecord.drafts
-                    : null;
-                  const currentDraft = drafts
-                    ? (drafts.find((d: any) => d.id === (adviserSelectedDraftId || currentMonthRecord.activeDraftId)) || drafts[0])
-                    : null;
-                  const effectiveFin = currentDraft?.financials || currentMonthRecord?.financials || rawFin;
+                  const hasAnyFinancialOrAi = Boolean(
+                    activeProposal.financialData ||
+                    (activeProposal as any)?.originalProposalFinancials ||
+                    activeProposal.aiAnalysis
+                  );
 
-                  // Resolve AI data: stored aiAnalysis, or calculateLocalAudit on the fly if not yet analyzed
-                  let aiData = activeProposal.aiAnalysis;
-                  if (!aiData && effectiveFin) {
-                    aiData = calculateLocalAudit(effectiveFin);
-                  }
-
-                  if (!aiData) {
+                  if (!hasAnyFinancialOrAi) {
                     return (
                       <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
                         <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -3639,520 +3393,78 @@ const AdviserDashboard: React.FC = () => {
                     );
                   }
 
-                  const score = aiData.score ?? 0;
-                  const feasibilityStatus = aiData.status || (score >= 70 ? "FEASIBLE" : "NOT_FEASIBLE");
-                  const gradeInfo = derivePerformanceGrade(score, feasibilityStatus);
-                  const performanceGrade = aiData.performanceGrade || gradeInfo.performanceGrade;
-                  const performanceStatus = aiData.performanceStatus || gradeInfo.performanceStatus;
-                  const performanceRecommendation = aiData.performanceRecommendation || gradeInfo.performanceRecommendation;
+                  const synced = resolveSyncedAIAnalysis(activeProposal, {
+                    monthIndex: adviserSelectedMonthIndex,
+                    draftId: adviserSelectedDraftId || undefined,
+                    preferLiveOnStale: true,
+                  });
 
-                  const cleanedExplanations = cleanUserFacingText(aiData.explanations || {});
-                  const improvementTips = cleanUserFacingText(aiData.improvementTips || {});
-                  const cleanedInsights = cleanUserFacingText(aiData.insights || []);
-                  const marketAnalysis = cleanUserFacingText(aiData.marketAnalysis || null);
-
-                  const directCompetitors = effectiveFin?.directCompetitors || [];
-                  const otherCompetitors = effectiveFin?.otherCompetitors || [];
-                  const nearbyEstablishments = effectiveFin?.nearbyEstablishments || [];
-                  const footTrafficPeak = effectiveFin?.footTrafficPeak || "";
-                  const marketDemandNotes = effectiveFin?.marketDemandNotes || "";
-                  const marketDemand = effectiveFin?.marketDemand || "Medium";
+                  const isLivePreview = synced.source === "live-audit";
 
                   return (
-                    <div className="space-y-6">
-                      {/* 1. Feasibility Verdict Card */}
-                      <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm">
-                        <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
-                          <div className="flex-shrink-0">
-                            <div
-                              className={`flex items-center justify-center w-20 h-20 rounded-xl shadow-inner mx-auto md:mx-0 ${
-                                feasibilityStatus === "FEASIBLE"
-                                  ? "bg-green-500"
-                                  : feasibilityStatus === "NOT_FEASIBLE"
-                                  ? "bg-red-500"
-                                  : "bg-orange-500"
-                              }`}
-                            >
-                              <Zap className="w-10 h-10 text-white" />
-                            </div>
-                          </div>
-                          <div className="flex-1 flex flex-col items-center md:items-start w-full">
-                            <div className="flex flex-col sm:flex-row items-center gap-3 mb-2 flex-wrap justify-center sm:justify-start">
-                              <h2 className="text-2xl font-extrabold text-[#122244]">
-                                Feasibility Verdict
-                              </h2>
-                              <span
-                                className={`inline-block px-3 py-1 text-white text-xs font-bold rounded-full ${
-                                  feasibilityStatus === "FEASIBLE"
-                                    ? "bg-green-500"
-                                    : feasibilityStatus === "NOT_FEASIBLE"
-                                    ? "bg-red-500"
-                                    : "bg-orange-500"
-                                }`}
-                              >
-                                {feasibilityStatus?.replace(/_/g, " ")}
-                              </span>
-                              {performanceGrade && (
-                                <span className="inline-block px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold rounded-full">
-                                  Grade: {performanceGrade}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-gray-600 text-sm leading-relaxed mb-2">
-                              {cleanedExplanations.feasibility || "Calculated based on current inputs."}
-                            </p>
-                            {performanceRecommendation && (
-                              <div className="mt-2 p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 w-full text-left">
-                                <span className="font-bold text-gray-700 block mb-1">Recommendation:</span>
-                                {performanceRecommendation}
-                              </div>
+                    <div className="space-y-6 min-w-0">
+                      {/* Multi-Month & Scenario Draft Selector */}
+                      {renderMonthAndDraftSelector(
+                        synced.context.monthlyRecords,
+                        synced.context.monthIndex,
+                        synced.context.monthRecord,
+                        synced.context.drafts,
+                        synced.context.draftRecord
+                      )}
+
+                      {/* Sync Status Bar (Read-Only Adviser View) */}
+                      <div
+                        className={`p-3.5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          isLivePreview
+                            ? "bg-amber-50/70 border-amber-200/80"
+                            : "bg-emerald-50/60 border-emerald-200/80"
+                        }`}
+                      >
+                        <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${
+                              isLivePreview
+                                ? "bg-amber-100/80 text-amber-800 border-amber-300"
+                                : "bg-emerald-100/80 text-emerald-800 border-emerald-300"
+                            }`}
+                          >
+                            {isLivePreview ? (
+                              <>
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-700" /> Live Audited Preview
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" /> Synced with Financial Inputs
+                              </>
                             )}
-                            {improvementTips?.feasibility && (
-                              <div
-                                className={`mt-3 inline-flex items-center gap-2 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-[11px] font-bold border text-left ${
-                                  feasibilityStatus === "FEASIBLE"
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : "bg-amber-50 text-amber-700 border-amber-200"
-                                }`}
-                              >
-                                <Lightbulb size={16} className="flex-shrink-0" />
-                                <span>
-                                  {feasibilityStatus === "FEASIBLE" ? "💡 Achievement:" : "Tip:"} {improvementTips.feasibility}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                        {/* Advisory Disclaimer */}
-                        <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                          <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-extrabold text-[#122244] uppercase tracking-wider text-[10px] block mb-0.5">
-                              Advisory Disclaimer
-                            </span>
-                            <p className="text-[11px] text-gray-600 leading-relaxed">
-                              AI feasibility metrics serve solely as advisory guidance to assist students. Do not fully rely on this assessment as a definitive judgment—validate business assumptions and adviser evaluations independently.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          {['Financial Health', 'Risk Assessment', 'Market Viability'].map((metric, idx) => {
-                            const key = metric === 'Financial Health' ? 'financial' : metric === 'Risk Assessment' ? 'risk' : 'market';
-                            const rawVal = activeProposal.aiAnalysis.metrics?.[key] || 0;
-                            const displayVal = rawVal > 10 ? rawVal / 10 : rawVal; // Convert 90 to 9
-                            const barWidth = rawVal > 10 ? rawVal : rawVal * 10; // Ensure 90%
-                            const desc = activeProposal.aiAnalysis.explanations?.[key];
-                            return (
-                              <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{metric}</p>
-                                <p className="text-2xl font-bold text-[#122244] mb-2">{displayVal}/10</p>
-                                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
-                                  <div className="bg-[#122244] h-1.5 rounded-full transition-all duration-500" style={{ width: `${barWidth}%` }}></div>
-                                </div>
-                                <p className="text-[10px] text-gray-500 leading-tight">{desc}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      {/* 2. Congratulations or Improvement Guide Section */}
-                      {feasibilityStatus === "FEASIBLE" ? (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 md:p-8 shadow-sm">
-                          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-                            <div className="text-4xl sm:text-5xl">🎉</div>
-                            <div className="flex-1">
-                              <h3 className="text-xl sm:text-2xl font-extrabold text-green-900 mb-2">
-                                Excellent News!
-                              </h3>
-                              <p className="text-green-800 font-medium mb-4 text-sm sm:text-base">
-                                Your feasibility study demonstrates strong business fundamentals. Your project shows:
-                              </p>
-                              <ul className="space-y-3 sm:space-y-2 text-green-700 text-sm text-left">
-                                <li className="flex items-start gap-2">
-                                  <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                                  <span>Solid financial projections and profit margins</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                                  <span>Adequate market demand and growth potential</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-green-600" />
-                                  <span>Manageable risk profile with viable market positioning</span>
-                                </li>
-                              </ul>
-                              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-green-200 text-left">
-                                <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
-                                  Recommended Next Steps:
-                                </p>
-                                <ul className="text-sm text-green-800 space-y-2 sm:space-y-1">
-                                  <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Develop detailed implementation and execution plan</span></li>
-                                  <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Finalize funding strategy and capital requirements</span></li>
-                                  <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Create marketing and customer acquisition roadmap</span></li>
-                                  <li className="flex gap-2"><span className="flex-shrink-0">✓</span> <span>Establish key performance indicators (KPIs) for monitoring</span></li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 p-6 md:p-8 shadow-sm">
-                          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-                            <div className="text-4xl sm:text-5xl">⚡</div>
-                            <div className="flex-1">
-                              <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mb-2">
-                                Path to Improved Feasibility
-                              </h3>
-                              <p className="text-amber-800 font-medium mb-4 text-sm sm:text-base">
-                                Your feasibility verdict indicates areas for improvement. Focus on these key areas:
-                              </p>
-                              <ul className="space-y-3 sm:space-y-2 text-amber-700 text-sm text-left">
-                                <li className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                                  <span>
-                                    <strong>Cost Structure:</strong> Review variable and fixed costs for optimization opportunities
-                                  </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                                  <span>
-                                    <strong>Market Differentiation:</strong> Develop a unique value proposition to stand out from competitors
-                                  </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                                  <span>
-                                    <strong>Revenue Optimization:</strong> Explore pricing strategies and upsell opportunities
-                                  </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0 text-amber-600" />
-                                  <span>
-                                    <strong>Market Validation:</strong> Conduct deeper market research to validate demand assumptions
-                                  </span>
-                                </li>
-                              </ul>
-                              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-white rounded-xl sm:rounded-lg border border-amber-200 text-left">
-                                <p className="text-xs font-bold text-gray-500 uppercase mb-3 sm:mb-2">
-                                  Action Items:
-                                </p>
-                                <ul className="text-sm text-amber-800 space-y-2 sm:space-y-1">
-                                  <li className="flex gap-2"><span className="font-bold flex-shrink-0">1.</span> <span>Revise financial projections with improved cost estimates</span></li>
-                                  <li className="flex gap-2"><span className="font-bold flex-shrink-0">2.</span> <span>Develop competitive differentiation strategy</span></li>
-                                  <li className="flex gap-2"><span className="font-bold flex-shrink-0">3.</span> <span>Validate market demand through surveys or pilot programs</span></li>
-                                  <li className="flex gap-2"><span className="font-bold flex-shrink-0">4.</span> <span>Re-run analysis to track feasibility improvement</span></li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-
-                      {/* 4. Key Insights */}
-                      {cleanedInsights && cleanedInsights.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm">
-                          <h4 className="text-sm font-bold text-[#122244] uppercase mb-4 tracking-widest flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-[#c9a654]" /> Key Insights
-                          </h4>
-                          <div className="space-y-3">
-                            {cleanedInsights.map((insight: any, i: number) => (
-                              <div
-                                key={i}
-                                className={`p-4 rounded-xl border flex items-start gap-3 ${
-                                  insight.type === 'positive'
-                                    ? 'bg-green-50/70 border-green-200 text-green-900'
-                                    : insight.type === 'warning'
-                                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                                    : 'bg-blue-50/70 border-blue-200 text-blue-900'
-                                }`}
-                              >
-                                <div className="mt-0.5 shrink-0">
-                                  {insight.type === 'positive' ? (
-                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                  ) : insight.type === 'warning' ? (
-                                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                                  ) : (
-                                    <Info className="w-4 h-4 text-blue-600" />
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-sm mb-1">{insight.title}</p>
-                                  <p className="text-xs leading-relaxed opacity-90">{insight.description}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 5. Market Environment & Competitive Landscape */}
-                      {((directCompetitors && directCompetitors.length > 0) ||
-                        (otherCompetitors && otherCompetitors.length > 0) ||
-                        (nearbyEstablishments && nearbyEstablishments.length > 0) ||
-                        footTrafficPeak ||
-                        marketDemandNotes ||
-                        marketAnalysis?.summary) && (
-                        <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 shadow-sm space-y-5">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-gray-100 gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#c9a654]/15 border border-[#c9a654]/30 flex items-center justify-center text-[#c9a654] shrink-0">
-                                <Target className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-extrabold text-[#122244]">
-                                  Market Indicators & Competitive Landscape
-                                </h3>
-                                <p className="text-xs text-gray-500">
-                                  Audited competitor density, nearby establishment foot traffic & business ROI drivers
-                                </p>
-                              </div>
-                            </div>
-                            <span className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black rounded-lg shrink-0">
-                              {marketDemand} Demand Profile
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Direct Competitors */}
-                            <div className="p-4 bg-gray-50/70 border border-gray-200/80 rounded-xl space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                                  <Store size={14} className="text-[#c9a654]" /> Direct Competitors
-                                </span>
-                                <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
-                                  {directCompetitors?.length || 0} Listed
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {directCompetitors && directCompetitors.length > 0 ? (
-                                  directCompetitors.map((comp: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2.5 py-1 bg-white border border-amber-200 text-amber-900 text-xs font-bold rounded-lg shadow-2xs"
-                                    >
-                                      {comp}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-xs text-gray-400 italic">None specified in financial input.</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Other Competitors (Indirect & Substitutes) */}
-                            <div className="p-4 bg-gray-50/70 border border-gray-200/80 rounded-xl space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                                  <Layers size={14} className="text-sky-600" /> Other / Indirect Competitors
-                                </span>
-                                <span className="text-[10px] font-black text-sky-700 bg-sky-100 px-2 py-0.5 rounded">
-                                  {otherCompetitors?.length || 0} Listed
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {otherCompetitors && otherCompetitors.length > 0 ? (
-                                  otherCompetitors.map((comp: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2.5 py-1 bg-white border border-sky-200 text-sky-900 text-xs font-bold rounded-lg shadow-2xs"
-                                    >
-                                      {comp}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-xs text-gray-400 italic">None specified in financial input.</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Nearby Establishments Driving ROI */}
-                          <div className="p-4 bg-emerald-50/40 border border-emerald-200/80 rounded-xl space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                                <Building2 size={14} className="text-emerald-600" /> Nearby Establishments Affecting ROI (Foot Traffic Drivers)
-                              </span>
-                              <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                                {nearbyEstablishments?.length || 0} Establishments
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {nearbyEstablishments && nearbyEstablishments.length > 0 ? (
-                                nearbyEstablishments.map((est: string, idx: number) => (
-                                  <span
-                                    key={idx}
-                                    className="px-2.5 py-1 bg-white border border-emerald-300 text-emerald-950 text-xs font-bold rounded-lg shadow-2xs flex items-center gap-1"
-                                  >
-                                    <MapPin size={11} className="text-emerald-600" /> {est}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-xs text-gray-400 italic">No nearby establishments listed.</span>
-                              )}
-                            </div>
-                            {footTrafficPeak && (
-                              <p className="text-xs text-emerald-800 pt-1">
-                                <strong>Foot Traffic Pattern:</strong> {footTrafficPeak}
-                              </p>
-                            )}
-                            {marketDemandNotes && (
-                              <p className="text-xs text-gray-600 italic bg-white/70 p-2.5 rounded-lg border border-emerald-100 mt-2">
-                                "{marketDemandNotes}"
-                              </p>
-                            )}
-                          </div>
-
-                          {/* AI Market Indicators & Viability Evaluation */}
-                          <div className="pt-4 border-t border-gray-100 space-y-3.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                                <Zap size={14} className="text-[#c9a654]" /> AI Market Viability & Competitive Intelligence
-                              </span>
-                              {marketAnalysis?.competitorInsight?.badge && (
-                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                                  Market Feasibility Audited
-                                </span>
-                              )}
-                            </div>
-
-                            {marketAnalysis?.summary ? (
-                              <div className="space-y-3">
-                                <div className="p-3.5 bg-amber-50/60 border border-amber-200/70 rounded-xl text-xs sm:text-sm text-[#122244] leading-relaxed">
-                                  <span className="font-bold text-amber-900">Market Assessment: </span>
-                                  {marketAnalysis.summary}
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                  {marketAnalysis.competitorInsight && (
-                                    <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
-                                          <Store size={12} className="text-amber-600" /> Competitor Density
-                                        </span>
-                                        <span
-                                          className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                            marketAnalysis.competitorInsight.status === "positive"
-                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                              : "bg-amber-100 text-amber-800 border border-amber-200"
-                                          }`}
-                                        >
-                                          {marketAnalysis.competitorInsight.badge}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs text-gray-600 leading-normal">
-                                        {marketAnalysis.competitorInsight.text}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {marketAnalysis.footTrafficInsight && (
-                                    <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
-                                          <Building2 size={12} className="text-emerald-600" /> Foot Traffic & Anchors
-                                        </span>
-                                        <span
-                                          className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                            marketAnalysis.footTrafficInsight.status === "positive"
-                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                              : "bg-rose-100 text-rose-800 border border-rose-200"
-                                          }`}
-                                        >
-                                          {marketAnalysis.footTrafficInsight.badge}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs text-gray-600 leading-normal">
-                                        {marketAnalysis.footTrafficInsight.text}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {marketAnalysis.demographicInsight && (
-                                    <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs space-y-1.5">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#122244] uppercase tracking-wider flex items-center gap-1">
-                                          <Lightbulb size={12} className="text-sky-600" /> Demographic Strategy
-                                        </span>
-                                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase bg-sky-100 text-sky-800 border border-sky-200">
-                                          {marketAnalysis.demographicInsight.badge}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs text-gray-600 leading-normal">
-                                        {marketAnalysis.demographicInsight.text}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 6. Qualitative Findings (Strengths, Weaknesses, Reality Check, Recommendations) */}
-                      {aiData.strengths && aiData.strengths.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-emerald-100 p-6 shadow-sm">
-                          <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-700 mb-3 flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Key Feasibility Strengths
-                          </h4>
-                          <div className="space-y-2">
-                            {aiData.strengths.map((str: any, sIdx: number) => (
-                              <div key={sIdx} className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100/60 text-xs text-emerald-950 flex items-start gap-2">
-                                <span className="font-bold text-emerald-700 mt-0.5">•</span>
-                                <span>{typeof str === "string" ? str : str.title ? `${str.title}: ${str.description}` : str.description || ""}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {aiData.weaknesses && aiData.weaknesses.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-amber-100 p-6 shadow-sm">
-                          <h4 className="text-xs font-extrabold uppercase tracking-widest text-amber-700 mb-3 flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-amber-600" /> Areas of Concern & Risks
-                          </h4>
-                          <div className="space-y-2">
-                            {aiData.weaknesses.map((w: any, wIdx: number) => (
-                              <div key={wIdx} className="p-3 bg-amber-50/60 rounded-xl border border-amber-100/60 text-xs text-amber-950 flex items-start gap-2">
-                                <span className="font-bold text-amber-700 mt-0.5">•</span>
-                                <span>{typeof w === "string" ? w : w.title ? `${w.title}: ${w.description}` : w.description || ""}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {aiData.realityCheck && (
-                        <div className="bg-rose-50/60 border border-rose-200 p-5 rounded-2xl shadow-sm">
-                          <h4 className="text-xs font-extrabold uppercase tracking-widest text-rose-700 mb-2 flex items-center gap-2">
-                            <ShieldAlert className="w-4 h-4 text-rose-600" /> Market Reality Check
-                          </h4>
-                          <p className="text-xs text-rose-950 italic leading-relaxed">
-                            "{aiData.realityCheck}"
+                          </span>
+                          <p className="text-xs text-gray-700 font-medium leading-snug">
+                            {isLivePreview
+                              ? (synced.staleness.reason || "Calculated live from the selected financial inputs.")
+                              : (() => {
+                                  const lastRunMs = toEpochMs(synced.aiData.lastRun);
+                                  return `Matches student's latest saved ${synced.isFallback ? "verified local" : "Cloud AI"} evaluation${
+                                    lastRunMs > 0
+                                      ? ` (${new Date(lastRunMs).toLocaleDateString()})`
+                                      : ""
+                                  }.`;
+                                })()}
                           </p>
                         </div>
-                      )}
+                        {synced.context.monthlyRecords && synced.context.monthlyRecords.length > 0 && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-white/80 text-[#122244] px-2.5 py-1 rounded-lg border border-gray-200 shrink-0 self-start sm:self-center">
+                            Month {synced.context.monthNumber}
+                            {synced.context.draftName ? ` • ${synced.context.draftName}` : ""}
+                          </span>
+                        )}
+                      </div>
 
-                      {aiData.recommendations && aiData.recommendations.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                          <h4 className="text-xs font-extrabold uppercase tracking-widest text-[#122244] mb-3 flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-[#c9a654]" /> Strategic Recommendations
-                          </h4>
-                          <div className="space-y-2">
-                            {aiData.recommendations.map((rec: any, rIdx: number) => (
-                              <div key={rIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-800 flex items-start gap-2.5">
-                                <span className="w-5 h-5 rounded-full bg-[#122244] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                  {rIdx + 1}
-                                </span>
-                                <span className="pt-0.5">{typeof rec === "string" ? rec : rec.title ? `${rec.title}: ${rec.description}` : rec.description || ""}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* Shared Student-Parity AI Feasibility Report */}
+                      <FeasibilityAnalysisReport
+                        aiData={synced.aiData}
+                        financials={synced.effectiveFin}
+                        viewerRole="adviser"
+                      />
                     </div>
                   );
                 })()}
@@ -4205,8 +3517,8 @@ const AdviserDashboard: React.FC = () => {
                 </div>
 
                 {/* ADVISER BULLETIN / FEEDBACK BOARD */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-6.5rem)] lg:flex lg:flex-col">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
                     <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
                       <MessageCircle className="w-4 h-4 text-[#c9a654]" /> Advisory Bulletin Board
                     </h3>
@@ -4216,7 +3528,7 @@ const AdviserDashboard: React.FC = () => {
                   </div>
 
                   {/* Bulletin Feed (Scrollable history) */}
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="space-y-3 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto pr-1 custom-scrollbar">
                     {(!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0) ? (
                       <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-400 italic">
                         No feedback posted on the bulletin board yet. Write a note below to advise this group.
@@ -4242,7 +3554,7 @@ const AdviserDashboard: React.FC = () => {
                   </div>
 
                   {/* Inline Composer */}
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <div className="pt-2 border-t border-gray-100 space-y-2 shrink-0">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                       Post Advisory Note
                     </label>
@@ -4289,23 +3601,23 @@ const AdviserDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
           <div className="bg-white rounded-[1.5rem] w-full max-w-[95vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
             {/* Modal Header */}
-            <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
-              <div className="flex items-center gap-4 md:gap-5">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100/50 shadow-inner">
+            <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center gap-3 bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
+              <div className="flex items-center gap-4 md:gap-5 min-w-0 flex-1">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100/50 shadow-inner shrink-0">
                   <FileText className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-1.5">
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-black rounded-lg uppercase tracking-wider">
                       Proposal {viewingProposal.proposalNumber || 1} of 3
                     </span>
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight break-words">{viewingProposal.businessName || 'Business Proposal'}</h2>
                     {getProposalStatusBadge(viewingProposal.status)}
                   </div>
-                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {formatProposalDate(viewingProposal)}</p>
+                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /> Submitted: {formatProposalDate(viewingProposal)}</p>
                 </div>
               </div>
-              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50" title="Close"><X className="w-6 h-6" /></button>
+              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50 shrink-0" title="Close"><X className="w-6 h-6" /></button>
             </div>
 
             {/* Modal Body - Split Layout */}
@@ -4343,13 +3655,13 @@ const AdviserDashboard: React.FC = () => {
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Business Overview</h3>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
+                      <div className="space-y-2 min-w-0">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Type</label>
-                        <div className="text-base font-bold text-[#122244] bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.businessType || '-'}</div>
+                        <div className="text-base font-bold text-[#122244] bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50 break-words">{viewingProposal.businessType || '-'}</div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 min-w-0">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Capital (₱)</label>
-                        <div className="text-base font-bold text-green-700 bg-green-50/50 px-5 py-4 rounded-xl border border-green-100/50">₱ {viewingProposal.totalCapital || '-'}</div>
+                        <div className="text-base font-bold text-green-700 bg-green-50/50 px-5 py-4 rounded-xl border border-green-100/50 tabular-nums break-words">₱ {viewingProposal.totalCapital || '-'}</div>
                       </div>
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tagline</label>
@@ -4453,7 +3765,7 @@ const AdviserDashboard: React.FC = () => {
                             <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
                               <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                                <div className="space-y-1">
+                                <div className="space-y-1 min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     <span className="px-2.5 py-0.5 bg-[#c9a654]/20 border border-[#c9a654]/40 text-[#f3d98b] text-[10px] font-black rounded-full uppercase tracking-wider">
                                       Proposal Total Capital
@@ -4466,11 +3778,11 @@ const AdviserDashboard: React.FC = () => {
                                     Directly pulled from the Total Capital requirement inputted in the business proposal
                                   </p>
                                 </div>
-                                <div className="text-left sm:text-right bg-white/5 border border-white/10 px-5 py-3 rounded-xl backdrop-blur-sm">
+                                <div className="text-left sm:text-right bg-white/5 border border-white/10 px-4 sm:px-5 py-3 rounded-xl backdrop-blur-sm shrink-0 max-w-full overflow-hidden">
                                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200/80 block">
                                     Total Capital Amount
                                   </span>
-                                  <span className="text-2xl sm:text-3xl font-black text-[#f3d98b] tracking-tight">
+                                  <span className="text-xl sm:text-2xl xl:text-3xl font-black text-[#f3d98b] tracking-tight tabular-nums whitespace-nowrap inline-block">
                                     ₱{(Number(String(viewingProposal.totalCapital || "").replace(/,/g, "")) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>

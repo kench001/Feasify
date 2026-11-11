@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import CustomDropdown from "./components/CustomDropdown";
+import { logAuditEvent } from "./services/auditLogger";
 
 export interface AuditRecord {
   id: string;
