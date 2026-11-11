@@ -8759,3 +8759,4965 @@ Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generative
     at async callGeminiCascade (C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:272:22)
     at async C:\Users\Justin Loyola\Feasify_Project\feasify-backend\index.js:1461:37
 
+[2026-11-11T06:18:51.075Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "amount": 30000,
+        "name": "Jester Handel Gamol"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Jomae-Ann Artacho",
+        "amount": 30000
+      },
+      {
+        "name": "Rizel Grace Camingawan",
+        "id": "contrib-3",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-4",
+        "name": "Maui Ann De Galicia"
+      },
+      {
+        "amount": 30000,
+        "name": "Adrian Ralph Gonzales",
+        "id": "contrib-5"
+      },
+      {
+        "id": "contrib-6",
+        "name": "Mary Jane Padilla",
+        "amount": 30000
+      },
+      {
+        "id": "contrib-7",
+        "amount": 30000,
+        "name": "Cristina Paula Sy"
+      },
+      {
+        "name": "Sheena Laurice Quitoles",
+        "id": "contrib-8",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-9",
+        "name": "Gerald Valenzuela"
+      },
+      {
+        "id": "contrib-10",
+        "name": "Investor / Partner 10",
+        "amount": 30000
+      }
+    ],
+    "markupAmount": "27.26",
+    "accountsReceivable": "289",
+    "targetDemographics": [
+      "Students (15-24)",
+      "Employed Individuals (20-45)",
+      "Self-employed Workers (25-50)",
+      "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+    ],
+    "taxesPayable": "",
+    "contributorsCount": "10",
+    "fixedCosts": 15676.83,
+    "competitorNotes": "",
+    "rentAdvanceDeposit": "150000",
+    "nearbyEstablishments": [
+      "C&B Mall Valenzuela",
+      "South Supermarket",
+      "PLV CPAG Campus",
+      "PLV Annex",
+      "Child of Mary Immaculate College (CMIC)",
+      "Mercury Drug Malinta"
+    ],
+    "trainingsPrograms": "32400",
+    "permitsLicensesInitial": "3925",
+    "salesReturnsPercent": "20",
+    "interestRate": 0,
+    "monthlySales": 217,
+    "cashInvested": "300000",
+    "salesDiscountPercent": "20",
+    "operatingDays": 360,
+    "footTrafficPeak": "",
+    "totalMonths": 2,
+    "accountsPayable": "",
+    "otherCompetitors": [
+      "Chowking",
+      "Siomai House",
+      "Dunkin Donuts",
+      "Local Street Kariton"
+    ],
+    "isCapitalBorrowed": false,
+    "utilitiesPayable": "",
+    "productionCost": "61.959999999999994",
+    "activeMonthIndex": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1794371304,
+      "nanoseconds": 890000000
+    },
+    "renovationCosts": "335400",
+    "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+    "computedSellingPrice": "89.22",
+    "propertyInvested": "200000",
+    "salariesExpenseInitial": "116531",
+    "variableCost": 61.96,
+    "competitorCount": 4,
+    "marketDemand": "Low",
+    "equipmentList": [
+      {
+        "quantity": 4,
+        "name": "0",
+        "total": 1956,
+        "id": "eq-10",
+        "unitPrice": 489
+      },
+      {
+        "id": "eq-11",
+        "unitPrice": 2220,
+        "name": "1",
+        "total": 2220,
+        "quantity": 1
+      },
+      {
+        "total": 3147,
+        "id": "eq-1791973652747",
+        "unitPrice": 1049,
+        "quantity": 3,
+        "name": "www"
+      }
+    ],
+    "products": [
+      {
+        "applyVat": false,
+        "id": "prod-1791973707537-9let",
+        "markupPercentage": "44",
+        "unitsSold": "2174",
+        "sellingPrice": "89.00",
+        "vatRate": 12,
+        "name": "Tone",
+        "quantityYield": "1",
+        "batchesPerMonth": "217",
+        "ingredients": [
+          {
+            "category": "ingredient",
+            "price": 18.34,
+            "id": "ing-1791973707537-2oab",
+            "name": "2 pcs Cabbage Chicken Rolls"
+          },
+          {
+            "category": "ingredient",
+            "price": 13.41,
+            "id": "ing-1791973707537-b7dq",
+            "name": "1 Cup Chao Egg Fried Rice"
+          },
+          {
+            "name": "16oz Refreshing Drink",
+            "category": "ingredient",
+            "id": "ing-1791973707537-zsct",
+            "price": 16.8
+          },
+          {
+            "id": "ing-1791973707537-16ah",
+            "price": 13.41,
+            "category": "miscellaneous",
+            "name": "Packaging & Condiments"
+          }
+        ]
+      }
+    ],
+    "quantityYield": "217",
+    "markupPercentage": "44",
+    "directCompetitors": [
+      "Master Siomai",
+      "Rice in a Box (RBX)",
+      "Turks",
+      "Shawarma Shack",
+      "Paotsin"
+    ],
+    "marketDemandNotes": "",
+    "advertisingExpense": "2442",
+    "monthlyRecords": [
+      {
+        "lockedAt": "2026-11-11T04:28:07.703Z",
+        "activeDraftId": "draft-1",
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "drafts": [
+          {
+            "name": "Draft 1 (Primary)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "startupCapital": "860603",
+              "salesReturnsPercent": "20",
+              "variableCost": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": "",
+              "advertisingExpense": "2442",
+              "taxesPayable": "",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "permitsLicensesInitial": "3925",
+              "competitorCount": 4,
+              "endingSuppliesPercent": "30",
+              "utilitiesPayable": "",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "accountsReceivable": "289",
+              "sellingPrice": "",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "amount": 30000,
+                  "id": "contrib-1",
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Jomae-Ann Artacho",
+                  "id": "contrib-2"
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-3",
+                  "name": "Rizel Grace Camingawan"
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy",
+                  "id": "contrib-7"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "amount": 30000,
+                  "id": "contrib-8"
+                },
+                {
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "equipmentList": [
+                {
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "quantity": 4,
+                  "unitPrice": 489
+                },
+                {
+                  "name": "1",
+                  "quantity": 1,
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "name": "www",
+                  "total": 3147,
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747"
+                }
+              ],
+              "salariesExpenseInitial": "116531",
+              "renovationCosts": "335400",
+              "trainingsPrograms": "32400",
+              "products": [
+                {
+                  "vatRate": 12,
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "batchesPerMonth": "2174",
+                  "name": "Tone",
+                  "sellingPrice": "89.00",
+                  "quantityYield": "1",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "category": "ingredient"
+                    },
+                    {
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "applyVat": false
+                }
+              ],
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "propertyInvested": "200000",
+              "interestRate": "",
+              "contributorsCount": "10",
+              "marketDemand": "Low",
+              "fixedCosts": "",
+              "cashInvested": "300000",
+              "operatingDays": "360",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-rent"
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Payroll & Labor"
+                },
+                {
+                  "id": "opex-electricity",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "name": "Electricity & Power"
+                },
+                {
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "id": "opex-water",
+                  "amount": 0,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0,
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet"
+                },
+                {
+                  "name": "Marketing, Signage & Promotions",
+                  "isPreset": true,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "category": "Logistics",
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "isPreset": true,
+                  "category": "Consumables",
+                  "amount": 15676.83
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "isPreset": true,
+                  "amount": 0,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-misc",
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "monthlySales": "",
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "rentAdvanceDeposit": "150000"
+            },
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-11-11T04:28:12.362Z"
+          },
+          {
+            "createdAt": "2026-11-01T01:18:56.978Z",
+            "updatedAt": "2026-11-11T04:27:45.889Z",
+            "name": "Draft 2",
+            "financials": {
+              "footTrafficPeak": "",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "unitPrice": 489
+                },
+                {
+                  "quantity": 1,
+                  "name": "1",
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747",
+                  "total": 3147,
+                  "name": "www"
+                }
+              ],
+              "taxesPayable": "",
+              "propertyInvested": "200000",
+              "variableCost": "",
+              "marketDemandNotes": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "salariesPayable": "",
+              "permitsLicensesInitial": "3925",
+              "advertisingExpense": "2442",
+              "opexList": [
+                {
+                  "category": "Facility & Lease",
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "isPreset": true,
+                  "amount": 0
+                },
+                {
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Utilities",
+                  "name": "Electricity & Power",
+                  "id": "opex-electricity"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities",
+                  "isPreset": true,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 0
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "category": "Logistics",
+                  "isPreset": true,
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "category": "Consumables",
+                  "isPreset": true
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "isPreset": true
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Admin & Misc",
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer"
+                }
+              ],
+              "utilitiesPayable": "",
+              "operatingDays": "360",
+              "startupCapital": "860603",
+              "salesDiscountPercent": "20",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton",
+                "Watsons Personal Care"
+              ],
+              "contributorsList": [
+                {
+                  "name": "Jester Handel Gamol",
+                  "id": "contrib-1",
+                  "amount": 30000
+                },
+                {
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000,
+                  "id": "contrib-2"
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "name": "Adrian Ralph Gonzales",
+                  "amount": 30000,
+                  "id": "contrib-5"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Mary Jane Padilla",
+                  "id": "contrib-6"
+                },
+                {
+                  "name": "Cristina Paula Sy",
+                  "amount": 30000,
+                  "id": "contrib-7"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9"
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "products": [
+                {
+                  "name": "Tone",
+                  "unitsSold": "2174",
+                  "sellingPrice": "500",
+                  "applyVat": false,
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "price": 13.41,
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct"
+                    },
+                    {
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah"
+                    }
+                  ],
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "vatRate": 12,
+                  "quantityYield": "1"
+                },
+                {
+                  "sellingPrice": "89.00",
+                  "unitsSold": "2174",
+                  "quantityYield": "1",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370901854-mtp9",
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "price": 18.34
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370901854-j4rz",
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "id": "ing-1794370901854-41mi"
+                    },
+                    {
+                      "id": "ing-1794370901854-1oz4",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "applyVat": false,
+                  "id": "prod-1794370901854-he5p",
+                  "name": "Tone (Copy)",
+                  "batchesPerMonth": "2174"
+                },
+                {
+                  "id": "prod-1794370896274-6lm5",
+                  "batchesPerMonth": "2174",
+                  "quantityYield": "1",
+                  "sellingPrice": "120.00",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-a182",
+                      "price": 18.34,
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-mcpg",
+                      "category": "ingredient",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-qhs5",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-xluc",
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "name": "Tone (Copy)",
+                  "unitsSold": "2174",
+                  "applyVat": false
+                },
+                {
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1794370932797-w4yf",
+                  "quantityYield": "1",
+                  "name": "Tone (Copy) (Copy)",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370932797-6ac5",
+                      "price": 18.34,
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1794370932797-p72g",
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1794370932797-gs2e",
+                      "price": 16.8
+                    },
+                    {
+                      "category": "miscellaneous",
+                      "id": "ing-1794370932797-hhpb",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments"
+                    }
+                  ],
+                  "unitsSold": "2174",
+                  "sellingPrice": "250.00",
+                  "applyVat": false,
+                  "vatRate": 12,
+                  "markupPercentage": "44"
+                }
+              ],
+              "fixedCosts": "",
+              "sellingPrice": "",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "renovationCosts": "335400",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "salesReturnsPercent": "20",
+              "accountsReceivable": "289",
+              "competitorCount": 10,
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "monthlySales": "",
+              "endingSuppliesPercent": "30",
+              "cashInvested": "300000",
+              "accountsPayable": "",
+              "salariesExpenseInitial": "116531",
+              "marketDemand": "Low",
+              "contributorsCount": "10",
+              "interestRate": "",
+              "rentAdvanceDeposit": "150000",
+              "trainingsPrograms": "32400"
+            },
+            "id": "draft-1793495936957"
+          }
+        ],
+        "isLocked": true,
+        "financials": {
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-2",
+              "amount": 30000,
+              "name": "Jomae-Ann Artacho"
+            },
+            {
+              "amount": 30000,
+              "name": "Rizel Grace Camingawan",
+              "id": "contrib-3"
+            },
+            {
+              "id": "contrib-4",
+              "amount": 30000,
+              "name": "Maui Ann De Galicia"
+            },
+            {
+              "name": "Adrian Ralph Gonzales",
+              "id": "contrib-5",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "amount": 30000,
+              "id": "contrib-7"
+            },
+            {
+              "name": "Sheena Laurice Quitoles",
+              "amount": 30000,
+              "id": "contrib-8"
+            },
+            {
+              "amount": 30000,
+              "name": "Gerald Valenzuela",
+              "id": "contrib-9"
+            },
+            {
+              "id": "contrib-10",
+              "name": "Investor / Partner 10",
+              "amount": 30000
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "permitsLicensesInitial": "3925",
+          "equipmentList": [
+            {
+              "quantity": 4,
+              "unitPrice": 489,
+              "name": "0",
+              "id": "eq-10",
+              "total": 1956
+            },
+            {
+              "name": "1",
+              "unitPrice": 2220,
+              "id": "eq-11",
+              "total": 2220,
+              "quantity": 1
+            },
+            {
+              "unitPrice": 1049,
+              "quantity": 3,
+              "id": "eq-1791973652747",
+              "total": 3147,
+              "name": "www"
+            }
+          ],
+          "utilitiesPayable": "",
+          "taxesPayable": "",
+          "rentAdvanceDeposit": "150000",
+          "footTrafficPeak": "",
+          "fixedCosts": "",
+          "salariesPayable": "",
+          "propertyInvested": "200000",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "variableCost": "",
+          "salesDiscountPercent": "20",
+          "operatingDays": "360",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "contributorsCount": "10",
+          "monthlySales": "",
+          "advertisingExpense": "2442",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "endingSuppliesPercent": "30",
+          "opexList": [
+            {
+              "category": "Facility & Lease",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-rent"
+            },
+            {
+              "id": "opex-salaries",
+              "isPreset": true,
+              "name": "Salaries & Wages (Operating Staff)",
+              "amount": 0,
+              "category": "Payroll & Labor"
+            },
+            {
+              "category": "Utilities",
+              "name": "Electricity & Power",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-electricity"
+            },
+            {
+              "isPreset": true,
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 0,
+              "id": "opex-water"
+            },
+            {
+              "amount": 0,
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "isPreset": true,
+              "category": "Utilities & Tech"
+            },
+            {
+              "amount": 0,
+              "id": "opex-marketing",
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth"
+            },
+            {
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "id": "opex-transport",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "amount": 15676.83,
+              "isPreset": true,
+              "id": "opex-supplies",
+              "category": "Consumables",
+              "name": "Packaging, Cleaning & Store Supplies"
+            },
+            {
+              "isPreset": true,
+              "id": "opex-maintenance",
+              "category": "Facility Upkeep",
+              "amount": 0,
+              "name": "Equipment Maintenance & Repairs"
+            },
+            {
+              "category": "Admin & Misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-misc"
+            }
+          ],
+          "trainingsPrograms": "32400",
+          "products": [
+            {
+              "batchesPerMonth": "2174",
+              "ingredients": [
+                {
+                  "price": 18.34,
+                  "id": "ing-1791973707537-2oab",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-b7dq",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "16oz Refreshing Drink",
+                  "price": 16.8,
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "Packaging & Condiments",
+                  "category": "miscellaneous",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-16ah"
+                }
+              ],
+              "quantityYield": "1",
+              "unitsSold": "2174",
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone",
+              "sellingPrice": "89.00",
+              "vatRate": 12,
+              "markupPercentage": "44"
+            }
+          ],
+          "startupCapital": "860603",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "salariesExpenseInitial": "116531",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "competitorCount": 4,
+          "salesReturnsPercent": "20",
+          "competitorNotes": "",
+          "isCapitalBorrowed": false
+        }
+      },
+      {
+        "monthName": "Month 2 (2nd Month)",
+        "activeDraftId": "draft-1",
+        "isLocked": false,
+        "month": 2,
+        "financials": {
+          "propertyInvested": "200000",
+          "equipmentList": [
+            {
+              "total": 1956,
+              "unitPrice": 489,
+              "name": "0",
+              "quantity": 4,
+              "id": "eq-10"
+            },
+            {
+              "name": "1",
+              "quantity": 1,
+              "total": 2220,
+              "unitPrice": 2220,
+              "id": "eq-11"
+            },
+            {
+              "id": "eq-1791973652747",
+              "unitPrice": 1049,
+              "name": "www",
+              "quantity": 3,
+              "total": 3147
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "salesReturnsPercent": "20",
+          "monthlySales": "",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "operatingDays": "360",
+          "trainingsPrograms": "32400",
+          "competitorCount": 4,
+          "advertisingExpense": "2442",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "utilitiesPayable": "",
+          "competitorNotes": "",
+          "startupCapital": "860603",
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "name": "Jomae-Ann Artacho",
+              "id": "contrib-2",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "id": "contrib-3",
+              "name": "Rizel Grace Camingawan"
+            },
+            {
+              "id": "contrib-4",
+              "name": "Maui Ann De Galicia",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-5",
+              "amount": 30000,
+              "name": "Adrian Ralph Gonzales"
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "id": "contrib-7",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Sheena Laurice Quitoles",
+              "id": "contrib-8"
+            },
+            {
+              "id": "contrib-9",
+              "name": "Gerald Valenzuela",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Investor / Partner 10",
+              "id": "contrib-10"
+            }
+          ],
+          "salariesExpenseInitial": "116531",
+          "contributorsCount": "10",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "rentAdvanceDeposit": "150000",
+          "permitsLicensesInitial": "3925",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "salesDiscountPercent": "20",
+          "variableCost": "",
+          "salariesPayable": "",
+          "opexList": [
+            {
+              "name": "Rent Expense (Space / Stall Rental)",
+              "amount": 0,
+              "category": "Facility & Lease",
+              "isPreset": true,
+              "id": "opex-rent"
+            },
+            {
+              "name": "Salaries & Wages (Operating Staff)",
+              "id": "opex-salaries",
+              "isPreset": true,
+              "category": "Payroll & Labor",
+              "amount": 0
+            },
+            {
+              "isPreset": true,
+              "name": "Electricity & Power",
+              "amount": 0,
+              "id": "opex-electricity",
+              "category": "Utilities"
+            },
+            {
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "id": "opex-water",
+              "isPreset": true,
+              "amount": 0
+            },
+            {
+              "amount": 0,
+              "name": "Internet, Telecom & Communication",
+              "id": "opex-internet",
+              "category": "Utilities & Tech",
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "id": "opex-marketing",
+              "amount": 0
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Packaging, Cleaning & Store Supplies",
+              "amount": 15676.83,
+              "id": "opex-supplies",
+              "category": "Consumables"
+            },
+            {
+              "amount": 0,
+              "category": "Facility Upkeep",
+              "isPreset": true,
+              "name": "Equipment Maintenance & Repairs",
+              "id": "opex-maintenance"
+            },
+            {
+              "isPreset": true,
+              "name": "Miscellaneous & Contingency Buffer",
+              "amount": 0,
+              "category": "Admin & Misc",
+              "id": "opex-misc"
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "products": [
+            {
+              "quantityYield": "1",
+              "vatRate": 12,
+              "sellingPrice": "89.00",
+              "markupPercentage": "44",
+              "batchesPerMonth": "217",
+              "unitsSold": "2174",
+              "ingredients": [
+                {
+                  "category": "ingredient",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "id": "ing-1791973707537-2oab",
+                  "price": 18.34
+                },
+                {
+                  "id": "ing-1791973707537-b7dq",
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "category": "ingredient"
+                },
+                {
+                  "price": 16.8,
+                  "name": "16oz Refreshing Drink",
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "price": 13.41,
+                  "name": "Packaging & Condiments",
+                  "id": "ing-1791973707537-16ah",
+                  "category": "miscellaneous"
+                }
+              ],
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone"
+            }
+          ],
+          "endingSuppliesPercent": "30",
+          "footTrafficPeak": "",
+          "taxesPayable": "",
+          "fixedCosts": ""
+        },
+        "drafts": [
+          {
+            "name": "Draft 1 (Baseline)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "propertyInvested": "200000",
+              "rentAdvanceDeposit": "150000",
+              "salesReturnsPercent": "20",
+              "contributorsCount": "10",
+              "startupCapital": "860603",
+              "trainingsPrograms": "32400",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "name": "0",
+                  "total": 1956,
+                  "id": "eq-10",
+                  "unitPrice": 489
+                },
+                {
+                  "id": "eq-11",
+                  "unitPrice": 2220,
+                  "name": "1",
+                  "total": 2220,
+                  "quantity": 1
+                },
+                {
+                  "total": 3147,
+                  "id": "eq-1791973652747",
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "name": "www"
+                }
+              ],
+              "endingSuppliesPercent": "30",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "taxesPayable": "",
+              "accountsReceivable": "289",
+              "utilitiesPayable": "",
+              "variableCost": "",
+              "salariesExpenseInitial": "116531",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "amount": 30000,
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-4",
+                  "name": "Maui Ann De Galicia"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-7",
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-9",
+                  "name": "Gerald Valenzuela"
+                },
+                {
+                  "id": "contrib-10",
+                  "name": "Investor / Partner 10",
+                  "amount": 30000
+                }
+              ],
+              "operatingDays": "360",
+              "isCapitalBorrowed": false,
+              "monthlySales": "",
+              "competitorCount": 4,
+              "cashInvested": "300000",
+              "permitsLicensesInitial": "3925",
+              "marketDemand": "Low",
+              "competitorNotes": "",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "amount": 0,
+                  "id": "opex-rent",
+                  "category": "Facility & Lease",
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Electricity & Power",
+                  "amount": 0,
+                  "category": "Utilities",
+                  "id": "opex-electricity"
+                },
+                {
+                  "name": "Water & Sanitation",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities"
+                },
+                {
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions",
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth"
+                },
+                {
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 0,
+                  "isPreset": true,
+                  "id": "opex-transport"
+                },
+                {
+                  "id": "opex-supplies",
+                  "category": "Consumables",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "isPreset": true
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "id": "opex-misc",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "interestRate": "",
+              "fixedCosts": "",
+              "products": [
+                {
+                  "applyVat": false,
+                  "id": "prod-1791973707537-9let",
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "sellingPrice": "89.00",
+                  "vatRate": 12,
+                  "name": "Tone",
+                  "quantityYield": "1",
+                  "batchesPerMonth": "217",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "price": 18.34,
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "category": "ingredient",
+                      "price": 13.41,
+                      "id": "ing-1791973707537-b7dq",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8
+                    },
+                    {
+                      "id": "ing-1791973707537-16ah",
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments"
+                    }
+                  ]
+                }
+              ],
+              "renovationCosts": "335400",
+              "sellingPrice": "",
+              "advertisingExpense": "2442",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": ""
+            },
+            "createdAt": "2026-11-11T04:28:07.705Z",
+            "updatedAt": "2026-11-11T04:28:23.036Z"
+          }
+        ]
+      }
+    ],
+    "opexList": [
+      {
+        "name": "Rent Expense (Space / Stall Rental)",
+        "amount": 0,
+        "id": "opex-rent",
+        "category": "Facility & Lease",
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "amount": 0,
+        "category": "Payroll & Labor",
+        "isPreset": true,
+        "name": "Salaries & Wages (Operating Staff)"
+      },
+      {
+        "isPreset": true,
+        "name": "Electricity & Power",
+        "amount": 0,
+        "category": "Utilities",
+        "id": "opex-electricity"
+      },
+      {
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "amount": 0,
+        "id": "opex-water",
+        "category": "Utilities"
+      },
+      {
+        "category": "Utilities & Tech",
+        "id": "opex-internet",
+        "isPreset": true,
+        "name": "Internet, Telecom & Communication",
+        "amount": 0
+      },
+      {
+        "isPreset": true,
+        "name": "Marketing, Signage & Promotions",
+        "amount": 0,
+        "id": "opex-marketing",
+        "category": "Marketing & Growth"
+      },
+      {
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 0,
+        "isPreset": true,
+        "id": "opex-transport"
+      },
+      {
+        "id": "opex-supplies",
+        "category": "Consumables",
+        "name": "Packaging, Cleaning & Store Supplies",
+        "amount": 15676.83,
+        "isPreset": true
+      },
+      {
+        "category": "Facility Upkeep",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Equipment Maintenance & Repairs",
+        "id": "opex-maintenance"
+      },
+      {
+        "id": "opex-misc",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc"
+      }
+    ],
+    "unitCost": "61.96",
+    "sellingPrice": 89,
+    "endingSuppliesPercent": "30",
+    "startupCapital": 300000,
+    "salariesPayable": "",
+    "totalCapital": 300000,
+    "proposalCapital": 300000,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:381:20)
+    at async generateContent (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiCascade (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:272:22)
+    at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1461:37
+
+[2026-11-11T06:24:29.231Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "amount": 30000,
+        "name": "Jester Handel Gamol"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Jomae-Ann Artacho",
+        "amount": 30000
+      },
+      {
+        "name": "Rizel Grace Camingawan",
+        "id": "contrib-3",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-4",
+        "name": "Maui Ann De Galicia"
+      },
+      {
+        "amount": 30000,
+        "name": "Adrian Ralph Gonzales",
+        "id": "contrib-5"
+      },
+      {
+        "id": "contrib-6",
+        "name": "Mary Jane Padilla",
+        "amount": 30000
+      },
+      {
+        "id": "contrib-7",
+        "amount": 30000,
+        "name": "Cristina Paula Sy"
+      },
+      {
+        "name": "Sheena Laurice Quitoles",
+        "id": "contrib-8",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-9",
+        "name": "Gerald Valenzuela"
+      },
+      {
+        "id": "contrib-10",
+        "name": "Investor / Partner 10",
+        "amount": 30000
+      }
+    ],
+    "markupAmount": "27.26",
+    "accountsReceivable": "289",
+    "targetDemographics": [
+      "Students (15-24)",
+      "Employed Individuals (20-45)",
+      "Self-employed Workers (25-50)",
+      "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+    ],
+    "taxesPayable": "",
+    "contributorsCount": "10",
+    "fixedCosts": 15676.83,
+    "competitorNotes": "",
+    "rentAdvanceDeposit": "150000",
+    "nearbyEstablishments": [
+      "C&B Mall Valenzuela",
+      "South Supermarket",
+      "PLV CPAG Campus",
+      "PLV Annex",
+      "Child of Mary Immaculate College (CMIC)",
+      "Mercury Drug Malinta"
+    ],
+    "trainingsPrograms": "32400",
+    "permitsLicensesInitial": "3925",
+    "salesReturnsPercent": "20",
+    "interestRate": 0,
+    "monthlySales": 217,
+    "cashInvested": "300000",
+    "salesDiscountPercent": "20",
+    "operatingDays": 360,
+    "footTrafficPeak": "",
+    "totalMonths": 2,
+    "accountsPayable": "",
+    "otherCompetitors": [
+      "Chowking",
+      "Siomai House",
+      "Dunkin Donuts",
+      "Local Street Kariton"
+    ],
+    "isCapitalBorrowed": false,
+    "utilitiesPayable": "",
+    "productionCost": "61.959999999999994",
+    "activeMonthIndex": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1794371304,
+      "nanoseconds": 890000000
+    },
+    "renovationCosts": "335400",
+    "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+    "computedSellingPrice": "89.22",
+    "propertyInvested": "200000",
+    "salariesExpenseInitial": "116531",
+    "variableCost": 61.96,
+    "competitorCount": 4,
+    "marketDemand": "Low",
+    "equipmentList": [
+      {
+        "quantity": 4,
+        "name": "0",
+        "total": 1956,
+        "id": "eq-10",
+        "unitPrice": 489
+      },
+      {
+        "id": "eq-11",
+        "unitPrice": 2220,
+        "name": "1",
+        "total": 2220,
+        "quantity": 1
+      },
+      {
+        "total": 3147,
+        "id": "eq-1791973652747",
+        "unitPrice": 1049,
+        "quantity": 3,
+        "name": "www"
+      }
+    ],
+    "products": [
+      {
+        "applyVat": false,
+        "id": "prod-1791973707537-9let",
+        "markupPercentage": "44",
+        "unitsSold": "2174",
+        "sellingPrice": "89.00",
+        "vatRate": 12,
+        "name": "Tone",
+        "quantityYield": "1",
+        "batchesPerMonth": "217",
+        "ingredients": [
+          {
+            "category": "ingredient",
+            "price": 18.34,
+            "id": "ing-1791973707537-2oab",
+            "name": "2 pcs Cabbage Chicken Rolls"
+          },
+          {
+            "category": "ingredient",
+            "price": 13.41,
+            "id": "ing-1791973707537-b7dq",
+            "name": "1 Cup Chao Egg Fried Rice"
+          },
+          {
+            "name": "16oz Refreshing Drink",
+            "category": "ingredient",
+            "id": "ing-1791973707537-zsct",
+            "price": 16.8
+          },
+          {
+            "id": "ing-1791973707537-16ah",
+            "price": 13.41,
+            "category": "miscellaneous",
+            "name": "Packaging & Condiments"
+          }
+        ]
+      }
+    ],
+    "quantityYield": "217",
+    "markupPercentage": "44",
+    "directCompetitors": [
+      "Master Siomai",
+      "Rice in a Box (RBX)",
+      "Turks",
+      "Shawarma Shack",
+      "Paotsin"
+    ],
+    "marketDemandNotes": "",
+    "advertisingExpense": "2442",
+    "monthlyRecords": [
+      {
+        "lockedAt": "2026-11-11T04:28:07.703Z",
+        "activeDraftId": "draft-1",
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "drafts": [
+          {
+            "name": "Draft 1 (Primary)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "startupCapital": "860603",
+              "salesReturnsPercent": "20",
+              "variableCost": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": "",
+              "advertisingExpense": "2442",
+              "taxesPayable": "",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "permitsLicensesInitial": "3925",
+              "competitorCount": 4,
+              "endingSuppliesPercent": "30",
+              "utilitiesPayable": "",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "accountsReceivable": "289",
+              "sellingPrice": "",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "amount": 30000,
+                  "id": "contrib-1",
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Jomae-Ann Artacho",
+                  "id": "contrib-2"
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-3",
+                  "name": "Rizel Grace Camingawan"
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy",
+                  "id": "contrib-7"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "amount": 30000,
+                  "id": "contrib-8"
+                },
+                {
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "equipmentList": [
+                {
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "quantity": 4,
+                  "unitPrice": 489
+                },
+                {
+                  "name": "1",
+                  "quantity": 1,
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "name": "www",
+                  "total": 3147,
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747"
+                }
+              ],
+              "salariesExpenseInitial": "116531",
+              "renovationCosts": "335400",
+              "trainingsPrograms": "32400",
+              "products": [
+                {
+                  "vatRate": 12,
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "batchesPerMonth": "2174",
+                  "name": "Tone",
+                  "sellingPrice": "89.00",
+                  "quantityYield": "1",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "category": "ingredient"
+                    },
+                    {
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "applyVat": false
+                }
+              ],
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "propertyInvested": "200000",
+              "interestRate": "",
+              "contributorsCount": "10",
+              "marketDemand": "Low",
+              "fixedCosts": "",
+              "cashInvested": "300000",
+              "operatingDays": "360",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-rent"
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Payroll & Labor"
+                },
+                {
+                  "id": "opex-electricity",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "name": "Electricity & Power"
+                },
+                {
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "id": "opex-water",
+                  "amount": 0,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0,
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet"
+                },
+                {
+                  "name": "Marketing, Signage & Promotions",
+                  "isPreset": true,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "category": "Logistics",
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "isPreset": true,
+                  "category": "Consumables",
+                  "amount": 15676.83
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "isPreset": true,
+                  "amount": 0,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-misc",
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "monthlySales": "",
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "rentAdvanceDeposit": "150000"
+            },
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-11-11T04:28:12.362Z"
+          },
+          {
+            "createdAt": "2026-11-01T01:18:56.978Z",
+            "updatedAt": "2026-11-11T04:27:45.889Z",
+            "name": "Draft 2",
+            "financials": {
+              "footTrafficPeak": "",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "unitPrice": 489
+                },
+                {
+                  "quantity": 1,
+                  "name": "1",
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747",
+                  "total": 3147,
+                  "name": "www"
+                }
+              ],
+              "taxesPayable": "",
+              "propertyInvested": "200000",
+              "variableCost": "",
+              "marketDemandNotes": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "salariesPayable": "",
+              "permitsLicensesInitial": "3925",
+              "advertisingExpense": "2442",
+              "opexList": [
+                {
+                  "category": "Facility & Lease",
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "isPreset": true,
+                  "amount": 0
+                },
+                {
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Utilities",
+                  "name": "Electricity & Power",
+                  "id": "opex-electricity"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities",
+                  "isPreset": true,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 0
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "category": "Logistics",
+                  "isPreset": true,
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "category": "Consumables",
+                  "isPreset": true
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "isPreset": true
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Admin & Misc",
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer"
+                }
+              ],
+              "utilitiesPayable": "",
+              "operatingDays": "360",
+              "startupCapital": "860603",
+              "salesDiscountPercent": "20",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton",
+                "Watsons Personal Care"
+              ],
+              "contributorsList": [
+                {
+                  "name": "Jester Handel Gamol",
+                  "id": "contrib-1",
+                  "amount": 30000
+                },
+                {
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000,
+                  "id": "contrib-2"
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "name": "Adrian Ralph Gonzales",
+                  "amount": 30000,
+                  "id": "contrib-5"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Mary Jane Padilla",
+                  "id": "contrib-6"
+                },
+                {
+                  "name": "Cristina Paula Sy",
+                  "amount": 30000,
+                  "id": "contrib-7"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9"
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "products": [
+                {
+                  "name": "Tone",
+                  "unitsSold": "2174",
+                  "sellingPrice": "500",
+                  "applyVat": false,
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "price": 13.41,
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct"
+                    },
+                    {
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah"
+                    }
+                  ],
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "vatRate": 12,
+                  "quantityYield": "1"
+                },
+                {
+                  "sellingPrice": "89.00",
+                  "unitsSold": "2174",
+                  "quantityYield": "1",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370901854-mtp9",
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "price": 18.34
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370901854-j4rz",
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "id": "ing-1794370901854-41mi"
+                    },
+                    {
+                      "id": "ing-1794370901854-1oz4",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "applyVat": false,
+                  "id": "prod-1794370901854-he5p",
+                  "name": "Tone (Copy)",
+                  "batchesPerMonth": "2174"
+                },
+                {
+                  "id": "prod-1794370896274-6lm5",
+                  "batchesPerMonth": "2174",
+                  "quantityYield": "1",
+                  "sellingPrice": "120.00",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-a182",
+                      "price": 18.34,
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-mcpg",
+                      "category": "ingredient",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-qhs5",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-xluc",
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "name": "Tone (Copy)",
+                  "unitsSold": "2174",
+                  "applyVat": false
+                },
+                {
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1794370932797-w4yf",
+                  "quantityYield": "1",
+                  "name": "Tone (Copy) (Copy)",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370932797-6ac5",
+                      "price": 18.34,
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1794370932797-p72g",
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1794370932797-gs2e",
+                      "price": 16.8
+                    },
+                    {
+                      "category": "miscellaneous",
+                      "id": "ing-1794370932797-hhpb",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments"
+                    }
+                  ],
+                  "unitsSold": "2174",
+                  "sellingPrice": "250.00",
+                  "applyVat": false,
+                  "vatRate": 12,
+                  "markupPercentage": "44"
+                }
+              ],
+              "fixedCosts": "",
+              "sellingPrice": "",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "renovationCosts": "335400",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "salesReturnsPercent": "20",
+              "accountsReceivable": "289",
+              "competitorCount": 10,
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "monthlySales": "",
+              "endingSuppliesPercent": "30",
+              "cashInvested": "300000",
+              "accountsPayable": "",
+              "salariesExpenseInitial": "116531",
+              "marketDemand": "Low",
+              "contributorsCount": "10",
+              "interestRate": "",
+              "rentAdvanceDeposit": "150000",
+              "trainingsPrograms": "32400"
+            },
+            "id": "draft-1793495936957"
+          }
+        ],
+        "isLocked": true,
+        "financials": {
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-2",
+              "amount": 30000,
+              "name": "Jomae-Ann Artacho"
+            },
+            {
+              "amount": 30000,
+              "name": "Rizel Grace Camingawan",
+              "id": "contrib-3"
+            },
+            {
+              "id": "contrib-4",
+              "amount": 30000,
+              "name": "Maui Ann De Galicia"
+            },
+            {
+              "name": "Adrian Ralph Gonzales",
+              "id": "contrib-5",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "amount": 30000,
+              "id": "contrib-7"
+            },
+            {
+              "name": "Sheena Laurice Quitoles",
+              "amount": 30000,
+              "id": "contrib-8"
+            },
+            {
+              "amount": 30000,
+              "name": "Gerald Valenzuela",
+              "id": "contrib-9"
+            },
+            {
+              "id": "contrib-10",
+              "name": "Investor / Partner 10",
+              "amount": 30000
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "permitsLicensesInitial": "3925",
+          "equipmentList": [
+            {
+              "quantity": 4,
+              "unitPrice": 489,
+              "name": "0",
+              "id": "eq-10",
+              "total": 1956
+            },
+            {
+              "name": "1",
+              "unitPrice": 2220,
+              "id": "eq-11",
+              "total": 2220,
+              "quantity": 1
+            },
+            {
+              "unitPrice": 1049,
+              "quantity": 3,
+              "id": "eq-1791973652747",
+              "total": 3147,
+              "name": "www"
+            }
+          ],
+          "utilitiesPayable": "",
+          "taxesPayable": "",
+          "rentAdvanceDeposit": "150000",
+          "footTrafficPeak": "",
+          "fixedCosts": "",
+          "salariesPayable": "",
+          "propertyInvested": "200000",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "variableCost": "",
+          "salesDiscountPercent": "20",
+          "operatingDays": "360",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "contributorsCount": "10",
+          "monthlySales": "",
+          "advertisingExpense": "2442",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "endingSuppliesPercent": "30",
+          "opexList": [
+            {
+              "category": "Facility & Lease",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-rent"
+            },
+            {
+              "id": "opex-salaries",
+              "isPreset": true,
+              "name": "Salaries & Wages (Operating Staff)",
+              "amount": 0,
+              "category": "Payroll & Labor"
+            },
+            {
+              "category": "Utilities",
+              "name": "Electricity & Power",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-electricity"
+            },
+            {
+              "isPreset": true,
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 0,
+              "id": "opex-water"
+            },
+            {
+              "amount": 0,
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "isPreset": true,
+              "category": "Utilities & Tech"
+            },
+            {
+              "amount": 0,
+              "id": "opex-marketing",
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth"
+            },
+            {
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "id": "opex-transport",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "amount": 15676.83,
+              "isPreset": true,
+              "id": "opex-supplies",
+              "category": "Consumables",
+              "name": "Packaging, Cleaning & Store Supplies"
+            },
+            {
+              "isPreset": true,
+              "id": "opex-maintenance",
+              "category": "Facility Upkeep",
+              "amount": 0,
+              "name": "Equipment Maintenance & Repairs"
+            },
+            {
+              "category": "Admin & Misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-misc"
+            }
+          ],
+          "trainingsPrograms": "32400",
+          "products": [
+            {
+              "batchesPerMonth": "2174",
+              "ingredients": [
+                {
+                  "price": 18.34,
+                  "id": "ing-1791973707537-2oab",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-b7dq",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "16oz Refreshing Drink",
+                  "price": 16.8,
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "Packaging & Condiments",
+                  "category": "miscellaneous",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-16ah"
+                }
+              ],
+              "quantityYield": "1",
+              "unitsSold": "2174",
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone",
+              "sellingPrice": "89.00",
+              "vatRate": 12,
+              "markupPercentage": "44"
+            }
+          ],
+          "startupCapital": "860603",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "salariesExpenseInitial": "116531",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "competitorCount": 4,
+          "salesReturnsPercent": "20",
+          "competitorNotes": "",
+          "isCapitalBorrowed": false
+        }
+      },
+      {
+        "monthName": "Month 2 (2nd Month)",
+        "activeDraftId": "draft-1",
+        "isLocked": false,
+        "month": 2,
+        "financials": {
+          "propertyInvested": "200000",
+          "equipmentList": [
+            {
+              "total": 1956,
+              "unitPrice": 489,
+              "name": "0",
+              "quantity": 4,
+              "id": "eq-10"
+            },
+            {
+              "name": "1",
+              "quantity": 1,
+              "total": 2220,
+              "unitPrice": 2220,
+              "id": "eq-11"
+            },
+            {
+              "id": "eq-1791973652747",
+              "unitPrice": 1049,
+              "name": "www",
+              "quantity": 3,
+              "total": 3147
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "salesReturnsPercent": "20",
+          "monthlySales": "",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "operatingDays": "360",
+          "trainingsPrograms": "32400",
+          "competitorCount": 4,
+          "advertisingExpense": "2442",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "utilitiesPayable": "",
+          "competitorNotes": "",
+          "startupCapital": "860603",
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "name": "Jomae-Ann Artacho",
+              "id": "contrib-2",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "id": "contrib-3",
+              "name": "Rizel Grace Camingawan"
+            },
+            {
+              "id": "contrib-4",
+              "name": "Maui Ann De Galicia",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-5",
+              "amount": 30000,
+              "name": "Adrian Ralph Gonzales"
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "id": "contrib-7",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Sheena Laurice Quitoles",
+              "id": "contrib-8"
+            },
+            {
+              "id": "contrib-9",
+              "name": "Gerald Valenzuela",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Investor / Partner 10",
+              "id": "contrib-10"
+            }
+          ],
+          "salariesExpenseInitial": "116531",
+          "contributorsCount": "10",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "rentAdvanceDeposit": "150000",
+          "permitsLicensesInitial": "3925",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "salesDiscountPercent": "20",
+          "variableCost": "",
+          "salariesPayable": "",
+          "opexList": [
+            {
+              "name": "Rent Expense (Space / Stall Rental)",
+              "amount": 0,
+              "category": "Facility & Lease",
+              "isPreset": true,
+              "id": "opex-rent"
+            },
+            {
+              "name": "Salaries & Wages (Operating Staff)",
+              "id": "opex-salaries",
+              "isPreset": true,
+              "category": "Payroll & Labor",
+              "amount": 0
+            },
+            {
+              "isPreset": true,
+              "name": "Electricity & Power",
+              "amount": 0,
+              "id": "opex-electricity",
+              "category": "Utilities"
+            },
+            {
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "id": "opex-water",
+              "isPreset": true,
+              "amount": 0
+            },
+            {
+              "amount": 0,
+              "name": "Internet, Telecom & Communication",
+              "id": "opex-internet",
+              "category": "Utilities & Tech",
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "id": "opex-marketing",
+              "amount": 0
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Packaging, Cleaning & Store Supplies",
+              "amount": 15676.83,
+              "id": "opex-supplies",
+              "category": "Consumables"
+            },
+            {
+              "amount": 0,
+              "category": "Facility Upkeep",
+              "isPreset": true,
+              "name": "Equipment Maintenance & Repairs",
+              "id": "opex-maintenance"
+            },
+            {
+              "isPreset": true,
+              "name": "Miscellaneous & Contingency Buffer",
+              "amount": 0,
+              "category": "Admin & Misc",
+              "id": "opex-misc"
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "products": [
+            {
+              "quantityYield": "1",
+              "vatRate": 12,
+              "sellingPrice": "89.00",
+              "markupPercentage": "44",
+              "batchesPerMonth": "217",
+              "unitsSold": "2174",
+              "ingredients": [
+                {
+                  "category": "ingredient",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "id": "ing-1791973707537-2oab",
+                  "price": 18.34
+                },
+                {
+                  "id": "ing-1791973707537-b7dq",
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "category": "ingredient"
+                },
+                {
+                  "price": 16.8,
+                  "name": "16oz Refreshing Drink",
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "price": 13.41,
+                  "name": "Packaging & Condiments",
+                  "id": "ing-1791973707537-16ah",
+                  "category": "miscellaneous"
+                }
+              ],
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone"
+            }
+          ],
+          "endingSuppliesPercent": "30",
+          "footTrafficPeak": "",
+          "taxesPayable": "",
+          "fixedCosts": ""
+        },
+        "drafts": [
+          {
+            "name": "Draft 1 (Baseline)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "propertyInvested": "200000",
+              "rentAdvanceDeposit": "150000",
+              "salesReturnsPercent": "20",
+              "contributorsCount": "10",
+              "startupCapital": "860603",
+              "trainingsPrograms": "32400",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "name": "0",
+                  "total": 1956,
+                  "id": "eq-10",
+                  "unitPrice": 489
+                },
+                {
+                  "id": "eq-11",
+                  "unitPrice": 2220,
+                  "name": "1",
+                  "total": 2220,
+                  "quantity": 1
+                },
+                {
+                  "total": 3147,
+                  "id": "eq-1791973652747",
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "name": "www"
+                }
+              ],
+              "endingSuppliesPercent": "30",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "taxesPayable": "",
+              "accountsReceivable": "289",
+              "utilitiesPayable": "",
+              "variableCost": "",
+              "salariesExpenseInitial": "116531",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "amount": 30000,
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-4",
+                  "name": "Maui Ann De Galicia"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-7",
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-9",
+                  "name": "Gerald Valenzuela"
+                },
+                {
+                  "id": "contrib-10",
+                  "name": "Investor / Partner 10",
+                  "amount": 30000
+                }
+              ],
+              "operatingDays": "360",
+              "isCapitalBorrowed": false,
+              "monthlySales": "",
+              "competitorCount": 4,
+              "cashInvested": "300000",
+              "permitsLicensesInitial": "3925",
+              "marketDemand": "Low",
+              "competitorNotes": "",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "amount": 0,
+                  "id": "opex-rent",
+                  "category": "Facility & Lease",
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Electricity & Power",
+                  "amount": 0,
+                  "category": "Utilities",
+                  "id": "opex-electricity"
+                },
+                {
+                  "name": "Water & Sanitation",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities"
+                },
+                {
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions",
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth"
+                },
+                {
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 0,
+                  "isPreset": true,
+                  "id": "opex-transport"
+                },
+                {
+                  "id": "opex-supplies",
+                  "category": "Consumables",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "isPreset": true
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "id": "opex-misc",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "interestRate": "",
+              "fixedCosts": "",
+              "products": [
+                {
+                  "applyVat": false,
+                  "id": "prod-1791973707537-9let",
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "sellingPrice": "89.00",
+                  "vatRate": 12,
+                  "name": "Tone",
+                  "quantityYield": "1",
+                  "batchesPerMonth": "217",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "price": 18.34,
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "category": "ingredient",
+                      "price": 13.41,
+                      "id": "ing-1791973707537-b7dq",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8
+                    },
+                    {
+                      "id": "ing-1791973707537-16ah",
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments"
+                    }
+                  ]
+                }
+              ],
+              "renovationCosts": "335400",
+              "sellingPrice": "",
+              "advertisingExpense": "2442",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": ""
+            },
+            "createdAt": "2026-11-11T04:28:07.705Z",
+            "updatedAt": "2026-11-11T04:28:23.036Z"
+          }
+        ]
+      }
+    ],
+    "opexList": [
+      {
+        "name": "Rent Expense (Space / Stall Rental)",
+        "amount": 0,
+        "id": "opex-rent",
+        "category": "Facility & Lease",
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "amount": 0,
+        "category": "Payroll & Labor",
+        "isPreset": true,
+        "name": "Salaries & Wages (Operating Staff)"
+      },
+      {
+        "isPreset": true,
+        "name": "Electricity & Power",
+        "amount": 0,
+        "category": "Utilities",
+        "id": "opex-electricity"
+      },
+      {
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "amount": 0,
+        "id": "opex-water",
+        "category": "Utilities"
+      },
+      {
+        "category": "Utilities & Tech",
+        "id": "opex-internet",
+        "isPreset": true,
+        "name": "Internet, Telecom & Communication",
+        "amount": 0
+      },
+      {
+        "isPreset": true,
+        "name": "Marketing, Signage & Promotions",
+        "amount": 0,
+        "id": "opex-marketing",
+        "category": "Marketing & Growth"
+      },
+      {
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 0,
+        "isPreset": true,
+        "id": "opex-transport"
+      },
+      {
+        "id": "opex-supplies",
+        "category": "Consumables",
+        "name": "Packaging, Cleaning & Store Supplies",
+        "amount": 15676.83,
+        "isPreset": true
+      },
+      {
+        "category": "Facility Upkeep",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Equipment Maintenance & Repairs",
+        "id": "opex-maintenance"
+      },
+      {
+        "id": "opex-misc",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc"
+      }
+    ],
+    "unitCost": "61.96",
+    "sellingPrice": 89,
+    "endingSuppliesPercent": "30",
+    "startupCapital": 300000,
+    "salariesPayable": "",
+    "totalCapital": 300000,
+    "proposalCapital": 300000,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiCascade (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:272:22)
+    at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1461:37
+
+[2026-11-11T06:24:45.342Z] AI Analysis Error:
+Request: {
+  "projectId": "KnK08iNafyW6FYrdFTxT",
+  "financialData": {
+    "contributorsList": [
+      {
+        "id": "contrib-1",
+        "amount": 30000,
+        "name": "Jester Handel Gamol"
+      },
+      {
+        "id": "contrib-2",
+        "name": "Jomae-Ann Artacho",
+        "amount": 30000
+      },
+      {
+        "name": "Rizel Grace Camingawan",
+        "id": "contrib-3",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-4",
+        "name": "Maui Ann De Galicia"
+      },
+      {
+        "amount": 30000,
+        "name": "Adrian Ralph Gonzales",
+        "id": "contrib-5"
+      },
+      {
+        "id": "contrib-6",
+        "name": "Mary Jane Padilla",
+        "amount": 30000
+      },
+      {
+        "id": "contrib-7",
+        "amount": 30000,
+        "name": "Cristina Paula Sy"
+      },
+      {
+        "name": "Sheena Laurice Quitoles",
+        "id": "contrib-8",
+        "amount": 30000
+      },
+      {
+        "amount": 30000,
+        "id": "contrib-9",
+        "name": "Gerald Valenzuela"
+      },
+      {
+        "id": "contrib-10",
+        "name": "Investor / Partner 10",
+        "amount": 30000
+      }
+    ],
+    "markupAmount": "27.26",
+    "accountsReceivable": "289",
+    "targetDemographics": [
+      "Students (15-24)",
+      "Employed Individuals (20-45)",
+      "Self-employed Workers (25-50)",
+      "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+    ],
+    "taxesPayable": "",
+    "contributorsCount": "10",
+    "fixedCosts": 15676.83,
+    "competitorNotes": "",
+    "rentAdvanceDeposit": "150000",
+    "nearbyEstablishments": [
+      "C&B Mall Valenzuela",
+      "South Supermarket",
+      "PLV CPAG Campus",
+      "PLV Annex",
+      "Child of Mary Immaculate College (CMIC)",
+      "Mercury Drug Malinta"
+    ],
+    "trainingsPrograms": "32400",
+    "permitsLicensesInitial": "3925",
+    "salesReturnsPercent": "20",
+    "interestRate": 0,
+    "monthlySales": 217,
+    "cashInvested": "300000",
+    "salesDiscountPercent": "20",
+    "operatingDays": 360,
+    "footTrafficPeak": "",
+    "totalMonths": 2,
+    "accountsPayable": "",
+    "otherCompetitors": [
+      "Chowking",
+      "Siomai House",
+      "Dunkin Donuts",
+      "Local Street Kariton"
+    ],
+    "isCapitalBorrowed": false,
+    "utilitiesPayable": "",
+    "productionCost": "61.959999999999994",
+    "activeMonthIndex": 1,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1794371304,
+      "nanoseconds": 890000000
+    },
+    "renovationCosts": "335400",
+    "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+    "computedSellingPrice": "89.22",
+    "propertyInvested": "200000",
+    "salariesExpenseInitial": "116531",
+    "variableCost": 61.96,
+    "competitorCount": 4,
+    "marketDemand": "Low",
+    "equipmentList": [
+      {
+        "quantity": 4,
+        "name": "0",
+        "total": 1956,
+        "id": "eq-10",
+        "unitPrice": 489
+      },
+      {
+        "id": "eq-11",
+        "unitPrice": 2220,
+        "name": "1",
+        "total": 2220,
+        "quantity": 1
+      },
+      {
+        "total": 3147,
+        "id": "eq-1791973652747",
+        "unitPrice": 1049,
+        "quantity": 3,
+        "name": "www"
+      }
+    ],
+    "products": [
+      {
+        "applyVat": false,
+        "id": "prod-1791973707537-9let",
+        "markupPercentage": "44",
+        "unitsSold": "2174",
+        "sellingPrice": "89.00",
+        "vatRate": 12,
+        "name": "Tone",
+        "quantityYield": "1",
+        "batchesPerMonth": "217",
+        "ingredients": [
+          {
+            "category": "ingredient",
+            "price": 18.34,
+            "id": "ing-1791973707537-2oab",
+            "name": "2 pcs Cabbage Chicken Rolls"
+          },
+          {
+            "category": "ingredient",
+            "price": 13.41,
+            "id": "ing-1791973707537-b7dq",
+            "name": "1 Cup Chao Egg Fried Rice"
+          },
+          {
+            "name": "16oz Refreshing Drink",
+            "category": "ingredient",
+            "id": "ing-1791973707537-zsct",
+            "price": 16.8
+          },
+          {
+            "id": "ing-1791973707537-16ah",
+            "price": 13.41,
+            "category": "miscellaneous",
+            "name": "Packaging & Condiments"
+          }
+        ]
+      }
+    ],
+    "quantityYield": "217",
+    "markupPercentage": "44",
+    "directCompetitors": [
+      "Master Siomai",
+      "Rice in a Box (RBX)",
+      "Turks",
+      "Shawarma Shack",
+      "Paotsin"
+    ],
+    "marketDemandNotes": "",
+    "advertisingExpense": "2442",
+    "monthlyRecords": [
+      {
+        "lockedAt": "2026-11-11T04:28:07.703Z",
+        "activeDraftId": "draft-1",
+        "month": 1,
+        "monthName": "Month 1 (1st Month)",
+        "drafts": [
+          {
+            "name": "Draft 1 (Primary)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "startupCapital": "860603",
+              "salesReturnsPercent": "20",
+              "variableCost": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": "",
+              "advertisingExpense": "2442",
+              "taxesPayable": "",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "permitsLicensesInitial": "3925",
+              "competitorCount": 4,
+              "endingSuppliesPercent": "30",
+              "utilitiesPayable": "",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "accountsReceivable": "289",
+              "sellingPrice": "",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "amount": 30000,
+                  "id": "contrib-1",
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Jomae-Ann Artacho",
+                  "id": "contrib-2"
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-3",
+                  "name": "Rizel Grace Camingawan"
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy",
+                  "id": "contrib-7"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "amount": 30000,
+                  "id": "contrib-8"
+                },
+                {
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "equipmentList": [
+                {
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "quantity": 4,
+                  "unitPrice": 489
+                },
+                {
+                  "name": "1",
+                  "quantity": 1,
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "name": "www",
+                  "total": 3147,
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747"
+                }
+              ],
+              "salariesExpenseInitial": "116531",
+              "renovationCosts": "335400",
+              "trainingsPrograms": "32400",
+              "products": [
+                {
+                  "vatRate": 12,
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "batchesPerMonth": "2174",
+                  "name": "Tone",
+                  "sellingPrice": "89.00",
+                  "quantityYield": "1",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "category": "ingredient"
+                    },
+                    {
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "applyVat": false
+                }
+              ],
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "propertyInvested": "200000",
+              "interestRate": "",
+              "contributorsCount": "10",
+              "marketDemand": "Low",
+              "fixedCosts": "",
+              "cashInvested": "300000",
+              "operatingDays": "360",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "category": "Facility & Lease",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-rent"
+                },
+                {
+                  "id": "opex-salaries",
+                  "name": "Salaries & Wages (Operating Staff)",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Payroll & Labor"
+                },
+                {
+                  "id": "opex-electricity",
+                  "amount": 0,
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "name": "Electricity & Power"
+                },
+                {
+                  "isPreset": true,
+                  "category": "Utilities",
+                  "id": "opex-water",
+                  "amount": 0,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0,
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet"
+                },
+                {
+                  "name": "Marketing, Signage & Promotions",
+                  "isPreset": true,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "category": "Logistics",
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "isPreset": true,
+                  "category": "Consumables",
+                  "amount": 15676.83
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "isPreset": true,
+                  "amount": 0,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-misc",
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "monthlySales": "",
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "rentAdvanceDeposit": "150000"
+            },
+            "createdAt": "2026-10-04T07:51:50.143Z",
+            "updatedAt": "2026-11-11T04:28:12.362Z"
+          },
+          {
+            "createdAt": "2026-11-01T01:18:56.978Z",
+            "updatedAt": "2026-11-11T04:27:45.889Z",
+            "name": "Draft 2",
+            "financials": {
+              "footTrafficPeak": "",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "id": "eq-10",
+                  "name": "0",
+                  "total": 1956,
+                  "unitPrice": 489
+                },
+                {
+                  "quantity": 1,
+                  "name": "1",
+                  "unitPrice": 2220,
+                  "id": "eq-11",
+                  "total": 2220
+                },
+                {
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "id": "eq-1791973652747",
+                  "total": 3147,
+                  "name": "www"
+                }
+              ],
+              "taxesPayable": "",
+              "propertyInvested": "200000",
+              "variableCost": "",
+              "marketDemandNotes": "",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "salariesPayable": "",
+              "permitsLicensesInitial": "3925",
+              "advertisingExpense": "2442",
+              "opexList": [
+                {
+                  "category": "Facility & Lease",
+                  "id": "opex-rent",
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "isPreset": true,
+                  "amount": 0
+                },
+                {
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Utilities",
+                  "name": "Electricity & Power",
+                  "id": "opex-electricity"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities",
+                  "isPreset": true,
+                  "name": "Water & Sanitation"
+                },
+                {
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "category": "Utilities & Tech",
+                  "amount": 0
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth",
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions"
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-transport",
+                  "category": "Logistics",
+                  "isPreset": true,
+                  "name": "Transportation, Delivery & Fuel"
+                },
+                {
+                  "id": "opex-supplies",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "category": "Consumables",
+                  "isPreset": true
+                },
+                {
+                  "amount": 0,
+                  "id": "opex-maintenance",
+                  "name": "Equipment Maintenance & Repairs",
+                  "category": "Facility Upkeep",
+                  "isPreset": true
+                },
+                {
+                  "isPreset": true,
+                  "amount": 0,
+                  "category": "Admin & Misc",
+                  "id": "opex-misc",
+                  "name": "Miscellaneous & Contingency Buffer"
+                }
+              ],
+              "utilitiesPayable": "",
+              "operatingDays": "360",
+              "startupCapital": "860603",
+              "salesDiscountPercent": "20",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton",
+                "Watsons Personal Care"
+              ],
+              "contributorsList": [
+                {
+                  "name": "Jester Handel Gamol",
+                  "id": "contrib-1",
+                  "amount": 30000
+                },
+                {
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000,
+                  "id": "contrib-2"
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "name": "Maui Ann De Galicia",
+                  "id": "contrib-4",
+                  "amount": 30000
+                },
+                {
+                  "name": "Adrian Ralph Gonzales",
+                  "amount": 30000,
+                  "id": "contrib-5"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Mary Jane Padilla",
+                  "id": "contrib-6"
+                },
+                {
+                  "name": "Cristina Paula Sy",
+                  "amount": 30000,
+                  "id": "contrib-7"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Gerald Valenzuela",
+                  "id": "contrib-9"
+                },
+                {
+                  "id": "contrib-10",
+                  "amount": 30000,
+                  "name": "Investor / Partner 10"
+                }
+              ],
+              "products": [
+                {
+                  "name": "Tone",
+                  "unitsSold": "2174",
+                  "sellingPrice": "500",
+                  "applyVat": false,
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "category": "ingredient",
+                      "price": 18.34
+                    },
+                    {
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1791973707537-b7dq",
+                      "price": 13.41,
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct"
+                    },
+                    {
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments",
+                      "id": "ing-1791973707537-16ah"
+                    }
+                  ],
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1791973707537-9let",
+                  "vatRate": 12,
+                  "quantityYield": "1"
+                },
+                {
+                  "sellingPrice": "89.00",
+                  "unitsSold": "2174",
+                  "quantityYield": "1",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370901854-mtp9",
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls",
+                      "price": 18.34
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370901854-j4rz",
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8,
+                      "id": "ing-1794370901854-41mi"
+                    },
+                    {
+                      "id": "ing-1794370901854-1oz4",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "applyVat": false,
+                  "id": "prod-1794370901854-he5p",
+                  "name": "Tone (Copy)",
+                  "batchesPerMonth": "2174"
+                },
+                {
+                  "id": "prod-1794370896274-6lm5",
+                  "batchesPerMonth": "2174",
+                  "quantityYield": "1",
+                  "sellingPrice": "120.00",
+                  "markupPercentage": "44",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-a182",
+                      "price": 18.34,
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-mcpg",
+                      "category": "ingredient",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "category": "ingredient",
+                      "id": "ing-1794370896274-qhs5",
+                      "name": "16oz Refreshing Drink",
+                      "price": 16.8
+                    },
+                    {
+                      "price": 13.41,
+                      "id": "ing-1794370896274-xluc",
+                      "name": "Packaging & Condiments",
+                      "category": "miscellaneous"
+                    }
+                  ],
+                  "vatRate": 12,
+                  "name": "Tone (Copy)",
+                  "unitsSold": "2174",
+                  "applyVat": false
+                },
+                {
+                  "batchesPerMonth": "2174",
+                  "id": "prod-1794370932797-w4yf",
+                  "quantityYield": "1",
+                  "name": "Tone (Copy) (Copy)",
+                  "ingredients": [
+                    {
+                      "id": "ing-1794370932797-6ac5",
+                      "price": 18.34,
+                      "category": "ingredient",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "price": 13.41,
+                      "name": "1 Cup Chao Egg Fried Rice",
+                      "id": "ing-1794370932797-p72g",
+                      "category": "ingredient"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1794370932797-gs2e",
+                      "price": 16.8
+                    },
+                    {
+                      "category": "miscellaneous",
+                      "id": "ing-1794370932797-hhpb",
+                      "price": 13.41,
+                      "name": "Packaging & Condiments"
+                    }
+                  ],
+                  "unitsSold": "2174",
+                  "sellingPrice": "250.00",
+                  "applyVat": false,
+                  "vatRate": 12,
+                  "markupPercentage": "44"
+                }
+              ],
+              "fixedCosts": "",
+              "sellingPrice": "",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "renovationCosts": "335400",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "isCapitalBorrowed": false,
+              "competitorNotes": "",
+              "salesReturnsPercent": "20",
+              "accountsReceivable": "289",
+              "competitorCount": 10,
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "monthlySales": "",
+              "endingSuppliesPercent": "30",
+              "cashInvested": "300000",
+              "accountsPayable": "",
+              "salariesExpenseInitial": "116531",
+              "marketDemand": "Low",
+              "contributorsCount": "10",
+              "interestRate": "",
+              "rentAdvanceDeposit": "150000",
+              "trainingsPrograms": "32400"
+            },
+            "id": "draft-1793495936957"
+          }
+        ],
+        "isLocked": true,
+        "financials": {
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-2",
+              "amount": 30000,
+              "name": "Jomae-Ann Artacho"
+            },
+            {
+              "amount": 30000,
+              "name": "Rizel Grace Camingawan",
+              "id": "contrib-3"
+            },
+            {
+              "id": "contrib-4",
+              "amount": 30000,
+              "name": "Maui Ann De Galicia"
+            },
+            {
+              "name": "Adrian Ralph Gonzales",
+              "id": "contrib-5",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "amount": 30000,
+              "id": "contrib-7"
+            },
+            {
+              "name": "Sheena Laurice Quitoles",
+              "amount": 30000,
+              "id": "contrib-8"
+            },
+            {
+              "amount": 30000,
+              "name": "Gerald Valenzuela",
+              "id": "contrib-9"
+            },
+            {
+              "id": "contrib-10",
+              "name": "Investor / Partner 10",
+              "amount": 30000
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "permitsLicensesInitial": "3925",
+          "equipmentList": [
+            {
+              "quantity": 4,
+              "unitPrice": 489,
+              "name": "0",
+              "id": "eq-10",
+              "total": 1956
+            },
+            {
+              "name": "1",
+              "unitPrice": 2220,
+              "id": "eq-11",
+              "total": 2220,
+              "quantity": 1
+            },
+            {
+              "unitPrice": 1049,
+              "quantity": 3,
+              "id": "eq-1791973652747",
+              "total": 3147,
+              "name": "www"
+            }
+          ],
+          "utilitiesPayable": "",
+          "taxesPayable": "",
+          "rentAdvanceDeposit": "150000",
+          "footTrafficPeak": "",
+          "fixedCosts": "",
+          "salariesPayable": "",
+          "propertyInvested": "200000",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "variableCost": "",
+          "salesDiscountPercent": "20",
+          "operatingDays": "360",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "contributorsCount": "10",
+          "monthlySales": "",
+          "advertisingExpense": "2442",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "endingSuppliesPercent": "30",
+          "opexList": [
+            {
+              "category": "Facility & Lease",
+              "name": "Rent Expense (Space / Stall Rental)",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-rent"
+            },
+            {
+              "id": "opex-salaries",
+              "isPreset": true,
+              "name": "Salaries & Wages (Operating Staff)",
+              "amount": 0,
+              "category": "Payroll & Labor"
+            },
+            {
+              "category": "Utilities",
+              "name": "Electricity & Power",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-electricity"
+            },
+            {
+              "isPreset": true,
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "amount": 0,
+              "id": "opex-water"
+            },
+            {
+              "amount": 0,
+              "id": "opex-internet",
+              "name": "Internet, Telecom & Communication",
+              "isPreset": true,
+              "category": "Utilities & Tech"
+            },
+            {
+              "amount": 0,
+              "id": "opex-marketing",
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth"
+            },
+            {
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "id": "opex-transport",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "amount": 15676.83,
+              "isPreset": true,
+              "id": "opex-supplies",
+              "category": "Consumables",
+              "name": "Packaging, Cleaning & Store Supplies"
+            },
+            {
+              "isPreset": true,
+              "id": "opex-maintenance",
+              "category": "Facility Upkeep",
+              "amount": 0,
+              "name": "Equipment Maintenance & Repairs"
+            },
+            {
+              "category": "Admin & Misc",
+              "name": "Miscellaneous & Contingency Buffer",
+              "isPreset": true,
+              "amount": 0,
+              "id": "opex-misc"
+            }
+          ],
+          "trainingsPrograms": "32400",
+          "products": [
+            {
+              "batchesPerMonth": "2174",
+              "ingredients": [
+                {
+                  "price": 18.34,
+                  "id": "ing-1791973707537-2oab",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-b7dq",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "16oz Refreshing Drink",
+                  "price": 16.8,
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "name": "Packaging & Condiments",
+                  "category": "miscellaneous",
+                  "price": 13.41,
+                  "id": "ing-1791973707537-16ah"
+                }
+              ],
+              "quantityYield": "1",
+              "unitsSold": "2174",
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone",
+              "sellingPrice": "89.00",
+              "vatRate": 12,
+              "markupPercentage": "44"
+            }
+          ],
+          "startupCapital": "860603",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "salariesExpenseInitial": "116531",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "competitorCount": 4,
+          "salesReturnsPercent": "20",
+          "competitorNotes": "",
+          "isCapitalBorrowed": false
+        }
+      },
+      {
+        "monthName": "Month 2 (2nd Month)",
+        "activeDraftId": "draft-1",
+        "isLocked": false,
+        "month": 2,
+        "financials": {
+          "propertyInvested": "200000",
+          "equipmentList": [
+            {
+              "total": 1956,
+              "unitPrice": 489,
+              "name": "0",
+              "quantity": 4,
+              "id": "eq-10"
+            },
+            {
+              "name": "1",
+              "quantity": 1,
+              "total": 2220,
+              "unitPrice": 2220,
+              "id": "eq-11"
+            },
+            {
+              "id": "eq-1791973652747",
+              "unitPrice": 1049,
+              "name": "www",
+              "quantity": 3,
+              "total": 3147
+            }
+          ],
+          "isCapitalBorrowed": false,
+          "salesReturnsPercent": "20",
+          "monthlySales": "",
+          "cashInvested": "300000",
+          "accountsPayable": "",
+          "marketDemand": "Low",
+          "interestRate": "",
+          "operatingDays": "360",
+          "trainingsPrograms": "32400",
+          "competitorCount": 4,
+          "advertisingExpense": "2442",
+          "nearbyEstablishments": [
+            "C&B Mall Valenzuela",
+            "South Supermarket",
+            "PLV CPAG Campus",
+            "PLV Annex",
+            "Child of Mary Immaculate College (CMIC)",
+            "Mercury Drug Malinta"
+          ],
+          "utilitiesPayable": "",
+          "competitorNotes": "",
+          "startupCapital": "860603",
+          "otherCompetitors": [
+            "Chowking",
+            "Siomai House",
+            "Dunkin Donuts",
+            "Local Street Kariton"
+          ],
+          "contributorsList": [
+            {
+              "id": "contrib-1",
+              "name": "Jester Handel Gamol",
+              "amount": 30000
+            },
+            {
+              "name": "Jomae-Ann Artacho",
+              "id": "contrib-2",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "id": "contrib-3",
+              "name": "Rizel Grace Camingawan"
+            },
+            {
+              "id": "contrib-4",
+              "name": "Maui Ann De Galicia",
+              "amount": 30000
+            },
+            {
+              "id": "contrib-5",
+              "amount": 30000,
+              "name": "Adrian Ralph Gonzales"
+            },
+            {
+              "amount": 30000,
+              "name": "Mary Jane Padilla",
+              "id": "contrib-6"
+            },
+            {
+              "name": "Cristina Paula Sy",
+              "id": "contrib-7",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Sheena Laurice Quitoles",
+              "id": "contrib-8"
+            },
+            {
+              "id": "contrib-9",
+              "name": "Gerald Valenzuela",
+              "amount": 30000
+            },
+            {
+              "amount": 30000,
+              "name": "Investor / Partner 10",
+              "id": "contrib-10"
+            }
+          ],
+          "salariesExpenseInitial": "116531",
+          "contributorsCount": "10",
+          "sellingPrice": "",
+          "renovationCosts": "335400",
+          "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+          "rentAdvanceDeposit": "150000",
+          "permitsLicensesInitial": "3925",
+          "directCompetitors": [
+            "Master Siomai",
+            "Rice in a Box (RBX)",
+            "Turks",
+            "Shawarma Shack",
+            "Paotsin"
+          ],
+          "marketDemandNotes": "",
+          "salesDiscountPercent": "20",
+          "variableCost": "",
+          "salariesPayable": "",
+          "opexList": [
+            {
+              "name": "Rent Expense (Space / Stall Rental)",
+              "amount": 0,
+              "category": "Facility & Lease",
+              "isPreset": true,
+              "id": "opex-rent"
+            },
+            {
+              "name": "Salaries & Wages (Operating Staff)",
+              "id": "opex-salaries",
+              "isPreset": true,
+              "category": "Payroll & Labor",
+              "amount": 0
+            },
+            {
+              "isPreset": true,
+              "name": "Electricity & Power",
+              "amount": 0,
+              "id": "opex-electricity",
+              "category": "Utilities"
+            },
+            {
+              "name": "Water & Sanitation",
+              "category": "Utilities",
+              "id": "opex-water",
+              "isPreset": true,
+              "amount": 0
+            },
+            {
+              "amount": 0,
+              "name": "Internet, Telecom & Communication",
+              "id": "opex-internet",
+              "category": "Utilities & Tech",
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Marketing, Signage & Promotions",
+              "category": "Marketing & Growth",
+              "id": "opex-marketing",
+              "amount": 0
+            },
+            {
+              "id": "opex-transport",
+              "name": "Transportation, Delivery & Fuel",
+              "category": "Logistics",
+              "amount": 0,
+              "isPreset": true
+            },
+            {
+              "isPreset": true,
+              "name": "Packaging, Cleaning & Store Supplies",
+              "amount": 15676.83,
+              "id": "opex-supplies",
+              "category": "Consumables"
+            },
+            {
+              "amount": 0,
+              "category": "Facility Upkeep",
+              "isPreset": true,
+              "name": "Equipment Maintenance & Repairs",
+              "id": "opex-maintenance"
+            },
+            {
+              "isPreset": true,
+              "name": "Miscellaneous & Contingency Buffer",
+              "amount": 0,
+              "category": "Admin & Misc",
+              "id": "opex-misc"
+            }
+          ],
+          "targetDemographics": [
+            "Students (15-24)",
+            "Employed Individuals (20-45)",
+            "Self-employed Workers (25-50)",
+            "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+          ],
+          "accountsReceivable": "289",
+          "products": [
+            {
+              "quantityYield": "1",
+              "vatRate": 12,
+              "sellingPrice": "89.00",
+              "markupPercentage": "44",
+              "batchesPerMonth": "217",
+              "unitsSold": "2174",
+              "ingredients": [
+                {
+                  "category": "ingredient",
+                  "name": "2 pcs Cabbage Chicken Rolls",
+                  "id": "ing-1791973707537-2oab",
+                  "price": 18.34
+                },
+                {
+                  "id": "ing-1791973707537-b7dq",
+                  "name": "1 Cup Chao Egg Fried Rice",
+                  "price": 13.41,
+                  "category": "ingredient"
+                },
+                {
+                  "price": 16.8,
+                  "name": "16oz Refreshing Drink",
+                  "id": "ing-1791973707537-zsct",
+                  "category": "ingredient"
+                },
+                {
+                  "price": 13.41,
+                  "name": "Packaging & Condiments",
+                  "id": "ing-1791973707537-16ah",
+                  "category": "miscellaneous"
+                }
+              ],
+              "applyVat": false,
+              "id": "prod-1791973707537-9let",
+              "name": "Tone"
+            }
+          ],
+          "endingSuppliesPercent": "30",
+          "footTrafficPeak": "",
+          "taxesPayable": "",
+          "fixedCosts": ""
+        },
+        "drafts": [
+          {
+            "name": "Draft 1 (Baseline)",
+            "id": "draft-1",
+            "financials": {
+              "salariesPayable": "",
+              "propertyInvested": "200000",
+              "rentAdvanceDeposit": "150000",
+              "salesReturnsPercent": "20",
+              "contributorsCount": "10",
+              "startupCapital": "860603",
+              "trainingsPrograms": "32400",
+              "equipmentList": [
+                {
+                  "quantity": 4,
+                  "name": "0",
+                  "total": 1956,
+                  "id": "eq-10",
+                  "unitPrice": 489
+                },
+                {
+                  "id": "eq-11",
+                  "unitPrice": 2220,
+                  "name": "1",
+                  "total": 2220,
+                  "quantity": 1
+                },
+                {
+                  "total": 3147,
+                  "id": "eq-1791973652747",
+                  "unitPrice": 1049,
+                  "quantity": 3,
+                  "name": "www"
+                }
+              ],
+              "endingSuppliesPercent": "30",
+              "salesDiscountPercent": "20",
+              "footTrafficPeak": "",
+              "targetDemographics": [
+                "Students (15-24)",
+                "Employed Individuals (20-45)",
+                "Self-employed Workers (25-50)",
+                "Low to Lower-Middle Income Class (₱10,957 - ₱43,828/mo)"
+              ],
+              "taxesPayable": "",
+              "accountsReceivable": "289",
+              "utilitiesPayable": "",
+              "variableCost": "",
+              "salariesExpenseInitial": "116531",
+              "otherCompetitors": [
+                "Chowking",
+                "Siomai House",
+                "Dunkin Donuts",
+                "Local Street Kariton"
+              ],
+              "contributorsList": [
+                {
+                  "id": "contrib-1",
+                  "amount": 30000,
+                  "name": "Jester Handel Gamol"
+                },
+                {
+                  "id": "contrib-2",
+                  "name": "Jomae-Ann Artacho",
+                  "amount": 30000
+                },
+                {
+                  "name": "Rizel Grace Camingawan",
+                  "id": "contrib-3",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-4",
+                  "name": "Maui Ann De Galicia"
+                },
+                {
+                  "amount": 30000,
+                  "name": "Adrian Ralph Gonzales",
+                  "id": "contrib-5"
+                },
+                {
+                  "id": "contrib-6",
+                  "name": "Mary Jane Padilla",
+                  "amount": 30000
+                },
+                {
+                  "id": "contrib-7",
+                  "amount": 30000,
+                  "name": "Cristina Paula Sy"
+                },
+                {
+                  "name": "Sheena Laurice Quitoles",
+                  "id": "contrib-8",
+                  "amount": 30000
+                },
+                {
+                  "amount": 30000,
+                  "id": "contrib-9",
+                  "name": "Gerald Valenzuela"
+                },
+                {
+                  "id": "contrib-10",
+                  "name": "Investor / Partner 10",
+                  "amount": 30000
+                }
+              ],
+              "operatingDays": "360",
+              "isCapitalBorrowed": false,
+              "monthlySales": "",
+              "competitorCount": 4,
+              "cashInvested": "300000",
+              "permitsLicensesInitial": "3925",
+              "marketDemand": "Low",
+              "competitorNotes": "",
+              "opexList": [
+                {
+                  "name": "Rent Expense (Space / Stall Rental)",
+                  "amount": 0,
+                  "id": "opex-rent",
+                  "category": "Facility & Lease",
+                  "isPreset": true
+                },
+                {
+                  "id": "opex-salaries",
+                  "amount": 0,
+                  "category": "Payroll & Labor",
+                  "isPreset": true,
+                  "name": "Salaries & Wages (Operating Staff)"
+                },
+                {
+                  "isPreset": true,
+                  "name": "Electricity & Power",
+                  "amount": 0,
+                  "category": "Utilities",
+                  "id": "opex-electricity"
+                },
+                {
+                  "name": "Water & Sanitation",
+                  "isPreset": true,
+                  "amount": 0,
+                  "id": "opex-water",
+                  "category": "Utilities"
+                },
+                {
+                  "category": "Utilities & Tech",
+                  "id": "opex-internet",
+                  "isPreset": true,
+                  "name": "Internet, Telecom & Communication",
+                  "amount": 0
+                },
+                {
+                  "isPreset": true,
+                  "name": "Marketing, Signage & Promotions",
+                  "amount": 0,
+                  "id": "opex-marketing",
+                  "category": "Marketing & Growth"
+                },
+                {
+                  "name": "Transportation, Delivery & Fuel",
+                  "category": "Logistics",
+                  "amount": 0,
+                  "isPreset": true,
+                  "id": "opex-transport"
+                },
+                {
+                  "id": "opex-supplies",
+                  "category": "Consumables",
+                  "name": "Packaging, Cleaning & Store Supplies",
+                  "amount": 15676.83,
+                  "isPreset": true
+                },
+                {
+                  "category": "Facility Upkeep",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Equipment Maintenance & Repairs",
+                  "id": "opex-maintenance"
+                },
+                {
+                  "id": "opex-misc",
+                  "amount": 0,
+                  "isPreset": true,
+                  "name": "Miscellaneous & Contingency Buffer",
+                  "category": "Admin & Misc"
+                }
+              ],
+              "interestRate": "",
+              "fixedCosts": "",
+              "products": [
+                {
+                  "applyVat": false,
+                  "id": "prod-1791973707537-9let",
+                  "markupPercentage": "44",
+                  "unitsSold": "2174",
+                  "sellingPrice": "89.00",
+                  "vatRate": 12,
+                  "name": "Tone",
+                  "quantityYield": "1",
+                  "batchesPerMonth": "217",
+                  "ingredients": [
+                    {
+                      "category": "ingredient",
+                      "price": 18.34,
+                      "id": "ing-1791973707537-2oab",
+                      "name": "2 pcs Cabbage Chicken Rolls"
+                    },
+                    {
+                      "category": "ingredient",
+                      "price": 13.41,
+                      "id": "ing-1791973707537-b7dq",
+                      "name": "1 Cup Chao Egg Fried Rice"
+                    },
+                    {
+                      "name": "16oz Refreshing Drink",
+                      "category": "ingredient",
+                      "id": "ing-1791973707537-zsct",
+                      "price": 16.8
+                    },
+                    {
+                      "id": "ing-1791973707537-16ah",
+                      "price": 13.41,
+                      "category": "miscellaneous",
+                      "name": "Packaging & Condiments"
+                    }
+                  ]
+                }
+              ],
+              "renovationCosts": "335400",
+              "sellingPrice": "",
+              "advertisingExpense": "2442",
+              "nearbyEstablishments": [
+                "C&B Mall Valenzuela",
+                "South Supermarket",
+                "PLV CPAG Campus",
+                "PLV Annex",
+                "Child of Mary Immaculate College (CMIC)",
+                "Mercury Drug Malinta"
+              ],
+              "accountsPayable": "",
+              "propertyInvestedNote": "Cooking Machineries (₱100,000) & Logistics Services (₱100,000)",
+              "directCompetitors": [
+                "Master Siomai",
+                "Rice in a Box (RBX)",
+                "Turks",
+                "Shawarma Shack",
+                "Paotsin"
+              ],
+              "marketDemandNotes": ""
+            },
+            "createdAt": "2026-11-11T04:28:07.705Z",
+            "updatedAt": "2026-11-11T04:28:23.036Z"
+          }
+        ]
+      }
+    ],
+    "opexList": [
+      {
+        "name": "Rent Expense (Space / Stall Rental)",
+        "amount": 0,
+        "id": "opex-rent",
+        "category": "Facility & Lease",
+        "isPreset": true
+      },
+      {
+        "id": "opex-salaries",
+        "amount": 0,
+        "category": "Payroll & Labor",
+        "isPreset": true,
+        "name": "Salaries & Wages (Operating Staff)"
+      },
+      {
+        "isPreset": true,
+        "name": "Electricity & Power",
+        "amount": 0,
+        "category": "Utilities",
+        "id": "opex-electricity"
+      },
+      {
+        "name": "Water & Sanitation",
+        "isPreset": true,
+        "amount": 0,
+        "id": "opex-water",
+        "category": "Utilities"
+      },
+      {
+        "category": "Utilities & Tech",
+        "id": "opex-internet",
+        "isPreset": true,
+        "name": "Internet, Telecom & Communication",
+        "amount": 0
+      },
+      {
+        "isPreset": true,
+        "name": "Marketing, Signage & Promotions",
+        "amount": 0,
+        "id": "opex-marketing",
+        "category": "Marketing & Growth"
+      },
+      {
+        "name": "Transportation, Delivery & Fuel",
+        "category": "Logistics",
+        "amount": 0,
+        "isPreset": true,
+        "id": "opex-transport"
+      },
+      {
+        "id": "opex-supplies",
+        "category": "Consumables",
+        "name": "Packaging, Cleaning & Store Supplies",
+        "amount": 15676.83,
+        "isPreset": true
+      },
+      {
+        "category": "Facility Upkeep",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Equipment Maintenance & Repairs",
+        "id": "opex-maintenance"
+      },
+      {
+        "id": "opex-misc",
+        "amount": 0,
+        "isPreset": true,
+        "name": "Miscellaneous & Contingency Buffer",
+        "category": "Admin & Misc"
+      }
+    ],
+    "unitCost": "61.96",
+    "sellingPrice": 89,
+    "endingSuppliesPercent": "30",
+    "startupCapital": 300000,
+    "salariesPayable": "",
+    "totalCapital": 300000,
+    "proposalCapital": 300000,
+    "businessName": "Thread & Tone Apparel",
+    "businessType": "Retail"
+  }
+}
+Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:414:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:387:9)
+    at async generateContent (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\node_modules\@google\generative-ai\dist\index.js:832:22)
+    at async callGeminiCascade (C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:272:22)
+    at async C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\feasify-backend\index.js:1461:37
+
