@@ -450,34 +450,61 @@ const AdviserNotifications: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Review student submissions, proposal updates, and activity alerts.</p>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex bg-gray-200/60 p-1 rounded-xl shadow-inner">
+            {/* Filter Tabs (High-Contrast Pills with Gold Dot Indicator) */}
+            <div className="flex bg-gray-100 p-1.5 rounded-2xl gap-1.5 border border-gray-200 shadow-inner" role="tablist">
               <button
+                role="tab"
+                aria-selected={activeTab === 'unread'}
                 onClick={() => { setActiveTab('unread'); setSelectedIds([]); }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'unread' ? 'bg-white text-[#122244] shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] focus:ring-offset-2 ${
+                  activeTab === 'unread'
+                    ? 'bg-[#122244] text-white shadow-md border border-[#122244]'
+                    : 'bg-transparent text-gray-700 hover:bg-gray-200/80 hover:text-gray-900 border border-transparent'
+                }`}
               >
+                {activeTab === 'unread' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654] inline-block shrink-0 shadow-xs" aria-hidden="true" />
+                )}
                 Unread
                 {unreadCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold">
+                  <span className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold ${activeTab === 'unread' ? 'bg-[#c9a654] text-[#122244]' : 'bg-red-500 text-white'}`}>
                     {unreadCount}
                   </span>
                 )}
               </button>
               <button
+                role="tab"
+                aria-selected={activeTab === 'all'}
                 onClick={() => { setActiveTab('all'); setSelectedIds([]); }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'all' ? 'bg-white text-[#122244] shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] focus:ring-offset-2 ${
+                  activeTab === 'all'
+                    ? 'bg-[#122244] text-white shadow-md border border-[#122244]'
+                    : 'bg-transparent text-gray-700 hover:bg-gray-200/80 hover:text-gray-900 border border-transparent'
+                }`}
               >
+                {activeTab === 'all' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654] inline-block shrink-0 shadow-xs" aria-hidden="true" />
+                )}
                 All
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'}`}>
                   {notifications.length}
                 </span>
               </button>
               <button
+                role="tab"
+                aria-selected={activeTab === 'read'}
                 onClick={() => { setActiveTab('read'); setSelectedIds([]); }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'read' ? 'bg-white text-[#122244] shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] focus:ring-offset-2 ${
+                  activeTab === 'read'
+                    ? 'bg-[#122244] text-white shadow-md border border-[#122244]'
+                    : 'bg-transparent text-gray-700 hover:bg-gray-200/80 hover:text-gray-900 border border-transparent'
+                }`}
               >
+                {activeTab === 'read' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654] inline-block shrink-0 shadow-xs" aria-hidden="true" />
+                )}
                 Read
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'read' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'}`}>
                   {readCount}
                 </span>
               </button>

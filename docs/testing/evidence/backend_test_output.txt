@@ -1,0 +1,155 @@
+﻿
+> feasify-backend@1.0.0 test
+> node tests/nameChecker.test.js && node tests/apiEndpoints.test.js && node tests/defenseMathAudit.test.js
+
+
+========================================================
+   FEASIFY OFFICIAL NAME CHECKER - TEST SUITE
+========================================================
+
+--- 1. DTI Provider Verification ---
+  Γ£ô DTI: Empty input returns ERROR status
+  Γ£ô DTI: Input with only whitespace returns ERROR status
+  Γ£ô DTI: Very long input (>150 chars) returns ERROR status
+  Γ£ô DTI: Exact existing business name returns FOUND status with records
+  Γ£ô DTI: Exact nonexistent business name returns NOT_FOUND status with official link
+  Γ£ô DTI: Normalization handles different capitalization
+  Γ£ô DTI: Normalization handles extra spaces and trimming
+  Γ£ô DTI: Handles special characters safely without crashing
+  Γ£ô DTI: Provider unavailable simulation returns UNAVAILABLE status
+  Γ£ô DTI: Timeout simulation returns UNAVAILABLE status with official link
+
+--- 2. SEC Provider Verification ---
+  Γ£ô SEC: Empty input returns ERROR status
+  Γ£ô SEC: Very long input (>150 chars) returns ERROR status
+  Γ£ô SEC: Existing company lookup returns FOUND with SEC details
+  Γ£ô SEC: Nonexistent company returns NOT_FOUND and distinguishes name reservation
+  Γ£ô SEC: Different capitalization matches correctly
+  Γ£ô SEC: Suffix variations strip suffixes cleanly for normalized comparisons
+  Γ£ô SEC: API unavailable simulation returns UNAVAILABLE status
+  Γ£ô SEC: Authentication failure simulation returns UNAVAILABLE status
+  Γ£ô SEC: Rate limit simulation returns UNAVAILABLE status
+
+--- 3. Cache & Audit Logger Verification ---
+  Γ£ô Cache: Stores and retrieves non-expired entries
+  Γ£ô Cache: Force refresh bypasses cache
+  Γ£ô VerificationLogger: Stores lightweight audit records without sensitive data
+
+--- 4. NameCheckerService Orchestrator ---
+  Γ£ô Service: type='business' routes automatically to DTI
+  Γ£ô Service: type='company' routes automatically to SEC
+  Γ£ô Service: type='all' queries both DTI and SEC concurrently
+  Γ£ô Service: getStatus() returns complete diagnostic metadata
+  Γ£ô Service: Flag well-known Philippine brands across all scopes (cocopan, goldilocks, mega, red ribbon, 711, uncle johns)
+
+--- 5. Security & Repository Integrity ---
+  Γ£ô Dataset: companyNames.json consolidated into single source of truth in backend
+  Γ£ô Security: .gitignore includes .env files
+  Γ£ô Security: Predefined provider integration only (no arbitrary URL execution)
+
+========================================================
+TEST RESULTS: 30 passed, 0 failed out of 30 total tests
+========================================================
+
+
+========================================================
+   FEASIFY BACKEND API ENDPOINTS - INTEGRATION TESTS
+========================================================
+
+Setting up test server...
+Test server running on http://localhost:55702
+  Γ£ô POST /api/name-check with empty name returns 400 ERROR
+  Γ£ô POST /api/name-check (type=business) returns DTI verification
+  Γ£ô POST /api/name-check (type=company) returns SEC verification
+  Γ£ô POST /api/name-check (type=all) returns dual DTI and SEC object
+  Γ£ô GET /api/name-check/status returns healthy service status
+  Γ£ô GET /api/registration-sources returns official source links without local JSON array
+  Γ£ô POST /api/check-company-name legacy route returns mapped provider result
+  Γ£ô Regression: /api/teams/:groupId/proposals/count maintains 3-proposal limit
+
+ENDPOINT TEST RESULTS: 8 passed out of 8 tests
+
+TAP version 13
+# Subtest: Final Defense Mathematical Audit
+    # Subtest: Equation Check: Assets == Liabilities + Equity under standard business
+    ok 1 - Equation Check: Assets == Liabilities + Equity under standard business
+      ---
+      duration_ms: 0.8883
+      type: 'test'
+      ...
+    # Subtest: Equation Check: Assets == Liabilities + Equity under severe deficit (CapEx > Capital)
+    ok 2 - Equation Check: Assets == Liabilities + Equity under severe deficit (CapEx > Capital)
+      ---
+      duration_ms: 0.16
+      type: 'test'
+      ...
+    # Subtest: Equation Check: Assets == Liabilities + Equity across 12 sequential months
+    ok 3 - Equation Check: Assets == Liabilities + Equity across 12 sequential months
+      ---
+      duration_ms: 0.2966
+      type: 'test'
+      ...
+    # Subtest: Dual Break-Even Check: Correctly computes CMR and Peso Break-Even Revenue
+    ok 4 - Dual Break-Even Check: Correctly computes CMR and Peso Break-Even Revenue
+      ---
+      duration_ms: 0.1578
+      type: 'test'
+      ...
+    # Subtest: Philippine Smart Tax Check: BMBE 3% vs CREATE 20%
+    ok 5 - Philippine Smart Tax Check: BMBE 3% vs CREATE 20%
+      ---
+      duration_ms: 0.1912
+      type: 'test'
+      ...
+    1..5
+ok 1 - Final Defense Mathematical Audit
+  ---
+  duration_ms: 2.6829
+  type: 'suite'
+  ...
+# Subtest: Backend calculateAggregatedFinancials & Defense Evaluation Parity
+    # Subtest: Single empty-placeholder product falls back to scalar sellingPrice, variableCost, and monthlySales
+    ok 1 - Single empty-placeholder product falls back to scalar sellingPrice, variableCost, and monthlySales
+      ---
+      duration_ms: 16.3964
+      type: 'test'
+      ...
+    # Subtest: Single placeholder product with quantityYield: 0 and null/undefined unitsSold also uses scalar fallback
+    ok 2 - Single placeholder product with quantityYield: 0 and null/undefined unitsSold also uses scalar fallback
+      ---
+      duration_ms: 0.3296
+      type: 'test'
+      ...
+    # Subtest: Honors explicit unitsSold === 0 and '0' without scalar fallback when yield > 0
+    ok 3 - Honors explicit unitsSold === 0 and '0' without scalar fallback when yield > 0
+      ---
+      duration_ms: 0.7807
+      type: 'test'
+      ...
+    # Subtest: Honors explicit unitsSold === 0 and '0' without scalar fallback even when quantityYield is empty/0
+    ok 4 - Honors explicit unitsSold === 0 and '0' without scalar fallback even when quantityYield is empty/0
+      ---
+      duration_ms: 0.339
+      type: 'test'
+      ...
+    # Subtest: Does not use single-product scalar fallback when multiple products exist with zero yield
+    ok 5 - Does not use single-product scalar fallback when multiple products exist with zero yield
+      ---
+      duration_ms: 0.2859
+      type: 'test'
+      ...
+    1..5
+ok 2 - Backend calculateAggregatedFinancials & Defense Evaluation Parity
+  ---
+  duration_ms: 18.4467
+  type: 'suite'
+  ...
+1..2
+# tests 10
+# suites 2
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33.6717

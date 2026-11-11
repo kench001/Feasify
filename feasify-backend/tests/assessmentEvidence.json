@@ -1,0 +1,71 @@
+{
+  "testResults": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "suites": []
+  },
+  "benchmarkResults": [
+    {
+      "virtualUsers": 1,
+      "totalRequests": 2,
+      "successCount": 2,
+      "errorCount": 0,
+      "errorRate": "0.0%",
+      "wallTimeMs": 8.307399999999973,
+      "reqPerSec": 240.75,
+      "avgLatencyMs": 4.13,
+      "medianLatencyMs": 5.31,
+      "p95LatencyMs": 5.31
+    },
+    {
+      "virtualUsers": 10,
+      "totalRequests": 20,
+      "successCount": 20,
+      "errorCount": 0,
+      "errorRate": "0.0%",
+      "wallTimeMs": 54.70980000000003,
+      "reqPerSec": 365.57,
+      "avgLatencyMs": 24.47,
+      "medianLatencyMs": 26.81,
+      "p95LatencyMs": 42.96
+    },
+    {
+      "virtualUsers": 25,
+      "totalRequests": 50,
+      "successCount": 50,
+      "errorCount": 0,
+      "errorRate": "0.0%",
+      "wallTimeMs": 125.2056,
+      "reqPerSec": 399.34,
+      "avgLatencyMs": 56.41,
+      "medianLatencyMs": 63.15,
+      "p95LatencyMs": 94.33
+    },
+    {
+      "virtualUsers": 50,
+      "totalRequests": 100,
+      "successCount": 100,
+      "errorCount": 0,
+      "errorRate": "0.0%",
+      "wallTimeMs": 211.6692,
+      "reqPerSec": 472.44,
+      "avgLatencyMs": 93.02,
+      "medianLatencyMs": 100.74,
+      "p95LatencyMs": 157.32
+    },
+    {
+      "virtualUsers": 100,
+      "totalRequests": 200,
+      "successCount": 200,
+      "errorCount": 0,
+      "errorRate": "0.0%",
+      "wallTimeMs": 480.7517,
+      "reqPerSec": 416.02,
+      "avgLatencyMs": 211.21,
+      "medianLatencyMs": 226.08,
+      "p95LatencyMs": 367.25
+    }
+  ],
+  "timestamp": "2026-11-11T08:22:24.034Z"
+}

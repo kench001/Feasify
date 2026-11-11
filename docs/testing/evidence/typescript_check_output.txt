@@ -1,0 +1,204 @@
+﻿Feasify/src/AdviserAIRules.tsx(10,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/AdviserAIRules.tsx(18,3): error TS6133: 'Clock' is declared but its value is never read.
+Feasify/src/AdviserAIRules.tsx(28,10): error TS6133: 'adviserSections' is declared but its value is never read.
+Feasify/src/AdviserAIRules.tsx(29,10): error TS6133: 'activeSection' is declared but its value is never read.
+Feasify/src/AdviserAIRules.tsx(29,25): error TS6133: 'setActiveSection' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(13,3): error TS6133: 'FileSpreadsheet' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(13,20): error TS6133: 'PieChart' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(13,30): error TS6133: 'ArrowUp' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(14,3): error TS6133: 'Compass' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(16,65): error TS6133: 'ProductCostingItem' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(258,10): error TS6133: 'showScrollTop' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(277,9): error TS6133: 'scrollToTop' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(985,9): error TS2322: Type '"EXPORT_REPORT"' is not assignable to type 'AuditAction'.
+Feasify/src/AdviserDashboard.tsx(1216,83): error TS2367: This comparison appears to be unintentional because the types '"Draft" | "Rejected" | "Revision Required" | "Revision" | "Submitted" | "Pending" | "Under Review"' and '"APPROVED"' have no overlap.
+Feasify/src/AdviserDashboard.tsx(1298,9): error TS2322: Type '"APPROVE" | "REJECT" | "REVISION" | "UNDER_REVIEW" | "REMARKS_UPDATE"' is not assignable to type 'AuditAction'.
+  Type '"UNDER_REVIEW"' is not assignable to type 'AuditAction'.
+Feasify/src/AdviserDashboard.tsx(1851,21): error TS6133: 'statusBadgeColor' is declared but its value is never read.
+Feasify/src/AdviserDashboard.tsx(1851,73): error TS6133: 'statusDotColor' is declared but its value is never read.
+Feasify/src/AdviserNotifications.tsx(19,3): error TS6133: 'MoreVertical' is declared but its value is never read.
+Feasify/src/AdviserNotifications.tsx(59,10): error TS6133: 'adviserSections' is declared but its value is never read.
+Feasify/src/AdviserNotifications.tsx(60,10): error TS6133: 'activeSection' is declared but its value is never read.
+Feasify/src/AdviserSettings.tsx(18,3): error TS6133: 'setDoc' is declared but its value is never read.
+Feasify/src/AdviserSettings.tsx(55,3): error TS6133: 'Calendar' is declared but its value is never read.
+Feasify/src/AdviserSettings.tsx(152,10): error TS6133: 'prefSaveNotice' is declared but its value is never read.
+Feasify/src/AdviserSettings.tsx(521,9): error TS6133: 'availableRoles' is declared but its value is never read.
+Feasify/src/App.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(15,69): error TS6133: 'updateDoc' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(15,91): error TS6133: 'query' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(15,98): error TS6133: 'where' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(21,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(37,3): error TS6133: 'Clock' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(65,20): error TS6133: 'setUserName' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(77,35): error TS6133: 'setUnreadNotificationCount' is declared but its value is never read.
+Feasify/src/ChairpersonModule.tsx(187,9): error TS6133: 'fetchAllUsers' is declared but its value is never read.
+Feasify/src/ChairpersonNotifications.tsx(11,3): error TS6133: 'Archive' is declared but its value is never read.
+Feasify/src/ChairpersonNotifications.tsx(21,3): error TS6133: 'MoreVertical' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(18,3): error TS6133: 'setDoc' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(46,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(79,9): error TS6133: 'location' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(117,10): error TS6133: 'showForcePasswordModal' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(117,34): error TS6133: 'setShowForcePasswordModal' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(118,10): error TS6133: 'showForcePasswordSuccess' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(118,36): error TS6133: 'setShowForcePasswordSuccess' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(125,10): error TS6133: 'forcePwdData' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(125,24): error TS6133: 'setForcePwdData' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(136,10): error TS6133: 'prefSaveNotice' is declared but its value is never read.
+Feasify/src/ChairpersonSettings.tsx(397,9): error TS6133: 'availableRoles' is declared but its value is never read.
+Feasify/src/components/LocationPickerMap.tsx(149,35): error TS2503: Cannot find namespace 'NodeJS'.
+Feasify/src/components/OfficialNameChecker.tsx(39,3): error TS6133: 'compact' is declared but its value is never read.
+Feasify/src/context/LanguageContext.tsx(198,63): error TS2322: Type '{ readonly nav: { readonly dashboard: "Dashboard"; readonly projects: "Projects"; readonly financialInput: "Financial Input"; readonly aiAnalysis: "AI Analysis"; readonly reports: "Reports"; ... 6 more ...; readonly signOut: "Sign Out"; }; ... 12 more ...; readonly audit: { ...; }; } | { ...; }' is not assignable to type '{ readonly nav: { readonly dashboard: "Dashboard"; readonly projects: "Projects"; readonly financialInput: "Financial Input"; readonly aiAnalysis: "AI Analysis"; readonly reports: "Reports"; ... 6 more ...; readonly signOut: "Sign Out"; }; ... 12 more ...; readonly audit: { ...; }; }'.
+  Type '{ readonly nav: { readonly dashboard: "Dashboard"; readonly projects: "Mga Proyekto"; readonly financialInput: "Financial Input"; readonly aiAnalysis: "Pagsusuri ng AI"; readonly reports: "Mga Ulat"; ... 6 more ...; readonly signOut: "Mag-sign Out"; }; ... 12 more ...; readonly audit: { ...; }; }' is not assignable to type '{ readonly nav: { readonly dashboard: "Dashboard"; readonly projects: "Projects"; readonly financialInput: "Financial Input"; readonly aiAnalysis: "AI Analysis"; readonly reports: "Reports"; ... 6 more ...; readonly signOut: "Sign Out"; }; ... 12 more ...; readonly audit: { ...; }; }'.
+    The types of 'nav.projects' are incompatible between these types.
+      Type '"Mga Proyekto"' is not assignable to type '"Projects"'.
+Feasify/src/Dashboard.tsx(15,3): error TS6133: 'getDocs' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(25,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(33,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(37,3): error TS6133: 'Scale' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(175,11): error TS2304: Cannot find name 'updateDoc'.
+Feasify/src/Dashboard.tsx(176,20): error TS7006: Parameter 'err' implicitly has an 'any' type.
+Feasify/src/Dashboard.tsx(263,9): error TS6133: 'totalProjects' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(321,9): error TS6133: 'getEstimatedProgress' is declared but its value is never read.
+Feasify/src/Dashboard.tsx(811,16): error TS2304: Cannot find name 'X'.
+Feasify/src/Financial_input.tsx(16,3): error TS6133: 'onSnapshot' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(25,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(31,3): error TS6133: 'DollarSign' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(36,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(40,3): error TS6133: 'Calendar' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(44,3): error TS6133: 'Activity' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(46,3): error TS6133: 'PieChart' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(47,3): error TS6133: 'ArrowUpRight' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(49,3): error TS6133: 'Printer' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(53,3): error TS6133: 'Unlock' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(59,3): error TS6133: 'History' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(65,3): error TS6133: 'GraduationCap' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(66,3): error TS6133: 'Briefcase' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(68,3): error TS6133: 'Compass' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(69,3): error TS6133: 'Calculator' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(70,3): error TS6133: 'Percent' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(71,3): error TS6133: 'Award' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(89,1): error TS6133: 'ScrollToTopButton' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(97,8): error TS6133: 'DynamicDemographicResult' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(98,8): error TS6133: 'NearbyEstablishmentItem' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(230,9): error TS6133: 'location' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(234,10): error TS6133: 'userGroupId' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(240,10): error TS6133: 'isProjectMenuOpen' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(311,10): error TS6133: 'marketIndicatorsTab' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(311,31): error TS6133: 'setMarketIndicatorsTab' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(673,9): error TS6133: 'activeDraft' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(701,19): error TS2345: Argument of type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to parameter of type 'SetStateAction<{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable: string; }>'.
+  Type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; contributorsList: ContributorItem[]; ... 30 more ...; taxesPayable: string; }'.
+    Types of property 'contributorsList' are incompatible.
+      Type 'ContributorItem[] | undefined' is not assignable to type 'ContributorItem[]'.
+        Type 'undefined' is not assignable to type 'ContributorItem[]'.
+Feasify/src/Financial_input.tsx(702,20): error TS2345: Argument of type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to parameter of type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; contributorsList: ContributorItem[]; ... 30 more ...; taxesPayable: string; }'.
+  Types of property 'contributorsList' are incompatible.
+    Type 'ContributorItem[] | undefined' is not assignable to type 'ContributorItem[]'.
+      Type 'undefined' is not assignable to type 'ContributorItem[]'.
+Feasify/src/Financial_input.tsx(818,7): error TS2322: Type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; contributorsList: ContributorItem[]; ... 30 more ...; taxesPayable: string; }'.
+  Types of property 'contributorsList' are incompatible.
+    Type 'ContributorItem[] | undefined' is not assignable to type 'ContributorItem[]'.
+      Type 'undefined' is not assignable to type 'ContributorItem[]'.
+Feasify/src/Financial_input.tsx(869,9): error TS6133: 'totalMultiVat' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(922,9): error TS6133: 'paybackVal' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(926,9): error TS6133: 'estimatedAnnualROI' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(935,9): error TS6133: 'breakEvenRevenue' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(1447,23): error TS2345: Argument of type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to parameter of type 'SetStateAction<{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable: string; }>'.
+  Type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; contributorsList: ContributorItem[]; ... 30 more ...; taxesPayable: string; }'.
+    Types of property 'contributorsList' are incompatible.
+      Type 'ContributorItem[] | undefined' is not assignable to type 'ContributorItem[]'.
+        Type 'undefined' is not assignable to type 'ContributorItem[]'.
+Feasify/src/Financial_input.tsx(1703,29): error TS2552: Cannot find name 'userGroup'. Did you mean 'userGroupId'?
+Feasify/src/Financial_input.tsx(1775,9): error TS6133: 'handleContributorsCountChange' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(2201,19): error TS2345: Argument of type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to parameter of type 'SetStateAction<{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable: string; }>'.
+  Type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; ... 31 more ...; taxesPayable?: string | undefined; }' is not assignable to type '{ products: ProductCostingItem[]; sellingPrice: string; monthlySales: string; variableCost: string; fixedCosts: string; startupCapital: string; cashInvested: string; contributorsList: ContributorItem[]; ... 30 more ...; taxesPayable: string; }'.
+    Types of property 'contributorsList' are incompatible.
+      Type 'ContributorItem[] | undefined' is not assignable to type 'ContributorItem[]'.
+        Type 'undefined' is not assignable to type 'ContributorItem[]'.
+Feasify/src/Financial_input.tsx(2613,25): error TS6133: 'estShare' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(3654,106): error TS2322: Type 'string' is not assignable to type '"ingredient" | "labor" | "miscellaneous" | undefined'.
+Feasify/src/Financial_input.tsx(4035,35): error TS6133: 'isPositive' is declared but its value is never read.
+Feasify/src/Financial_input.tsx(5003,56): error TS2339: Property 'distanceKm' does not exist on type 'NearbyEstablishmentItem | { name: string; category: "Establishment"; icon: string; }'.
+  Property 'distanceKm' does not exist on type '{ name: string; category: "Establishment"; icon: string; }'.
+Feasify/src/Financial_input.tsx(5003,89): error TS2339: Property 'distanceKm' does not exist on type 'NearbyEstablishmentItem | { name: string; category: "Establishment"; icon: string; }'.
+  Property 'distanceKm' does not exist on type '{ name: string; category: "Establishment"; icon: string; }'.
+Feasify/src/Financial_input.tsx(5022,43): error TS2339: Property 'distanceKm' does not exist on type 'NearbyEstablishmentItem | { name: string; category: "Establishment"; icon: string; }'.
+  Property 'distanceKm' does not exist on type '{ name: string; category: "Establishment"; icon: string; }'.
+Feasify/src/Financial_input.tsx(5027,47): error TS2339: Property 'distanceKm' does not exist on type 'NearbyEstablishmentItem | { name: string; category: "Establishment"; icon: string; }'.
+  Property 'distanceKm' does not exist on type '{ name: string; category: "Establishment"; icon: string; }'.
+Feasify/src/firebase.ts(44,5): error TS7034: Variable 'secondaryAuth' implicitly has type 'any' in some locations where its type cannot be determined.
+Feasify/src/firebase.ts(122,5): error TS7005: Variable 'secondaryAuth' implicitly has an 'any' type.
+Feasify/src/firebase.ts(126,19): error TS7005: Variable 'secondaryAuth' implicitly has an 'any' type.
+Feasify/src/Messages.tsx(29,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/Messages.tsx(33,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Messages.tsx(34,3): error TS6133: 'Loader2' is declared but its value is never read.
+Feasify/src/Notifications.tsx(18,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Notifications.tsx(26,3): error TS6133: 'MoreVertical' is declared but its value is never read.
+Feasify/src/Notifications.tsx(29,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+Feasify/src/Notifications.tsx(30,3): error TS6133: 'Info' is declared but its value is never read.
+Feasify/src/Projects.tsx(10,3): error TS6133: 'checkDTI' is declared but its value is never read.
+Feasify/src/Projects.tsx(11,3): error TS6133: 'checkSEC' is declared but its value is never read.
+Feasify/src/Projects.tsx(12,3): error TS6133: 'checkName' is declared but its value is never read.
+Feasify/src/Projects.tsx(13,3): error TS6133: 'OFFICIAL_SOURCES' is declared but its value is never read.
+Feasify/src/Projects.tsx(47,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Projects.tsx(64,3): error TS6133: 'ChevronDown' is declared but its value is never read.
+Feasify/src/Projects.tsx(65,3): error TS6133: 'ChevronUp' is declared but its value is never read.
+Feasify/src/Projects.tsx(69,3): error TS6133: 'TrendingUp' is declared but its value is never read.
+Feasify/src/Projects.tsx(70,3): error TS6133: 'Package' is declared but its value is never read.
+Feasify/src/Projects.tsx(74,3): error TS6133: 'ArrowUp' is declared but its value is never read.
+Feasify/src/Projects.tsx(75,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+Feasify/src/Projects.tsx(77,3): error TS6133: 'FileSpreadsheet' is declared but its value is never read.
+Feasify/src/Projects.tsx(78,3): error TS6133: 'Download' is declared but its value is never read.
+Feasify/src/Projects.tsx(79,3): error TS6133: 'Copy' is declared but its value is never read.
+Feasify/src/Projects.tsx(325,10): error TS6133: 'showNameSuggestions' is declared but its value is never read.
+Feasify/src/Projects.tsx(325,31): error TS6133: 'setShowNameSuggestions' is declared but its value is never read.
+Feasify/src/Projects.tsx(360,10): error TS6133: 'showScrollTop' is declared but its value is never read.
+Feasify/src/Projects.tsx(361,10): error TS6133: 'expandedProducts' is declared but its value is never read.
+Feasify/src/Projects.tsx(362,9): error TS6133: 'excelFileInputRef' is declared but its value is never read.
+Feasify/src/Projects.tsx(363,10): error TS6133: 'excelImportFeedback' is declared but its value is never read.
+Feasify/src/Projects.tsx(368,9): error TS6133: 'toggleProductExpand' is declared but its value is never read.
+Feasify/src/Projects.tsx(375,9): error TS6133: 'toggleAllProducts' is declared but its value is never read.
+Feasify/src/Projects.tsx(401,9): error TS6133: 'scrollToTop' is declared but its value is never read.
+Feasify/src/Projects.tsx(497,25): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(497,79): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(498,22): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(499,50): error TS2339: Property 'id' does not exist on type 'never'.
+Feasify/src/Projects.tsx(631,9): error TS6133: 'fetchUserGroup' is declared but its value is never read.
+Feasify/src/Projects.tsx(654,25): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(654,79): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(655,22): error TS2339: Property 'section' does not exist on type 'never'.
+Feasify/src/Projects.tsx(656,50): error TS2339: Property 'id' does not exist on type 'never'.
+Feasify/src/Projects.tsx(953,43): error TS2367: This comparison appears to be unintentional because the types '"Draft" | "Rejected" | "Revision Required" | "Revision" | "Submitted" | "Pending" | "Under Review"' and '"APPROVED"' have no overlap.
+Feasify/src/Projects.tsx(1011,41): error TS2367: This comparison appears to be unintentional because the types '"Draft" | "Rejected" | "Revision Required" | "Revision" | "Submitted" | "Pending" | "Under Review"' and '"APPROVED"' have no overlap.
+Feasify/src/Projects.tsx(1111,9): error TS6133: 'handleDuplicateProduct' is declared but its value is never read.
+Feasify/src/Projects.tsx(1143,9): error TS6133: 'handleAddIngredient' is declared but its value is never read.
+Feasify/src/Projects.tsx(1160,9): error TS6133: 'handleUpdateIngredient' is declared but its value is never read.
+Feasify/src/Projects.tsx(1173,9): error TS6133: 'handleRemoveIngredient' is declared but its value is never read.
+Feasify/src/Projects.tsx(1186,9): error TS6133: 'handleDownloadCostingTemplate' is declared but its value is never read.
+Feasify/src/Projects.tsx(1234,9): error TS6133: 'handleImportCostingExcel' is declared but its value is never read.
+Feasify/src/Projects.tsx(1773,89): error TS2339: Property 'facultyId' does not exist on type 'GroupData'.
+Feasify/src/Projects.tsx(1923,87): error TS2339: Property 'facultyId' does not exist on type 'GroupData'.
+Feasify/src/Projects.tsx(2308,7): error TS2367: This comparison appears to be unintentional because the types '"Draft" | "Rejected" | "Revision Required" | "Revision" | "Submitted" | "Pending" | "Under Review"' and '"APPROVED"' have no overlap.
+Feasify/src/Reports.tsx(23,3): error TS6133: 'User' is declared but its value is never read.
+Feasify/src/Reports.tsx(26,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Reports.tsx(35,3): error TS6133: 'ChevronUp' is declared but its value is never read.
+Feasify/src/Reports.tsx(47,9): error TS6133: 'location' is declared but its value is never read.
+Feasify/src/ResetPassword.tsx(35,9): error TS6133: 'oobCode' is declared but its value is never read.
+Feasify/src/services/sectionExportService.ts(573,35): error TS2339: Property 'getNumberOfPages' does not exist on type '{ events: PubSub; scaleFactor: number; pageSize: { width: number; getWidth: () => number; height: number; getHeight: () => number; }; pages: number[]; getEncryptor(objectId: number): (data: string) => string; }'.
+Feasify/src/Settings.tsx(20,3): error TS6133: 'setDoc' is declared but its value is never read.
+Feasify/src/Settings.tsx(39,14): error TS6133: 'SidebarIcon' is declared but its value is never read.
+Feasify/src/Settings.tsx(53,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+Feasify/src/Settings.tsx(54,3): error TS6133: 'Tag' is declared but its value is never read.
+Feasify/src/Settings.tsx(64,3): error TS6133: 'Trash2' is declared but its value is never read.
+Feasify/src/Settings.tsx(66,3): error TS6133: 'Sparkles' is declared but its value is never read.
+Feasify/src/Settings.tsx(67,3): error TS6133: 'RefreshCw' is declared but its value is never read.
+Feasify/src/Settings.tsx(380,9): error TS6133: 'availableRoles' is declared but its value is never read.
+Feasify/src/utils/cabbageBenchmark.ts(47,53): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(48,51): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(49,56): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(50,53): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(51,55): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(52,51): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(53,51): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(54,57): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.
+Feasify/src/utils/cabbageBenchmark.ts(55,51): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type 'ContributorItem'.

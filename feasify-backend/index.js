@@ -830,6 +830,88 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
   });
 });
 
+// Endpoint to add bulletin feedback to a proposal with strict idempotency and duplicate suppression
+app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
+  const { proposalId } = req.params;
+  const { text, authorName, role, idempotencyKey } = req.body || {};
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Feedback text is required." });
+  }
+
+  const cleanText = text.trim();
+  const cleanAuthor = (authorName || "Faculty Adviser").trim();
+  const cleanRole = (role || "Adviser").trim();
+  const feedbackId = idempotencyKey || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  if (adminFirestore) {
+    try {
+      const propRef = adminFirestore.collection("proposals").doc(proposalId);
+      const propDoc = await propRef.get();
+      if (!propDoc.exists) {
+        return res.status(404).json({ error: "Proposal not found." });
+      }
+
+      const existingData = propDoc.data() || {};
+      const history = Array.isArray(existingData.feedbackHistory) ? existingData.feedbackHistory : [];
+
+      // Check for duplicate: matching idempotencyKey OR identical text from same author within 15 seconds
+      const now = Date.now();
+      const duplicate = history.find(item => {
+        if (idempotencyKey && item.id === idempotencyKey) return true;
+        if (item.text === cleanText && item.authorName === cleanAuthor) {
+          const itemTime = new Date(item.date).getTime();
+          if (Number.isFinite(itemTime) && Math.abs(now - itemTime) < 15000) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (duplicate) {
+        return res.json({
+          success: true,
+          duplicateDetected: true,
+          feedback: duplicate,
+          message: "Duplicate feedback suppressed."
+        });
+      }
+
+      const newFeedback = {
+        id: feedbackId,
+        text: cleanText,
+        authorName: cleanAuthor,
+        role: cleanRole,
+        date: new Date().toISOString()
+      };
+
+      await propRef.update({
+        feedbackHistory: admin.firestore.FieldValue.arrayUnion(newFeedback),
+        adviserFeedback: cleanText,
+        adviserRemarks: cleanText,
+        updatedAt: new Date().toISOString()
+      });
+
+      return res.json({
+        success: true,
+        feedback: newFeedback
+      });
+    } catch (e) {
+      console.error("[Backend post feedback] Error:", e.message);
+      return res.status(500).json({ error: "Failed to save feedback: " + e.message });
+    }
+  }
+
+  const newFeedback = {
+    id: feedbackId,
+    text: cleanText,
+    authorName: cleanAuthor,
+    role: cleanRole,
+    date: new Date().toISOString()
+  };
+  res.json({ success: true, feedback: newFeedback });
+});
+
 // ==========================================
 // DYNAMIC EXEMPLAR BENCHMARKS (HYBRID ENGINE)
 // ==========================================
@@ -1662,7 +1744,16 @@ app.post(
   proposalLimiter,
   async (req, res) => {
     try {
-      const payload = req.body;
+      const payload = req.body || {};
+
+      // Role authorization: Advisers have read-only access to completed AI feasibility results
+      const userRole = (payload.userRole || payload.role || req.headers["x-user-role"] || "").toString().trim().toLowerCase();
+      if (userRole === "adviser") {
+        return res.status(403).json({
+          error: "Unauthorized: Advisers have read-only access to AI feasibility analysis. Re-analysis must be initiated from the student portal."
+        });
+      }
+
       const kb = getKnowledgeBase();
 
       if (!kb) {
