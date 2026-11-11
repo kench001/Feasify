@@ -1,4 +1,4 @@
-import { normalizeProposalProducts, computeProductMetrics } from "./productCosting";
+import { normalizeProposalProducts, computeProductMetrics } from "./productCosting.ts";
 
 export interface MarketPillarInsight {
   status: "positive" | "warning" | "info";

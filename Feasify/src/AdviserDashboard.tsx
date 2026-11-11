@@ -26,6 +26,9 @@ import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
 import { exportProposalAnalysisPDF } from "./utils/exportProposalAnalysisPDF";
 import { getOtherRelevantInformation } from "./utils/proposalDetails";
+import { calculateGroupDistribution } from "./utils/groupDistribution";
+import { formatDisplayDate, formatDisplayDateTime, formatProposalDate as formatStandardProposalDate } from "./utils/dateFormatter";
+import ProposalExportModal from "./components/ProposalExportModal";
 
 interface StudentData {
   id: string;
@@ -111,15 +114,8 @@ const getProposalStatusBadge = (status?: string) => {
   }
 };
 
-const formatProposalDate = (proposal: ProposalData) => {
-  if (proposal.submissionDate) return proposal.submissionDate;
-  if (proposal.createdAt?.toDate) {
-    try {
-      return new Date(proposal.createdAt.toDate()).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch (e) { }
-  }
-  if (proposal.status === 'Draft') return "Draft (Not submitted)";
-  return "Submitted recently";
+const formatProposalDate = (proposal: ProposalData, includeTime = false) => {
+  return formatStandardProposalDate(proposal, includeTime);
 };
 
 const AdviserDashboard: React.FC = () => {
@@ -180,6 +176,9 @@ const AdviserDashboard: React.FC = () => {
   const [feedbackInput, setFeedbackInput] = useState("");
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isSubmittingFeedbackRef = React.useRef(false);
+  const [showProposalExportModal, setShowProposalExportModal] = useState(false);
+  const [proposalToExport, setProposalToExport] = useState<ProposalData | null>(null);
 
   // AI Analysis State
   const [isRemarksSaving, setIsRemarksSaving] = useState(false);
@@ -1051,25 +1050,37 @@ const AdviserDashboard: React.FC = () => {
         unassignedBySection[sec].push(s);
       });
 
+      // 6. Pre-validation pass: Ensure EVERY section satisfies ceil(N / M) <= floor(N / m)
+      // If ANY section fails, fail safely with clear error and do NOT perform any batch writes!
+      const sectionPlans: Record<string, { shuffled: StudentData[]; groupSizes: number[] }> = {};
+      for (const [sec, secStudents] of Object.entries(unassignedBySection)) {
+        const secSettings = sectionSettingsMap[sec];
+        const secMin = secSettings?.minMembers ?? minMembers;
+        const secMax = secSettings?.maxMembers ?? maxMembers;
+
+        const distResult = calculateGroupDistribution(secStudents.length, secMin, secMax);
+        if (!distResult.valid) {
+          setShowAutoGroupConfirm(false);
+          setIsLoading(false);
+          alert(
+            distResult.error ||
+              `Unable to generate groups for section ${sec}. The current number of students cannot be divided into groups of ${secMin} to ${secMax} members. Please adjust the group size settings.`
+          );
+          return;
+        }
+
+        const shuffled = [...secStudents].sort(() => 0.5 - Math.random());
+        sectionPlans[sec] = { shuffled, groupSizes: distResult.groupSizes || [] };
+      }
+
       const batch = writeBatch(db);
       const newGroupsToCreate: GroupData[] = [];
 
-      // 6. For each section, form NEW groups exclusively out of unassigned students
-      // Existing groups remain completely untouched!
-      for (const [sec, secStudents] of Object.entries(unassignedBySection)) {
-        const shuffled = [...secStudents].sort(() => 0.5 - Math.random());
-        const secSettings = sectionSettingsMap[sec];
-        const secMax = secSettings?.maxMembers ?? maxMembers;
-
-        const total = shuffled.length;
-        const numGroups = Math.max(1, Math.ceil(total / secMax));
-        const baseSize = Math.floor(total / numGroups);
-        const remainder = total % numGroups;
-
+      // 7. For each section, form NEW groups strictly adhering to calculated group sizes
+      for (const [sec, plan] of Object.entries(sectionPlans)) {
         let currentIndex = 0;
-        for (let i = 0; i < numGroups; i++) {
-          const groupSize = baseSize + (i < remainder ? 1 : 0);
-          const chunk = shuffled.slice(currentIndex, currentIndex + groupSize);
+        for (const groupSize of plan.groupSizes) {
+          const chunk = plan.shuffled.slice(currentIndex, currentIndex + groupSize);
           currentIndex += groupSize;
 
           if (chunk.length === 0) continue;
@@ -1411,22 +1422,57 @@ const AdviserDashboard: React.FC = () => {
     }
   };
 
-  // --- LOGIC: SUBMIT FEEDBACK HISTORY ---
+  // --- LOGIC: SUBMIT FEEDBACK HISTORY (IDEMPOTENT & DEDUPLICATED) ---
   const handleSubmitFeedback = async () => {
-    if (!feedbackInput.trim() || !activeProposal?.id) return;
+    if (isSubmittingFeedbackRef.current || isSaving) return;
+    const cleanText = feedbackInput.trim();
+    if (!cleanText || !activeProposal?.id) return;
+
+    isSubmittingFeedbackRef.current = true;
     setIsSaving(true);
 
+    const idempotencyKey = `fb_${activeProposal.id}_${Date.now()}`;
     const newFeedback: FeedbackItem = {
-      id: Date.now().toString(),
-      text: feedbackInput,
+      id: idempotencyKey,
+      text: cleanText,
       authorName: userName,
       role: "Adviser",
       date: new Date().toISOString()
     };
 
     try {
+      // 1. Idempotent backend sync with duplicate suppression
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      let resolvedFeedback = newFeedback;
+      try {
+        const resp = await fetch(`${backendUrl}/api/proposals/${activeProposal.id}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: cleanText,
+            authorName: userName,
+            role: "Adviser",
+            idempotencyKey,
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.feedback) resolvedFeedback = data.feedback;
+          if (data.duplicateDetected) {
+            setFeedbackInput("");
+            return;
+          }
+        }
+      } catch (apiErr) {
+        // Backend offline or non-blocking, continue with Firestore direct update
+      }
+
+      // 2. Direct Firestore update
       await updateDoc(doc(db, "proposals", activeProposal.id), {
-        feedbackHistory: arrayUnion(newFeedback)
+        feedbackHistory: arrayUnion(resolvedFeedback),
+        adviserFeedback: cleanText,
+        adviserRemarks: cleanText,
+        updatedAt: serverTimestamp()
       });
 
       // Send notification to group members
@@ -1436,7 +1482,7 @@ const AdviserDashboard: React.FC = () => {
         if (studentRecipients.length > 0) {
           sendBatchNotification(studentRecipients, {
             title: "New Adviser Feedback",
-            message: `${userName} left new feedback on "${activeProposal.businessName}": "${feedbackInput.trim()}"`,
+            message: `${userName} left new feedback on "${activeProposal.businessName}": "${cleanText}"`,
             type: "feedback",
             link: "/projects",
             senderName: userName
@@ -1444,16 +1490,31 @@ const AdviserDashboard: React.FC = () => {
         }
       }
 
-      setActiveProposal(prev => prev ? {
-        ...prev,
-        feedbackHistory: [...(prev.feedbackHistory || []), newFeedback]
-      } : null);
+      setActiveProposal(prev => {
+        if (!prev) return null;
+        const currentList = prev.feedbackHistory || [];
+        const alreadyExists = currentList.some(
+          item => item.id === resolvedFeedback.id ||
+            (item.text === resolvedFeedback.text && item.authorName === resolvedFeedback.authorName &&
+              Math.abs(new Date(item.date).getTime() - new Date(resolvedFeedback.date).getTime()) < 10000)
+        );
+        if (alreadyExists) return prev;
+        return {
+          ...prev,
+          feedbackHistory: [...currentList, resolvedFeedback],
+          adviserFeedback: cleanText,
+          adviserRemarks: cleanText
+        };
+      });
       setFeedbackInput("");
     } catch (error) {
-      console.error(error);
+      console.error("Failed to submit feedback:", error);
       alert("Failed to submit feedback.");
     } finally {
       setIsSaving(false);
+      setTimeout(() => {
+        isSubmittingFeedbackRef.current = false;
+      }, 500);
     }
   };
 
@@ -1788,15 +1849,30 @@ const AdviserDashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Tabs Row (Reshuffle removed) */}
+            {/* Tabs Row (Filter Pills with High Contrast & Gold Dot) */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-200 pb-2">
-              <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 custom-scrollbar">
-                {['All Groups', 'Pending Review', 'Approved Proposal', 'Drafting', 'Active Business'].map(tab => (
-                  <button key={tab} onClick={() => setActiveDashboardTab(tab as any)}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${activeDashboardTab === tab ? 'bg-white text-[#122244] shadow-sm border border-gray-200' : 'bg-transparent text-gray-500 hover:text-gray-800'}`}>
-                    {tab}
-                  </button>
-                ))}
+              <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 custom-scrollbar" role="tablist">
+                {['All Groups', 'Pending Review', 'Approved Proposal', 'Drafting', 'Active Business'].map(tab => {
+                  const isActive = activeDashboardTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setActiveDashboardTab(tab as any)}
+                      className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] focus:ring-offset-2 ${
+                        isActive
+                          ? 'bg-[#122244] text-white shadow-md border border-[#122244]'
+                          : 'bg-gray-100/90 text-gray-700 hover:bg-gray-200 hover:text-gray-900 border border-transparent'
+                      }`}
+                    >
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654] inline-block shrink-0 shadow-xs" aria-hidden="true" />
+                      )}
+                      {tab}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1804,7 +1880,7 @@ const AdviserDashboard: React.FC = () => {
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({ length: sectionGroupCountMap[activeSection] ?? 3 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[450px] overflow-hidden">
+                  <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-[380px] overflow-hidden">
                     {/* Card header */}
                     <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                       <Skeleton width={70} height={16} />
@@ -1868,7 +1944,7 @@ const AdviserDashboard: React.FC = () => {
                   : null;
 
                 return (
-                  <div key={group.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col relative hover:shadow-md transition-shadow overflow-hidden">
+                  <div key={group.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between relative hover:shadow-md transition-shadow overflow-hidden h-full">
                     {/* CARD HEADER: TEAM NAME & PROPOSALS COUNTER */}
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 gap-2">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1929,7 +2005,7 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* CARD BODY: PROPOSALS 1, 2, 3 */}
+                    {/* CARD BODY */}
                     <div className="p-4 flex-1 flex flex-col space-y-3">
                       {/* Max reached notification (only for non-activated groups) */}
                       {!isActivated && proposalCount >= 3 && (
@@ -1938,7 +2014,7 @@ const AdviserDashboard: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Team Leader & Members brief (Positioned above Team Proposals) */}
+                      {/* Team Leader & Members brief */}
                       <div className="flex items-center justify-between text-xs text-gray-600 bg-gray-50/80 p-2.5 rounded-xl border border-gray-200/70">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${group.status === 'Approved Proposal' || group.status === 'Active Business' ? 'bg-[#ff7f50]' : 'bg-[#122244]'}`}>{getInitials(group.leaderName)}</div>
@@ -1947,106 +2023,100 @@ const AdviserDashboard: React.FC = () => {
                         <span className="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
                       </div>
 
-                      {/* Proposals Section: ONLY show activated proposal if business is activated */}
-                      {isActivated && activatedProp ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-[11px] font-black text-emerald-700 uppercase tracking-wider">
-                            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active Business Proposal</span>
-                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Activated</span>
-                          </div>
-
-                          <div key={activatedProp.id || 'active'} className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-200/80 hover:border-emerald-300 transition-colors">
-                            <div className="flex items-start justify-between gap-2 mb-1.5">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
-                                    Proposal {activatedProp.proposalNumber || 1}
-                                  </span>
-                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
-                                  </span>
-                                </div>
-                                <h4 className="text-xs font-bold text-[#122244] truncate" title={activatedProp.businessName || `Proposal ${activatedProp.proposalNumber || 1}`}>
-                                  {activatedProp.businessName || "Untitled Proposal"}
-                                </h4>
-                                <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-                                  <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(activatedProp)}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => handleOpenProposalModal(activatedProp, group)}
-                                className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
-                                title="Open Proposal Review"
-                              >
-                                <FileText className="w-3.5 h-3.5" /> Open
-                              </button>
-                            </div>
-                            <div className="pt-2 border-t border-emerald-200/60 text-[11px] flex items-start gap-1">
-                              <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
-                              <span className={`line-clamp-2 ${activatedProp.adviserRemarks || activatedProp.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}>
-                                {activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}
-                              </span>
-                            </div>
-                          </div>
+                      {/* Proposals Section: ALWAYS show all proposals, highlight ONLY the active one in green */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                          <span className="text-gray-500">Team Proposals</span>
+                          <span className="text-gray-400 font-semibold">{proposalCount} of 3 created</span>
                         </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-[11px] font-black text-gray-500 uppercase tracking-wider">
-                            <span>Team Proposals</span>
-                            <span>{proposalCount} of 3 created</span>
-                          </div>
 
-                          {[1, 2, 3].map(slotNum => {
-                            const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
-                            if (prop) {
-                              return (
-                                <div key={prop.id || slotNum} className="p-3 bg-gray-50/90 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
-                                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                        <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
-                                          Proposal {slotNum}
-                                        </span>
-                                        {getProposalStatusBadge(prop.status)}
-                                      </div>
-                                      <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
-                                        {prop.businessName || "Untitled Proposal"}
-                                      </h4>
-                                      <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-                                        <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
-                                      </p>
-                                    </div>
-                                    <button
-                                      onClick={() => handleOpenProposalModal(prop, group)}
-                                      className="px-3 py-1.5 bg-[#122244] hover:bg-[#1f376b] text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1"
-                                      title={`Open Proposal ${slotNum}`}
-                                    >
-                                      <FileText className="w-3.5 h-3.5" /> Open
-                                    </button>
-                                  </div>
-                                  <div className="pt-2 border-t border-gray-200/80 text-[11px] flex items-start gap-1">
-                                    <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
-                                    <span className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`} title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}>
-                                      {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            }
+                        {[1, 2, 3].map(slotNum => {
+                          const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
+                          if (prop) {
+                            const isThisPropActive = Boolean(
+                              (group.activeProposalId && prop.id === group.activeProposalId) ||
+                              (isActivated && activatedProp && prop.id === activatedProp.id) ||
+                              (isActivated && prop.status === 'Approved')
+                            );
 
                             return (
-                              <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
-                                <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
-                                <span className="text-[10px] italic">Slot available (Not created)</span>
+                              <div
+                                key={prop.id || slotNum}
+                                className={`p-3 rounded-xl border transition-colors ${
+                                  isThisPropActive
+                                    ? 'bg-emerald-50/80 border-emerald-400 ring-1 ring-emerald-500/30'
+                                    : 'bg-gray-50/90 border-gray-200 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                      <span
+                                        className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                          isThisPropActive
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-blue-100 text-blue-800'
+                                        }`}
+                                      >
+                                        Proposal {slotNum}
+                                      </span>
+                                      {isThisPropActive ? (
+                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1 border border-emerald-200">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
+                                        </span>
+                                      ) : (
+                                        getProposalStatusBadge(prop.status)
+                                      )}
+                                      {prop.businessType && (
+                                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-semibold rounded">
+                                          {prop.businessType}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
+                                      {prop.businessName || "Untitled Proposal"}
+                                    </h4>
+                                    <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleOpenProposalModal(prop, group)}
+                                    className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1 ${
+                                      isThisPropActive
+                                        ? 'bg-emerald-700 hover:bg-emerald-800'
+                                        : 'bg-[#122244] hover:bg-[#1f376b]'
+                                    }`}
+                                    title={`Open Proposal ${slotNum}`}
+                                  >
+                                    <FileText className="w-3.5 h-3.5" /> Open
+                                  </button>
+                                </div>
+                                <div className={`pt-2 border-t text-[11px] flex items-start gap-1 ${isThisPropActive ? 'border-emerald-200/70' : 'border-gray-200/80'}`}>
+                                  <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
+                                  <span
+                                    className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`}
+                                    title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                  >
+                                    {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                  </span>
+                                </div>
                               </div>
                             );
-                          })}
-                        </div>
-                      )}
+                          }
+
+                          return (
+                            <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
+                              <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
+                              <span className="text-[10px] italic">Slot available (Not created)</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* CARD FOOTER */}
-                    <div className="p-3 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex gap-2">
+                    <div className="mt-auto p-3 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex gap-2">
                       <button
                         onClick={() => {
                           if (isActivated) {
@@ -2055,7 +2125,7 @@ const AdviserDashboard: React.FC = () => {
                             handleOpenGroupDetails(group);
                           }
                         }}
-                        className="w-full py-2 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50 transition-colors shadow-xs flex justify-center items-center gap-1.5"
+                        className="w-full py-2 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50 transition-colors shadow-xs flex justify-center items-center gap-1.5 cursor-pointer"
                       >
                         {isActivated ? (
                           <>
@@ -2137,9 +2207,37 @@ const AdviserDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex border-b border-gray-200 mb-6">
-              <button onClick={() => setActiveDetailTab('Proposals')} className={`pb-3 px-4 text-sm font-bold transition-colors border-b-2 ${activeDetailTab === 'Proposals' ? 'border-[#122244] text-[#122244]' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>Proposals</button>
-              <button onClick={() => setActiveDetailTab('Members')} className={`pb-3 px-4 text-sm font-bold transition-colors border-b-2 ${activeDetailTab === 'Members' ? 'border-[#122244] text-[#122244]' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>Members</button>
+            <div className="flex border-b border-gray-200 mb-6 gap-2" role="tablist">
+              <button
+                role="tab"
+                aria-selected={activeDetailTab === 'Proposals'}
+                onClick={() => setActiveDetailTab('Proposals')}
+                className={`pb-2.5 px-4 text-xs font-bold transition-all rounded-t-lg flex items-center gap-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] ${
+                  activeDetailTab === 'Proposals'
+                    ? 'border-b-2 border-[#122244] text-[#122244] bg-white font-extrabold shadow-xs'
+                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {activeDetailTab === 'Proposals' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654]" />
+                )}
+                Proposals
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeDetailTab === 'Members'}
+                onClick={() => setActiveDetailTab('Members')}
+                className={`pb-2.5 px-4 text-xs font-bold transition-all rounded-t-lg flex items-center gap-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#122244] ${
+                  activeDetailTab === 'Members'
+                    ? 'border-b-2 border-[#122244] text-[#122244] bg-white font-extrabold shadow-xs'
+                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {activeDetailTab === 'Members' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#c9a654]" />
+                )}
+                Members
+              </button>
             </div>
 
             {/* Content: PROPOSALS TAB */}
@@ -2283,10 +2381,6 @@ const AdviserDashboard: React.FC = () => {
             onFeedbackInputChange={setFeedbackInput}
             onSubmitFeedback={handleSubmitFeedback}
             isSavingFeedback={isSaving}
-            onExportAnalysis={(aiData) => handleActiveBusinessExportPDF(activeProposal, aiData)}
-            onReanalyze={() => handleAIAnalysis(activeProposal)}
-            isExportingAnalysis={isExportingPdf}
-            isAnalyzing={isAiAnalyzing}
           />
         )}
 
@@ -2317,7 +2411,7 @@ const AdviserDashboard: React.FC = () => {
                   <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /> Submitted: {formatProposalDate(viewingProposal)}</p>
                 </div>
               </div>
-              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50 shrink-0" title="Close"><X className="w-6 h-6" /></button>
+              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-full transition-all focus:outline-none bg-gray-50/50 shrink-0 cursor-pointer" title="Close"><X className="w-6 h-6" /></button>
             </div>
 
             {/* Modal Body - Split Layout */}
@@ -3377,6 +3471,18 @@ const AdviserDashboard: React.FC = () => {
         key={advisoryModalKey}
         isOpen={isAdvisoryModalOpen}
         onAcknowledge={handleAcknowledgeAdvisory}
+      />
+
+      {/* Unified Business Proposal Section Export Modal */}
+      <ProposalExportModal
+        isOpen={showProposalExportModal}
+        onClose={() => {
+          setShowProposalExportModal(false);
+          setProposalToExport(null);
+        }}
+        proposal={proposalToExport || activeProposal || viewingProposal || (selectedGroup ? groupProposals.find(p => p.status === 'Approved') || groupProposals[0] : null)}
+        group={selectedGroup || (proposalToExport?.groupId ? groups.find(g => g.id === proposalToExport.groupId) : null)}
+        adviserName={userName}
       />
 
       {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}

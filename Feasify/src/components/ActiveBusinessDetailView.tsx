@@ -16,6 +16,7 @@ import {
   MapPin,
   MessageCircle,
   Package,
+  PhilippinePeso,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 import {
   normalizeProposalProducts,
   computeProductMetrics,
+  autoDistributeContributors,
 } from "../utils/productCosting";
 import {
   resolveSyncedAIAnalysis,
@@ -39,6 +41,9 @@ import {
 } from "../utils/aiAnalysisHelpers";
 import type { ChairpersonRosterMember } from "../services/chairpersonFeasibilityService";
 import { getOtherRelevantInformation } from "../utils/proposalDetails";
+import { formatDisplayDate } from "../utils/dateFormatter";
+import { isAiAnalysisAvailable } from "../services/proposalSectionExportService";
+import ProposalExportModal from "./ProposalExportModal";
 import FeasibilityAnalysisReport from "./FeasibilityAnalysisReport";
 
 export interface ActiveBusinessDetailViewProps {
@@ -137,6 +142,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
     Record<string, boolean>
   >({});
   const [logoError, setLogoError] = useState<boolean>(false);
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
   const resolvedLogoUrl = useMemo(() => {
     const pLogo =
@@ -245,9 +251,31 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
     return members;
   }, [rosterMembers, group, students]);
 
-  const feedbackHistory = Array.isArray(proposal?.feedbackHistory)
-    ? proposal.feedbackHistory
-    : [];
+  const feedbackHistory = useMemo(() => {
+    const raw = Array.isArray(proposal?.feedbackHistory)
+      ? proposal.feedbackHistory
+      : [];
+    const seenIds = new Set<string>();
+    const deduped: any[] = [];
+    for (const item of raw) {
+      if (!item) continue;
+      const id = String(item.id || "");
+      if (id && seenIds.has(id)) continue;
+      if (id) seenIds.add(id);
+
+      const itemEpoch = toEpochMs(item.date);
+      const isDuplicate = deduped.some((prev) => {
+        const textMatch = (prev.text || "").trim() === (item.text || "").trim();
+        const authorMatch = prev.authorId && item.authorId ? prev.authorId === item.authorId : true;
+        const timeDiff = Math.abs(toEpochMs(prev.date) - itemEpoch);
+        return textMatch && authorMatch && timeDiff < 15000;
+      });
+      if (isDuplicate) continue;
+
+      deduped.push(item);
+    }
+    return deduped;
+  }, [proposal?.feedbackHistory]);
 
   const renderMonthAndDraftSelector = (
     monthlyRecords: any[] | null,
@@ -541,6 +569,13 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
     const safePropertyInvested = Number(fin.propertyInvested) || 0;
     const totalInitialCapital = safeCashInvested + safePropertyInvested;
 
+    const effectiveTotalCap = Number(proposal?.totalCapital || totalInitialCapital || safeStartupCapital || 0);
+    const numContrib = Math.max(1, Number(fin.contributorsCount) || fin.contributorsList?.length || 1);
+    const currentContribList = (fin.contributorsList && fin.contributorsList.length > 0)
+      ? fin.contributorsList
+      : autoDistributeContributors(numContrib, effectiveTotalCap);
+    const sumContrib = currentContribList.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0);
+
     // Startup Pre-Operating Costs
     const safeRentAdvance =
       Number(fin.rentAdvance) || Number(fin.rentAdvanceDeposit) || 0;
@@ -619,6 +654,109 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
           drafts,
           currentDraft
         )}
+
+        {/* PROMINENT TOTAL CAPITAL HERO CARD WITH SAME-ROW CONTRIBUTORS & INVESTORS */}
+        <div className="bg-gradient-to-br from-[#122244] via-[#1a3060] to-[#122244] rounded-2xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden border border-white/10 space-y-6">
+          <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-[#c9a654]/15 to-transparent pointer-events-none" />
+
+          {/* TOP ROW: Total Capital Overview Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10 pb-5 border-b border-white/10">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center text-[#c9a654] font-black text-2xl shrink-0 shadow-inner">
+                <PhilippinePeso className="w-8 h-8" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="px-2.5 py-0.5 bg-[#c9a654]/20 text-[#c9a654] text-[10px] font-extrabold rounded-md uppercase tracking-wider border border-[#c9a654]/30">
+                    Total Capital Overview
+                  </span>
+                  <span className="text-xs text-white/40">•</span>
+                  <span className="text-xs text-slate-300 font-semibold">
+                    {displayBusinessName}
+                  </span>
+                </div>
+                <h3 className="text-lg md:text-xl font-bold text-white tracking-tight">
+                  Business Feasibility Capital Summary
+                </h3>
+                <p className="text-xs text-slate-300 font-medium">
+                  Total capital requirement & partner contributions pulled directly from the approved proposal
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-xl backdrop-blur-sm">
+              <div className="pr-4 border-r border-white/10">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Total Capital (Proposal)
+                </span>
+                <p className="text-2xl sm:text-3xl font-black text-[#c9a654] tracking-tight mt-0.5">
+                  ₱{effectiveTotalCap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between gap-3 text-slate-300">
+                  <span className="text-[11px] text-slate-400">Total CapEx Equipment:</span>
+                  <span className="font-bold text-white">₱{safeStartupCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-slate-300">
+                  <span className="text-[11px] text-slate-400">Monthly Fixed OpEx:</span>
+                  <span className="font-bold text-white">₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* INITIAL CAPITAL CONTRIBUTED & INVESTORS GRID */}
+          <div className="relative z-10 bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 backdrop-blur-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                  Initial Capital Contributed & Investors
+                </h4>
+                <p className="text-[10px] text-slate-300">
+                  Direct cash equity contributions from owners & founding partners ({currentContribList.length} {currentContribList.length === 1 ? "Partner" : "Partners"})
+                </p>
+              </div>
+              <div className="text-xs text-slate-300">
+                <span className="font-semibold text-slate-400">Total Contributed: </span>
+                <span className="font-bold text-[#c9a654]">₱{sumContrib.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            {/* INVESTORS / PARTNERS LIST */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
+              {currentContribList.map((contrib: any, idx: number) => {
+                const contribAmount = Number(contrib.amount) || 0;
+                const sharePct = effectiveTotalCap > 0 ? ((contribAmount / effectiveTotalCap) * 100).toFixed(1) : "0.0";
+                return (
+                  <div
+                    key={contrib.id || idx}
+                    className="flex items-center justify-between gap-3 bg-black/25 p-3 rounded-xl border border-white/10 hover:border-[#c9a654]/50 transition-all"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#122244] border border-[#c9a654]/40 flex items-center justify-center text-[10px] font-black text-[#c9a654] shrink-0">
+                        #{idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate" title={contrib.name || `Investor / Partner ${idx + 1}`}>
+                          {contrib.name || `Investor / Partner ${idx + 1}`}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          Equity Share: <span className="font-bold text-[#c9a654]">{sharePct}%</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-black text-white tabular-nums">
+                        ₱{contribAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* SUB-TABS NAVIGATION (Operational & Market) */}
         <div className="flex flex-wrap sm:flex-nowrap bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner w-full min-w-0">
@@ -1708,8 +1846,8 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               {displayBusinessType} • Adviser: {bannerAdviserText}
             </p>
           </div>
-          {onOpenGroupHistory && (
-            <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
+          <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center flex-wrap">
+            {onOpenGroupHistory && (
               <button
                 type="button"
                 onClick={onOpenGroupHistory}
@@ -1717,8 +1855,16 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               >
                 <Users className="w-4 h-4" /> Group History
               </button>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={() => setShowExportModal(true)}
+              className="px-3.5 py-2 bg-[#c9a654] hover:bg-[#d4b366] text-[#122244] font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer"
+              title="Export Proposal Sections as PDF"
+            >
+              <Download className="w-4 h-4" /> Export PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2041,74 +2187,90 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
           {/* TAB: AI ANALYSIS */}
           {activeTab === "AI" &&
             (() => {
-              const hasAnyFinancialOrAi = Boolean(
-                proposal?.financialData ||
-                  proposal?.originalProposalFinancials ||
-                  proposal?.aiAnalysis
-              );
+              const aiAnalysis = proposal?.aiAnalysis;
+              const rawAiStatus = (aiAnalysis?.status || "").toUpperCase();
 
-              if (!hasAnyFinancialOrAi) {
+              // State 1: Analysis In Progress / Pending
+              if (rawAiStatus === "PENDING" || rawAiStatus === "PROCESSING" || isAnalyzing) {
                 return (
-                  <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center text-gray-500">
-                    <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p>
-                      No AI analysis or financial data has been submitted for
-                      this business yet.
+                  <div className="bg-white rounded-2xl border border-blue-200/80 p-12 text-center shadow-xs max-w-2xl mx-auto">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100 shadow-inner">
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+                      AI Feasibility Analysis in Progress
+                    </h3>
+                    <p className="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
+                      Feasify AI is currently evaluating this business proposal. Analysis results and metrics will appear here once the evaluation is complete.
                     </p>
                   </div>
                 );
               }
 
+              // State 2: Analysis Failed
+              if (rawAiStatus === "FAILED" || (aiAnalysis && aiAnalysis.error)) {
+                return (
+                  <div className="bg-white rounded-2xl border border-red-200 p-12 text-center shadow-xs max-w-2xl mx-auto">
+                    <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
+                      <AlertCircle className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+                      AI Feasibility Analysis Unavailable
+                    </h3>
+                    <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed mb-4">
+                      The previous AI analysis could not be completed. The student team can re-trigger evaluation from their student portal.
+                    </p>
+                    <span className="inline-block text-xs font-bold text-gray-500 bg-gray-100 px-3.5 py-1.5 rounded-full border border-gray-200">
+                      Read-Only Adviser View: Re-analysis is initiated by students.
+                    </span>
+                  </div>
+                );
+              }
+
+              // State 3: NOT_ANALYZED (No real completed analysis executed yet)
+              if (!isAiAnalysisAvailable(proposal)) {
+                return (
+                  <div className="bg-white rounded-2xl border border-gray-200/80 p-12 text-center shadow-xs max-w-2xl mx-auto">
+                    <div className="w-16 h-16 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-inner">
+                      <Sparkles className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+                      No AI Feasibility Analysis Available
+                    </h3>
+                    <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed mb-4">
+                      This proposal has not yet undergone AI evaluation. Feasibility scoring, breakdown verdicts, and recommendations will appear once the student team submits their financial inputs and triggers analysis.
+                    </p>
+                    <div className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Adviser interface is strictly read-only for AI evaluations.</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // State 4: COMPLETED real analysis
               const synced = resolveSyncedAIAnalysis(proposal, {
                 monthIndex: selectedMonthIndex,
                 draftId: selectedDraftId || undefined,
-                preferLiveOnStale: true,
+                preferLiveOnStale: false,
               });
 
               const isLivePreview = synced.source === "live-audit";
 
               return (
                 <div className="space-y-6 min-w-0">
-                  {(onExportAnalysis || onReanalyze) && (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
-                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
-                        <div className="p-1.5 bg-yellow-100/50 rounded-md">
-                          <Sparkles className="w-4 h-4 text-[#c9a654]" />
-                        </div>
-                        AI Feasibility Analysis
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        {onExportAnalysis && (
-                          <button
-                            type="button"
-                            onClick={() => onExportAnalysis(synced.aiData)}
-                            disabled={isExportingAnalysis}
-                            className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
-                            title="Export Analysis & Financials as PDF"
-                          >
-                            {isExportingAnalysis ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-[#c9a654]" />
-                            ) : (
-                              <Download className="w-3 h-3 text-[#c9a654]" />
-                            )}
-                            Export PDF
-                          </button>
-                        )}
-                        {onReanalyze && (
-                          <button
-                            type="button"
-                            onClick={onReanalyze}
-                            disabled={isAnalyzing}
-                            className="text-xs font-bold text-gray-500 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm cursor-pointer disabled:opacity-50"
-                            title="Re-analyze Proposal"
-                          >
-                            <RefreshCw className={`w-3 h-3 ${isAnalyzing ? "animate-spin text-[#c9a654]" : "text-gray-400"}`} />
-                            {isAnalyzing ? "Analyzing..." : "Re-analyze"}
-                          </button>
-                        )}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+                    <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
+                      <div className="p-1.5 bg-yellow-100/50 rounded-md">
+                        <Sparkles className="w-4 h-4 text-[#c9a654]" />
                       </div>
-                    </div>
-                  )}
+                      AI Feasibility Analysis
+                    </h3>
+                    <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full border border-gray-200 self-start sm:self-center">
+                      Read-Only Adviser View
+                    </span>
+                  </div>
+
                   {/* Multi-Month & Scenario Draft Selector */}
                   {renderMonthAndDraftSelector(
                     synced.context.monthlyRecords,
@@ -2160,9 +2322,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                                   : "Cloud AI"
                               } evaluation${
                                 lastRunMs > 0
-                                  ? ` (${new Date(
-                                      lastRunMs
-                                    ).toLocaleDateString()})`
+                                  ? ` (${formatDisplayDate(lastRunMs)})`
                                   : ""
                               }.`;
                             })()}
@@ -2390,6 +2550,15 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Centralized Proposal Section Export Modal */}
+      <ProposalExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        proposal={proposal}
+        group={group}
+        adviserName={adviserName}
+      />
     </div>
   );
 };
