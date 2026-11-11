@@ -259,9 +259,9 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
     if (!monthlyRecords || monthlyRecords.length === 0) return null;
 
     return (
-      <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar flex-1">
+      <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3 w-full min-w-0">
+        <div className="flex items-center justify-between gap-3 flex-wrap min-w-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar flex-1 min-w-0">
             {monthlyRecords.map((rec: any, idx: number) => {
               const isSelected = idx === currentMonthIndex;
               const isLocked = !!rec.isLocked;
@@ -621,7 +621,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
         )}
 
         {/* SUB-TABS NAVIGATION (Operational & Market) */}
-        <div className="flex bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner">
+        <div className="flex flex-wrap sm:flex-nowrap bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner w-full min-w-0">
           <button
             type="button"
             onClick={() => setFinSubTab("operations")}
@@ -1652,9 +1652,9 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full min-w-0 animate-in fade-in duration-300">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
           <button
             type="button"
             onClick={onBack}
@@ -1669,7 +1669,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
       </div>
 
       {/* Banner Header */}
-      <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-5 sm:p-8 text-white relative border border-gray-800">
+      <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-6 sm:mb-8 flex flex-col md:flex-row items-center p-4 sm:p-8 text-white relative border border-gray-800">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full min-w-0">
           <div className="w-16 h-16 sm:w-24 sm:h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-2xl sm:text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654] overflow-hidden">
             {resolvedLogoUrl && !logoError ? (
@@ -1723,7 +1723,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
       </div>
 
       {/* Tabs: Project Overview, Financial Input, AI Feasibility Analysis */}
-      <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
+      <div className="flex items-center gap-4 sm:gap-6 border-b border-gray-200 mb-6 sm:mb-8 w-full max-w-full overflow-x-auto custom-scrollbar">
         {[
           { id: "Profile", label: "Project Overview", icon: FileText },
           { id: "Financial", label: "Financial Input", icon: Calculator },
@@ -1761,7 +1761,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
         <div className="lg:col-span-2 min-w-0 space-y-6">
           {/* TAB: BUSINESS PROFILE */}
           {activeTab === "Profile" && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm space-y-6 min-w-0">
               <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                 <div className="bg-blue-50 p-2.5 rounded-full border border-blue-100">
                   <FileText className="w-5 h-5 text-blue-500" />
@@ -1961,8 +1961,8 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                               )}
                             </span>
                           </div>
-                          <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
-                            <table className="w-full text-left text-xs">
+                          <div className="border border-gray-100 rounded-lg w-full overflow-x-auto custom-scrollbar bg-white">
+                            <table className="w-full text-left text-xs min-w-[420px]">
                               <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase text-gray-400 font-bold">
                                 <tr>
                                   <th className="p-2">Item / Asset name</th>
