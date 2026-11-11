@@ -16,6 +16,8 @@ import {
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
 import { resolveSyncedAIAnalysis, resolveProposalMonthAndDraft, toEpochMs } from "./utils/aiAnalysisHelpers";
 import FeasibilityAnalysisReport from "./components/FeasibilityAnalysisReport";
+import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
+import AIAdvisoryModal from "./components/AIAdvisoryModal";
 import { logAuditEvent } from "./services/auditLogger";
 import { fetchSectionExportData, generateSectionPDF } from "./services/sectionExportService";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
@@ -191,6 +193,24 @@ const AdviserDashboard: React.FC = () => {
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   const [modalAiResult, setModalAiResult] = useState<any>(null);
+  // AI Advisory Modal State
+  const [isAdvisoryModalOpen, setIsAdvisoryModalOpen] = useState(() => {
+    try {
+      return typeof window !== "undefined" && sessionStorage.getItem("adviser_ai_ack_pending") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [advisoryModalKey, setAdvisoryModalKey] = useState(0);
+
+  const handleAcknowledgeAdvisory = () => {
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("adviser_ai_ack_pending");
+      }
+    } catch {}
+    setIsAdvisoryModalOpen(false);
+  };
   const [customAIRules, setCustomAIRules] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -573,6 +593,26 @@ const AdviserDashboard: React.FC = () => {
     setViewingProposal(null);
   };
 
+  const handleActiveBusinessExportPDF = async (proposal: ProposalData, aiData: any) => {
+    if (!proposal) return;
+    setIsExportingPdf(true);
+    try {
+      await exportProposalAnalysisPDF({
+        proposal,
+        aiResult: aiData,
+        currentRemarks: feedbackInput,
+        adviserName: userName,
+        groupTitle: selectedGroup?.title || "Student Group",
+        sectionCode: selectedGroup?.section || activeSection || "Unassigned",
+      });
+    } catch (err) {
+      console.error("PDF export error:", err);
+      alert("Failed to export PDF. Please try again.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!viewingProposal) return;
     setIsExportingPdf(true);
@@ -669,6 +709,13 @@ const AdviserDashboard: React.FC = () => {
 
   const handleAIAnalysis = async (proposal: ProposalData) => {
     if (!proposal.id) return;
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("adviser_ai_ack_pending", "true");
+      }
+    } catch {}
+    setAdvisoryModalKey((prev) => prev + 1);
+    setIsAdvisoryModalOpen(true);
     setIsAiAnalyzing(true);
     setAiAnalysisError(null);
 
@@ -3403,6 +3450,42 @@ const AdviserDashboard: React.FC = () => {
 
                   return (
                     <div className="space-y-6 min-w-0">
+                      {/* Image 1 Header Row: Sparkles badge + AI FEASIBILITY ANALYSIS + Export PDF + Re-analyze */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
+                          <div className="p-1.5 bg-yellow-100/50 rounded-md">
+                            <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                          </div>
+                          AI Feasibility Analysis
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleActiveBusinessExportPDF(activeProposal, synced.aiData)}
+                            disabled={isExportingPdf}
+                            className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
+                            title="Export Analysis & Financials as PDF"
+                          >
+                            {isExportingPdf ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#c9a654]" />
+                            ) : (
+                              <Download className="w-3 h-3 text-[#c9a654]" />
+                            )}
+                            Export PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAIAnalysis(activeProposal)}
+                            disabled={isAiAnalyzing}
+                            className="text-xs font-bold text-gray-500 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm cursor-pointer disabled:opacity-50"
+                            title="Re-analyze Proposal"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${isAiAnalyzing ? "animate-spin text-[#c9a654]" : "text-gray-400"}`} />
+                            {isAiAnalyzing ? "Analyzing..." : "Re-analyze"}
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Multi-Month & Scenario Draft Selector */}
                       {renderMonthAndDraftSelector(
                         synced.context.monthlyRecords,
@@ -3967,6 +4050,8 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* AI Advisory Disclaimer Banner */}
+                        <AIAdvisoryDisclaimerBanner />
                         {modalAiResult._fallback && (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
                             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
@@ -4669,6 +4754,13 @@ const AdviserDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* AI Advisory Acknowledgment Modal */}
+      <AIAdvisoryModal
+        key={advisoryModalKey}
+        isOpen={isAdvisoryModalOpen}
+        onAcknowledge={handleAcknowledgeAdvisory}
+      />
 
       {/* SCROLL TO TOP BUTTON (BOTTOM RIGHT) */}
       <ScrollToTopButton />

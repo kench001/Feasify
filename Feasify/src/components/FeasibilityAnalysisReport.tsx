@@ -34,6 +34,7 @@ import {
   type ResolvedAIAnalysisData,
   type ExtractedFinancialData,
 } from "../utils/aiAnalysisHelpers";
+import { AIAdvisoryDisclaimerBanner } from "./AIAdvisoryDisclaimerBanner";
 
 export interface FeasibilityAnalysisReportProps {
   aiData: ResolvedAIAnalysisData;
@@ -271,6 +272,9 @@ export const FeasibilityAnalysisReport: React.FC<
 
   return (
     <div className="space-y-8 min-w-0">
+      {/* AI Advisory Disclaimer Banner (Adviser Portal View) */}
+      {viewerRole === "adviser" && <AIAdvisoryDisclaimerBanner />}
+
       {/* 1. Feasibility Verdict Section */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 md:p-8 shadow-sm min-w-0">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
@@ -305,12 +309,10 @@ export const FeasibilityAnalysisReport: React.FC<
                   ? "CONDITIONALLY FEASIBLE"
                   : feasibilityStatus?.replace(/_/g, " ")}
               </span>
-              {viewerRole === "student" && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border bg-amber-50 border-amber-200 text-amber-800 shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
-                  AI-Generated Assessment
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border bg-amber-50 border-amber-200 text-amber-800 shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+                AI-Generated Assessment
+              </span>
               {performanceGrade && (
                 <span
                   className={`inline-block px-3 py-1 text-xs font-bold rounded-full border ${
@@ -356,26 +358,12 @@ export const FeasibilityAnalysisReport: React.FC<
               </div>
             )}
 
-            {viewerRole === "student" ? (
-              <div className="mt-3.5 flex items-center gap-2 text-xs text-gray-500 w-full text-left">
-                <Info className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
-                <span className="text-[11px] text-gray-500 leading-normal">
-                  <strong className="text-gray-700 font-semibold">Advisory Reminder:</strong> AI-generated evaluation. Validate all findings and next steps with your research adviser.
-                </span>
-              </div>
-            ) : (
-              <div className="mt-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 w-full text-left flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-extrabold text-[#122244] uppercase tracking-wider text-[10px] block mb-0.5">
-                    Advisory Disclaimer
-                  </span>
-                  <p className="text-[11px] text-gray-600 leading-relaxed">
-                    The verdict and recommendations provided by the AI serve solely as guidance to help students explore and evaluate their proposal. Do not fully rely on this assessment as a final or definitive judgment—always validate assumptions and consult your research adviser.
-                  </p>
-                </div>
-              </div>
-            )}
+            <div className="mt-3.5 flex items-center gap-2 text-xs text-gray-500 w-full text-left">
+              <Info className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" aria-hidden="true" />
+              <span className="text-[11px] text-gray-500 leading-normal">
+                <strong className="text-gray-700 font-semibold">Advisory Reminder:</strong> AI-generated evaluation. Validate all findings and next steps with your research adviser.
+              </span>
+            </div>
           </div>
         </div>
       </div>
