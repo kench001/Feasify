@@ -1613,7 +1613,7 @@ app.post(
       const targetMarket = payload.targetMarket || "N/A";
       const promotionalStrategy = payload.promotionalStrategy || "N/A";
       const totalCapital = payload.totalCapital || "0";
-      const productDescription = payload.productDescription || payload.otherDetails || "N/A";
+      const productDescription = payload.productDescription || "N/A";
       const priceRanges = payload.priceRanges || "N/A";
       const financialDataString = payload.financialData && Object.keys(payload.financialData).length > 0 
         ? JSON.stringify(payload.financialData, null, 2) 

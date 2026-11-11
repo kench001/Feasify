@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { getOtherRelevantInformation } from "./proposalDetails";
 
 export interface ExportProposalAnalysisOptions {
   proposal: {
@@ -7,6 +8,8 @@ export interface ExportProposalAnalysisOptions {
     businessName?: string;
     businessType?: string;
     targetMarket?: string;
+    otherDetails?: string;
+    additionalFeasibilityDetails?: string;
     tagline?: string;
     totalCapital?: string | number;
     status?: string;
@@ -377,6 +380,31 @@ export async function exportProposalAnalysisPDF(options: ExportProposalAnalysisO
       y += 4;
     }
   }
+
+  // Supplemental text is paginated line by line so a long submission fits.
+  const writeSupplementalText = (text: string) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    for (const line of doc.splitTextToSize(text, contentWidth - 8)) {
+      checkPageBreak(5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...textDark);
+      doc.text(line, marginX + 4, y);
+      y += 4.5;
+    }
+    y += 3;
+  };
+
+  checkPageBreak(20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...brandNavy);
+  doc.text("OTHER RELEVANT INFORMATION - MANUAL ADVISER REVIEW", marginX + 2, y);
+  y += 6;
+  writeSupplementalText(getOtherRelevantInformation(proposal).trim() || "No other relevant information provided.");
+
+  writeSupplementalText("Student-submitted details for manual adviser review only. These details are not included in AI analysis or automated scoring.");
 
   // =========================================================================
   // 4. OFFICIAL ADVISER REMARKS & DIRECTIVES

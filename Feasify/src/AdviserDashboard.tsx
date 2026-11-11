@@ -22,6 +22,7 @@ import ScrollToTopButton from "./components/ScrollToTopButton";
 import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
 import { exportProposalAnalysisPDF } from "./utils/exportProposalAnalysisPDF";
+import { getOtherRelevantInformation } from "./utils/proposalDetails";
 
 interface StudentData {
   id: string;
@@ -74,6 +75,7 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
+  additionalFeasibilityDetails?: string;
   status: 'Draft' | 'Submitted' | 'Under Review' | 'Revision Required' | 'Approved' | 'Rejected' | 'Pending' | 'Revision';
   adviserRemarks?: string;
   adviserFeedback?: string;
@@ -3590,13 +3592,13 @@ const AdviserDashboard: React.FC = () => {
                         );
                       })()}
 
-                      {/* Other Details */}
-                      {activeProposal.otherDetails && (
-                        <div className="pt-2">
-                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Other Details & Notes</p>
-                          <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">{activeProposal.otherDetails}</p>
-                        </div>
-                      )}
+                      <div className="pt-2">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Other Relevant Information</p>
+                        <p className="text-xs text-gray-500 mb-2">For manual adviser review only. These details are not included in AI analysis.</p>
+                        <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap break-words bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          {getOtherRelevantInformation(activeProposal) || 'No other relevant information has been provided.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -4562,17 +4564,18 @@ const AdviserDashboard: React.FC = () => {
                   </section>
 
                   {/* OTHER DETAILS */}
-                  {viewingProposal.otherDetails && (
                     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
                       <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
                         <div className="p-2 bg-gray-100 rounded-lg"><Info className="w-4 h-4 text-gray-600" /></div>
-                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Other Details & Notes</h3>
+                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Other Relevant Information</h3>
                       </div>
                       <div className="p-6">
-                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.otherDetails}</div>
+                        <p className="text-xs text-gray-500 mb-3">For manual adviser review only. These details are not included in AI analysis.</p>
+                        <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">
+                          {getOtherRelevantInformation(viewingProposal) || 'No other relevant information has been provided.'}
+                        </div>
                       </div>
                     </section>
-                  )}
                 </div>
               </div>
 

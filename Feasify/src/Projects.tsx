@@ -32,6 +32,7 @@ import {
 } from "firebase/firestore";
 import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, notifyAdvisersForSection } from "./services/notificationService";
+import { getOtherRelevantInformation } from "./utils/proposalDetails";
 import {
   LayoutDashboard,
   Folder,
@@ -189,6 +190,7 @@ interface ProposalData {
   proposedLocation: string;
   promotionalStrategy: string;
   otherDetails: string;
+  additionalFeasibilityDetails?: string;
   status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Rejected" | "Pending" | "Revision";
   adviserRemarks?: string;
   adviserFeedback?: string;
@@ -1545,6 +1547,8 @@ const Projects: React.FC = () => {
       const assignedProposalNumber = dataToSave.proposalNumber || (proposals.length + 1);
       const proposalData = cleanFirestoreData({
         ...dataToSave,
+        otherDetails: getOtherRelevantInformation(dataToSave),
+        additionalFeasibilityDetails: "",
         proposalNumber: assignedProposalNumber,
         teamName: userGroup.companyName || userGroup.title || "",
         groupId: userGroup.id,
@@ -1769,6 +1773,8 @@ const Projects: React.FC = () => {
       const resolvedFacultyId = adviserData?.id || adviserData?.facultyId || userGroup?.facultyId || currentProposal?.facultyId || "";
       const proposalData = cleanFirestoreData({
         ...currentProposal,
+        otherDetails: getOtherRelevantInformation(currentProposal),
+        additionalFeasibilityDetails: "",
         proposalNumber: assignedProposalNumber,
         teamName: userGroup.companyName || userGroup.title || "",
         facultyId: resolvedFacultyId || "",
@@ -2042,7 +2048,8 @@ const Projects: React.FC = () => {
         priceRanges: editBasicData.priceRanges,
         proposedLocation: editBasicData.proposedLocation,
         promotionalStrategy: editBasicData.promotionalStrategy,
-        otherDetails: editBasicData.otherDetails,
+        otherDetails: getOtherRelevantInformation(editBasicData),
+        additionalFeasibilityDetails: "",
         updatedAt: serverTimestamp(),
       });
 
@@ -3778,17 +3785,25 @@ const Projects: React.FC = () => {
                         ADDITIONAL DETAILS
                       </h3>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                        <label htmlFor="proposal-other-details" className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                           Other Relevant Information (Optional)
                         </label>
-                        <ExpandingTextarea
+                        <p id="proposal-other-details-help" className="text-xs text-gray-500 leading-relaxed mb-3">
+                          Add other notes, including Technical (capacity, equipment, suppliers), Management (roles, schedules, compensation), and Socio-Economic details (community benefits, impacts, mitigation). Include evidence or the basis for estimates and identify unknowns. This information is for manual adviser review and is not included in AI analysis.
+                        </p>
+                        <TextareaAutosize
+                          id="proposal-other-details"
+                          aria-describedby="proposal-other-details-help"
                           disabled={!isEditingMode}
-                          rows={4}
-                          value={currentProposal.otherDetails}
+                          minRows={9}
+                          style={{ overflowY: "hidden" }}
+                          placeholder={"Other notes:\n\nTechnical:\n\nManagement & Organizational:\n\nSocio-Economic:\n\nEvidence / basis:"}
+                          value={getOtherRelevantInformation(currentProposal)}
                           onChange={(e) =>
                             setCurrentProposal({
                               ...currentProposal,
                               otherDetails: e.target.value,
+                              additionalFeasibilityDetails: "",
                             })
                           }
                           onBlur={() => handleAutoSave()}
@@ -4019,6 +4034,14 @@ const Projects: React.FC = () => {
                           <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
                             {activeBusiness.promotionalStrategy ||
                               "None Provided"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-500 dark:text-[#edd59b] uppercase tracking-widest mb-1">
+                            Other Relevant Information
+                          </p>
+                          <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            {getOtherRelevantInformation(activeBusiness) || "Not yet provided"}
                           </p>
                         </div>
 
@@ -5058,18 +5081,30 @@ const Projects: React.FC = () => {
                 <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">
                   Additional Details
                 </h4>
-                <ExpandingTextarea
-                  rows={3}
-                  placeholder="Other Relevant Information"
-                  value={editBasicData.otherDetails}
-                  onChange={(e) =>
-                    setEditBasicData({
-                      ...editBasicData,
-                      otherDetails: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
-                />
+                <div>
+                  <label htmlFor="edit-other-details" className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                    Other Relevant Information (Optional)
+                  </label>
+                  <p id="edit-other-details-help" className="text-xs text-gray-500 leading-relaxed mb-3">
+                    Add other notes, including Technical (capacity, equipment, suppliers), Management (roles, schedules, compensation), and Socio-Economic details (community benefits, impacts, mitigation). Include evidence or the basis for estimates and identify unknowns. This information is for manual adviser review and is not included in AI analysis.
+                  </p>
+                  <TextareaAutosize
+                    id="edit-other-details"
+                    aria-describedby="edit-other-details-help"
+                    minRows={9}
+                    style={{ overflowY: "hidden" }}
+                    placeholder={"Other notes:\n\nTechnical:\n\nManagement & Organizational:\n\nSocio-Economic:\n\nEvidence / basis:"}
+                    value={getOtherRelevantInformation(editBasicData)}
+                    onChange={(e) =>
+                      setEditBasicData({
+                        ...editBasicData,
+                        otherDetails: e.target.value,
+                        additionalFeasibilityDetails: "",
+                      })
+                    }
+                    className="w-full px-4 py-2 bg-gray-50 border rounded-lg text-sm resize-none font-medium"
+                  />
+                </div>
               </div>
             </div>
 
