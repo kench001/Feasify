@@ -3515,8 +3515,8 @@ const AdviserDashboard: React.FC = () => {
                 </div>
 
                 {/* ADVISER BULLETIN / FEEDBACK BOARD */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-6.5rem)] lg:flex lg:flex-col">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
                     <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
                       <MessageCircle className="w-4 h-4 text-[#c9a654]" /> Advisory Bulletin Board
                     </h3>
@@ -3526,7 +3526,7 @@ const AdviserDashboard: React.FC = () => {
                   </div>
 
                   {/* Bulletin Feed (Scrollable history) */}
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="space-y-3 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto pr-1 custom-scrollbar">
                     {(!activeProposal.feedbackHistory || activeProposal.feedbackHistory.length === 0) ? (
                       <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-400 italic">
                         No feedback posted on the bulletin board yet. Write a note below to advise this group.
@@ -3552,7 +3552,7 @@ const AdviserDashboard: React.FC = () => {
                   </div>
 
                   {/* Inline Composer */}
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <div className="pt-2 border-t border-gray-100 space-y-2 shrink-0">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                       Post Advisory Note
                     </label>
