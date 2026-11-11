@@ -271,7 +271,7 @@ export const FeasibilityAnalysisReport: React.FC<
     Boolean(marketSummary);
 
   return (
-    <div className="space-y-8 min-w-0">
+    <div className="space-y-6 sm:space-y-8 w-full min-w-0">
       {/* AI Advisory Disclaimer Banner (Adviser Portal View) */}
       {viewerRole === "adviser" && <AIAdvisoryDisclaimerBanner />}
 
@@ -849,7 +849,7 @@ export const FeasibilityAnalysisReport: React.FC<
       )}
 
       {/* 4. 5-Year Pro Forma Financial Projection */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm min-w-0">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm w-full min-w-0 overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-[#c9a654] flex-shrink-0" />{" "}
@@ -871,16 +871,16 @@ export const FeasibilityAnalysisReport: React.FC<
               <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
                 Revenue Growth Rate (%)
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <input
                   type="range"
                   min="0"
                   max="50"
                   value={revenueGrowthRate}
                   onChange={(e) => setRevenueGrowthRate(Number(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                  className="flex-1 min-w-0 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
                 />
-                <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm tabular-nums">
+                <div className="w-12 shrink-0 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm tabular-nums">
                   {revenueGrowthRate}%
                 </div>
               </div>
@@ -892,16 +892,16 @@ export const FeasibilityAnalysisReport: React.FC<
               <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest block mb-2">
                 Cost Growth Rate (%)
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <input
                   type="range"
                   min="0"
                   max="30"
                   value={costGrowthRate}
                   onChange={(e) => setCostGrowthRate(Number(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
+                  className="flex-1 min-w-0 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#c9a654]"
                 />
-                <div className="w-12 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm tabular-nums">
+                <div className="w-12 shrink-0 px-2 py-1.5 text-center bg-white border border-gray-300 rounded font-bold text-[#122244] text-sm tabular-nums">
                   {costGrowthRate}%
                 </div>
               </div>
@@ -973,7 +973,7 @@ export const FeasibilityAnalysisReport: React.FC<
             })()}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 max-w-full">
             {/* View Mode Toggle: Grouped vs Stacked */}
             <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
               <button
@@ -1014,7 +1014,7 @@ export const FeasibilityAnalysisReport: React.FC<
         </div>
 
         {/* Executive Combo Chart Canvas */}
-        <div className="mb-6 w-full min-w-0 relative h-[320px] sm:h-[380px] md:h-[430px]">
+        <div className="mb-6 w-full min-w-0 overflow-hidden relative h-[300px] sm:h-[380px] md:h-[430px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
@@ -1154,7 +1154,7 @@ export const FeasibilityAnalysisReport: React.FC<
         </div>
 
         {/* Pro Forma Summary Table */}
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto custom-scrollbar">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-200 bg-gray-50">
@@ -1282,7 +1282,7 @@ export const FeasibilityAnalysisReport: React.FC<
       </div>
 
       {/* 5. Strategic Insights & Financial Health (4 Core Feasibility Pillars) */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 md:p-8 shadow-sm min-w-0">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm w-full min-w-0 overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-gray-100 gap-2 mb-6">
           <div className="min-w-0">
             <h3 className="text-lg font-extrabold text-[#122244] flex items-center gap-2">

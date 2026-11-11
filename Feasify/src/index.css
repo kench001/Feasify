@@ -2,6 +2,13 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Sticky-safe global horizontal overflow guard */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 /* ========================================================================= */
 /* GLOBAL CUSTOM SCROLLBAR - BRAND GOLD (#c9a654) WITH TRANSPARENT TRACK   */
 /* ========================================================================= */
