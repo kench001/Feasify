@@ -235,6 +235,27 @@ export interface ProFormaProjectionResult {
   insights: string[];
 }
 
+export interface ProposalFeasibilityClassification {
+  aiStatus: FeasibilityVerdictStatus;
+  aiScore: number | null;
+  sentiment: "positive" | "negative" | "pending";
+  isConditional: boolean;
+  source: "financial-audit" | "stored-ai" | "pending";
+}
+
+export type ProposalDisplayStatusLabel =
+  | "Active Business"
+  | "Approved Proposal"
+  | "In Revision"
+  | "Rejected Proposal"
+  | "Pending Review"
+  | "Draft";
+
+export interface ProposalDisplayStatusInfo {
+  label: ProposalDisplayStatusLabel;
+  rawStatus: string;
+}
+
 export const DEFAULT_PRO_FORMA_REVENUE_GROWTH = 15;
 export const DEFAULT_PRO_FORMA_COST_GROWTH = 8;
 
@@ -1300,5 +1321,362 @@ export const buildProFormaProjection = (
       costGrowthRate: safeCostRate,
     },
     insights,
+  };
+};
+
+const PLACEHOLDER_BUSINESS_NAMES = new Set([
+  "pending business name",
+  "pending company name",
+  "pending title...",
+  "pending title",
+  "feasibility project",
+]);
+
+const pickNonPlaceholderName = (...candidates: any[]): string => {
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    if (PLACEHOLDER_BUSINESS_NAMES.has(trimmed.toLowerCase())) continue;
+    return trimmed;
+  }
+  return "";
+};
+
+/**
+ * Guards against classifying empty/unfilled `financialData` as `NOT_FEASIBLE` in summary tables.
+ * Accepts either already-extracted `ExtractedFinancialData` or raw `financialData` (with `monthlyRecords`).
+ */
+export const hasMeaningfulFinancialInputs = (finData: any): boolean => {
+  if (!finData || typeof finData !== "object") return false;
+
+  const source =
+    Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0
+      ? extractActiveFinancialData({ financialData: finData })
+      : finData;
+
+  const products = Array.isArray(source.products) ? source.products : [];
+  const hasProductEntry = products.some((p: any) => {
+    if (!p || typeof p !== "object") return false;
+    if (
+      Number(p.quantityYield) > 0 ||
+      Number(p.sellingPrice) > 0 ||
+      Number(p.productionCost) > 0 ||
+      Number(p.unitCost) > 0 ||
+      Number(p.unitsSold) > 0
+    ) {
+      return true;
+    }
+    return (
+      Array.isArray(p.ingredients) &&
+      p.ingredients.some((ing: any) => Number(ing?.price) > 0)
+    );
+  });
+  if (hasProductEntry) return true;
+
+  if (
+    Number(source.sellingPrice) > 0 ||
+    Number(source.monthlySales) > 0 ||
+    Number(source.fixedCosts) > 0
+  ) {
+    return true;
+  }
+
+  const equipmentList = Array.isArray(source.equipmentList) ? source.equipmentList : [];
+  if (
+    equipmentList.some(
+      (e: any) =>
+        Boolean(e && typeof e === "object") &&
+        (Number(e.total) > 0 ||
+          Number(e.unitPrice) > 0 ||
+          Number(e.cost) > 0 ||
+          Number(e.price) > 0 ||
+          Number(e.amount) > 0 ||
+          Number(e.quantity) > 0)
+    )
+  ) {
+    return true;
+  }
+
+  const opexList = Array.isArray(source.opexList) ? source.opexList : [];
+  if (opexList.some((o: any) => Number(o?.amount) > 0)) {
+    return true;
+  }
+
+  const contributorsList = Array.isArray(source.contributorsList) ? source.contributorsList : [];
+  const contribSum = contributorsList.reduce(
+    (sum: number, c: any) => sum + Math.max(0, Number(c?.amount) || 0),
+    0
+  );
+  if (contribSum > 0) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Resolves the canonical active/approved proposal for a group from all proposals belonging to that group.
+ * Aligned with `AdviserDashboard.tsx`: checks `activeProposalId` -> `approvedProposalId` -> `Approved`
+ * status -> (if `group.status === "Active Business"`) `groupProposals[0]` -> `null`.
+ */
+export const selectActiveProposalForGroup = (group: any, groupProposals: any[]): any | null => {
+  if (!Array.isArray(groupProposals) || groupProposals.length === 0) return null;
+
+  if (group?.activeProposalId) {
+    const activeById = groupProposals.find((p: any) => p?.id === group.activeProposalId);
+    if (activeById) return activeById;
+  }
+
+  if (group?.approvedProposalId) {
+    const approvedById = groupProposals.find((p: any) => p?.id === group.approvedProposalId);
+    if (approvedById) return approvedById;
+  }
+
+  const approvedByStatus = groupProposals.find(
+    (p: any) => p?.status === "Approved" || p?.status === "APPROVED"
+  );
+  if (approvedByStatus) return approvedByStatus;
+
+  if (group?.status === "Active Business") {
+    return groupProposals[0] || null;
+  }
+
+  return null;
+};
+
+/**
+ * Lightweight, zero-regex feasibility classifier designed for Chairperson summary tables & KPI cards.
+ * Uses `extractActiveFinancialData` + `evaluateDefenseFeasibility` when meaningful financial inputs
+ * exist (matching `resolveSyncedAIAnalysis` score/status 100%), and falls back to stored proposal-stage
+ * `aiAnalysis.status` / `aiAnalysis.score` otherwise.
+ */
+export const classifyProposalFeasibility = (
+  proposal: any,
+  options?: ExtractFinancialDataOptions
+): ProposalFeasibilityClassification => {
+  if (!proposal || typeof proposal !== "object") {
+    return {
+      aiStatus: "PENDING",
+      aiScore: null,
+      sentiment: "pending",
+      isConditional: false,
+      source: "pending",
+    };
+  }
+
+  const effectiveFin = extractActiveFinancialData(proposal, options);
+  if (hasMeaningfulFinancialInputs(effectiveFin)) {
+    const evalRes = evaluateDefenseFeasibility(effectiveFin);
+    const aiStatus = normalizeStatus(evalRes.status);
+    const aiScore = Number.isFinite(evalRes.score) ? evalRes.score : null;
+
+    if (aiStatus === "FEASIBLE") {
+      return {
+        aiStatus: "FEASIBLE",
+        aiScore,
+        sentiment: "positive",
+        isConditional: false,
+        source: "financial-audit",
+      };
+    }
+    if (aiStatus === "CONDITIONALLY_FEASIBLE" || aiStatus === "MODERATE") {
+      return {
+        aiStatus,
+        aiScore,
+        sentiment: "positive",
+        isConditional: true,
+        source: "financial-audit",
+      };
+    }
+    return {
+      aiStatus: "NOT_FEASIBLE",
+      aiScore,
+      sentiment: "negative",
+      isConditional: false,
+      source: "financial-audit",
+    };
+  }
+
+  const storedAi = proposal?.aiAnalysis;
+  if (storedAi && typeof storedAi === "object") {
+    const rawScore = Number(storedAi.score);
+    const aiScore =
+      storedAi.score !== null &&
+      storedAi.score !== undefined &&
+      storedAi.score !== "" &&
+      Number.isFinite(rawScore)
+        ? rawScore
+        : null;
+
+    const explicitStatus = storedAi.status;
+    if (explicitStatus === "FEASIBLE") {
+      return {
+        aiStatus: "FEASIBLE",
+        aiScore,
+        sentiment: "positive",
+        isConditional: false,
+        source: "stored-ai",
+      };
+    }
+    if (explicitStatus === "CONDITIONALLY_FEASIBLE" || explicitStatus === "MODERATE") {
+      return {
+        aiStatus: explicitStatus,
+        aiScore,
+        sentiment: "positive",
+        isConditional: true,
+        source: "stored-ai",
+      };
+    }
+    if (explicitStatus === "NOT_FEASIBLE") {
+      return {
+        aiStatus: "NOT_FEASIBLE",
+        aiScore,
+        sentiment: "negative",
+        isConditional: false,
+        source: "stored-ai",
+      };
+    }
+
+    if (aiScore !== null) {
+      if (aiScore >= 80) {
+        return {
+          aiStatus: "FEASIBLE",
+          aiScore,
+          sentiment: "positive",
+          isConditional: false,
+          source: "stored-ai",
+        };
+      }
+      if (aiScore >= 70) {
+        return {
+          aiStatus: "CONDITIONALLY_FEASIBLE",
+          aiScore,
+          sentiment: "positive",
+          isConditional: true,
+          source: "stored-ai",
+        };
+      }
+      return {
+        aiStatus: "NOT_FEASIBLE",
+        aiScore,
+        sentiment: "negative",
+        isConditional: false,
+        source: "stored-ai",
+      };
+    }
+  }
+
+  return {
+    aiStatus: "PENDING",
+    aiScore: null,
+    sentiment: "pending",
+    isConditional: false,
+    source: "pending",
+  };
+};
+
+/**
+ * Resolves the canonical Chairperson display status label for a proposal + its parent group.
+ * Optional `resolvedActiveProposalId` (from `selectActiveProposalForGroup`) marks legacy Active Business
+ * groups missing `group.activeProposalId` without leaking `"Active Business"` to sibling proposals.
+ */
+export const resolveProposalDisplayStatus = (
+  proposal: any,
+  group: any,
+  resolvedActiveProposalId?: string
+): ProposalDisplayStatusInfo => {
+  const rawStatus = typeof proposal?.status === "string" ? proposal.status.trim() : "";
+  const hasProposalId = Boolean(proposal?.id);
+  const isGroupActive =
+    Boolean(group) && (group.status === "Active Business" || Boolean(group.isSetup));
+
+  const isActiveBusiness =
+    isGroupActive &&
+    hasProposalId &&
+    (group.activeProposalId === proposal.id ||
+      (!group.activeProposalId &&
+        ((Boolean(resolvedActiveProposalId) && resolvedActiveProposalId === proposal.id) ||
+          group.approvedProposalId === proposal.id ||
+          rawStatus === "Approved" ||
+          rawStatus === "APPROVED")));
+
+  if (isActiveBusiness) {
+    return { label: "Active Business", rawStatus };
+  }
+
+  if (
+    rawStatus === "Approved" ||
+    rawStatus === "APPROVED" ||
+    (hasProposalId && group?.approvedProposalId === proposal.id)
+  ) {
+    return { label: "Approved Proposal", rawStatus };
+  }
+
+  if (rawStatus === "Rejected") {
+    return { label: "Rejected Proposal", rawStatus };
+  }
+
+  if (rawStatus === "Revision Required" || rawStatus === "Revision") {
+    return { label: "In Revision", rawStatus };
+  }
+
+  if (
+    rawStatus === "Submitted" ||
+    rawStatus === "Pending" ||
+    rawStatus === "Under Review"
+  ) {
+    return { label: "Pending Review", rawStatus };
+  }
+
+  return { label: "Draft", rawStatus };
+};
+
+/**
+ * Resolves non-placeholder business & company display names for a proposal + optional group.
+ * Only falls back from an empty/placeholder `proposal.businessName` to `group` names when
+ * `!proposal?.id` or the proposal is the group's active/approved proposal (preventing unnamed
+ * sibling drafts from duplicating the approved sibling's business name).
+ */
+export const resolveProposalBusinessName = (
+  proposal: any,
+  group?: any
+): { businessName: string; companyName: string } => {
+  const proposalOwnName = pickNonPlaceholderName(proposal?.businessName);
+  const rawStatus = typeof proposal?.status === "string" ? proposal.status.trim() : "";
+
+  const isGroupPrimaryProposal =
+    !proposal?.id ||
+    (Boolean(group) &&
+      (group.activeProposalId === proposal.id ||
+        group.approvedProposalId === proposal.id ||
+        rawStatus === "Approved" ||
+        rawStatus === "APPROVED"));
+
+  const resolvedBusiness = proposalOwnName
+    ? proposalOwnName
+    : isGroupPrimaryProposal
+      ? pickNonPlaceholderName(group?.businessName, group?.companyName, group?.title)
+      : "";
+
+  const fallbackBusiness = isGroupPrimaryProposal
+    ? proposal?.proposalNumber
+      ? `Proposal #${proposal.proposalNumber}`
+      : proposal?.id
+        ? "Proposal #1"
+        : "Untitled Business"
+    : proposal?.proposalNumber
+      ? `Untitled Proposal #${proposal.proposalNumber}`
+      : "Untitled Proposal";
+
+  const companyName = pickNonPlaceholderName(
+    group?.companyName,
+    group?.title,
+    proposal?.teamName
+  );
+
+  return {
+    businessName: resolvedBusiness || fallbackBusiness,
+    companyName,
   };
 };
