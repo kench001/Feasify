@@ -34,7 +34,6 @@ import {
   TrendingUp,
   Target,
   Sidebar as SidebarIcon,
-  Scale,
   CheckCircle2,
   Bell,
   Calendar,
@@ -5481,30 +5480,7 @@ const Financial_input: React.FC = () => {
                             </div>
                           </button>
 
-                          {/* Option 2: Statement of Financial Position (PDF) */}
-                          <button
-                            onClick={() => {
-                              setPrintMode("balance-sheet");
-                              setShowExportModal(false);
-                              setTimeout(() => window.print(), 250);
-                            }}
-                            className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-[#A93E1D] hover:bg-amber-50/30 transition-all text-left group"
-                          >
-                            <div className="p-3 bg-amber-100 text-[#A93E1D] rounded-xl group-hover:bg-[#A93E1D] group-hover:text-white transition-colors">
-                              <Scale className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-extrabold text-sm text-[#122244] group-hover:text-[#A93E1D]">Statement of Financial Position (.PDF)</h4>
-                                <span className="text-[10px] font-black uppercase text-white bg-[#A93E1D] px-2 py-0.5 rounded">Standard Format</span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                Print or save the official 5-Year Balance Sheet table (Pre-Operations to 2030) formatted per Philippine feasibility standards.
-                              </p>
-                            </div>
-                          </button>
-
-                          {/* Option 3: Full Executive Feasibility Report (PDF) */}
+                          {/* Option 2: Full Executive Feasibility Report (PDF) */}
                           <button
                             onClick={() => {
                               setPrintMode("executive");
