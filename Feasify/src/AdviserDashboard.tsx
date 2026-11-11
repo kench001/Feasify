@@ -10,7 +10,7 @@ import {
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw, TrendingUp,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Package, Target, Zap, DollarSign, Send, UserPlus, Check, Download,
   Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
-  Scale, FileSpreadsheet, Activity, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock,
+  FileSpreadsheet, Layers, PieChart, ShieldCheck, BarChart3, ArrowUp, Cpu, Eye, Lock,
   Folder, Store, MapPin, Compass, Building2
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
@@ -181,7 +181,7 @@ const AdviserDashboard: React.FC = () => {
   const [isRemarksSaving, setIsRemarksSaving] = useState(false);
   const [remarksSavedNotice, setRemarksSavedNotice] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "market" | "balance-sheet">("operations");
+  const [adviserFinTab, setAdviserFinTab] = useState<"operations" | "market">("operations");
   const [adviserSelectedMonthIndex, setAdviserSelectedMonthIndex] = useState<number>(0);
   const [adviserSelectedDraftId, setAdviserSelectedDraftId] = useState<string>("");
   const [adviserExpandedProducts, setAdviserExpandedProducts] = useState<Record<string, boolean>>({});
@@ -522,6 +522,7 @@ const AdviserDashboard: React.FC = () => {
         }
         setActiveView('active-business');
         setActiveBusinessTab('Profile');
+        setAdviserFinTab('operations');
       } else {
         const fallback = teamProps.find(p => p.id === propId);
         if (fallback) {
@@ -540,6 +541,7 @@ const AdviserDashboard: React.FC = () => {
           }
           setActiveView('active-business');
           setActiveBusinessTab('Profile');
+          setAdviserFinTab('operations');
         } else {
           alert("Could not load the active proposal details.");
         }
@@ -563,6 +565,7 @@ const AdviserDashboard: React.FC = () => {
         }
         setActiveView('active-business');
         setActiveBusinessTab('Profile');
+        setAdviserFinTab('operations');
       } else {
         alert("Failed to fetch business details.");
       }
@@ -1509,8 +1512,6 @@ const AdviserDashboard: React.FC = () => {
     const totalMultiVariableCost = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).cogsSold, 0);
     const totalMultiYield = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).totalUnitsProduced, 0);
     const totalMultiUnitsSold = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).unitsSold, 0);
-    const totalMultiEndingInventory = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).endingInventoryValue, 0);
-    const totalMultiVat = normalizedProducts.reduce((sum, p) => sum + computeProductMetrics(p).totalVat, 0);
 
     const safeSellingPrice = normalizedProducts.length > 1 && totalMultiUnitsSold > 0
       ? totalMultiRevenue / totalMultiUnitsSold
@@ -1547,11 +1548,7 @@ const AdviserDashboard: React.FC = () => {
     const monthlyNetProfitMargin = monthlyRevenue > 0 ? (netMonthlyProfit / monthlyRevenue) * 100 : 0;
 
     const annualRevenue = (monthlyRevenue / 30) * safeOperatingDays;
-    const annualExpenses = ((totalMonthlyVariableCosts + safeFixedCosts + monthlyInterest) / 30) * safeOperatingDays;
-    const annualNetProfitPreTax = annualRevenue - annualExpenses;
-
     const annualTax = annualRevenue * 0.03;
-    const annualNetProfitAfterTax = (annualNetProfitPreTax > 0 ? annualNetProfitPreTax : 0) - annualTax;
 
     const unitContributionMargin = safeSellingPrice - safeVariableCost;
     const breakEvenUnits = unitContributionMargin > 0 ? Math.ceil(safeFixedCosts / unitContributionMargin) : "N/A";
@@ -1576,79 +1573,18 @@ const AdviserDashboard: React.FC = () => {
     const safePermitsLicenses = Number(fin.permitsLicensesInitial) || 0;
     const totalProjectCost = safeRentAdvance + safeTrainings + safeAdvertising + safeSalariesInitial + safeStartupCapital + safeRenovationCosts + safePermitsLicenses;
 
-    // Section 4: Current Assets
-    const operatingCashBuffer = Math.max(0, netMonthlyProfit * 12);
-    const totalLiquidCash = safeCashInvested + operatingCashBuffer;
-    const cashOnHand = totalLiquidCash * 0.15;
-    const cashInBank = totalLiquidCash * 0.85;
-    const rawMaterialInventory = totalMonthlyVariableCosts * 0.15;
-    const finishedGoodsInventory = totalMultiEndingInventory;
-    const totalInventory = rawMaterialInventory + finishedGoodsInventory;
-
-    const totalAnnualOpEx = (safeFixedCosts / 30) * safeOperatingDays;
-    const safeEndingSuppliesPercent = Number(fin.endingSuppliesPercent ?? 30);
-    const suppliesEndingInventory = (totalAnnualOpEx * 0.08) * (safeEndingSuppliesPercent / 100);
-
-    const safeSalesDiscountPercent = Number(fin.salesDiscountPercent ?? 5);
-    const safeSalesReturnsPercent = Number(fin.salesReturnsPercent ?? 2);
-    const annualGrossSales = annualRevenue;
-    const annualSalesDiscount = (annualGrossSales * safeSalesDiscountPercent) / 100;
-    const annualSalesReturns = (annualGrossSales * safeSalesReturnsPercent) / 100;
-    const annualNetSales = Math.max(0, annualGrossSales - annualSalesDiscount - annualSalesReturns);
-    const safeAccountsReceivable = Number(fin.accountsReceivable) || (annualNetSales * 0.03);
-
-    const totalCurrentAssets = cashOnHand + cashInBank + totalInventory + suppliesEndingInventory + safeAccountsReceivable;
-
-    // Non-Current Assets
-    const grossPPE = safeStartupCapital;
-    const leaseholdImprovementsGross = safeRenovationCosts;
-    const totalGrossNonCurrent = grossPPE + leaseholdImprovementsGross;
-    const annualDepreciation = (grossPPE * 0.10) + (leaseholdImprovementsGross * 0.10);
-    const totalNonCurrentAssets = Math.max(0, totalGrossNonCurrent - annualDepreciation);
-    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
-
-    // Current Liabilities
-    const safeAccountsPayable = Number(fin.accountsPayable) || (totalMonthlyVariableCosts * 0.20);
-    const safeUtilitiesPayable = Number(fin.utilitiesPayable) || (safeFixedCosts * 0.15);
-    const safeSalariesPayable = Number(fin.salariesPayable) || (safeSalariesInitial > 0 ? safeSalariesInitial / 2 : safeFixedCosts * 0.15);
-    const safeTaxesPayable = Number(fin.taxesPayable) || annualTax;
-    const totalCurrentLiabilities = safeAccountsPayable + safeUtilitiesPayable + safeSalariesPayable + safeTaxesPayable;
-
-    // Owner's Equity
-    const initialEquity = totalInitialCapital > 0 ? totalInitialCapital : safeStartupCapital;
-    const endingOwnerEquity = totalAssets - totalCurrentLiabilities;
-    const totalLiabilitiesAndEquity = totalCurrentLiabilities + endingOwnerEquity;
-
-    // Financial Ratios
-    const currentRatio = totalCurrentLiabilities > 0 
-      ? (totalCurrentAssets / totalCurrentLiabilities).toFixed(2) 
-      : (totalCurrentAssets > 0 ? "99.9" : "0.0");
-    const quickRatio = totalCurrentLiabilities > 0
-      ? ((cashOnHand + cashInBank + safeAccountsReceivable) / totalCurrentLiabilities).toFixed(2)
-      : "0.0";
-    const debtRatio = totalAssets > 0 ? ((totalCurrentLiabilities / totalAssets) * 100).toFixed(1) : "0.0";
-    const equityRatio = totalAssets > 0 ? ((endingOwnerEquity / totalAssets) * 100).toFixed(1) : "0.0";
-    const annualCOGS = (totalMonthlyVariableCosts / 30) * safeOperatingDays;
-    const avgInventory = totalInventory > 0 ? totalInventory : 1;
-    const inventoryTurnover = avgInventory > 0 ? (annualCOGS / avgInventory).toFixed(1) : "0.0";
-    const numTurnover = Number(inventoryTurnover) || 0;
-    const avgAgeOfInventory = numTurnover > 0 ? Math.round(360 / numTurnover) : 0;
-    const currentAssetTurnover = totalCurrentAssets > 0 
-      ? (annualNetSales / totalCurrentAssets).toFixed(2) 
-      : "0.0";
-
-    const monthlyCashInflow = annualNetProfitAfterTax > 0 ? (annualNetProfitAfterTax / 12) : 0;
-    let paybackYears = 0;
-    let paybackMonths = 0;
-    let paybackDays = 0;
-    if (monthlyCashInflow > 0 && safeStartupCapital > 0) {
-      const totalMonths = safeStartupCapital / monthlyCashInflow;
-      paybackYears = Math.floor(totalMonths / 12);
-      paybackMonths = Math.floor(totalMonths % 12);
-      paybackDays = Math.round((totalMonths % 1) * 30);
-    }
-    const rawROI = safeStartupCapital > 0 ? (annualNetProfitAfterTax / safeStartupCapital) * 100 : 0;
-    const estimatedAnnualROI = isNaN(rawROI) ? "0.0" : rawROI.toFixed(1);
+    // Formatted Hero KPI strings & responsive sizing so values stay cleanly within card bounds
+    const monthlyExpensesTotal = totalMonthlyVariableCosts + safeFixedCosts;
+    const formattedMonthlyRevenue = `₱${monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formattedMonthlyExpenses = `₱${monthlyExpensesTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const breakEvenDisplay = typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits;
+    const formattedGrossMargin = `${grossProfitMargin.toFixed(1)}%`;
+    const formattedNetProfit = `${netMonthlyProfit < 0 ? "-" : ""}₱${Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const getHeroValueSizeClass = (val: string) => {
+      if (val.length >= 16) return "text-sm sm:text-base";
+      if (val.length >= 13) return "text-base sm:text-lg";
+      return "text-lg sm:text-xl";
+    };
 
     // Product expansion helpers
     const toggleProductExpand = (key: string) => {
@@ -1741,7 +1677,7 @@ const AdviserDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* SUB-TABS NAVIGATION (Matches student portal exactly: Operational, Market, Balance Sheet) */}
+        {/* SUB-TABS NAVIGATION (Operational & Market) */}
         <div className="flex bg-gray-100 p-1.5 rounded-xl gap-2 border border-gray-200 shadow-inner">
           <button
             type="button"
@@ -1757,40 +1693,42 @@ const AdviserDashboard: React.FC = () => {
           >
             <Target className="w-3.5 h-3.5 text-[#c9a654]" /> Market & Competitive Indicators
           </button>
-          <button
-            type="button"
-            onClick={() => setAdviserFinTab("balance-sheet")}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-extrabold flex items-center justify-center gap-2 transition-all ${adviserFinTab === "balance-sheet" ? "bg-white text-[#122244] shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-          >
-            <Scale className="w-3.5 h-3.5 text-blue-600" /> Balance Sheet (Financial Position)
-          </button>
         </div>
 
         {/* TAB 1: OPERATIONAL INPUTS & COSTING */}
         {adviserFinTab === "operations" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* 5 KPI Hero Cards (100% Synchronized with student portal) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            {/* 5 KPI Hero Cards (3+2 symmetrical bento on xl+, 2+2+1 on sm/lg, stacked on mobile) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3.5">
               {/* 1. Monthly Revenue */}
-              <div className="bg-white rounded-xl border-l-4 border-l-emerald-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-emerald-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Monthly Revenue</span>
-                  <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">
-                    ₱{monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedMonthlyRevenue)} font-black text-emerald-600 tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={formattedMonthlyRevenue}
+                  >
+                    {formattedMonthlyRevenue}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   {normalizedProducts.length > 1 ? (
                     <>
                       <span>Sales: {safeMonthlySales.toLocaleString()} units sold</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`${safeUnitsProduced.toLocaleString()} produced • ${normalizedProducts.length} Products`}
+                      >
                         {safeUnitsProduced.toLocaleString()} produced • {normalizedProducts.length} Products
                       </p>
                     </>
                   ) : (
                     <>
                       <span>Price × Units Sold</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`₱${safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × ${safeMonthlySales.toLocaleString()} sold (${safeUnitsProduced.toLocaleString()} produced)`}
+                      >
                         ₱{safeSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {safeMonthlySales.toLocaleString()} sold ({safeUnitsProduced.toLocaleString()} produced)
                       </p>
                     </>
@@ -1799,25 +1737,34 @@ const AdviserDashboard: React.FC = () => {
               </div>
 
               {/* 2. Monthly Expenses */}
-              <div className="bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-red-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Monthly Expenses</span>
-                  <p className="text-xl sm:text-2xl font-black text-red-600 mt-0.5">
-                    ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedMonthlyExpenses)} font-black text-red-600 tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={formattedMonthlyExpenses}
+                  >
+                    {formattedMonthlyExpenses}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   {normalizedProducts.length > 1 ? (
                     <>
                       <span>COGS (Units Sold) + Fixed</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`₱${totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+                      >
                         ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                     </>
                   ) : (
                     <>
                       <span>[(COGS/Unit × Sold) + Fixed]</span>
-                      <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                      <p
+                        className="text-[9px] text-[#c9a654] font-bold truncate"
+                        title={`(₱${safeVariableCost.toFixed(2)} × ${safeMonthlySales.toLocaleString()} sold) + ₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+                      >
                         (₱{safeVariableCost.toFixed(2)} × {safeMonthlySales.toLocaleString()} sold) + ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                     </>
@@ -1826,45 +1773,57 @@ const AdviserDashboard: React.FC = () => {
               </div>
 
               {/* 3. Break-Even Point */}
-              <div className="bg-white rounded-xl border-l-4 border-l-[#c9a654] p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-2 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-[#c9a654] p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Break-Even Point</span>
-                  <p className="text-xl sm:text-2xl font-black text-[#c9a654] mt-0.5">
-                    {typeof breakEvenUnits === "number" ? breakEvenUnits.toLocaleString() : breakEvenUnits}{" "}
+                  <p
+                    className={`${getHeroValueSizeClass(`${breakEvenDisplay} units`)} font-black text-[#c9a654] tabular-nums tracking-tight whitespace-nowrap mt-0.5`}
+                    title={`${breakEvenDisplay} units`}
+                  >
+                    {breakEvenDisplay}{" "}
                     <span className="text-[10px] text-gray-400 font-normal">units</span>
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>Monthly OpEx / Margin per Unit</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`₱${safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / ₱${Math.max(0, safeSellingPrice - safeVariableCost).toFixed(2)}`}
+                  >
                     ₱{safeFixedCosts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} / ₱{Math.max(0, safeSellingPrice - safeVariableCost).toFixed(2)}
                   </p>
                 </div>
               </div>
 
               {/* 4. Gross Margin */}
-              <div className="bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                <div>
+              <div className="xl:col-span-3 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 border-l-blue-500 p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div className="min-w-0">
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Gross Margin</span>
-                  <p className={`text-xl sm:text-2xl font-black mt-0.5 ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}>
-                    {grossProfitMargin.toFixed(1)}%
+                  <p
+                    className={`${getHeroValueSizeClass(formattedGrossMargin)} font-black tabular-nums tracking-tight whitespace-nowrap mt-0.5 ${grossProfitMargin >= 0 ? "text-blue-600" : "text-red-500"}`}
+                    title={formattedGrossMargin}
+                  >
+                    {formattedGrossMargin}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>[(Revenue - COGS) / Revenue]</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`(₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱${totalMonthlyVariableCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}) / ₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                  >
                     (₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{totalMonthlyVariableCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}) / ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
                 </div>
               </div>
 
               {/* 5. Net Profit / Mo */}
-              <div className={`bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+              <div className={`sm:col-span-2 xl:col-span-3 min-w-0 overflow-hidden bg-white rounded-xl border-l-4 p-4 shadow-sm border border-gray-100 flex flex-col justify-between ${netMonthlyProfit >= 0 ? "border-l-emerald-500" : "border-l-red-500"}`}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Net Profit / Mo</span>
                     <span
-                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
                         netMonthlyProfit >= 0
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                           : "bg-red-50 text-red-600 border border-red-200/60"
@@ -1874,14 +1833,20 @@ const AdviserDashboard: React.FC = () => {
                       {monthlyNetProfitMargin >= 0 ? "+" : ""}{monthlyNetProfitMargin.toFixed(1)}%
                     </span>
                   </div>
-                  <p className={`text-xl sm:text-2xl font-black mt-0.5 ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}>
-                    {netMonthlyProfit < 0 ? "-" : ""}₱{Math.abs(netMonthlyProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p
+                    className={`${getHeroValueSizeClass(formattedNetProfit)} font-black tabular-nums tracking-tight whitespace-nowrap mt-0.5 ${netMonthlyProfit < 0 ? "text-red-500" : "text-emerald-600"}`}
+                    title={formattedNetProfit}
+                  >
+                    {formattedNetProfit}
                   </p>
                 </div>
-                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100">
+                <div className="mt-2.5 text-[9px] text-gray-400 font-semibold bg-gray-50 py-1 px-1.5 rounded border border-gray-100 min-w-0 overflow-hidden">
                   <span>Revenue - Expenses</span>
-                  <p className="text-[9px] text-[#c9a654] font-bold truncate">
-                    ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{(totalMonthlyVariableCosts + safeFixedCosts).toLocaleString(undefined, { maximumFractionDigits: 0 })}{monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}
+                  <p
+                    className="text-[9px] text-[#c9a654] font-bold truncate"
+                    title={`₱${monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱${monthlyExpensesTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}${monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}`}
+                  >
+                    ₱{monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ₱{monthlyExpensesTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}{monthlyInterest > 0 ? ` - ₱${monthlyInterest.toLocaleString()} Int` : ""}
                   </p>
                 </div>
               </div>
@@ -2362,189 +2327,6 @@ const AdviserDashboard: React.FC = () => {
                     </p>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: STATEMENT OF FINANCIAL POSITION (BALANCE SHEET) */}
-        {adviserFinTab === "balance-sheet" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Balance Verified Badge */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="font-extrabold text-emerald-900 text-sm">Balanced Statement of Financial Position</p>
-                  <p className="text-xs text-emerald-700">Assets = Liabilities + Owner's Equity (Verified Double-Entry Standard)</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-600 text-white font-black text-xs rounded-lg uppercase tracking-wider">
-                Balanced ✓
-              </span>
-            </div>
-
-            {/* Two-Column Balance Sheet */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* ASSETS */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>ASSETS (What Business Owns)</span>
-                  <span className="text-green-600">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-                
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Assets (Liquid)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash on Hand (15% Cash Drawer):</span>
-                    <span className="font-bold text-gray-900">₱{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Cash in Bank (85% Bank Account):</span>
-                    <span className="font-bold text-gray-900">₱{cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Merchandise & Raw Materials Inventory:</span>
-                    <span className="font-bold text-gray-900">₱{rawMaterialInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {finishedGoodsInventory > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Finished Goods Inventory:</span>
-                      <span className="font-bold text-gray-900">₱{finishedGoodsInventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {safeAccountsReceivable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Accounts Receivable:</span>
-                      <span className="font-bold text-gray-900">₱{safeAccountsReceivable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Assets:</span>
-                    <span className="text-[#122244]">₱{totalCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Non-Current Assets (Long-Term)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Property, Plant & Equipment (Gross):</span>
-                    <span className="font-bold text-gray-900">₱{grossPPE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {leaseholdImprovementsGross > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Leasehold Improvements (Gross):</span>
-                      <span className="font-bold text-gray-900">₱{leaseholdImprovementsGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
-                    <span>Less: Accumulated Depreciation (10%/yr):</span>
-                    <span className="font-bold">-₱{annualDepreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Non-Current Assets (Net PPE):</span>
-                    <span className="text-[#122244]">₱{totalNonCurrentAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL ASSETS:</span>
-                    <span className="text-green-400">₱{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* LIABILITIES & OWNER'S EQUITY */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b pb-3 flex items-center justify-between">
-                  <span>LIABILITIES & OWNER'S EQUITY</span>
-                  <span className="text-blue-600">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </h4>
-
-                <div className="space-y-3 text-xs">
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider">Current Liabilities (Short-Term)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Accounts Payable (20% of COGS):</span>
-                    <span className="font-bold text-gray-900">₱{safeAccountsPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Utilities & OpEx Payable (15% of OpEx):</span>
-                    <span className="font-bold text-gray-900">₱{safeUtilitiesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  {safeSalariesPayable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Salaries Payable:</span>
-                      <span className="font-bold text-gray-900">₱{safeSalariesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {safeTaxesPayable > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-50">
-                      <span className="text-gray-600">Taxes Payable (3% Percentage Tax):</span>
-                      <span className="font-bold text-gray-900">₱{safeTaxesPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Total Current Liabilities:</span>
-                    <span className="text-red-600">₱{totalCurrentLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <p className="font-bold text-gray-400 uppercase text-[10px] tracking-wider pt-2">Owner's Equity (Net Worth)</p>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Initial Capital Contributed:</span>
-                    <span className="font-bold text-gray-900">₱{initialEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-gray-50">
-                    <span className="text-gray-600">Add: Retained Net Income (After Tax):</span>
-                    <span className="font-bold text-emerald-600">₱{annualNetProfitAfterTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between py-1 bg-gray-50 px-2 rounded font-bold">
-                    <span className="text-gray-700">Ending Owner's Capital:</span>
-                    <span className="text-[#122244]">₱{endingOwnerEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between p-3 bg-[#122244] text-white rounded-xl font-black text-sm mt-4">
-                    <span>TOTAL LIABILITIES & EQUITY:</span>
-                    <span className="text-blue-400">₱{totalLiabilitiesAndEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Ratios Grid */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
-              <h4 className="text-xs font-black text-[#122244] uppercase tracking-widest border-b border-gray-100 pb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#c9a654]" /> Automated Financial Ratios & Feasibility Indicators
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Current Ratio</span>
-                  <p className="text-lg font-black text-[#122244] mt-1">{currentRatio}x</p>
-                  <span className="text-[9px] text-gray-500">Liquidity Buffer</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Quick Ratio</span>
-                  <p className="text-lg font-black text-[#122244] mt-1">{quickRatio}x</p>
-                  <span className="text-[9px] text-gray-500">Acid-Test Ratio</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Debt Ratio</span>
-                  <p className="text-lg font-black text-red-600 mt-1">{debtRatio}%</p>
-                  <span className="text-[9px] text-gray-500">Liabilities / Assets</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Equity Ratio</span>
-                  <p className="text-lg font-black text-blue-600 mt-1">{equityRatio}%</p>
-                  <span className="text-[9px] text-gray-500">Equity / Assets</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Inventory Turnover</span>
-                  <p className="text-lg font-black text-[#c9a654] mt-1">{inventoryTurnover}x</p>
-                  <span className="text-[9px] text-gray-500">{avgAgeOfInventory} days avg age</span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Annual ROI</span>
-                  <p className="text-lg font-black text-green-600 mt-1">{estimatedAnnualROI}%</p>
-                  <span className="text-[9px] text-gray-500">
-                    Payback: {paybackYears > 0 ? `${paybackYears}y ` : ""}{paybackMonths}m
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -3369,27 +3151,31 @@ const AdviserDashboard: React.FC = () => {
             </div>
 
             {/* Banner Header */}
-            <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-8 text-white relative border border-gray-800">
-              <div className="flex items-center gap-6 w-full">
-                <div className="w-24 h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
+            <div className="bg-[#122244] rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row items-center p-5 sm:p-8 text-white relative border border-gray-800">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full min-w-0">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 bg-[#1a2f55] rounded-2xl flex items-center justify-center font-extrabold text-2xl sm:text-4xl shadow-inner border border-white/10 flex-shrink-0 text-[#c9a654]">
                   {getInitials(activeProposal.businessName)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                     <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> ACTIVE BUSINESS CHARTER</span>
                     <span className="px-3 py-1 bg-white/10 text-gray-300 text-[10px] font-bold rounded flex items-center gap-1"><User className="w-3 h-3" /> SECTION: {selectedGroup.section}</span>
                     <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold rounded flex items-center gap-1"><Lock className="w-3 h-3" /> READ-ONLY ADVISER VIEW</span>
                   </div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold mb-1 tracking-tight truncate">{activeProposal.businessName}</h1>
-                  <p className="text-sm text-gray-400 font-medium">{activeProposal.businessType} • Adviser: {userName}</p>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-1 tracking-tight truncate" title={activeProposal.businessName}>
+                    {activeProposal.businessName}
+                  </h1>
+                  <p className="text-sm text-gray-400 font-medium truncate" title={`${activeProposal.businessType} • Adviser: ${userName}`}>
+                    {activeProposal.businessType} • Adviser: {userName}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
                   <button
                     onClick={() => {
                       setActiveView('group-details');
                       fetchGroupProposals(selectedGroup.id);
                     }}
-                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-white/10"
+                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-white/10 whitespace-nowrap"
                   >
                     <Users className="w-4 h-4" /> Group History
                   </button>
@@ -3441,14 +3227,14 @@ const AdviserDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-6 flex divide-x divide-gray-200 text-center border border-gray-100">
-                      <div className="flex-1 pr-6">
+                    <div className="bg-gray-50 rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-200 text-center border border-gray-100">
+                      <div className="flex-1 min-w-0 pb-4 sm:pb-0 sm:pr-6">
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Initial Capital</p>
-                        <p className="text-2xl font-bold text-green-600">₱{activeProposal.totalCapital || "0"}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-green-600 tabular-nums break-words">₱{activeProposal.totalCapital || "0"}</p>
                       </div>
-                      <div className="flex-1 pl-6">
+                      <div className="flex-1 min-w-0 pt-4 sm:pt-0 sm:pl-6">
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Business Type</p>
-                        <p className="text-xl font-bold text-[#122244]">{activeProposal.businessType || "Uncategorized"}</p>
+                        <p className="text-lg sm:text-xl font-bold text-[#122244] break-words">{activeProposal.businessType || "Uncategorized"}</p>
                       </div>
                     </div>
 
@@ -4287,23 +4073,23 @@ const AdviserDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#122244]/60 backdrop-blur-sm">
           <div className="bg-white rounded-[1.5rem] w-full max-w-[95vw] 2xl:max-w-[1600px] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[95vh] border border-gray-200/50">
             {/* Modal Header */}
-            <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
-              <div className="flex items-center gap-4 md:gap-5">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100/50 shadow-inner">
+            <div className="px-6 py-4 md:px-8 md:py-6 border-b border-gray-100 flex justify-between items-center gap-3 bg-white rounded-t-[1.5rem] z-10 shadow-sm relative">
+              <div className="flex items-center gap-4 md:gap-5 min-w-0 flex-1">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100/50 shadow-inner shrink-0">
                   <FileText className="w-6 h-6 md:w-7 md:h-7 text-blue-600" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-1.5">
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-black rounded-lg uppercase tracking-wider">
                       Proposal {viewingProposal.proposalNumber || 1} of 3
                     </span>
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight">{viewingProposal.businessName || 'Business Proposal'}</h2>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-[#122244] tracking-tight break-words">{viewingProposal.businessName || 'Business Proposal'}</h2>
                     {getProposalStatusBadge(viewingProposal.status)}
                   </div>
-                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Submitted: {formatProposalDate(viewingProposal)}</p>
+                  <p className="text-xs md:text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /> Submitted: {formatProposalDate(viewingProposal)}</p>
                 </div>
               </div>
-              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50" title="Close"><X className="w-6 h-6" /></button>
+              <button onClick={handleCloseProposalModal} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-3 rounded-full transition-all focus:outline-none bg-gray-50/50 shrink-0" title="Close"><X className="w-6 h-6" /></button>
             </div>
 
             {/* Modal Body - Split Layout */}
@@ -4341,13 +4127,13 @@ const AdviserDashboard: React.FC = () => {
                       <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">Business Overview</h3>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
+                      <div className="space-y-2 min-w-0">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Type</label>
-                        <div className="text-base font-bold text-[#122244] bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50">{viewingProposal.businessType || '-'}</div>
+                        <div className="text-base font-bold text-[#122244] bg-gray-50/80 px-5 py-4 rounded-xl border border-gray-100/50 break-words">{viewingProposal.businessType || '-'}</div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 min-w-0">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Capital (₱)</label>
-                        <div className="text-base font-bold text-green-700 bg-green-50/50 px-5 py-4 rounded-xl border border-green-100/50">₱ {viewingProposal.totalCapital || '-'}</div>
+                        <div className="text-base font-bold text-green-700 bg-green-50/50 px-5 py-4 rounded-xl border border-green-100/50 tabular-nums break-words">₱ {viewingProposal.totalCapital || '-'}</div>
                       </div>
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tagline</label>
@@ -4451,7 +4237,7 @@ const AdviserDashboard: React.FC = () => {
                             <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-5 sm:p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
                               <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                                <div className="space-y-1">
+                                <div className="space-y-1 min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     <span className="px-2.5 py-0.5 bg-[#c9a654]/20 border border-[#c9a654]/40 text-[#f3d98b] text-[10px] font-black rounded-full uppercase tracking-wider">
                                       Proposal Total Capital
@@ -4464,11 +4250,11 @@ const AdviserDashboard: React.FC = () => {
                                     Directly pulled from the Total Capital requirement inputted in the business proposal
                                   </p>
                                 </div>
-                                <div className="text-left sm:text-right bg-white/5 border border-white/10 px-5 py-3 rounded-xl backdrop-blur-sm">
+                                <div className="text-left sm:text-right bg-white/5 border border-white/10 px-4 sm:px-5 py-3 rounded-xl backdrop-blur-sm shrink-0 max-w-full overflow-hidden">
                                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200/80 block">
                                     Total Capital Amount
                                   </span>
-                                  <span className="text-2xl sm:text-3xl font-black text-[#f3d98b] tracking-tight">
+                                  <span className="text-xl sm:text-2xl xl:text-3xl font-black text-[#f3d98b] tracking-tight tabular-nums whitespace-nowrap inline-block">
                                     ₱{(Number(String(viewingProposal.totalCapital || "").replace(/,/g, "")) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
