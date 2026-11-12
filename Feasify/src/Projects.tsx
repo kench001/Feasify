@@ -6,13 +6,7 @@ import ScrollToTopButton from "./components/ScrollToTopButton";
 import MobileBurgerButton from "./components/MobileBurgerButton";
 import SidebarCloseButton from "./components/SidebarCloseButton";
 import CustomDropdown, { type DropdownOption } from "./components/CustomDropdown";
-import {
-  checkDTI,
-  checkSEC,
-  checkName,
-  OFFICIAL_SOURCES,
-  type NameCheckResult
-} from "./services/nameCheckerService";
+import type { NameCheckResult } from "./services/nameCheckerService";
 import { useNavigate } from "react-router-dom";
 import { auth, db, signOutUser } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -44,7 +38,6 @@ import {
   Users,
   Settings,
   ShieldAlert,
-  Sidebar as SidebarIcon,
   Star,
   Bell,
   Check,
@@ -61,24 +54,14 @@ import {
   AlertCircle,
   Save,
   Loader2,
-  ChevronDown,
-  ChevronUp,
   Plus,
   Trash2,
   Calculator,
-  TrendingUp,
-  Package,
   Info,
   Upload,
   Image as ImageIcon,
-  ArrowUp,
-  ShieldCheck,
   Building2,
-  FileSpreadsheet,
-  Download,
-  Copy,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
   fetchCopyrightDB,
@@ -125,6 +108,7 @@ interface GroupData {
   memberIds: string[];
   joinedMembers?: string[];
   section: string;
+  facultyId?: string;
   isSetup?: boolean;
   status?:
   | "Drafting"
@@ -158,7 +142,6 @@ export {
 } from "./utils/productCosting";
 
 import {
-  type IngredientItem,
   type ProductCostingItem,
   type EquipmentItem,
   type FinancialProposalData,
@@ -191,7 +174,7 @@ interface ProposalData {
   promotionalStrategy: string;
   otherDetails: string;
   additionalFeasibilityDetails?: string;
-  status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Rejected" | "Pending" | "Revision";
+  status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Approved Proposal" | "APPROVED" | "Rejected" | "Pending" | "Revision";
   adviserRemarks?: string;
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
@@ -322,7 +305,6 @@ const Projects: React.FC = () => {
   );
   const [setupErrors, setSetupErrors] = useState<Record<string, string>>({});
   const [companyNameQuery, setCompanyNameQuery] = useState("");
-  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const companyNameRef = useRef<HTMLDivElement>(null);
 
   // Official Government Name Verification state (DTI & SEC)
@@ -357,54 +339,6 @@ const Projects: React.FC = () => {
   const [highlightMissingFields, setHighlightMissingFields] = useState(false);
 
   const [copyrightDB, setCopyrightDB] = useState<CopyrightDB | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
-  const excelFileInputRef = useRef<HTMLInputElement>(null);
-  const [excelImportFeedback, setExcelImportFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  const toggleProductExpand = (key: string) => {
-    setExpandedProducts((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const toggleAllProducts = (expand: boolean) => {
-    if (!expand) {
-      setExpandedProducts({});
-    } else {
-      const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
-      const allExp: Record<string, boolean> = {};
-      products.forEach((p, idx) => {
-        allExp[p.id || String(idx)] = true;
-      });
-      setExpandedProducts(allExp);
-    }
-  };
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 150 || document.documentElement.scrollTop > 150) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
-    document.body.scrollTo({ top: 0, behavior: "smooth" });
-    const mains = document.querySelectorAll("main");
-    mains.forEach((m) => m.scrollTo({ top: 0, behavior: "smooth" }));
-  };
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -481,7 +415,7 @@ const Projects: React.FC = () => {
       let leader = false;
       let member = false;
 
-      querySnapshot.forEach((document) => {
+      for (const document of querySnapshot.docs) {
         const data = document.data() as GroupData;
         if (data.leaderId === uid) {
           foundGroup = { ...data, id: document.id };
@@ -490,7 +424,7 @@ const Projects: React.FC = () => {
           foundGroup = { ...data, id: document.id };
           member = true;
         }
-      });
+      }
 
       if (foundGroup) {
         // Auto-heal group section if it was saved as "ALL" or empty
@@ -624,134 +558,6 @@ const Projects: React.FC = () => {
         if (activeProposalsUnsub) activeProposalsUnsub();
       }
     };
-  };
-
-
-  // Keep fetchUserGroup as a one-time helper for direct calls (e.g., after setup)
-  const fetchUserGroup = async (uid: string, section: string) => {
-    try {
-      const q = query(
-        collection(db, "groups"),
-        where("section", "in", [section, "ALL"]),
-      );
-      const querySnapshot = await getDocs(q);
-      let foundGroup: GroupData | null = null;
-      let leader = false;
-      let member = false;
-
-      querySnapshot.forEach((document) => {
-        const data = document.data() as GroupData;
-        if (data.leaderId === uid) {
-          foundGroup = { ...data, id: document.id };
-          leader = true;
-        } else if (data.memberIds && data.memberIds.includes(uid)) {
-          foundGroup = { ...data, id: document.id };
-          member = true;
-        }
-      });
-
-      if (foundGroup) {
-        if ((foundGroup.section || "").toUpperCase() === "ALL" || !foundGroup.section) {
-          foundGroup.section = section;
-          updateDoc(doc(db, "groups", foundGroup.id), { section: section })
-            .catch(err => console.error("Auto-healed group section in fetchUserGroup:", err));
-        }
-      } else {
-        // Fallback auto-healing in one-time fetch
-        try {
-          const leaderQ = query(collection(db, "groups"), where("leaderId", "==", uid));
-          const leaderSnap = await getDocs(leaderQ);
-          if (!leaderSnap.empty) {
-            const docToFix = leaderSnap.docs[0];
-            const gData = docToFix.data();
-            if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
-              await updateDoc(doc(db, "groups", docToFix.id), { section: section });
-              foundGroup = { ...gData, id: docToFix.id, section } as GroupData;
-              leader = true;
-            }
-          } else {
-            const memberQ = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
-            const memberSnap = await getDocs(memberQ);
-            if (!memberSnap.empty) {
-              const docToFix = memberSnap.docs[0];
-              const gData = docToFix.data();
-              if ((gData.section || "").toUpperCase() === "ALL" || !gData.section) {
-                await updateDoc(doc(db, "groups", docToFix.id), { section: section });
-                foundGroup = { ...gData, id: docToFix.id, section } as GroupData;
-                member = true;
-              }
-            }
-          }
-        } catch (healErr) {
-          console.error("fetchUserGroup auto-heal error:", healErr);
-        }
-      }
-
-      if (foundGroup) {
-        const g = foundGroup as GroupData;
-        setUserGroup(g);
-        setIsLeader(leader);
-        setIsMember(member);
-        if (member && g.joinedMembers && g.joinedMembers.includes(uid))
-          setHasJoined(true);
-
-        const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
-          ? g.companyName
-          : (g.title && g.title !== "Pending Business Name" && g.title !== "Pending Company Name" && g.title !== "Feasibility Project" ? g.title : "");
-        setSetupCompanyName(rawCompName);
-        setCompanyNameQuery(rawCompName);
-        setSetupLogoPreview(g.companyLogo || "");
-        setSetupMission(g.mission || "");
-        setSetupVision(g.vision || "");
-        setSetupObjectives(g.objectives && g.objectives.length > 0 ? g.objectives : [""]);
-
-        await fetchGroupDetails(g);
-        const fetchedProposals = await fetchProposals(g.id);
-
-        if (
-          member &&
-          (!g.joinedMembers || !g.joinedMembers.includes(uid))
-        ) {
-          setActiveView("member-join");
-        } else if (g.isSetup && g.activeProposalId && g.status === "Active Business" && fetchedProposals.some(p => p.id === g.activeProposalId)) {
-          sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
-          setActiveView("active-business");
-        } else {
-          // Self-healing: Clear dead references or mismatched titles
-          const activePropExists = g.activeProposalId && fetchedProposals.some(p => p.id === g.activeProposalId);
-          let needsFix = false;
-          const fixData: any = {};
-
-          if (g.activeProposalId && !activePropExists) {
-            fixData.activeProposalId = "";
-            fixData.status = "Drafting";
-            fixData.title = "Feasibility Project";
-            needsFix = true;
-          } else if (!g.activeProposalId && g.title && g.title !== "Feasibility Project") {
-            // Check if the title belongs to an existing proposal
-            const titleMatchesExisting = fetchedProposals.some(p => p.businessName === g.title);
-            if (!titleMatchesExisting) {
-              fixData.title = "Feasibility Project";
-              fixData.status = "Drafting";
-              needsFix = true;
-            }
-          }
-
-          if (needsFix && leader) {
-            await updateDoc(doc(db, "groups", g.id), fixData);
-            setUserGroup(prev => prev ? { ...prev, ...fixData } : null);
-          }
-          setActiveView("dashboard");
-        }
-      } else {
-        setIsLoading(false);
-        setActiveView("no-group");
-      }
-    } catch (error) {
-      console.error(error);
-      setIsLoading(false);
-      setActiveView("no-group");
-    }
   };
 
   const fetchGroupDetails = async (group: GroupData) => {
@@ -1097,7 +903,6 @@ const Projects: React.FC = () => {
       applyVat: true,
       vatRate: 12,
     };
-    setExpandedProducts((prev) => ({ ...prev, [newId]: true }));
     updateFinancialData({ products: [...products, newProduct] });
   };
 
@@ -1108,31 +913,6 @@ const Projects: React.FC = () => {
     updateFinancialData({ products: nextProducts });
   };
 
-  const handleDuplicateProduct = (index: number) => {
-    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
-    const sourceProd = products[index];
-    if (!sourceProd) return;
-
-    const newId = "prod-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6);
-    const duplicatedIngredients = (sourceProd.ingredients || []).map((ing) => ({
-      ...ing,
-      id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
-    }));
-
-    const duplicatedProduct: ProductCostingItem = {
-      ...sourceProd,
-      id: newId,
-      name: sourceProd.name ? `${sourceProd.name} (Copy)` : "Product (Copy)",
-      ingredients: duplicatedIngredients,
-    };
-
-    const nextProducts = [...products];
-    nextProducts.splice(index + 1, 0, duplicatedProduct);
-
-    setExpandedProducts((prev) => ({ ...prev, [newId]: true }));
-    updateFinancialData({ products: nextProducts });
-  };
-
   const handleUpdateProduct = (index: number, updates: Partial<ProductCostingItem>) => {
     const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
     const nextProducts = [...products];
@@ -1140,359 +920,6 @@ const Projects: React.FC = () => {
     updateFinancialData({ products: nextProducts });
   };
 
-  const handleAddIngredient = (productIndex: number, category: "ingredient" | "labor" | "miscellaneous" = "ingredient") => {
-    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
-    const nextProducts = [...products];
-    const currentProd = nextProducts[productIndex];
-    const newIng: IngredientItem = {
-      id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
-      name: "",
-      price: "",
-      category,
-    };
-    nextProducts[productIndex] = {
-      ...currentProd,
-      ingredients: [...(currentProd.ingredients || []), newIng],
-    };
-    updateFinancialData({ products: nextProducts });
-  };
-
-  const handleUpdateIngredient = (productIndex: number, ingredientIndex: number, updates: Partial<IngredientItem>) => {
-    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
-    const nextProducts = [...products];
-    const currentProd = nextProducts[productIndex];
-    const nextIngredients = [...(currentProd.ingredients || [])];
-    nextIngredients[ingredientIndex] = { ...nextIngredients[ingredientIndex], ...updates };
-    nextProducts[productIndex] = {
-      ...currentProd,
-      ingredients: nextIngredients,
-    };
-    updateFinancialData({ products: nextProducts });
-  };
-
-  const handleRemoveIngredient = (productIndex: number, ingredientIndex: number) => {
-    const products = normalizeProposalProducts(currentProposal.financialData, currentProposal.businessName);
-    const nextProducts = [...products];
-    const currentProd = nextProducts[productIndex];
-    const nextIngredients = (currentProd.ingredients || []).filter((_, i) => i !== ingredientIndex);
-    nextProducts[productIndex] = {
-      ...currentProd,
-      ingredients: nextIngredients,
-    };
-    updateFinancialData({ products: nextProducts });
-  };
-
-  // Excel Costing & Mark-up Template Generator
-  const handleDownloadCostingTemplate = () => {
-    const headers = [
-      "Product Name",
-      "Units per Batch",
-      "Batches / Month",
-      "Cost Item / Ingredient",
-      "Category (Material / Labor / Misc)",
-      "Cost per Batch (₱)",
-      "Mark-up %",
-      "Apply 12% VAT (Yes/No)",
-      "Target Selling Price (₱)",
-    ];
-
-    const sampleRows = [
-      // Product 1
-      ["Signature Cold Brew Coffee (500ml)", 50, 4, "Arabica Dark Roast Coffee Beans (1kg)", "Material", 450, 100, "Yes", ""],
-      ["", "", "", "Purified Water & Brewing Filter", "Material", 60, "", "", ""],
-      ["", "", "", "500ml Glass Bottles & Caps (50 pcs)", "Misc", 400, "", "", ""],
-      ["", "", "", "Custom Waterproof Vinyl Labels (50 pcs)", "Misc", 150, "", "", ""],
-      ["", "", "", "Barista Cold Brewing & Bottling Labor", "Labor", 250, "", "", ""],
-      // Product 2
-      ["Caramel Macchiato (16oz)", 40, 4, "Espresso Roast Coffee Beans", "Material", 380, 80, "Yes", ""],
-      ["", "", "", "Fresh Full Cream Milk (5L)", "Material", 420, "", "", ""],
-      ["", "", "", "Artisan Caramel Sauce / Syrup", "Material", 200, "", "", ""],
-      ["", "", "", "16oz Cups, Dome Lids & Straws (40 pcs)", "Misc", 200, "", "", ""],
-      ["", "", "", "Barista Preparation Labor", "Labor", 200, "", "", ""]
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-
-    ws["!cols"] = [
-      { wch: 36 }, // Product Name
-      { wch: 16 }, // Units per Batch
-      { wch: 16 }, // Batches / Month
-      { wch: 42 }, // Cost Item / Ingredient
-      { wch: 34 }, // Category
-      { wch: 20 }, // Cost per Batch (₱)
-      { wch: 14 }, // Mark-up %
-      { wch: 22 }, // Apply 12% VAT
-      { wch: 24 }, // Target Selling Price
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Product Costing & Markup");
-    XLSX.writeFile(wb, "Product_Costing_and_Markup_Template.xlsx");
-  };
-
-  // Excel Costing & Mark-up File Parser & Importer
-  const handleImportCostingExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset input value so the same file can be re-imported if edited
-    e.target.value = "";
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const buffer = evt.target?.result as ArrayBuffer;
-        const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
-        const firstSheetName = workbook.SheetNames[0];
-        if (!firstSheetName) {
-          throw new Error("No worksheets found in the uploaded workbook.");
-        }
-        const worksheet = workbook.Sheets[firstSheetName];
-        const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: "" });
-
-        if (!rawRows || rawRows.length === 0) {
-          throw new Error("The uploaded Excel file is empty.");
-        }
-
-        // Detect header row and column mappings
-        let headerRowIndex = -1;
-        let colMap: Record<string, number> = {};
-
-        for (let r = 0; r < Math.min(10, rawRows.length); r++) {
-          const row = rawRows[r].map((cell: any) => String(cell || "").trim().toLowerCase());
-          const hasProduct = row.some((c: string) => c.includes("product") || c === "name");
-          const hasCostOrIngredient = row.some((c: string) =>
-            c.includes("ingredient") || c.includes("cost") || c.includes("yield") ||
-            c.includes("batch") || c.includes("markup") || c.includes("mark-up") ||
-            c.includes("vat") || c.includes("price") || c.includes("category") || c.includes("item")
-          );
-
-          if (hasProduct || hasCostOrIngredient) {
-            headerRowIndex = r;
-            row.forEach((rawName: string, colIdx: number) => {
-              const colName = rawName.trim().toLowerCase();
-              if (!colName) return;
-
-              // 1. Category (MUST check before material/labor/misc/ingredient)
-              if (colName.includes("category") || colName.includes("cost type") || colName === "type") {
-                colMap["category"] = colIdx;
-              }
-              // 2. Product Name
-              else if (colName.includes("product") || colName === "product name" || colName === "name") {
-                colMap["product"] = colIdx;
-              }
-              // 3. Batches per Month (batches / month, batches/mo, frequency)
-              else if (colName.includes("batch") && (colName.includes("mo") || colName.includes("month") || colName.includes("freq") || colName.includes("/"))) {
-                colMap["batches"] = colIdx;
-              }
-              // 4. Units per batch / Yield (yield, units per batch, pcs, qty yield)
-              else if (colName.includes("yield") || colName.includes("units per batch") || colName.includes("unit per batch") || colName.includes("units/batch") || colName.includes("batch yield") || colName === "pcs" || colName === "units") {
-                colMap["yield"] = colIdx;
-              }
-              // 5. Target Selling Price (must check before general price/cost)
-              else if (colName.includes("selling") || colName.includes("srp") || colName.includes("target price") || colName.includes("target selling")) {
-                colMap["sellingPrice"] = colIdx;
-              }
-              // 6. Cost per Batch (₱) / Price / Amount
-              else if (colName.includes("cost per batch") || colName.includes("cost/batch") || colName.includes("batch cost") || (colName.includes("cost") && !colName.includes("item")) || colName === "price" || colName === "amount") {
-                colMap["cost"] = colIdx;
-              }
-              // 7. Cost Item / Ingredient Name
-              else if (colName.includes("ingredient") || colName.includes("cost item") || colName.includes("item name") || colName.includes("direct cost") || colName.includes("material") || colName.includes("recipe") || colName.includes("desc") || colName === "item") {
-                colMap["ingredient"] = colIdx;
-              }
-              // 8. Markup %
-              else if (colName.includes("markup") || colName.includes("mark-up") || colName.includes("margin") || colName.includes("%")) {
-                colMap["markup"] = colIdx;
-              }
-              // 9. VAT
-              else if (colName.includes("vat") || colName.includes("tax")) {
-                colMap["vat"] = colIdx;
-              }
-            });
-            break;
-          }
-        }
-
-        if (headerRowIndex === -1) {
-          headerRowIndex = 0;
-          colMap = {
-            product: 0,
-            yield: 1,
-            batches: 2,
-            ingredient: 3,
-            category: 4,
-            cost: 5,
-            markup: 6,
-            vat: 7,
-            sellingPrice: 8,
-          };
-        }
-
-        const parsedProducts: ProductCostingItem[] = [];
-        let currentProduct: ProductCostingItem | null = null;
-        let totalCostItemsCount = 0;
-
-        for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
-          const row = rawRows[r];
-          if (!row || row.every((c: any) => c === "" || c === null || c === undefined)) {
-            continue;
-          }
-
-          const rawProductName = colMap.product !== undefined ? String(row[colMap.product] || "").trim() : "";
-          const rawYield = colMap.yield !== undefined ? String(row[colMap.yield] || "").trim() : "";
-          const rawBatches = colMap.batches !== undefined ? String(row[colMap.batches] || "").trim() : "";
-          const rawIngredientName = colMap.ingredient !== undefined ? String(row[colMap.ingredient] || "").trim() : "";
-          const rawCategory = colMap.category !== undefined ? String(row[colMap.category] || "").trim().toLowerCase() : "";
-          const rawCost = colMap.cost !== undefined ? String(row[colMap.cost] || "").trim().replace(/[₱,$\s]/g, "") : "";
-          const rawMarkup = colMap.markup !== undefined ? String(row[colMap.markup] || "").trim().replace(/%/g, "") : "";
-          const rawVat = colMap.vat !== undefined ? String(row[colMap.vat] || "").trim().toLowerCase() : "";
-          const rawSellingPrice = colMap.sellingPrice !== undefined ? String(row[colMap.sellingPrice] || "").trim().replace(/[₱,$\s]/g, "") : "";
-
-          // If product name is provided and different from current product, create new product
-          if (rawProductName && (!currentProduct || currentProduct.name.toLowerCase() !== rawProductName.toLowerCase())) {
-            let parsedVat = true;
-            if (rawVat) {
-              if (rawVat === "no" || rawVat === "n" || rawVat === "false" || rawVat === "0" || rawVat === "exempt" || rawVat.includes("non")) {
-                parsedVat = false;
-              }
-            }
-
-            let parsedMarkup = "100";
-            if (rawMarkup !== "") {
-              const numMarkup = Number(rawMarkup);
-              if (!isNaN(numMarkup)) {
-                if (numMarkup > 0 && numMarkup <= 1) {
-                  parsedMarkup = String(Math.round(numMarkup * 100));
-                } else {
-                  parsedMarkup = String(numMarkup);
-                }
-              }
-            }
-
-            const newProdId = "prod-" + Date.now() + "-" + parsedProducts.length;
-            currentProduct = {
-              id: newProdId,
-              name: rawProductName,
-              quantityYield: rawYield !== "" && !isNaN(Number(rawYield)) ? String(Math.max(0, Number(rawYield))) : (rawYield || "50"),
-              batchesPerMonth: rawBatches !== "" && !isNaN(Number(rawBatches)) && Number(rawBatches) > 0 ? String(Number(rawBatches)) : "1",
-              markupPercentage: parsedMarkup,
-              sellingPrice: rawSellingPrice !== "" && !isNaN(Number(rawSellingPrice)) ? String(Number(rawSellingPrice)) : "",
-              applyVat: parsedVat,
-              vatRate: 12,
-              ingredients: [],
-            };
-            parsedProducts.push(currentProduct);
-          }
-
-          // If no product initialized yet, create initial product
-          if (!currentProduct) {
-            const newProdId = "prod-" + Date.now() + "-0";
-            currentProduct = {
-              id: newProdId,
-              name: currentProposal.businessName || "Product 1",
-              quantityYield: rawYield || "50",
-              batchesPerMonth: rawBatches || "1",
-              markupPercentage: "100",
-              sellingPrice: "",
-              applyVat: true,
-              vatRate: 12,
-              ingredients: [],
-            };
-            parsedProducts.push(currentProduct);
-          }
-
-          // Backfill product metadata if row has values and product has defaults
-          if (rawYield && !currentProduct.quantityYield) {
-            currentProduct.quantityYield = rawYield;
-          }
-          if (rawBatches && currentProduct.batchesPerMonth === "1") {
-            currentProduct.batchesPerMonth = rawBatches;
-          }
-          if (rawMarkup && currentProduct.markupPercentage === "100") {
-            const numMarkup = Number(rawMarkup);
-            if (!isNaN(numMarkup)) {
-              currentProduct.markupPercentage = (numMarkup > 0 && numMarkup <= 1) ? String(Math.round(numMarkup * 100)) : String(numMarkup);
-            }
-          }
-          if (rawSellingPrice && !currentProduct.sellingPrice) {
-            currentProduct.sellingPrice = rawSellingPrice;
-          }
-          if (rawVat) {
-            if (rawVat === "no" || rawVat === "n" || rawVat === "false" || rawVat === "0" || rawVat === "exempt" || rawVat.includes("non")) {
-              currentProduct.applyVat = false;
-            } else {
-              currentProduct.applyVat = true;
-            }
-          }
-
-          // Add ingredient / direct cost item if present
-          const costVal = Number(rawCost);
-          if (rawIngredientName || (!isNaN(costVal) && costVal > 0)) {
-            let cat: "ingredient" | "labor" | "miscellaneous" = "ingredient";
-            const catLower = rawCategory.toLowerCase();
-            if (catLower.includes("labor") || catLower.includes("worker") || catLower.includes("salary") || catLower.includes("staff")) {
-              cat = "labor";
-            } else if (catLower.includes("misc") || catLower.includes("overhead") || catLower.includes("pack") || catLower.includes("util") || catLower.includes("cup") || catLower.includes("bottle") || catLower.includes("sticker") || catLower.includes("label") || catLower.includes("box") || catLower.includes("pouch")) {
-              cat = "miscellaneous";
-            } else {
-              cat = "ingredient";
-            }
-
-            currentProduct.ingredients.push({
-              id: "ing-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
-              name: rawIngredientName || "Direct Material / Cost Item",
-              price: !isNaN(costVal) && costVal > 0 ? costVal : (rawCost || ""),
-              category: cat,
-            });
-            totalCostItemsCount++;
-          }
-        }
-
-        if (parsedProducts.length === 0) {
-          throw new Error("No product costing data could be extracted. Please check the Excel column format.");
-        }
-
-        // Automatically assign suggested selling price if not provided in Excel
-        parsedProducts.forEach((prod) => {
-          const metrics = computeProductMetrics(prod);
-          if (!prod.sellingPrice && metrics.suggestedSellingPrice > 0) {
-            prod.sellingPrice = String(Math.round(prod.applyVat !== false ? metrics.computedVatInclusivePrice : metrics.computedBasePrice));
-          }
-        });
-
-        // Expand all imported products for immediate review
-        const nextExpanded: Record<string, boolean> = {};
-        parsedProducts.forEach((p, idx) => {
-          nextExpanded[p.id || String(idx)] = true;
-        });
-        setExpandedProducts(nextExpanded);
-
-        // Update financial data in Firestore / state
-        updateFinancialData({ products: parsedProducts });
-
-        setExcelImportFeedback({
-          type: "success",
-          message: `Successfully imported ${parsedProducts.length} product${parsedProducts.length > 1 ? "s" : ""} with ${totalCostItemsCount} direct cost & recipe items from "${file.name}".`,
-        });
-      } catch (err: any) {
-        console.error("Excel import error:", err);
-        setExcelImportFeedback({
-          type: "error",
-          message: err?.message || "Failed to import Excel file. Please ensure it follows the recommended template structure.",
-        });
-      }
-    };
-
-    reader.onerror = () => {
-      setExcelImportFeedback({
-        type: "error",
-        message: "Failed to read the file. Please check file permissions and try again.",
-      });
-    };
-
-    reader.readAsArrayBuffer(file);
-  };
 
   // Equipment (CapEx) handlers
   const handleAddEquipmentItem = () => {
