@@ -117,6 +117,7 @@ export interface ContributorItem {
   id: string;
   name: string;
   amount: number | string;
+  role?: string;
 }
 
 export const autoDistributeContributors = (

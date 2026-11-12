@@ -989,10 +989,9 @@ const AdviserDashboard: React.FC = () => {
         userName: userName || "Adviser",
         userRole: "Adviser",
         action: "EXPORT_REPORT",
-        targetType: "Section",
-        targetId: sectionToExport,
-        details: `Exported PDF section report for ${sectionToExport} with ${exportData.groups.length} groups, ${exportData.totalStudents} students, and ${exportData.totalProposals} proposals.`,
         sectionCode: sectionToExport,
+        description: `Exported PDF section report for ${sectionToExport} with ${exportData.groups.length} groups, ${exportData.totalStudents} students, and ${exportData.totalProposals} proposals.`,
+        recordId: sectionToExport,
       });
     } catch (error) {
       console.error("Failed to export section PDF:", error);
@@ -1231,7 +1230,7 @@ const AdviserDashboard: React.FC = () => {
       let newStatus: ProposalData['status'] = proposal.status;
       if (action === 'Approve' || action === 'Approved') {
         const groupProps = proposalsByGroup[targetGroup.id] || groupProposals || [];
-        const existingApproved = groupProps.find(p => (p.status === 'Approved' || p.status === 'APPROVED') && p.id !== proposal.id);
+        const existingApproved = groupProps.find(p => (p.status === 'Approved' || (p.status as string) === 'APPROVED') && p.id !== proposal.id);
         if (existingApproved) {
           alert(`Another proposal ("${existingApproved.businessName || 'Untitled'}") is already approved for this group. Only 1 proposal can be approved per group. Please reject or revise the existing approved proposal before approving another.`);
           setIsSaving(false);

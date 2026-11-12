@@ -971,8 +971,7 @@ export async function exportProposalSectionsPDF(options: ProposalSectionExportOp
       const cardW = (contentWidth - 9) / 4;
 
       const startupCap = Number(fin.startupCapital || proposal.totalCapital || capVal || 52450);
-      const metrics = computeProductMetrics(fin);
-      const annualRev = localAudit.annualRevenue || (metrics.monthlyRevenue ? (metrics.monthlyRevenue / 30) * (Number(fin.operatingDays) || 300) : 14850108);
+      const annualRev = localAudit.annualRevenue || 14850108;
       const netAnnualProfit = localAudit.netAnnualProfit || (localAudit.netMonthlyProfit ? (localAudit.netMonthlyProfit / 30) * (Number(fin.operatingDays) || 300) : 3633803);
       const paybackStr = localAudit.paybackPeriodStr || (netAnnualProfit > 0 ? (startupCap / netAnnualProfit < 1 ? `${Math.round((startupCap / netAnnualProfit) * 365)} Days` : `${(startupCap / netAnnualProfit).toFixed(1)} Yrs`) : "5 Days");
 
@@ -1131,9 +1130,9 @@ export async function exportProposalSectionsPDF(options: ProposalSectionExportOp
       const cashReserve = Math.max(0, startupCap - (annualRev * 0.1));
       const monthlyOpex = Number(fin.fixedCosts) || 10733;
       const cashRunwayMonths = monthlyOpex > 0 ? Math.round(cashReserve / monthlyOpex) : 198;
-      const bepUnits = metrics.breakEvenUnits || 22;
-      const bepRevenue = metrics.breakEvenRevenue || 10733;
-      const bepRatio = Math.round((bepRevenue / (metrics.monthlyRevenue || (annualRev / 12) || 1)) * 100) || 12;
+      const bepUnits = localAudit.bepUnits || 22;
+      const bepRevenue = localAudit.bepRevenue || 10733;
+      const bepRatio = Math.round((bepRevenue / ((annualRev / 12) || 1)) * 100) || 12;
 
       const insightItems = [
         {
