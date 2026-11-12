@@ -34,22 +34,36 @@ export interface ProposalSectionExportOptions {
  */
 export function isAiAnalysisAvailable(proposal: any): boolean {
   if (!proposal || typeof proposal !== "object") return false;
-  const ai = proposal.aiAnalysis;
+  const ai = proposal?.aiAnalysis;
   if (!ai || typeof ai !== "object") return false;
 
-  // Rejection of placeholder/fallback or incomplete states
-  if (ai._fallback === true) return false;
-  if (ai.status === "FAILED" || ai.status === "PENDING" || ai.status === "NOT_ANALYZED" || ai.status === "PROCESSING") {
+  if (
+    ai.analysisType === "ADVISER_PROPOSAL_ANALYSIS" ||
+    ai.sourceModule === "adviser-proposal-modal" ||
+    Boolean(ai.draftFeedback && !ai.performanceGrade && !ai.marketAnalysis)
+  ) {
     return false;
   }
 
-  // Must have a meaningful verdict or score
-  const hasVerdict = Boolean(ai.verdict || ai.status === "COMPLETED" || ai.overallVerdict);
+  // Rejection of placeholder/fallback or incomplete states
+  if (ai._fallback === true) return false;
+  if (["FAILED", "PENDING", "NOT_ANALYZED", "PROCESSING"].includes(ai.status)) {
+    return false;
+  }
+
+  // Must have a valid feasibility verdict or status:
+  const validStatuses = ["FEASIBLE", "CONDITIONALLY_FEASIBLE", "NOT_FEASIBLE"];
+  const hasValidStatus = validStatuses.includes(ai.status) || validStatuses.includes(ai.verdict);
+  const hasVerdict = Boolean(ai.verdict || ai.status === "COMPLETED" || ai.overallVerdict || hasValidStatus);
   const hasScore = Number.isFinite(ai.score) || Number.isFinite(ai.overallScore);
   const hasInsights = Array.isArray(ai.insights) && ai.insights.length > 0;
   const hasStrengths = Array.isArray(ai.strengths) && ai.strengths.length > 0;
 
-  return (hasVerdict && (hasScore || hasInsights || hasStrengths)) || (hasScore && (hasInsights || hasStrengths));
+  if (ai.analysisType === "STUDENT_FINANCIAL_FEASIBILITY") {
+    return (hasVerdict && (hasScore || hasInsights || hasStrengths)) || (hasScore && (hasInsights || hasStrengths));
+  }
+
+  return (hasValidStatus && (hasScore || hasInsights || hasStrengths)) || (hasVerdict && hasScore && (hasInsights || hasStrengths));
 }
 
 /**

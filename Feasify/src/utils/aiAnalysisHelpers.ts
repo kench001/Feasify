@@ -795,6 +795,18 @@ export const computeFinancialInputSignature = (finData: any): string => {
  */
 export const isProposalStageAnalysis = (aiAnalysis: any): boolean => {
   if (!aiAnalysis || typeof aiAnalysis !== "object") return false;
+  if (
+    aiAnalysis.analysisType === "ADVISER_PROPOSAL_ANALYSIS" ||
+    aiAnalysis.sourceModule === "adviser-proposal-modal"
+  ) {
+    return true;
+  }
+  if (
+    aiAnalysis.analysisType === "STUDENT_FINANCIAL_FEASIBILITY" ||
+    aiAnalysis.sourceModule === "student-financial-input"
+  ) {
+    return false;
+  }
   if (!aiAnalysis.status) return true;
   if (
     Boolean(aiAnalysis.draftFeedback) &&
