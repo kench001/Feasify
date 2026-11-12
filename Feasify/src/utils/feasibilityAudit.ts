@@ -20,9 +20,9 @@ export const cleanUserFacingText = (data: any): any => {
       .replace(/(?:Overall\s+)?Feasibility\s+Score:\s*\d+(?:\.\d+)?\/100\s*(?:\([^)]*\))?\.?\s*/gi, "")
       .replace(/\bScore:\s*\d+(?:\.\d+)?\/100\.?\s*/gi, "")
       .replace(/\b\d+\/100\s*\((?:NOT_)?FEASIBLE\)\.?\s*/gi, "")
-      .replace(/\s*\(PLV\s*[\d\.\s-]+\)/gi, "")
-      .replace(/\s*-\s*PLV\s*[\d\.\s-]+/gi, "")
-      .replace(/\bPLV\s*[\d\.\s-]+\b/gi, "")
+      .replace(/\s*\(PLV\s*[\d.\s-]+\)/gi, "")
+      .replace(/\s*-\s*PLV\s*[\d.\s-]+/gi, "")
+      .replace(/\bPLV\s*[\d.\s-]+\b/gi, "")
       .replace(/\bthe\s+DF-\d+\s+gross\s+margin\s+test\b/gi, "the gross profit margin test")
       .replace(/\bDF-\d+\s+gross\s+margin\s+test\b/gi, "gross profit margin test")
       .replace(/\bthe\s+DF-\d+\s+margin\s+test\b/gi, "the gross margin test")
@@ -416,6 +416,7 @@ export const evaluateDefenseFeasibility = (finData: any) => {
     netMonthlyProfit,
     netMarginPct,
     annualRevenue,
+    annualNetProfitAfterTax,
     paybackPeriodMonths,
     paybackPeriodStr,
     bepUnits,
@@ -455,6 +456,7 @@ export const calculateLocalAudit = (finData: any) => {
     netMonthlyProfit,
     netMarginPct,
     annualRevenue,
+    annualNetProfitAfterTax,
     paybackPeriodStr,
     paybackPeriodMonths,
     bepUnits,
@@ -483,6 +485,12 @@ export const calculateLocalAudit = (finData: any) => {
     performanceGrade,
     performanceStatus,
     performanceRecommendation,
+    annualRevenue,
+    netMonthlyProfit,
+    netAnnualProfit: annualNetProfitAfterTax,
+    paybackPeriodStr,
+    paybackPeriodMonths,
+    bepUnits,
     bepRevenue,
     bepRevenueStr,
     bepRevenueRatio,

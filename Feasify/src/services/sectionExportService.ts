@@ -570,7 +570,7 @@ export const generateSectionPDF = (data: SectionExportData) => {
   });
 
   // Global Page Headers and Footers
-  const totalPages = doc.internal.getNumberOfPages();
+  const totalPages = (doc.internal as any).getNumberOfPages ? (doc.internal as any).getNumberOfPages() : doc.getNumberOfPages();
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     doc.setPage(pageNum);
 

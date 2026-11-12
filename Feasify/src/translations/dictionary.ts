@@ -428,7 +428,7 @@ export function translateToFilipino(text: string): string {
   }
 
   // 2. Leading prefix strip and re-attach (e.g., "+ Add Contributor", "#1 Investor / Partner", "› Dashboard")
-  const prefixMatch = trimmed.match(/^([+\-#›•|]\s*|\#\d+\s+|\d+\.\s+)(.+)$/);
+  const prefixMatch = trimmed.match(/^([+\-#›•|]\s*|#\d+\s+|\d+\.\s+)(.+)$/);
   if (prefixMatch) {
     const prefix = prefixMatch[1];
     const rest = prefixMatch[2].trim().toLowerCase();
@@ -438,7 +438,7 @@ export function translateToFilipino(text: string): string {
   }
 
   // 3. Trailing arrow/icon strip and re-attach (e.g., "Manage Proposals ->", "Manage Proposals →")
-  const arrowMatch = trimmed.match(/^(.*?)\s*([→\-><]+|\&rarr\;)$/);
+  const arrowMatch = trimmed.match(/^(.*?)\s*([→\-><]+|&rarr;)$/);
   if (arrowMatch) {
     const baseWord = arrowMatch[1].trim().toLowerCase();
     const arrow = arrowMatch[2];

@@ -889,8 +889,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             <button
               onClick={() => handleTabChange("profile")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${activeTab === "profile"
-                  ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
-                  : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
+                ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
+                : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
                 }`}
             >
               <User className="w-4 h-4 text-[#c9a654]" />
@@ -900,8 +900,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             <button
               onClick={() => handleTabChange("system")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${activeTab === "system"
-                  ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
-                  : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
+                ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
+                : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
                 }`}
             >
               <Sliders className="w-4 h-4 text-[#c9a654]" />
@@ -911,8 +911,8 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
             <button
               onClick={() => handleTabChange("audit")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${activeTab === "audit"
-                  ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
-                  : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
+                ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
+                : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
                 }`}
             >
               <Clock className="w-4 h-4 text-[#c9a654]" />
@@ -1081,15 +1081,13 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     </div>
                     <button
                       onClick={() => handleToggleEmailNotifications(!notificationsEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                        notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
-                      }`}
+                      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
+                        }`}
                       title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${
-                          notificationsEnabled ? "left-7" : "left-1"
-                        }`}
+                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${notificationsEnabled ? "left-7" : "left-1"
+                          }`}
                       ></div>
                     </button>
                   </div>
@@ -1104,17 +1102,15 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                     </div>
                     <button
                       onClick={() => handleToggleDarkMode(!darkModeEnabled)}
-                      className={`w-12 h-6 rounded-full transition-all relative cursor-pointer border ${
-                        darkModeEnabled
-                          ? "bg-[#c9a654] border-[#c9a654] shadow-[0_0_12px_rgba(201,166,84,0.45)]"
-                          : "bg-gray-300 dark:bg-gray-700 border-gray-400/40 dark:border-gray-500"
-                      }`}
+                      className={`w-12 h-6 rounded-full transition-all relative cursor-pointer border ${darkModeEnabled
+                        ? "bg-[#c9a654] border-[#c9a654] shadow-[0_0_12px_rgba(201,166,84,0.45)]"
+                        : "bg-gray-300 dark:bg-gray-700 border-gray-400/40 dark:border-gray-500"
+                        }`}
                       title={darkModeEnabled ? "Disable dark mode" : "Enable dark mode"}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-[3px] shadow-sm transition-all ${
-                          darkModeEnabled ? "left-7" : "left-1"
-                        }`}
+                        className={`w-4 h-4 bg-white rounded-full absolute top-[3px] shadow-sm transition-all ${darkModeEnabled ? "left-7" : "left-1"
+                          }`}
                       ></div>
                     </button>
                   </div>
@@ -1433,11 +1429,10 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
                               )}
                               <button
                                 onClick={() => setCurrentPage(p)}
-                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                  currentPage === p
-                                    ? "bg-[#122244] text-white shadow-xs"
-                                    : "border border-gray-200 text-gray-700 hover:bg-gray-100"
-                                }`}
+                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === p
+                                  ? "bg-[#122244] text-white shadow-xs"
+                                  : "border border-gray-200 text-gray-700 hover:bg-gray-100"
+                                  }`}
                               >
                                 {p}
                               </button>
@@ -1903,3 +1898,5 @@ const Settings: React.FC<SettingsProps> = ({ defaultTab = "profile" }) => {
 };
 
 export default Settings;
+
+// test sample to push and pr to main

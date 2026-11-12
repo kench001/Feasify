@@ -58,7 +58,7 @@ const AdviserAIRules: React.FC = () => {
               .map((s: string) => s.trim())
               .filter(Boolean)
               .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-            
+
             setAdviserSections(parsedSections);
 
             // Load Custom AI Rules
@@ -71,7 +71,7 @@ const AdviserAIRules: React.FC = () => {
               });
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       } else {
         navigate("/");
       }
@@ -122,18 +122,18 @@ const AdviserAIRules: React.FC = () => {
       await signOutUser();
       localStorage.clear();
       sessionStorage.clear();
-    } catch (e) {}
+    } catch (e) { }
     navigate("/");
   };
 
   const getInitials = (name: string) =>
     name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "A";
 
   return (
@@ -147,9 +147,8 @@ const AdviserAIRules: React.FC = () => {
       )}
       {/* ADVISER SIDEBAR */}
       <aside
-        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
+        className={`flex flex-col fixed inset-y-0 z-[60] bg-[#122244] text-white shadow-xl transition-[width,transform] duration-300 ease-in-out group overflow-x-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 w-64 lg:w-16 lg:hover:w-64`}
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center justify-between lg:justify-center px-4 lg:px-3 border-b border-white/10 shrink-0 overflow-hidden">
@@ -287,9 +286,8 @@ const AdviserAIRules: React.FC = () => {
                 <button
                   onClick={handleSaveRules}
                   disabled={isSaving}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all ${
-                    saveSuccess ? "bg-green-600 text-white" : "bg-[#c9a654] text-white hover:bg-[#b59545]"
-                  } disabled:opacity-70`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all ${saveSuccess ? "bg-green-600 text-white" : "bg-[#c9a654] text-white hover:bg-[#b59545]"
+                    } disabled:opacity-70`}
                 >
                   {isSaving ? (
                     <>
@@ -491,3 +489,5 @@ const AdviserAIRules: React.FC = () => {
 };
 
 export default AdviserAIRules;
+
+//test
