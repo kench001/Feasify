@@ -717,7 +717,7 @@ const Projects: React.FC = () => {
   };
 
   const handleFinishTeamSetup = async () => {
-    if (!userGroup) return;
+    if (!userGroup || isUploadingLogo) return;
 
     // Validation
     const errors: Record<string, string> = {};
@@ -3928,19 +3928,6 @@ const Projects: React.FC = () => {
                     <Plus className="w-3.5 h-3.5" /> Add Objective
                   </button>
                 </div>
-
-              </div>{/* end scrollable body */}
-
-              {/* Footer */}
-              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
-                <button
-                  onClick={handleFinishTeamSetup}
-                  disabled={isUploadingLogo}
-                  className="px-8 py-3 text-sm font-bold text-white bg-[#c9a654] rounded-xl shadow-md hover:bg-[#b59545] transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {userGroup?.isSetup ? "Save Changes" : "Finish Company Setup"}
-                </button>
               </div>
 
             </div>{/* end scrollable body */}

@@ -98,7 +98,10 @@ const ProFormaCustomTooltip: React.FC<{
         {payload.map((item: any) => {
           const val = Number(item.value) || 0;
           const config = PRO_FORMA_SERIES_CONFIG.find(
-            (c) => c.key === item.dataKey
+            (c) =>
+              c.key === item.dataKey ||
+              (c.key === "Fixed Costs" &&
+                (item.dataKey === "Fixed Cost" || item.name === "Fixed Cost"))
           );
           const percentOfRev =
             revenueVal > 0 && item.dataKey !== "Revenue"
@@ -117,7 +120,7 @@ const ProFormaCustomTooltip: React.FC<{
                       ? "w-3 h-1 rounded-full"
                       : "w-2.5 h-2.5 rounded-xs"
                   }`}
-                  style={{ backgroundColor: item.color }}
+                  style={{ backgroundColor: config?.color || item.color }}
                 />
                 <span className="text-gray-600 font-semibold text-[11px]">
                   {config ? config.shortLabel : item.name}:
@@ -126,7 +129,7 @@ const ProFormaCustomTooltip: React.FC<{
               <div className="text-right">
                 <span
                   className="font-bold text-[12px] block"
-                  style={{ color: item.color }}
+                  style={{ color: config?.color || item.color }}
                 >
                   {val < 0
                     ? `-₱${Math.abs(val).toLocaleString("en-PH")}`
@@ -174,16 +177,48 @@ export const FeasibilityAnalysisReport: React.FC<
     Revenue: true,
     COGS: true,
     "Fixed Costs": true,
+    "Fixed Cost": true,
     "Net Profit": true,
   });
 
-  const toggleSeries = (key: string) => {
+  const normalizeSeriesKey = (key: string) =>
+    key === "Fixed Cost" ? "Fixed Costs" : key;
+
+  const isSeriesVisible = (key: string): boolean => {
+    if (key === "Fixed Cost" || key === "Fixed Costs") {
+      return Boolean(visibleSeries["Fixed Costs"] ?? visibleSeries["Fixed Cost"]);
+    }
+    return Boolean(visibleSeries[key]);
+  };
+
+  const toggleSeries = (rawKey: string) => {
+    const key = normalizeSeriesKey(rawKey);
     setVisibleSeries((prev) => {
-      const activeCount = Object.values(prev).filter(Boolean).length;
-      if (prev[key] && activeCount <= 1) {
+      const canonicalKeys = ["Revenue", "COGS", "Fixed Costs", "Net Profit"];
+      const currentActiveCount = canonicalKeys.filter((k) =>
+        k === "Fixed Costs"
+          ? Boolean(prev["Fixed Costs"] ?? prev["Fixed Cost"])
+          : Boolean(prev[k])
+      ).length;
+
+      const isCurrentlyActive =
+        key === "Fixed Costs"
+          ? Boolean(prev["Fixed Costs"] ?? prev["Fixed Cost"])
+          : Boolean(prev[key]);
+
+      if (isCurrentlyActive && currentActiveCount <= 1) {
         return prev;
       }
-      return { ...prev, [key]: !prev[key] };
+
+      const nextVal = !isCurrentlyActive;
+      if (key === "Fixed Costs") {
+        return {
+          ...prev,
+          "Fixed Costs": nextVal,
+          "Fixed Cost": nextVal,
+        };
+      }
+      return { ...prev, [key]: nextVal };
     });
   };
 
@@ -192,6 +227,7 @@ export const FeasibilityAnalysisReport: React.FC<
       Revenue: true,
       COGS: true,
       "Fixed Costs": true,
+      "Fixed Cost": true,
       "Net Profit": true,
     });
   };
@@ -204,6 +240,46 @@ export const FeasibilityAnalysisReport: React.FC<
 
   const chartData = proFormaProjection.chartData;
   const proFormaSummary = proFormaProjection.summary;
+
+  const hasIncome = isSeriesVisible("Revenue") || isSeriesVisible("Net Profit");
+  const hasExpense = isSeriesVisible("COGS") || isSeriesVisible("Fixed Costs");
+
+  const maxIncome = useMemo(() => {
+    return Math.max(
+      0,
+      ...chartData.map((d) =>
+        Math.max(
+          isSeriesVisible("Revenue") ? d.Revenue : 0,
+          isSeriesVisible("Net Profit") ? d["Net Profit"] : 0
+        )
+      )
+    );
+  }, [chartData, visibleSeries]);
+
+  const maxExpense = useMemo(() => {
+    return Math.max(
+      0,
+      ...chartData.map((d) =>
+        Math.max(
+          isSeriesVisible("COGS") ? d.COGS : 0,
+          isSeriesVisible("Fixed Costs")
+            ? d["Fixed Costs"] || d["Fixed Cost"] || 0
+            : 0
+        )
+      )
+    );
+  }, [chartData, visibleSeries]);
+
+  const scaleRatio = useMemo(() => {
+    if (!hasIncome || !hasExpense || maxExpense <= 0) return 1;
+    return maxIncome / maxExpense;
+  }, [hasIncome, hasExpense, maxIncome, maxExpense]);
+
+  // Dual axis activates when both income (Rev/NP) and expenses (COGS/FC) are visible and their scales differ by >= 5x
+  const useDualAxis = hasIncome && hasExpense && scaleRatio >= 5;
+
+  const incomeAxisId = "incomeAxis";
+  const expenseAxisId = useDualAxis ? "expenseAxis" : incomeAxisId;
 
   const feasibilityStatus = aiData.status || "PENDING";
   const performanceGrade = toSafeText(aiData.performanceGrade);
@@ -912,68 +988,72 @@ export const FeasibilityAnalysisReport: React.FC<
           </div>
         )}
 
-        {/* Metric Filter Badges & View Switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-1 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-              Metrics:
-            </span>
-            {(() => {
-              const yr5 = chartData[chartData.length - 1];
-              return PRO_FORMA_SERIES_CONFIG.map((series) => {
-                const isVisible = visibleSeries[series.key];
-                const yr5Val = yr5 ? yr5[series.key] : null;
+        {/* 1. Metric Filter Badges (Row 1) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 overflow-x-auto no-scrollbar py-0.5 flex-nowrap mb-3 pb-3 border-b border-gray-100">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-1 flex items-center gap-1 shrink-0">
+            <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+            Metrics:
+          </span>
+          {(() => {
+            const yr5 = chartData[chartData.length - 1];
+            return PRO_FORMA_SERIES_CONFIG.map((series) => {
+              const isVisible = isSeriesVisible(series.key);
+              const yr5Val = yr5
+                ? (yr5[series.key] ??
+                  (series.key === "Fixed Costs" ? yr5["Fixed Cost"] : null))
+                : null;
 
-                return (
-                  <button
-                    key={series.key}
-                    type="button"
-                    onClick={() => toggleSeries(series.key)}
-                    title={`Click to ${isVisible ? "hide" : "show"} ${series.label}`}
-                    className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border cursor-pointer ${
-                      isVisible
-                        ? `${series.lightBg} ${series.borderActive} ${series.textActive} shadow-xs`
-                        : "bg-gray-50 border-gray-200 text-gray-400 opacity-60 hover:opacity-80"
+              return (
+                <button
+                  key={series.key}
+                  type="button"
+                  onClick={() => toggleSeries(series.key)}
+                  title={`Click to ${isVisible ? "hide" : "show"} ${series.label}`}
+                  className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border cursor-pointer shrink-0 whitespace-nowrap ${
+                    isVisible
+                      ? `${series.lightBg} ${series.borderActive} ${series.textActive} shadow-xs`
+                      : "bg-gray-50 border-gray-200 text-gray-400 opacity-60 hover:opacity-80"
+                  }`}
+                >
+                  <span
+                    className={`transition-transform group-hover:scale-110 flex-shrink-0 ${
+                      series.type === "line"
+                        ? "w-3 h-1 rounded-full"
+                        : "w-2.5 h-2.5 rounded-xs"
                     }`}
+                    style={{
+                      backgroundColor: isVisible ? series.color : "#9ca3af",
+                    }}
+                  />
+                  <span
+                    className={
+                      isVisible
+                        ? "font-bold text-[11px]"
+                        : "line-through text-gray-400 text-[11px]"
+                    }
                   >
+                    {series.shortLabel}
+                  </span>
+                  {typeof yr5Val === "number" && (
                     <span
-                      className={`transition-transform group-hover:scale-110 flex-shrink-0 ${
-                        series.type === "line"
-                          ? "w-3 h-1 rounded-full"
-                          : "w-2.5 h-2.5 rounded-xs"
-                      }`}
-                      style={{
-                        backgroundColor: isVisible ? series.color : "#9ca3af",
-                      }}
-                    />
-                    <span
-                      className={
+                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors tabular-nums ${
                         isVisible
-                          ? "font-bold text-[11px]"
-                          : "line-through text-gray-400 text-[11px]"
-                      }
+                          ? "bg-white/80 text-gray-700 shadow-2xs"
+                          : "bg-gray-200 text-gray-500"
+                      }`}
                     >
-                      {series.shortLabel}
+                      Yr 5: {formatProFormaCurrency(yr5Val)}
                     </span>
-                    {typeof yr5Val === "number" && (
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors tabular-nums ${
-                          isVisible
-                            ? "bg-white/80 text-gray-700 shadow-2xs"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        Yr 5: {formatProFormaCurrency(yr5Val)}
-                      </span>
-                    )}
-                  </button>
-                );
-              });
-            })()}
-          </div>
+                  )}
+                </button>
+              );
+            });
+          })()}
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+        {/* 2. View Mode Controls (Row 2 - Below Metrics Tabs) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4 pb-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* View Mode Toggle: Grouped vs Stacked */}
             <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
               <button
@@ -1000,17 +1080,25 @@ export const FeasibilityAnalysisReport: React.FC<
               </button>
             </div>
 
-            {Object.values(visibleSeries).some((v) => !v) && (
-              <button
-                type="button"
-                onClick={showAllSeries}
-                className="text-[11px] font-bold text-gray-500 hover:text-[#c9a654] transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reset
-              </button>
+            {useDualAxis && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                Dual Axis (Costs on Right)
+              </span>
             )}
           </div>
+
+          {["Revenue", "COGS", "Fixed Costs", "Net Profit"].some(
+            (k) => !isSeriesVisible(k)
+          ) && (
+            <button
+              type="button"
+              onClick={showAllSeries}
+              className="text-[11px] font-bold text-gray-500 hover:text-[#c9a654] transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </button>
+          )}
         </div>
 
         {/* Executive Combo Chart Canvas */}
@@ -1018,7 +1106,7 @@ export const FeasibilityAnalysisReport: React.FC<
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: 18, right: 20, left: 4, bottom: 20 }}
+              margin={{ top: 18, right: useDualAxis ? 12 : 20, left: 4, bottom: 20 }}
               barGap={chartMode === "grouped" ? 4 : 0}
               barCategoryGap="22%"
             >
@@ -1056,6 +1144,17 @@ export const FeasibilityAnalysisReport: React.FC<
                   <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
                   <stop offset="100%" stopColor="#b45309" stopOpacity={0.8} />
                 </linearGradient>
+                {/* Fixed Cost Bar Gradient Alias */}
+                <linearGradient
+                  id={`fixedCostBarGrad-${chartUid}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#b45309" stopOpacity={0.8} />
+                </linearGradient>
                 {/* Net Profit Flow Aura */}
                 <linearGradient
                   id={`netProfitAura-${chartUid}`}
@@ -1083,6 +1182,8 @@ export const FeasibilityAnalysisReport: React.FC<
                 padding={{ left: 20, right: 20 }}
               />
               <YAxis
+                yAxisId={incomeAxisId}
+                orientation="left"
                 tickLine={false}
                 axisLine={false}
                 tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
@@ -1090,45 +1191,66 @@ export const FeasibilityAnalysisReport: React.FC<
                 width={65}
                 dx={-4}
               />
+              {useDualAxis && (
+                <YAxis
+                  yAxisId={expenseAxisId}
+                  orientation="right"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "#d97706", fontSize: 11, fontWeight: 500 }}
+                  tickFormatter={formatProFormaCurrency}
+                  width={65}
+                  dx={4}
+                />
+              )}
               <Tooltip content={<ProFormaCustomTooltip />} />
 
-              {visibleSeries["Revenue"] && (
+              {isSeriesVisible("Revenue") && (
                 <Bar
+                  yAxisId={incomeAxisId}
                   dataKey="Revenue"
                   name="Revenue"
                   fill={`url(#revenueBarGrad-${chartUid})`}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={34}
+                  minPointSize={6}
                 />
               )}
-              {visibleSeries["COGS"] && (
+              {isSeriesVisible("COGS") && (
                 <Bar
+                  yAxisId={expenseAxisId}
                   dataKey="COGS"
                   name="COGS"
                   stackId={chartMode === "stacked" ? "expenses" : undefined}
                   fill={`url(#cogsBarGrad-${chartUid})`}
                   radius={
                     chartMode === "grouped" ||
-                    !visibleSeries["Fixed Costs"] ||
-                    !chartData.some((d) => (d["Fixed Costs"] || 0) > 0)
+                    !isSeriesVisible("Fixed Costs") ||
+                    !chartData.some(
+                      (d) => (d["Fixed Costs"] || d["Fixed Cost"] || 0) > 0
+                    )
                       ? [6, 6, 0, 0]
                       : [0, 0, 0, 0]
                   }
                   maxBarSize={34}
+                  minPointSize={6}
                 />
               )}
-              {visibleSeries["Fixed Costs"] && (
+              {isSeriesVisible("Fixed Costs") && (
                 <Bar
+                  yAxisId={expenseAxisId}
                   dataKey="Fixed Costs"
-                  name="Fixed Costs"
+                  name="Fixed Cost"
                   stackId={chartMode === "stacked" ? "expenses" : undefined}
                   fill={`url(#fixedCostsBarGrad-${chartUid})`}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={34}
+                  minPointSize={6}
                 />
               )}
-              {visibleSeries["Net Profit"] && (
+              {isSeriesVisible("Net Profit") && (
                 <Area
+                  yAxisId={incomeAxisId}
                   type="monotone"
                   dataKey="Net Profit"
                   name="Net Profit"
