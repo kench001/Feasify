@@ -34,22 +34,36 @@ export interface ProposalSectionExportOptions {
  */
 export function isAiAnalysisAvailable(proposal: any): boolean {
   if (!proposal || typeof proposal !== "object") return false;
-  const ai = proposal.aiAnalysis;
+  const ai = proposal?.aiAnalysis;
   if (!ai || typeof ai !== "object") return false;
 
-  // Rejection of placeholder/fallback or incomplete states
-  if (ai._fallback === true) return false;
-  if (ai.status === "FAILED" || ai.status === "PENDING" || ai.status === "NOT_ANALYZED" || ai.status === "PROCESSING") {
+  if (
+    ai.analysisType === "ADVISER_PROPOSAL_ANALYSIS" ||
+    ai.sourceModule === "adviser-proposal-modal" ||
+    Boolean(ai.draftFeedback && !ai.performanceGrade && !ai.marketAnalysis)
+  ) {
     return false;
   }
 
-  // Must have a meaningful verdict or score
-  const hasVerdict = Boolean(ai.verdict || ai.status === "COMPLETED" || ai.overallVerdict);
+  // Rejection of placeholder/fallback or incomplete states
+  if (ai._fallback === true) return false;
+  if (["FAILED", "PENDING", "NOT_ANALYZED", "PROCESSING"].includes(ai.status)) {
+    return false;
+  }
+
+  // Must have a valid feasibility verdict or status:
+  const validStatuses = ["FEASIBLE", "CONDITIONALLY_FEASIBLE", "NOT_FEASIBLE"];
+  const hasValidStatus = validStatuses.includes(ai.status) || validStatuses.includes(ai.verdict);
+  const hasVerdict = Boolean(ai.verdict || ai.status === "COMPLETED" || ai.overallVerdict || hasValidStatus);
   const hasScore = Number.isFinite(ai.score) || Number.isFinite(ai.overallScore);
   const hasInsights = Array.isArray(ai.insights) && ai.insights.length > 0;
   const hasStrengths = Array.isArray(ai.strengths) && ai.strengths.length > 0;
 
-  return (hasVerdict && (hasScore || hasInsights || hasStrengths)) || (hasScore && (hasInsights || hasStrengths));
+  if (ai.analysisType === "STUDENT_FINANCIAL_FEASIBILITY") {
+    return (hasVerdict && (hasScore || hasInsights || hasStrengths)) || (hasScore && (hasInsights || hasStrengths));
+  }
+
+  return (hasValidStatus && (hasScore || hasInsights || hasStrengths)) || (hasVerdict && hasScore && (hasInsights || hasStrengths));
 }
 
 /**
@@ -957,8 +971,7 @@ export async function exportProposalSectionsPDF(options: ProposalSectionExportOp
       const cardW = (contentWidth - 9) / 4;
 
       const startupCap = Number(fin.startupCapital || proposal.totalCapital || capVal || 52450);
-      const metrics = computeProductMetrics(fin);
-      const annualRev = localAudit.annualRevenue || (metrics.monthlyRevenue ? (metrics.monthlyRevenue / 30) * (Number(fin.operatingDays) || 300) : 14850108);
+      const annualRev = localAudit.annualRevenue || 14850108;
       const netAnnualProfit = localAudit.netAnnualProfit || (localAudit.netMonthlyProfit ? (localAudit.netMonthlyProfit / 30) * (Number(fin.operatingDays) || 300) : 3633803);
       const paybackStr = localAudit.paybackPeriodStr || (netAnnualProfit > 0 ? (startupCap / netAnnualProfit < 1 ? `${Math.round((startupCap / netAnnualProfit) * 365)} Days` : `${(startupCap / netAnnualProfit).toFixed(1)} Yrs`) : "5 Days");
 
@@ -1117,9 +1130,9 @@ export async function exportProposalSectionsPDF(options: ProposalSectionExportOp
       const cashReserve = Math.max(0, startupCap - (annualRev * 0.1));
       const monthlyOpex = Number(fin.fixedCosts) || 10733;
       const cashRunwayMonths = monthlyOpex > 0 ? Math.round(cashReserve / monthlyOpex) : 198;
-      const bepUnits = metrics.breakEvenUnits || 22;
-      const bepRevenue = metrics.breakEvenRevenue || 10733;
-      const bepRatio = Math.round((bepRevenue / (metrics.monthlyRevenue || (annualRev / 12) || 1)) * 100) || 12;
+      const bepUnits = localAudit.bepUnits || 22;
+      const bepRevenue = localAudit.bepRevenue || 10733;
+      const bepRatio = Math.round((bepRevenue / ((annualRev / 12) || 1)) * 100) || 12;
 
       const insightItems = [
         {

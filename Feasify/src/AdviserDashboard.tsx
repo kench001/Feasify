@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
 import ActiveBusinessDetailView from "./components/ActiveBusinessDetailView";
-import type { ResolvedAIAnalysisData } from "./utils/aiAnalysisHelpers";
+import { isProposalStageAnalysis, type ResolvedAIAnalysisData } from "./utils/aiAnalysisHelpers";
 import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
 import AIAdvisoryModal from "./components/AIAdvisoryModal";
 import { logAuditEvent } from "./services/auditLogger";
@@ -90,6 +90,7 @@ interface ProposalData {
   financialData?: any;
   originalProposalFinancials?: any;
   aiAnalysis?: any;
+  adviserAiAnalysis?: any;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -558,7 +559,9 @@ const AdviserDashboard: React.FC = () => {
     setViewingProposal(proposal);
     setFeedbackInput(proposal.adviserRemarks || proposal.adviserFeedback || "");
     setIsFeedbackExpanded(true);
-    if (proposal.aiAnalysis) {
+    if (proposal.adviserAiAnalysis) {
+      setModalAiResult(proposal.adviserAiAnalysis);
+    } else if (proposal.aiAnalysis && isProposalStageAnalysis(proposal.aiAnalysis)) {
       setModalAiResult(proposal.aiAnalysis);
     } else {
       setModalAiResult(null);
@@ -767,11 +770,13 @@ const AdviserDashboard: React.FC = () => {
         weaknesses: (aiResult.insights || []).filter((i: any) => i.type === 'warning').map(formatInsightItem),
         recommendations: (aiResult.insights || []).filter((i: any) => i.type === 'info').map(formatInsightItem),
         lastRun: new Date().toISOString(),
+        analysisType: "ADVISER_PROPOSAL_ANALYSIS",
+        sourceModule: "adviser-proposal-modal",
       };
 
       // 3. Save the RAG result to Firebase so the student and adviser both see it
       await updateDoc(doc(db, "proposals", proposal.id), {
-        aiAnalysis: finalResult
+        adviserAiAnalysis: finalResult
       });
 
       // 4. Update UI States
@@ -783,8 +788,8 @@ const AdviserDashboard: React.FC = () => {
       }
 
       // Update local state so the UI refreshes immediately
-      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
-      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
+      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, adviserAiAnalysis: finalResult } : p));
+      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, adviserAiAnalysis: finalResult } : prev);
 
     } catch (e: any) {
       console.warn("⚠️ Live AI Backend call failed, using heuristic proposal evaluation fallback:", e);
@@ -830,18 +835,20 @@ const AdviserDashboard: React.FC = () => {
           weaknesses: fallbackAiResult.insights.filter((i: any) => i.type === 'warning').map((i: any) => `${i.title}: ${i.description}`),
           recommendations: fallbackAiResult.insights.filter((i: any) => i.type === 'info').map((i: any) => `${i.title}: ${i.description}`),
           lastRun: new Date().toISOString(),
+          analysisType: "ADVISER_PROPOSAL_ANALYSIS",
+          sourceModule: "adviser-proposal-modal",
         };
 
         await updateDoc(doc(db, "proposals", proposal.id), {
-          aiAnalysis: finalResult
+          adviserAiAnalysis: finalResult
         }).catch((err) => console.warn("Could not save fallback adviser analysis to Firestore:", err));
 
         setModalAiResult(finalResult);
         if (fallbackAiResult.draftFeedback) {
           setFeedbackInput(fallbackAiResult.draftFeedback);
         }
-        setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, aiAnalysis: finalResult } : p));
-        setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, aiAnalysis: finalResult } : prev);
+        setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, adviserAiAnalysis: finalResult } : p));
+        setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, adviserAiAnalysis: finalResult } : prev);
         setAiAnalysisError(null);
       } catch (fallbackErr: any) {
         console.error("❌ Both Live AI and Heuristic Adviser evaluation failed:", fallbackErr);
@@ -982,10 +989,9 @@ const AdviserDashboard: React.FC = () => {
         userName: userName || "Adviser",
         userRole: "Adviser",
         action: "EXPORT_REPORT",
-        targetType: "Section",
-        targetId: sectionToExport,
-        details: `Exported PDF section report for ${sectionToExport} with ${exportData.groups.length} groups, ${exportData.totalStudents} students, and ${exportData.totalProposals} proposals.`,
         sectionCode: sectionToExport,
+        description: `Exported PDF section report for ${sectionToExport} with ${exportData.groups.length} groups, ${exportData.totalStudents} students, and ${exportData.totalProposals} proposals.`,
+        recordId: sectionToExport,
       });
     } catch (error) {
       console.error("Failed to export section PDF:", error);
@@ -1224,7 +1230,7 @@ const AdviserDashboard: React.FC = () => {
       let newStatus: ProposalData['status'] = proposal.status;
       if (action === 'Approve' || action === 'Approved') {
         const groupProps = proposalsByGroup[targetGroup.id] || groupProposals || [];
-        const existingApproved = groupProps.find(p => (p.status === 'Approved' || p.status === 'APPROVED') && p.id !== proposal.id);
+        const existingApproved = groupProps.find(p => (p.status === 'Approved' || (p.status as string) === 'APPROVED') && p.id !== proposal.id);
         if (existingApproved) {
           alert(`Another proposal ("${existingApproved.businessName || 'Untitled'}") is already approved for this group. Only 1 proposal can be approved per group. Please reject or revise the existing approved proposal before approving another.`);
           setIsSaving(false);
@@ -1275,7 +1281,8 @@ const AdviserDashboard: React.FC = () => {
               adviserRemarks: feedbackInput.trim()
             },
             financialData: proposal.financialData || {},
-            aiAnalysis: modalAiResult || proposal.aiAnalysis || {}
+            aiAnalysis: proposal.aiAnalysis || {},
+            adviserAiAnalysis: modalAiResult || proposal.adviserAiAnalysis || {}
           })
         });
 
@@ -1287,7 +1294,8 @@ const AdviserDashboard: React.FC = () => {
             body: JSON.stringify({
               proposal: { ...proposal, status: "Approved" },
               financialData: proposal.financialData || {},
-              aiAnalysis: modalAiResult || proposal.aiAnalysis || {}
+              aiAnalysis: proposal.aiAnalysis || {},
+              adviserAiAnalysis: modalAiResult || proposal.adviserAiAnalysis || {}
             })
           }).catch((evalErr) =>
             console.warn("Candidate benchmark evaluation non-blocking error:", evalErr)

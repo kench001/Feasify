@@ -43,7 +43,7 @@ test("Centralized Proposal Section Export Service", async (t) => {
     assert.equal(isAiAnalysisAvailable({
       aiAnalysis: {
         score: 88,
-        verdict: "Highly Feasible"
+        verdict: "FEASIBLE"
       }
     }), true);
   });

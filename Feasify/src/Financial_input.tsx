@@ -316,7 +316,7 @@ const Financial_input: React.FC = () => {
   const [dynamicCompetitorData, setDynamicCompetitorData] = useState<DynamicCompetitorResult | null>(null);
   const [isDetectingCompetitors, setIsDetectingCompetitors] = useState(false);
 
-  const [financials, setFinancials] = useState({
+  const [financials, setFinancials] = useState<MonthlyDraft['financials']>({
     products: [] as ProductCostingItem[],
     sellingPrice: "",
     monthlySales: "",
@@ -1700,7 +1700,7 @@ const Financial_input: React.FC = () => {
       if (userSection) {
         notifyAdvisersForSection(userSection, {
           title: "Financial Inputs Updated 📊",
-          message: `Team "${userGroup?.title || projects.find(p => p.id === selectedProjectId)?.name || 'Students'}" updated their financial projections (Month ${currentMonthNumber}).`,
+          message: `Team "${projects.find(p => p.id === selectedProjectId)?.name || 'Students'}" updated their financial projections (Month ${currentMonthNumber}).`,
           type: "financial",
           link: "/adviser/dashboard",
           senderName: userName || "Student"
@@ -3651,7 +3651,7 @@ const Financial_input: React.FC = () => {
                                             <select
                                               disabled={isInputsBlocked}
                                               value={ing.category || "ingredient"}
-                                              onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value })}
+                                              onChange={(e) => handleUpdateIngredient(prodIdx, ingIdx, { category: e.target.value as "ingredient" | "labor" | "miscellaneous" })}
                                               className={`text-[10px] font-extrabold uppercase px-2 py-1 rounded border outline-none cursor-pointer transition-colors ${(ing.category === "labor")
                                                 ? "bg-blue-50 text-blue-800 border-blue-200"
                                                 : (ing.category === "miscellaneous")
@@ -4998,7 +4998,7 @@ const Financial_input: React.FC = () => {
                                   "Municipal / City Hall Complex",
                                   "Parish Church & Worship Center",
                                   "Corporate & BPO Offices",
-                                ]).map((name) => ({ name, category: "Establishment" as const, icon: "📍" }))
+                                ]).map((name) => ({ name, category: "Establishment" as const, icon: "📍", distanceKm: undefined as number | undefined }))
                               )
                                 .filter((item) => item.distanceKm === undefined || item.distanceKm <= 3.0)
                                 .map((item) => {

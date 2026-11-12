@@ -8,6 +8,9 @@ export type AuditAction =
   | "APPROVE"
   | "REJECT"
   | "REVISION"
+  | "UNDER_REVIEW"
+  | "REMARKS_UPDATE"
+  | "EXPORT_REPORT"
   | "SUBMIT"
   | "LOGIN";
 

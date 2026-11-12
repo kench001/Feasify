@@ -37,6 +37,7 @@ import {
   resolveSyncedAIAnalysis,
   resolveProposalMonthAndDraft,
   toEpochMs,
+  isProposalStageAnalysis,
   type ResolvedAIAnalysisData,
 } from "../utils/aiAnalysisHelpers";
 import type { ChairpersonRosterMember } from "../services/chairpersonFeasibilityService";
@@ -2227,25 +2228,27 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                 );
               }
 
+              const renderEmptyState = () => (
+                <div className="bg-white rounded-2xl border border-gray-200/80 p-12 text-center shadow-xs max-w-2xl mx-auto">
+                  <div className="w-16 h-16 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-inner">
+                    <Sparkles className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+                    No AI Feasibility Analysis Available
+                  </h3>
+                  <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed mb-4">
+                    This proposal has not yet undergone AI evaluation. Feasibility scoring, breakdown verdicts, and recommendations will appear once the student team submits their financial inputs and triggers analysis.
+                  </p>
+                  <div className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Adviser interface is strictly read-only for AI evaluations.</span>
+                  </div>
+                </div>
+              );
+
               // State 3: NOT_ANALYZED (No real completed analysis executed yet)
               if (!isAiAnalysisAvailable(proposal)) {
-                return (
-                  <div className="bg-white rounded-2xl border border-gray-200/80 p-12 text-center shadow-xs max-w-2xl mx-auto">
-                    <div className="w-16 h-16 bg-amber-50 text-[#c9a654] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-inner">
-                      <Sparkles className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-xl font-extrabold text-[#122244] mb-2">
-                      No AI Feasibility Analysis Available
-                    </h3>
-                    <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed mb-4">
-                      This proposal has not yet undergone AI evaluation. Feasibility scoring, breakdown verdicts, and recommendations will appear once the student team submits their financial inputs and triggers analysis.
-                    </p>
-                    <div className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Adviser interface is strictly read-only for AI evaluations.</span>
-                    </div>
-                  </div>
-                );
+                return renderEmptyState();
               }
 
               // State 4: COMPLETED real analysis
@@ -2254,6 +2257,14 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                 draftId: selectedDraftId || undefined,
                 preferLiveOnStale: false,
               });
+
+              if (
+                synced.staleness.isProposalStageOnly ||
+                !synced.staleness.hasStoredAnalysis ||
+                isProposalStageAnalysis(proposal?.aiAnalysis)
+              ) {
+                return renderEmptyState();
+              }
 
               const isLivePreview = synced.source === "live-audit";
 

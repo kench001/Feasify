@@ -361,6 +361,8 @@ const AI_Analysis: React.FC = () => {
         inputSignature,
         analyzedMonthIndex: ctx.monthIndex,
         analyzedDraftId: ctx.draftId,
+        analysisType: "STUDENT_FINANCIAL_FEASIBILITY",
+        sourceModule: "student-financial-input",
       };
 
       await updateDoc(doc(db, "proposals", pId), {
@@ -414,6 +416,8 @@ const AI_Analysis: React.FC = () => {
           analyzedDraftId: ctx.draftId,
           _fallbackReason:
             e?.name === "AbortError" ? "BACKEND_TIMEOUT" : "OFFLINE_LOCAL_AUDIT",
+          analysisType: "STUDENT_FINANCIAL_FEASIBILITY",
+          sourceModule: "student-financial-input",
         };
 
         // Save fallback audit to Firebase so reports stay populated

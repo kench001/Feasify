@@ -206,6 +206,7 @@ export interface ProFormaChartPoint {
   Revenue: number;
   COGS: number;
   "Fixed Costs": number;
+  "Fixed Cost"?: number;
   "Net Profit": number;
   netMarginPct: number;
 }
@@ -407,7 +408,18 @@ export const resolveProposalMonthAndDraft = (
   proj: any,
   options?: ExtractFinancialDataOptions
 ): ProposalMonthDraftContext => {
-  const finData = proj?.financialData || proj?.originalProposalFinancials || {};
+  const finData =
+    proj?.financialData ||
+    proj?.originalProposalFinancials ||
+    (proj &&
+    (Array.isArray(proj.monthlyRecords) ||
+      Array.isArray(proj.products) ||
+      proj.sellingPrice !== undefined ||
+      proj.monthlySales !== undefined ||
+      proj.fixedCosts !== undefined)
+      ? proj
+      : {}) ||
+    {};
   const monthlyRecords =
     Array.isArray(finData.monthlyRecords) && finData.monthlyRecords.length > 0
       ? finData.monthlyRecords
@@ -783,6 +795,18 @@ export const computeFinancialInputSignature = (finData: any): string => {
  */
 export const isProposalStageAnalysis = (aiAnalysis: any): boolean => {
   if (!aiAnalysis || typeof aiAnalysis !== "object") return false;
+  if (
+    aiAnalysis.analysisType === "ADVISER_PROPOSAL_ANALYSIS" ||
+    aiAnalysis.sourceModule === "adviser-proposal-modal"
+  ) {
+    return true;
+  }
+  if (
+    aiAnalysis.analysisType === "STUDENT_FINANCIAL_FEASIBILITY" ||
+    aiAnalysis.sourceModule === "student-financial-input"
+  ) {
+    return false;
+  }
   if (!aiAnalysis.status) return true;
   if (
     Boolean(aiAnalysis.draftFeedback) &&
@@ -1262,6 +1286,7 @@ export const buildProFormaProjection = (
       Revenue: rev,
       COGS: cogs,
       "Fixed Costs": fixed,
+      "Fixed Cost": fixed,
       "Net Profit": net,
       netMarginPct,
     };

@@ -1433,6 +1433,16 @@ app.post(
   analyzeLimiter,
   async (req, res) => {
     try {
+      const payload = req.body || {};
+
+      // Role authorization: Advisers have read-only access to financial feasibility analysis
+      const userRole = (payload.userRole || payload.role || req.headers["x-user-role"] || "").toString().trim().toLowerCase();
+      if (userRole === "adviser") {
+        return res.status(403).json({
+          error: "Unauthorized: Advisers have read-only access to AI feasibility analysis. Financial analysis must be initiated from the student portal."
+        });
+      }
+
       // Support both nested object structure or top-level fields
       const financials = req.body.financialData || req.body.financials || req.body;
       const kb = getKnowledgeBase();
@@ -1745,14 +1755,6 @@ app.post(
   async (req, res) => {
     try {
       const payload = req.body || {};
-
-      // Role authorization: Advisers have read-only access to completed AI feasibility results
-      const userRole = (payload.userRole || payload.role || req.headers["x-user-role"] || "").toString().trim().toLowerCase();
-      if (userRole === "adviser") {
-        return res.status(403).json({
-          error: "Unauthorized: Advisers have read-only access to AI feasibility analysis. Re-analysis must be initiated from the student portal."
-        });
-      }
 
       const kb = getKnowledgeBase();
 

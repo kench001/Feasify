@@ -2415,7 +2415,7 @@ export const PHILIPPINE_LANDMARKS: PhilippineLandmark[] = [
 function normalizeSearchText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[.,\-\/()]/g, ' ')
+    .replace(/[.,/()-]/g, ' ')
     .replace(/\b(st|str)\b/g, 'street')
     .replace(/\b(rd)\b/g, 'road')
     .replace(/\b(ave|av)\b/g, 'avenue')

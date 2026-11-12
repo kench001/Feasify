@@ -14,6 +14,7 @@ import {
   where,
   getDocs,
   onSnapshot,
+  updateDoc,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -36,6 +37,7 @@ import {
   Package,
   Scale,
   Sparkles,
+  X,
 } from "lucide-react";
 
 interface Project {
@@ -173,7 +175,7 @@ const Dashboard: React.FC = () => {
         const dData = dSnap.data();
         if ((dData.section || "").toUpperCase() === "ALL" || !dData.section) {
           updateDoc(doc(db, "groups", dSnap.id), { section })
-            .catch(err => console.error("Auto-heal in Dashboard:", err));
+            .catch((err: any) => console.error("Auto-heal in Dashboard:", err));
         }
       });
 

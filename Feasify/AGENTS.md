@@ -163,4 +163,5 @@ User: "Deploy the function."
 ## Testing & Browser Rules
 - **DO NOT** use browser tools or automated agents to verify code.
 - **DO NOT** run automated test suites (e.g., vitest, jest, npm test) unless explicitly asked.
-- **I will handle all manual testing.** Simply provide the code or logic updates, and I will verify them in my own browser.
+- **I will handle all manual testing.** Simply provide the code or logic updates, and I will verify them in my own browser.....
+

@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -7,6 +7,7 @@ import {
   sendPasswordResetEmail,
   verifyPasswordResetCode,
   confirmPasswordReset,
+  type Auth,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -40,8 +41,8 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // --- SECONDARY APP (Used ONLY for Admins to create users silently) ---
-let secondaryApp;
-let secondaryAuth;
+let secondaryApp: FirebaseApp;
+let secondaryAuth: Auth;
 try {
   secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
   secondaryAuth = getAuth(secondaryApp);
