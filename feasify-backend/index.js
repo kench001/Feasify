@@ -248,6 +248,7 @@ const getGroupProposalCount = async (groupId) => {
 
 // Low-latency Gemini model used for structured feasibility feedback
 const GEMINI_MODELS_CASCADE = [
+  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
 ];
 
@@ -255,36 +256,74 @@ const GEMINI_MODELS_CASCADE = [
 async function callGeminiCascade(prompt, generationConfig = {}) {
   let lastError = null;
 
-  for (const modelName of GEMINI_MODELS_CASCADE) {
-    try {
-      console.log(`🤖 [Live AI] Requesting analysis via ${modelName}...`);
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-          temperature: 0,
-          ...generationConfig,
-        },
-      });
+  for (let i = 0; i < GEMINI_MODELS_CASCADE.length; i++) {
+    const modelName = GEMINI_MODELS_CASCADE[i];
+    const isLastModel = i === GEMINI_MODELS_CASCADE.length - 1;
+    const maxRetriesPerModel = 2; // 1-2 retry attempts with 1-2s backoff on transient errors
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 75000);
+    for (let attempt = 0; attempt <= maxRetriesPerModel; attempt++) {
+      let timeout = null;
+      try {
+        if (attempt === 0) {
+          console.log(`🤖 [Live AI] Requesting analysis via ${modelName}...`);
+        } else {
+          console.log(`🔄 [Live AI] Retry attempt ${attempt}/${maxRetriesPerModel} for ${modelName}...`);
+        }
 
-      const result = await model.generateContent(prompt, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            temperature: 0,
+            ...generationConfig,
+          },
+        });
 
-      const candidate = result.response.candidates?.[0];
-      if (!candidate || !candidate.content) {
-        const reason = candidate?.finishReason || "UNKNOWN";
-        throw new Error(`Gemini blocked response. Reason: ${reason}`);
+        const controller = new AbortController();
+        timeout = setTimeout(() => controller.abort(), 75000);
+
+        const result = await model.generateContent(prompt, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        const candidate = result.response.candidates?.[0];
+        if (!candidate || !candidate.content) {
+          const reason = candidate?.finishReason || "UNKNOWN";
+          throw new Error(`Gemini blocked response. Reason: ${reason}`);
+        }
+
+        console.log(`✅ [Live AI] Successfully received response from ${modelName}`);
+        return { result, modelName };
+      } catch (err) {
+        if (timeout) clearTimeout(timeout);
+        lastError = err;
+
+        const errMsg = err.message || "";
+        const isTransient =
+          err.status === 503 ||
+          err.status === 429 ||
+          errMsg.includes("503") ||
+          errMsg.includes("429") ||
+          errMsg.includes("Resource Exhausted") ||
+          errMsg.toLowerCase().includes("high demand") ||
+          errMsg.toLowerCase().includes("service unavailable") ||
+          err.name === "AbortError" ||
+          errMsg.toLowerCase().includes("abort");
+
+        if (isTransient && attempt < maxRetriesPerModel) {
+          const backoffMs = (attempt + 1) * 1500; // 1.5s, 3s backoff
+          console.warn(`⚠️ [Live AI] Model ${modelName} transient error (${errMsg.substring(0, 100)}). Retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetriesPerModel})...`);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+
+        if (!isLastModel) {
+          console.warn(`⚠️ [Live AI] Model ${modelName} failed (${errMsg.substring(0, 100)}). Failing over to next candidate: ${GEMINI_MODELS_CASCADE[i + 1]}...`);
+        } else {
+          console.error(`❌ [Live AI] Cascade exhausted. Final model ${modelName} failed (${errMsg.substring(0, 100)}).`);
+        }
+        break; // break retry loop to fail over to next model in cascade
       }
-
-      console.log(`✅ [Live AI] Successfully received response from ${modelName}`);
-      return { result, modelName };
-    } catch (err) {
-      console.warn(`⚠️ [Live AI] Model ${modelName} unavailable (${err.message?.substring(0, 100)}). Failing over to next candidate...`);
-      lastError = err;
     }
   }
 

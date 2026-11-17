@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "id": "DYN-EXEMP-1794501485252-3QVS",
+    "name": "Golden Bao Express",
+    "type": "Food Service Quick-Service Kiosk",
+    "category": "Food & Beverage / Food Service",
+    "capital": 250000,
+    "location": "Monumento Circle, Caloocan City",
+    "pricing": "₱35.00 to ₱85.00",
+    "promotional_strategy": "Campus flyers, social media bundle discounts, student ID combo promos",
+    "financial_benchmarks": {
+      "cogs_ratio": "41.7%",
+      "net_profit_margin": "21.7%",
+      "feasibility_score": 94
+    },
+    "approved_date": "2026-11-12T16:38:05.252Z",
+    "source": "Verified Approved Feasify Capstone"
+  }
+]
