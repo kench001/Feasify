@@ -9,15 +9,13 @@ import {
   Settings, ShieldAlert, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw,
   MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Target, DollarSign, Send, UserPlus, Check, Download,
-  Sparkles, Brain, TrendingDown, ThumbsUp, Lightbulb, Bell, Calculator, ChevronDown, ChevronUp, Info,
+  Bell, Calculator, Info,
   FileSpreadsheet, PieChart, ArrowUp, Cpu, Eye,
-  Compass
+  Compass, Sparkles, ThumbsUp, TrendingDown, Lightbulb, Brain
 } from "lucide-react";
 import { normalizeProposalProducts, computeProductMetrics, type ProductCostingItem } from "./utils/productCosting";
 import ActiveBusinessDetailView from "./components/ActiveBusinessDetailView";
-import { isProposalStageAnalysis, type ResolvedAIAnalysisData } from "./utils/aiAnalysisHelpers";
-import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
-import AIAdvisoryModal from "./components/AIAdvisoryModal";
+import { type ResolvedAIAnalysisData } from "./utils/aiAnalysisHelpers";
 import { logAuditEvent } from "./services/auditLogger";
 import { fetchSectionExportData, generateSectionPDF } from "./services/sectionExportService";
 import { sendNotification, sendBatchNotification } from "./services/notificationService";
@@ -87,6 +85,7 @@ interface ProposalData {
   adviserFeedback?: string;
   feedbackHistory?: FeedbackItem[];
   submissionDate?: string;
+  submittedData?: any;
   financialData?: any;
   originalProposalFinancials?: any;
   aiAnalysis?: any;
@@ -94,6 +93,36 @@ interface ProposalData {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export const isProposalSubmitted = (p: ProposalData): boolean => {
+  if (!p) return false;
+  if (p.status === "Draft" || (p.status as any) === "Drafting") return false;
+  // Must have either submittedData, submissionDate, or a submitted/review status
+  return Boolean(
+    p.submittedData ||
+    p.submissionDate ||
+    ["Submitted", "Pending", "Under Review", "Approved", "Approved Proposal", "APPROVED", "Revision Required", "Rejected", "Revision"].includes(p.status)
+  );
+};
+
+export const getAdviserVisibleProposal = (p: ProposalData): ProposalData => {
+  if (!p) return p;
+  if (p.submittedData && typeof p.submittedData === 'object') {
+    return {
+      ...p,
+      ...p.submittedData,
+      // Keep adviser remarks and history from the root document
+      adviserRemarks: p.adviserRemarks || p.submittedData.adviserRemarks || "",
+      adviserFeedback: p.adviserFeedback || p.submittedData.adviserFeedback || "",
+      feedbackHistory: p.feedbackHistory || p.submittedData.feedbackHistory || [],
+      id: p.id,
+      groupId: p.groupId,
+      facultyId: (p as any).facultyId,
+      status: p.status || p.submittedData.status,
+    };
+  }
+  return p;
+};
 
 const getProposalStatusBadge = (status?: string) => {
   switch (status) {
@@ -181,31 +210,11 @@ const AdviserDashboard: React.FC = () => {
   const [showProposalExportModal, setShowProposalExportModal] = useState(false);
   const [proposalToExport, setProposalToExport] = useState<ProposalData | null>(null);
 
-  // AI Analysis State
+  // Adviser Remarks & PDF Export State
   const [isRemarksSaving, setIsRemarksSaving] = useState(false);
   const [remarksSavedNotice, setRemarksSavedNotice] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
-  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
-  const [modalAiResult, setModalAiResult] = useState<any>(null);
-  // AI Advisory Modal State
-  const [isAdvisoryModalOpen, setIsAdvisoryModalOpen] = useState(() => {
-    try {
-      return typeof window !== "undefined" && sessionStorage.getItem("adviser_ai_ack_pending") === "true";
-    } catch {
-      return false;
-    }
-  });
-  const [advisoryModalKey, setAdvisoryModalKey] = useState(0);
-
-  const handleAcknowledgeAdvisory = () => {
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("adviser_ai_ack_pending");
-      }
-    } catch {}
-    setIsAdvisoryModalOpen(false);
-  };
+  const [copiedAiFeedback, setCopiedAiFeedback] = useState(false);
   const [customAIRules, setCustomAIRules] = useState<any>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -371,10 +380,11 @@ const AdviserDashboard: React.FC = () => {
 
         propSnap.docs.forEach(pd => {
           const pdata = { id: pd.id, ...pd.data() } as ProposalData;
-          if (pdata.status === 'Approved' || !proposalMap[pdata.groupId]) {
+          if (isProposalSubmitted(pdata) && (pdata.status === 'Approved' || (pdata.status as any) === 'APPROVED' || !proposalMap[pdata.groupId])) {
+            const visible = getAdviserVisibleProposal(pdata);
             proposalMap[pdata.groupId] = {
-              businessName: pdata.businessName,
-              businessLogo: pdata.businessLogo,
+              businessName: visible.businessName,
+              businessLogo: visible.businessLogo,
             };
           }
           if (!byGroup[pdata.groupId]) {
@@ -556,16 +566,22 @@ const AdviserDashboard: React.FC = () => {
     if (group) {
       setSelectedGroup(group);
     }
-    setViewingProposal(proposal);
-    setFeedbackInput(proposal.adviserRemarks || proposal.adviserFeedback || "");
+    const visibleProposal = getAdviserVisibleProposal(proposal);
+    setViewingProposal(visibleProposal);
+    setFeedbackInput(visibleProposal.adviserRemarks || visibleProposal.adviserFeedback || "");
     setIsFeedbackExpanded(true);
-    if (proposal.adviserAiAnalysis) {
-      setModalAiResult(proposal.adviserAiAnalysis);
-    } else if (proposal.aiAnalysis && isProposalStageAnalysis(proposal.aiAnalysis)) {
-      setModalAiResult(proposal.aiAnalysis);
-    } else {
-      setModalAiResult(null);
-    }
+    setCopiedAiFeedback(false);
+  };
+
+  const handleCopyAiFeedbackToRemarks = (aiFeedbackText: string) => {
+    if (!aiFeedbackText) return;
+    setFeedbackInput((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return aiFeedbackText.trim();
+      return `${trimmed}\n\n[AI Feedback Note]:\n${aiFeedbackText.trim()}`;
+    });
+    setCopiedAiFeedback(true);
+    setTimeout(() => setCopiedAiFeedback(false), 2500);
   };
 
   const handleCloseProposalModal = async () => {
@@ -619,7 +635,7 @@ const AdviserDashboard: React.FC = () => {
     try {
       await exportProposalAnalysisPDF({
         proposal: viewingProposal,
-        aiResult: modalAiResult,
+        aiResult: viewingProposal.aiAnalysis || viewingProposal.adviserAiAnalysis || null,
         currentRemarks: feedbackInput,
         adviserName: userName,
         groupTitle: selectedGroup?.title || "Student Group",
@@ -706,158 +722,6 @@ const AdviserDashboard: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [feedbackInput, viewingProposal?.id]);
-
-  const handleAIAnalysis = async (proposal: ProposalData) => {
-    if (!proposal.id) return;
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("adviser_ai_ack_pending", "true");
-      }
-    } catch {}
-    setAdvisoryModalKey((prev) => prev + 1);
-    setIsAdvisoryModalOpen(true);
-    setIsAiAnalyzing(true);
-    setAiAnalysisError(null);
-
-    try {
-      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
-      
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 150000); // Allow Render cold start + Gemini response
-
-      const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: proposal.id,
-          businessName: proposal.businessName,
-          businessType: proposal.businessType,
-          totalCapital: proposal.totalCapital,
-          tagline: proposal.tagline,
-          targetMarket: proposal.targetMarket,
-          missionStatement: proposal.missionStatement,
-          visionStatement: proposal.visionStatement,
-          productDescription: proposal.productDescription,
-          priceRanges: proposal.priceRanges,
-          proposedLocation: proposal.proposedLocation,
-          promotionalStrategy: proposal.promotionalStrategy,
-          financialData: proposal.financialData || {},
-          customAIRules: customAIRules,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-
-      const aiResult = await response.json();
-
-      // 2. Map the Backend RAG result to the Adviser's UI format
-      // Note: We ensure the results match the components the Adviser sees
-      const formatInsightItem = (i: any) => {
-        if (!i) return "";
-        if (typeof i === "string") return i;
-        if (i.title && i.description) return `${i.title}: ${i.description}`;
-        return i.description || i.title || "";
-      };
-
-      const finalResult = {
-        ...aiResult,
-        // Mapping the RAG 'insights' to the 'strengths/weaknesses' format the Adviser UI expects
-        strengths: (aiResult.insights || []).filter((i: any) => i.type === 'positive').map(formatInsightItem),
-        weaknesses: (aiResult.insights || []).filter((i: any) => i.type === 'warning').map(formatInsightItem),
-        recommendations: (aiResult.insights || []).filter((i: any) => i.type === 'info').map(formatInsightItem),
-        lastRun: new Date().toISOString(),
-        analysisType: "ADVISER_PROPOSAL_ANALYSIS",
-        sourceModule: "adviser-proposal-modal",
-      };
-
-      // 3. Save the RAG result to Firebase so the student and adviser both see it
-      await updateDoc(doc(db, "proposals", proposal.id), {
-        adviserAiAnalysis: finalResult
-      });
-
-      // 4. Update UI States
-      setModalAiResult(finalResult);
-
-      // If the backend provides a draft feedback letter, put it in the textarea
-      if (aiResult.draftFeedback) {
-        setFeedbackInput(aiResult.draftFeedback);
-      }
-
-      // Update local state so the UI refreshes immediately
-      setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, adviserAiAnalysis: finalResult } : p));
-      setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, adviserAiAnalysis: finalResult } : prev);
-
-    } catch (e: any) {
-      console.warn("⚠️ Live AI Backend call failed, using heuristic proposal evaluation fallback:", e);
-      try {
-        const capitalNum = Number(String(proposal.totalCapital || "0").replace(/[^0-9.]/g, "")) || 0;
-        const finData = proposal.financialData || {};
-        const sellingPrice = Number(finData.sellingPrice) || 0;
-        const variableCost = Number(finData.variableCost) || 0;
-        const marginPositive = sellingPrice > variableCost;
-
-        let evalScore = 78;
-        if (!marginPositive && sellingPrice > 0) evalScore -= 20;
-        if (capitalNum >= 100000) evalScore += 5;
-        if (proposal.missionStatement && proposal.visionStatement) evalScore += 5;
-        evalScore = Math.min(95, Math.max(40, evalScore));
-
-        const fallbackAiResult = {
-          score: evalScore,
-          metrics: {
-            financial: marginPositive ? 80 : 45,
-            risk: capitalNum > 50000 ? 82 : 60,
-            market: 75,
-          },
-          explanations: {
-            feasibility: `Preliminary heuristic evaluation. Capital is declared at PHP ${capitalNum.toLocaleString()}.`,
-            financial: marginPositive ? "Selling price exceeds unit variable cost." : "Unit contribution margin requires review.",
-            risk: "Startup capital and operational scale reviewed against baseline university exemplars.",
-            market: "Target demographic and location reviewed."
-          },
-          insights: [
-            { type: "positive", title: "Concept Scope", description: `Submitted business "${proposal.businessName}" in sector "${proposal.businessType || 'General'}".` },
-            { type: marginPositive ? "positive" : "warning", title: "Unit Margin Viability", description: marginPositive ? "Unit selling price exceeds cost of goods sold (COGS)." : "Selling price is lower than or equal to unit COGS." },
-            { type: "info", title: "Recommendation", description: "Review equipment allocation and marketing schedule before final defense sign-off." }
-          ],
-          realityCheck: `Declared capital of PHP ${capitalNum.toLocaleString()} for proposed venue at ${proposal.proposedLocation || 'target location'}.`,
-          draftFeedback: `Preliminary evaluation complete. Capital scale of PHP ${capitalNum.toLocaleString()} is recorded. Ensure all equipment lists and supplier quotations are attached for formal endorsement.`,
-          _fallback: true
-        };
-
-        const finalResult = {
-          ...fallbackAiResult,
-          strengths: fallbackAiResult.insights.filter((i: any) => i.type === 'positive').map((i: any) => `${i.title}: ${i.description}`),
-          weaknesses: fallbackAiResult.insights.filter((i: any) => i.type === 'warning').map((i: any) => `${i.title}: ${i.description}`),
-          recommendations: fallbackAiResult.insights.filter((i: any) => i.type === 'info').map((i: any) => `${i.title}: ${i.description}`),
-          lastRun: new Date().toISOString(),
-          analysisType: "ADVISER_PROPOSAL_ANALYSIS",
-          sourceModule: "adviser-proposal-modal",
-        };
-
-        await updateDoc(doc(db, "proposals", proposal.id), {
-          adviserAiAnalysis: finalResult
-        }).catch((err) => console.warn("Could not save fallback adviser analysis to Firestore:", err));
-
-        setModalAiResult(finalResult);
-        if (fallbackAiResult.draftFeedback) {
-          setFeedbackInput(fallbackAiResult.draftFeedback);
-        }
-        setGroupProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, adviserAiAnalysis: finalResult } : p));
-        setViewingProposal(prev => prev && prev.id === proposal.id ? { ...prev, adviserAiAnalysis: finalResult } : prev);
-        setAiAnalysisError(null);
-      } catch (fallbackErr: any) {
-        console.error("❌ Both Live AI and Heuristic Adviser evaluation failed:", fallbackErr);
-        setAiAnalysisError(e.message || "Failed to analyze proposal. Server may be down.");
-      }
-    } finally {
-      setIsAiAnalyzing(false);
-    }
-  };
 
   // --- LOGIC: MULTI-STEP CREATE GROUP ---
   const handleCreateGroup = async () => {
@@ -1264,6 +1128,12 @@ const AdviserDashboard: React.FC = () => {
         updatePayload.feedbackHistory = arrayUnion(newFeedback);
       }
 
+      if (proposal.submittedData) {
+        updatePayload["submittedData.status"] = newStatus;
+        updatePayload["submittedData.adviserRemarks"] = feedbackInput.trim();
+        updatePayload["submittedData.adviserFeedback"] = feedbackInput.trim();
+      }
+
       await updateDoc(doc(db, "proposals", proposal.id), updatePayload);
 
       // Best effort backend sync for independent status, remarks, and automatic candidate benchmark evaluation
@@ -1282,7 +1152,7 @@ const AdviserDashboard: React.FC = () => {
             },
             financialData: proposal.financialData || {},
             aiAnalysis: proposal.aiAnalysis || {},
-            adviserAiAnalysis: modalAiResult || proposal.adviserAiAnalysis || {}
+            adviserAiAnalysis: proposal.adviserAiAnalysis || proposal.aiAnalysis || {}
           })
         });
 
@@ -1295,7 +1165,7 @@ const AdviserDashboard: React.FC = () => {
               proposal: { ...proposal, status: "Approved" },
               financialData: proposal.financialData || {},
               aiAnalysis: proposal.aiAnalysis || {},
-              adviserAiAnalysis: modalAiResult || proposal.adviserAiAnalysis || {}
+              adviserAiAnalysis: proposal.adviserAiAnalysis || proposal.aiAnalysis || {}
             })
           }).catch((evalErr) =>
             console.warn("Candidate benchmark evaluation non-blocking error:", evalErr)
@@ -1929,7 +1799,7 @@ const AdviserDashboard: React.FC = () => {
               const renderGroupCard = (group: GroupData) => {
                 const totalMembers = group.memberIds.length + 1;
                 const originalIndex = groups.findIndex(g => g.id === group.id) + 1;
-                const teamProps = proposalsByGroup[group.id] || [];
+                const teamProps = (proposalsByGroup[group.id] || []).filter(isProposalSubmitted).map(getAdviserVisibleProposal);
                 const proposalCount = teamProps.length;
 
                 let statusBadgeColor = "bg-gray-100 text-gray-600"; let statusDotColor = "bg-gray-400";
@@ -2249,83 +2119,86 @@ const AdviserDashboard: React.FC = () => {
             </div>
 
             {/* Content: PROPOSALS TAB */}
-            {activeDetailTab === 'Proposals' && (
-              <div className="space-y-4">
-                {groupProposals.length === 0 ? (
-                  <div className="py-20 flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100"><FileText className="w-8 h-8 text-gray-300" /></div>
-                    <h3 className="text-lg font-bold text-[#122244]">No proposals yet</h3>
-                    <p className="text-sm text-gray-500 mt-1 max-w-sm">The group is still drafting their business proposals. Check back later.</p>
-                  </div>
-                ) : (
-                  <>
-                    {(selectedGroup.status === 'Approved Proposal' || selectedGroup.status === 'Active Business' || Boolean(selectedGroup.activeProposalId)) && (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
-                          <div>
-                            <h4 className="font-bold text-green-800 text-sm">
-                              {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId ? "Active Business Activated: " : "Proposal Approved: "}
-                              {selectedGroup.businessName || selectedGroup.title}
-                            </h4>
-                            <p className="text-sm text-green-700 mt-0.5">
-                              {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId
-                                ? "This business is locked in and active. You can view the full project overview, financial inputs, and AI analysis."
-                                : "This group can now proceed to financial planning."}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleOpenActiveBusiness(selectedGroup)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
-                        >
-                          <Eye className="w-4 h-4" /> View Active Business (Read-Only)
-                        </button>
-                      </div>
-                    )}
-
-                    {groupProposals.map((proposal, idx) => {
-                      const slotNum = proposal.proposalNumber || idx + 1;
-                      return (
-                        <div key={proposal.id || idx} className="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-black rounded-md uppercase tracking-wider">
-                                Proposal {slotNum}
-                              </span>
-                              {getProposalStatusBadge(proposal.status)}
-                            </div>
-                            <h3 className="font-extrabold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${slotNum}`}</h3>
-                            <p className="text-sm text-gray-500 mb-1">{proposal.businessType ? `${proposal.businessType} • ` : ""}{proposal.tagline || proposal.targetMarket || "No additional description"}</p>
-                            <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {formatProposalDate(proposal)}</p>
-
-                            {/* Adviser Remarks display (single line truncated) */}
-                            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 text-xs flex items-center gap-1.5 overflow-hidden">
-                              <span className="font-bold text-gray-600 shrink-0">Adviser Remarks:</span>
-                              <span
-                                className={`truncate block flex-1 ${
-                                  proposal.adviserRemarks || proposal.adviserFeedback
-                                    ? "text-gray-800 font-medium italic"
-                                    : "text-gray-400 italic"
-                                }`}
-                                title={proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
-                              >
-                                {proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
-                              </span>
+            {activeDetailTab === 'Proposals' && (() => {
+              const submittedGroupProps = groupProposals.filter(isProposalSubmitted).map(getAdviserVisibleProposal);
+              return (
+                <div className="space-y-4">
+                  {submittedGroupProps.length === 0 ? (
+                    <div className="py-20 flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100"><FileText className="w-8 h-8 text-gray-300" /></div>
+                      <h3 className="text-lg font-bold text-[#122244]">No proposals submitted yet</h3>
+                      <p className="text-sm text-gray-500 mt-1 max-w-sm">The group is still drafting their business proposals. Submitted proposals will appear here once submitted by the students.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {(selectedGroup.status === 'Approved Proposal' || selectedGroup.status === 'Active Business' || Boolean(selectedGroup.activeProposalId)) && (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                          <div className="flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+                            <div>
+                              <h4 className="font-bold text-green-800 text-sm">
+                                {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId ? "Active Business Activated: " : "Proposal Approved: "}
+                                {selectedGroup.businessName || selectedGroup.title}
+                              </h4>
+                              <p className="text-sm text-green-700 mt-0.5">
+                                {selectedGroup.status === 'Active Business' || selectedGroup.activeProposalId
+                                  ? "This business is locked in and active. You can view the full project overview, financial inputs, and AI analysis."
+                                  : "This group can now proceed to financial planning."}
+                              </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button onClick={() => handleOpenProposalModal(proposal, selectedGroup)} className="w-full md:w-auto px-5 py-2.5 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                              <FileText className="w-4 h-4" /> Open Proposal
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleOpenActiveBusiness(selectedGroup)}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                          >
+                            <Eye className="w-4 h-4" /> View Active Business (Read-Only)
+                          </button>
                         </div>
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-            )}
+                      )}
+
+                      {submittedGroupProps.map((proposal, idx) => {
+                        const slotNum = proposal.proposalNumber || idx + 1;
+                        return (
+                          <div key={proposal.id || idx} className="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-black rounded-md uppercase tracking-wider">
+                                  Proposal {slotNum}
+                                </span>
+                                {getProposalStatusBadge(proposal.status)}
+                              </div>
+                              <h3 className="font-extrabold text-[#122244] text-lg">{proposal.businessName || `Business Proposal #${slotNum}`}</h3>
+                              <p className="text-sm text-gray-500 mb-1">{proposal.businessType ? `${proposal.businessType} • ` : ""}{proposal.tagline || proposal.targetMarket || "No additional description"}</p>
+                              <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Submitted: {formatProposalDate(proposal)}</p>
+
+                              {/* Adviser Remarks display (single line truncated) */}
+                              <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 text-xs flex items-center gap-1.5 overflow-hidden">
+                                <span className="font-bold text-gray-600 shrink-0">Adviser Remarks:</span>
+                                <span
+                                  className={`truncate block flex-1 ${
+                                    proposal.adviserRemarks || proposal.adviserFeedback
+                                      ? "text-gray-800 font-medium italic"
+                                      : "text-gray-400 italic"
+                                  }`}
+                                  title={proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
+                                >
+                                  {proposal.adviserRemarks || proposal.adviserFeedback || "No remarks provided yet."}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button onClick={() => handleOpenProposalModal(proposal, selectedGroup)} className="w-full md:w-auto px-5 py-2.5 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                                <FileText className="w-4 h-4" /> Open Proposal
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Content: MEMBERS TAB */}
             {activeDetailTab === 'Members' && (
@@ -2690,267 +2563,416 @@ const AdviserDashboard: React.FC = () => {
                         </div>
                       </div>
                     </section>
+
+                    {/* AI FEASIBILITY ANALYSIS (STUDENT EVALUATION) */}
+                    {(() => {
+                      const studentAi = viewingProposal.aiAnalysis || viewingProposal.adviserAiAnalysis || null;
+
+                      const studentAiScore = typeof studentAi?.score === 'number'
+                        ? studentAi.score
+                        : (typeof studentAi?.overallScore === 'number' ? studentAi.overallScore : 75);
+
+                      const getRatingBadge = (score: number) => {
+                        if (score >= 80) {
+                          return {
+                            label: "High Feasibility",
+                            badgeClass: "bg-green-100 text-green-700 border-green-200"
+                          };
+                        }
+                        if (score >= 65) {
+                          return {
+                            label: "Moderate Feasibility",
+                            badgeClass: "bg-amber-100 text-amber-800 border-amber-200"
+                          };
+                        }
+                        return {
+                          label: "Needs Improvement",
+                          badgeClass: "bg-red-100 text-red-700 border-red-200"
+                        };
+                      };
+
+                      const scoreRating = getRatingBadge(studentAiScore);
+
+                      const formatMetricVal = (val: any) => {
+                        if (val === undefined || val === null || val === "") return "75%";
+                        if (typeof val === "number") return `${val}%`;
+                        const str = String(val).trim();
+                        return str.endsWith("%") ? str : `${str}%`;
+                      };
+
+                      const metricFinancial = formatMetricVal(studentAi?.metrics?.financial ?? studentAi?.metrics?.financialViability);
+                      const metricMarket = formatMetricVal(studentAi?.metrics?.market ?? studentAi?.metrics?.marketAlignment ?? studentAi?.metrics?.marketFit);
+                      const metricRisk = formatMetricVal(studentAi?.metrics?.risk ?? studentAi?.metrics?.riskLevel);
+
+                      const extractItemText = (item: any): { title: string; desc: string } => {
+                        if (!item) return { title: "", desc: "" };
+                        if (typeof item === "string") return { title: "", desc: item.trim() };
+                        const title = (item.title || "").trim();
+                        const desc = (item.description || item.text || item.desc || "").trim();
+                        return { title, desc: desc || (title ? "" : String(item)) };
+                      };
+
+                      const rawStrengths = (Array.isArray(studentAi?.strengths) && studentAi.strengths.length > 0)
+                        ? studentAi.strengths
+                        : (Array.isArray(studentAi?.insights)
+                          ? studentAi.insights.filter((i: any) => i?.type === "positive")
+                          : []);
+
+                      const rawWeaknesses = (Array.isArray(studentAi?.weaknesses) && studentAi.weaknesses.length > 0)
+                        ? studentAi.weaknesses
+                        : (Array.isArray(studentAi?.insights)
+                          ? studentAi.insights.filter((i: any) => i?.type === "warning" || i?.type === "danger" || i?.type === "negative")
+                          : []);
+
+                      const rawRecommendations = (Array.isArray(studentAi?.recommendations) && studentAi.recommendations.length > 0)
+                        ? studentAi.recommendations
+                        : (Array.isArray(studentAi?.insights)
+                          ? studentAi.insights.filter((i: any) => i?.type === "info" || i?.type === "suggestion")
+                          : []);
+
+                      return (
+                        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                          {/* Section Header */}
+                          <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-yellow-100/60 rounded-lg">
+                                <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">
+                                    AI Feasibility Analysis
+                                  </h3>
+                                  <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-blue-100 text-blue-700">
+                                    Student Evaluation
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Feasibility evaluation generated by the student while drafting this proposal.
+                                </p>
+                              </div>
+                            </div>
+                            {studentAi?.lastRun && (
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> Evaluated {formatProposalDate({ submissionDate: studentAi.lastRun } as any)}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="p-6">
+                            {studentAi ? (
+                              <div className="space-y-6">
+                                {/* Score Banner / Metric Cards */}
+                                <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-100 shadow-xs">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                                    <div>
+                                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Overall Feasibility Score
+                                      </p>
+                                      <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-3xl font-black text-[#122244]">{studentAiScore}</span>
+                                        <span className="text-sm font-semibold text-gray-400">/ 100</span>
+                                      </div>
+                                    </div>
+                                    <span className={`px-3 py-1 text-xs font-bold rounded-full border ${scoreRating.badgeClass}`}>
+                                      {scoreRating.label}
+                                    </span>
+                                  </div>
+
+                                  {/* 3-metric breakdown */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+                                    <div className="bg-white p-3.5 rounded-lg border border-gray-100">
+                                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                        Financial Viability
+                                      </span>
+                                      <span className="text-lg font-black text-[#122244] mt-1 block">
+                                        {metricFinancial}
+                                      </span>
+                                    </div>
+                                    <div className="bg-white p-3.5 rounded-lg border border-gray-100">
+                                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                        Market Alignment
+                                      </span>
+                                      <span className="text-lg font-black text-[#122244] mt-1 block">
+                                        {metricMarket}
+                                      </span>
+                                    </div>
+                                    <div className="bg-white p-3.5 rounded-lg border border-gray-100">
+                                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                        Risk Level
+                                      </span>
+                                      <span className="text-lg font-black text-[#122244] mt-1 block">
+                                        {metricRisk}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Strengths */}
+                                {rawStrengths.length > 0 && (
+                                  <div className="p-5 rounded-xl border border-green-200/70 bg-green-50/40">
+                                    <h4 className="text-xs font-extrabold uppercase tracking-widest text-green-800 flex items-center gap-2 mb-3">
+                                      <ThumbsUp className="w-4 h-4 text-green-600" />
+                                      Key Feasibility Strengths
+                                    </h4>
+                                    <ul className="space-y-2.5">
+                                      {rawStrengths.map((item: any, idx: number) => {
+                                        const { title, desc } = extractItemText(item);
+                                        return (
+                                          <li key={idx} className="flex items-start gap-2.5 text-xs text-green-950 leading-relaxed">
+                                            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                                            <div>
+                                              {title && <span className="font-bold text-green-900">{title}: </span>}
+                                              <span>{desc}</span>
+                                            </div>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Areas of Concern & Risks */}
+                                {rawWeaknesses.length > 0 && (
+                                  <div className="p-5 rounded-xl border border-amber-200/70 bg-amber-50/40">
+                                    <h4 className="text-xs font-extrabold uppercase tracking-widest text-amber-800 flex items-center gap-2 mb-3">
+                                      <TrendingDown className="w-4 h-4 text-amber-600" />
+                                      Areas of Concern & Risks
+                                    </h4>
+                                    <ul className="space-y-2.5">
+                                      {rawWeaknesses.map((item: any, idx: number) => {
+                                        const { title, desc } = extractItemText(item);
+                                        return (
+                                          <li key={idx} className="flex items-start gap-2.5 text-xs text-amber-950 leading-relaxed">
+                                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                            <div>
+                                              {title && <span className="font-bold text-amber-900">{title}: </span>}
+                                              <span>{desc}</span>
+                                            </div>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Reality Check */}
+                                {studentAi.realityCheck && (
+                                  <div className="p-5 rounded-xl border-l-4 border-red-400 bg-red-50/40 border-t border-r border-b border-red-100">
+                                    <h4 className="text-xs font-extrabold uppercase tracking-widest text-red-700 flex items-center gap-2 mb-2">
+                                      <AlertCircle className="w-4 h-4 text-red-500" />
+                                      Market Reality Check
+                                    </h4>
+                                    <p className="text-xs text-red-950 italic leading-relaxed">
+                                      "{studentAi.realityCheck.trim()}"
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Actionable Recommendations */}
+                                {rawRecommendations.length > 0 && (
+                                  <div className="p-5 rounded-xl border border-gray-100 bg-gray-50/40">
+                                    <h4 className="text-xs font-extrabold uppercase tracking-widest text-[#122244] flex items-center gap-2 mb-3">
+                                      <Lightbulb className="w-4 h-4 text-[#c9a654]" />
+                                      Actionable Recommendations
+                                    </h4>
+                                    <ol className="space-y-2.5">
+                                      {rawRecommendations.map((item: any, idx: number) => {
+                                        const { title, desc } = extractItemText(item);
+                                        return (
+                                          <li key={idx} className="flex items-start gap-2.5 text-xs text-gray-800 leading-relaxed">
+                                            <span className="w-5 h-5 rounded-full bg-[#122244] text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                                              {idx + 1}
+                                            </span>
+                                            <div>
+                                              {title && <span className="font-bold text-[#122244]">{title}: </span>}
+                                              <span>{desc}</span>
+                                            </div>
+                                          </li>
+                                        );
+                                      })}
+                                    </ol>
+                                  </div>
+                                )}
+
+                                {/* AI Draft Feedback */}
+                                {studentAi.draftFeedback && (
+                                  <div className="p-5 rounded-xl border border-blue-100 bg-blue-50/40">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2.5">
+                                      <h4 className="text-xs font-extrabold uppercase tracking-widest text-blue-900 flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-blue-600" />
+                                        AI Feedback Summary
+                                      </h4>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyAiFeedbackToRemarks(studentAi.draftFeedback)}
+                                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                                          copiedAiFeedback
+                                            ? "bg-emerald-600 text-white border border-emerald-600"
+                                            : "text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-100/60 border border-blue-200"
+                                        }`}
+                                        title="Copy or append this AI feedback to Adviser Remarks"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>{copiedAiFeedback ? "Copied to Remarks!" : "Copy to Adviser Remarks"}</span>
+                                      </button>
+                                    </div>
+                                    <p className="text-xs text-blue-950 leading-relaxed whitespace-pre-wrap bg-white/80 p-3.5 rounded-lg border border-blue-100/60">
+                                      {studentAi.draftFeedback}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              /* Placeholder Card */
+                              <div className="p-8 text-center bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center">
+                                <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-3">
+                                  <Brain className="w-6 h-6 text-gray-400" />
+                                </div>
+                                <h4 className="text-sm font-bold text-gray-700 mb-1">
+                                  No AI Feasibility Analysis Recorded
+                                </h4>
+                                <p className="text-xs text-gray-500 max-w-sm">
+                                  The student team has not run an AI Feasibility Analysis for this proposal draft.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </section>
+                      );
+                    })()}
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: AI Analysis & Feedback */}
-              <div className="w-full lg:w-[45%] xl:w-[40%] h-full bg-[#fcfcfd] flex flex-col relative z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.03)]">
+              {/* RIGHT COLUMN: Dedicated Adviser Remarks & Decision Panel */}
+              <div className="w-full lg:w-[45%] xl:w-[40%] h-full bg-[#fcfcfd] flex flex-col relative z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.03)] border-t lg:border-t-0 lg:border-l border-gray-200/80">
 
-                {/* AI Analysis Scrollable Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-6 md:p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2.5">
-                        <div className="p-1.5 bg-yellow-100/50 rounded-md"><Sparkles className="w-4 h-4 text-[#c9a654]" /></div>
-                        AI Feasibility Analysis
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        {modalAiResult && !isAiAnalyzing && (
-                          <button
-                            type="button"
-                            onClick={handleExportPDF}
-                            disabled={isExportingPdf}
-                            className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
-                            title="Export Analysis & Remarks as PDF"
-                          >
-                            {isExportingPdf ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-[#c9a654]" />
-                            ) : (
-                              <Download className="w-3 h-3 text-[#c9a654]" />
-                            )}
-                            Export PDF
-                          </button>
-                        )}
-                        {modalAiResult && !isAiAnalyzing && (
-                          <button onClick={() => handleAIAnalysis(viewingProposal)} className="text-xs font-bold text-gray-400 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm cursor-pointer">
-                            <RefreshCw className="w-3 h-3" /> Re-analyze
-                          </button>
-                        )}
+                {/* Panel Header */}
+                <div className="p-5 md:p-6 border-b border-gray-200/80 bg-white flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-yellow-100/60 rounded-lg">
+                        <MessageCircle className="w-4 h-4 text-[#c9a654]" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest">
+                          Adviser Remarks & Decision
+                        </h3>
+                        <p className="text-[11px] text-gray-500 font-medium">
+                          Official feedback & proposal disposition
+                        </p>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleExportPDF}
+                      disabled={isExportingPdf}
+                      className="text-xs font-bold text-[#122244] hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3.5 py-1.5 rounded-full border border-gray-200 shadow-sm hover:border-[#c9a654]/40 cursor-pointer disabled:opacity-50"
+                      title="Export Proposal & Remarks as PDF"
+                    >
+                      {isExportingPdf ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c9a654]" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 text-[#c9a654]" />
+                      )}
+                      <span>Export PDF</span>
+                    </button>
+                  </div>
 
-                    {isAiAnalyzing ? (
-                      <div className="flex flex-col items-center justify-center py-20 space-y-6 text-center">
-                        <div className="relative w-20 h-20">
-                          <div className="absolute inset-0 rounded-full border-[3px] border-gray-100"></div>
-                          <div className="absolute inset-0 rounded-full border-[3px] border-[#c9a654] border-t-transparent animate-spin"></div>
-                          <Brain className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
-                        </div>
-                        <div>
-                          <p className="font-extrabold text-[#122244] text-lg">Evaluating Proposal</p>
-                          <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">Our AI is analyzing the proposal against market standards...</p>
-                        </div>
-                      </div>
-                    ) : aiAnalysisError ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-red-200/70 rounded-[1.5rem] p-8 bg-red-50/50">
-                        <div className="w-20 h-20 bg-red-100/80 rounded-full flex items-center justify-center mb-5 border border-red-200/50">
-                          <AlertCircle className="w-10 h-10 text-red-500" />
-                        </div>
-                        <h4 className="text-lg font-extrabold text-[#122244] mb-2">Analysis Failed</h4>
-                        <p className="text-sm text-red-600 mb-8 max-w-[280px]">{aiAnalysisError}</p>
-                        <button
-                          onClick={() => handleAIAnalysis(viewingProposal)}
-                          className="px-8 py-3.5 bg-red-600 text-white font-extrabold text-sm rounded-xl hover:bg-red-700 transition-all shadow-lg flex items-center gap-2.5">
-                          <RefreshCw className="w-4 h-4" /> Try Again
-                        </button>
-                      </div>
-                    ) : !modalAiResult ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-200/70 rounded-[1.5rem] p-8 bg-white/50">
-                        <div className="w-20 h-20 bg-blue-50/80 rounded-full flex items-center justify-center mb-5 border border-blue-100/50">
-                          <Brain className="w-10 h-10 text-blue-500" />
-                        </div>
-                        <h4 className="text-lg font-extrabold text-[#122244] mb-2">No Analysis Yet</h4>
-                        <p className="text-sm text-gray-500 mb-8 max-w-[240px]">Run an AI evaluation to get scores, insights, and a draft feedback.</p>
-                        <button
-                          onClick={() => handleAIAnalysis(viewingProposal)}
-                          className="px-8 py-3.5 bg-[#122244] text-white font-extrabold text-sm rounded-xl hover:bg-[#0a142e] transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 transform hover:-translate-y-0.5">
-                          <Sparkles className="w-4 h-4" /> Analyze with AI
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* AI Advisory Disclaimer Banner */}
-                        <AIAdvisoryDisclaimerBanner />
-                        {modalAiResult._fallback && (
-                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
-                            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                            <p className="text-sm text-yellow-700 font-medium">
-                              ⚡ AI is temporarily unavailable. Results below are placeholder fallbacks.
-                            </p>
-                          </div>
-                        )}
-
-
-                        {/* Strengths & Weaknesses */}
-                        <div className="space-y-4">
-                          <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-sm">
-                            <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2 mb-3"><ThumbsUp className="w-4 h-4 text-green-600" /> Key Strengths</h4>
-                            {modalAiResult.strengths && modalAiResult.strengths.length > 0 ? (
-                              <ul className="space-y-2.5">
-                                {modalAiResult.strengths.map((s: any, i: number) => {
-                                  const text = typeof s === 'string' ? s : (s?.title && s?.description ? `${s.title}: ${s.description}` : s?.description || s?.title || '');
-                                  return (
-                                    <li key={i} className="text-base text-green-900 leading-relaxed flex items-start gap-2.5">
-                                      <span className="text-green-500 mt-1 flex-shrink-0"><CheckCircle2 className="w-4 h-4" /></span>
-                                      <span>{text}</span>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            ) : (
-                              <p className="text-base text-green-900 leading-relaxed font-medium">No key strengths identified for this proposal.</p>
-                            )}
-                          </div>
-                          <div className={`${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'bg-amber-50/50 border-amber-200/60' : 'bg-green-50/50 border-green-200/60'} border rounded-xl p-5 shadow-sm`}>
-                            <h4 className={`text-xs font-extrabold flex items-center gap-2 mb-3 ${modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? 'text-amber-800' : 'text-green-800'}`}>
-                              {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? <TrendingDown className="w-4 h-4 text-amber-600" /> : <CheckCircle2 className="w-4 h-4 text-green-600" />}
-                              Areas of Concern
-                            </h4>
-                            {modalAiResult.weaknesses && modalAiResult.weaknesses.length > 0 ? (
-                              <ul className="space-y-2.5">
-                                {modalAiResult.weaknesses.map((w: any, i: number) => {
-                                  const text = typeof w === 'string' ? w : (w?.title && w?.description ? `${w.title}: ${w.description}` : w?.description || w?.title || '');
-                                  return (
-                                    <li key={i} className="text-base text-amber-900 leading-relaxed flex items-start gap-2.5">
-                                      <span className="text-amber-500 mt-1 flex-shrink-0"><AlertCircle className="w-4 h-4" /></span>
-                                      <span>{text}</span>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            ) : (
-                              <p className="text-base text-green-900 leading-relaxed font-medium">There are no major areas of concern. This is an excellent and highly commendable proposal.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Reality Check */}
-                        {modalAiResult.realityCheck && (
-                          <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-5 shadow-sm">
-                            <h4 className="text-xs font-extrabold text-red-800 flex items-center gap-2 mb-3">
-                              <AlertCircle className="w-4 h-4 text-red-600" /> Reality Check
-                            </h4>
-                            <p className="text-base text-red-900 leading-relaxed font-medium italic">
-                              "{modalAiResult.realityCheck}"
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Recommendations */}
-                        <div className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm">
-                          <h4 className="text-xs font-extrabold text-[#122244] flex items-center gap-2 mb-4"><Lightbulb className="w-4 h-4 text-[#c9a654]" /> Actionable Recommendations</h4>
-                          <ul className="space-y-3">
-                            {modalAiResult.recommendations?.map((r: any, i: number) => {
-                              const text = typeof r === 'string' ? r : (r?.title && r?.description ? `${r.title}: ${r.description}` : r?.description || r?.title || '');
-                              return (
-                                <li key={i} className="text-base text-gray-700 leading-relaxed flex items-start gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                                  <span className="bg-[#122244] text-white font-bold rounded-md w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs mt-0.5 shadow-sm">{i + 1}</span>
-                                  <span>{text}</span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${
+                      viewingProposal.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                      viewingProposal.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                      viewingProposal.status === 'Revision Required' ? 'bg-amber-100 text-amber-800' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      Status: {viewingProposal.status}
+                    </span>
+                    {isRemarksSaving ? (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full flex items-center gap-1 animate-pulse border border-amber-200/60">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving...
+                      </span>
+                    ) : remarksSavedNotice ? (
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full flex items-center gap-1 border border-emerald-200/60">
+                        <Check className="w-2.5 h-2.5 text-emerald-600" /> Auto-saved
+                      </span>
+                    ) : feedbackInput.trim() ? (
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full border border-blue-200/60">
+                        Remarks Attached
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
-                {/* ADVISER FEEDBACK & DECISION SECTION (Always Accessible) */}
-                <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem]">
-                  {/* Collapsible Header */}
-                  <div 
-                    onClick={() => setIsFeedbackExpanded(!isFeedbackExpanded)}
-                    className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity mb-3"
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <MessageCircle className="w-4 h-4 text-[#c9a654]" />
-                      <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest">
-                        Adviser Remarks & Decision
-                      </h3>
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-full">
-                        Status: {viewingProposal.status}
-                      </span>
-                      {isRemarksSaving ? (
-                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full flex items-center gap-1 animate-pulse">
-                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving...
-                        </span>
-                      ) : remarksSavedNotice ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5 text-emerald-600" /> Auto-saved
-                        </span>
-                      ) : feedbackInput.trim() && !isFeedbackExpanded ? (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
-                          Remarks Attached
-                        </span>
-                      ) : null}
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {modalAiResult && modalAiResult.draftFeedback && !isFeedbackExpanded && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFeedbackInput(modalAiResult.draftFeedback);
-                            setIsFeedbackExpanded(true);
-                          }}
-                          className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[11px] font-bold border border-blue-200/60 shadow-sm"
-                        >
-                          <Sparkles className="w-3 h-3" /> Use AI Draft
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
-                      >
-                        {isFeedbackExpanded ? (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronUp className="w-4 h-4 text-gray-500" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                {/* Panel Scrollable Body (Feedback History & Spacious Remarks Area) */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 space-y-5 flex flex-col">
 
-                  {/* Foldable Textarea Container */}
-                  {isFeedbackExpanded && (
-                    <div className="space-y-3 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      {modalAiResult && modalAiResult.draftFeedback && (
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setFeedbackInput(modalAiResult.draftFeedback)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all border border-blue-200/60 shadow-sm"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> Use AI Draft
-                          </button>
-                        </div>
-                      )}
-                      <textarea
-                        value={feedbackInput}
-                        onChange={(e) => setFeedbackInput(e.target.value)}
-                        placeholder="Type adviser remarks, revision feedback, requirements, or approval notes for this proposal..."
-                        className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none h-28 text-sm bg-gray-50/50 text-gray-900 placeholder-gray-400 transition-all shadow-inner"
-                      />
+                  {/* Previous Feedback History Thread */}
+                  {viewingProposal.feedbackHistory && viewingProposal.feedbackHistory.length > 0 && (
+                    <div className="p-4 rounded-xl border border-blue-200/70 bg-blue-50/40 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
+                          <MessageCircle className="w-3.5 h-3.5 text-blue-600" /> Previous Feedback History ({viewingProposal.feedbackHistory.length})
+                        </h4>
+                      </div>
+                      <div className="space-y-2.5 max-h-44 overflow-y-auto custom-scrollbar pr-1">
+                        {viewingProposal.feedbackHistory.map((item) => (
+                          <div key={item.id} className="bg-white p-3 rounded-lg border border-blue-100/70 shadow-xs text-xs space-y-1">
+                            <div className="flex items-center justify-between text-gray-500">
+                              <span className="font-bold text-[#122244]">{item.authorName}</span>
+                              <span className="text-[10px]">{formatDisplayDateTime(item.date)}</span>
+                            </div>
+                            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{item.text}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Action Decision Buttons */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  {/* Spacious Remarks Textarea Container */}
+                  <div className="flex-1 flex flex-col space-y-2 min-h-[220px]">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-extrabold text-[#122244] uppercase tracking-wider block">
+                        Adviser Remarks & Instructions
+                      </label>
+                      <span className="text-[10px] text-gray-400">
+                        Auto-saves automatically
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Provide clear feedback, revision requirements, or approval notes for the student team.
+                    </p>
+                    <textarea
+                      value={feedbackInput}
+                      onChange={(e) => setFeedbackInput(e.target.value)}
+                      placeholder="Type adviser remarks, revision feedback, requirements, or approval notes for this proposal..."
+                      className="w-full flex-1 min-h-[200px] p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#c9a654]/50 focus:border-[#c9a654] resize-none text-sm bg-white text-gray-900 placeholder-gray-400 transition-all shadow-inner custom-scrollbar leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Decision Action Buttons */}
+                <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem] space-y-2">
+                  <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                    Adviser Decision
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2.5">
                     <button
+                      type="button"
                       onClick={() => handleProposalAction(viewingProposal, 'Revision Required')}
                       disabled={isSaving}
                       className="flex-1 min-w-[120px] py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
                       <Edit2 className="w-3.5 h-3.5" /> Needs Revision
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
                       disabled={isSaving}
                       className="flex-1 min-w-[120px] py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
                       <X className="w-3.5 h-3.5" /> Reject
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleProposalAction(viewingProposal, 'Approved')}
                       disabled={isSaving}
                       className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
@@ -3474,12 +3496,6 @@ const AdviserDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* AI Advisory Acknowledgment Modal */}
-      <AIAdvisoryModal
-        key={advisoryModalKey}
-        isOpen={isAdvisoryModalOpen}
-        onAcknowledge={handleAcknowledgeAdvisory}
-      />
 
       {/* Unified Business Proposal Section Export Modal */}
       <ProposalExportModal

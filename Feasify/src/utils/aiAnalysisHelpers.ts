@@ -797,7 +797,9 @@ export const isProposalStageAnalysis = (aiAnalysis: any): boolean => {
   if (!aiAnalysis || typeof aiAnalysis !== "object") return false;
   if (
     aiAnalysis.analysisType === "ADVISER_PROPOSAL_ANALYSIS" ||
-    aiAnalysis.sourceModule === "adviser-proposal-modal"
+    aiAnalysis.analysisType === "STUDENT_PROPOSAL_ANALYSIS" ||
+    aiAnalysis.sourceModule === "adviser-proposal-modal" ||
+    aiAnalysis.sourceModule === "student-proposal-form"
   ) {
     return true;
   }
