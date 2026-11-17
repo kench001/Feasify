@@ -368,6 +368,11 @@ export const phraseDictionary: Record<string, string> = {
   "give feedback": "Magbigay ng Feedback",
   "feedback": "Feedback",
   "submit feedback": "Isumite ang Feedback",
+  "business score": "Iskor ng Negosyo",
+  "adviser score": "Iskor ng Tagapayo",
+  "official business score": "Opisyal na Iskor ng Negosyo",
+  "score (/100)": "Iskor (/100)",
+  "submit score & feedback": "Isumite ang Iskor at Feedback",
   "approve proposal": "Aprubahan ang Proposal",
   "request revision": "Humiling ng Rebisyon",
   "reject proposal": "Tanggihan ang Proposal",
@@ -387,6 +392,9 @@ export const phraseDictionary: Record<string, string> = {
   "no notifications found.": "Walang nahanap na mga abiso.",
   "new notification": "Bagong abiso",
   "proposal submitted": "Naisumite ang Proposal",
+  "new proposal submitted": "Bagong Proposal ang Naisumite",
+  "submitted a business proposal": "nagsumite ng proposal ng negosyo",
+  "new submission": "Bagong Pagsusumite",
   "proposal approved": "Naaprubahan ang Proposal",
   "proposal rejected": "Tinanggihan ang Proposal",
   "feedback received": "Natanggap ang Feedback",
@@ -444,6 +452,26 @@ export const phraseDictionary: Record<string, string> = {
   "risk level": "Antas ng Panganib",
   "key feasibility strengths": "Pangunahing Kalakasan ng Feasibility",
   "market reality check": "Pagsusuri sa Realidad ng Merkado",
+
+  // Report Submission & Active Business Verification
+  "submit report to adviser": "Isumite ang Ulat sa Tagapayo",
+  "report submitted to adviser": "Ulat na Isumite sa Tagapayo",
+  "submit report in reports": "Isumite ang Ulat sa Mga Ulat",
+  "active business (report submitted)": "Aktibong Negosyo (Naipasa ang Ulat)",
+  "report in progress": "Kasalukuyang Ginagawa ang Ulat",
+  "awaiting student report": "Naghihintay ng Ulat ng Estudyante",
+  "active business report awaiting submission": "Ulat ng Aktibong Negosyo ay Naghihintay ng Pagsumite",
+  "view active business details": "Tingnan ang mga Detalye ng Aktibong Negosyo",
+  "confirm & submit report": "Kumpirmahin at Isumite ang Ulat",
+  "submit official feasibility report to faculty adviser?": "Isumite ang Opisyal na Ulat ng Feasibility sa Tagapayo ng Kaguruan?",
+  "submission blocked: ai verdict not feasible": "Hinarang ang Pagsumite: Hindi Feasible ang Hatol ng AI",
+  "cannot submit report": "Hindi Maisumite ang Ulat",
+
+  // Group Assignment Onboarding
+  "you are added to the group": "Naidagdag ka sa grupo",
+  "you are assigned as the team leader": "Itinalaga ka bilang Lider ng Koponan",
+  "you are assigned as a team member": "Itinalaga ka bilang Miyembro ng Koponan",
+  "group assignment": "Pagtatalaga ng Grupo",
 };
 
 // Helper function to translate any text string to Filipino with deep pattern and phrase matching
@@ -612,6 +640,12 @@ export function translateToFilipino(text: string): string {
     [/DIRECT COMPETITORS/gi, "MGA DIREKTANG KAKUMPITENSYA"],
     [/NEARBY ESTABLISHMENTS AFFECTING BUSINESS ROI/gi, "MGA KALAPIT NA ESTABLISIMYENTO NA NAKAKAAPEKTO SA ROI NG NEGOSYO"],
     [/Lock & Proceed to Month/gi, "I-lock at Magpatuloy sa Buwan"],
+    [/Official Business Score/gi, "Opisyal na Iskor ng Negosyo"],
+    [/OFFICIAL BUSINESS SCORE/gi, "OPISYAL NA ISKOR NG NEGOSYO"],
+    [/Adviser Score/gi, "Iskor ng Tagapayo"],
+    [/ADVISER SCORE/gi, "ISKOR NG TAGAPAYO"],
+    [/Score \(\/100\)/gi, "Iskor (/100)"],
+    [/Submit Score & Feedback/gi, "Isumite ang Iskor at Feedback"],
   ];
 
   for (const [pattern, repl] of multiReplacements) {

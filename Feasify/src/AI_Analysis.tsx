@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Bell,
+  Send,
 } from "lucide-react";
 import {
   cleanUserFacingText,
@@ -63,6 +64,7 @@ const AI_Analysis: React.FC = () => {
 
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [userGroup, setUserGroup] = useState<any | null>(null);
 
   const [financials, setFinancials] = useState<ExtractedFinancialData>(() =>
     extractActiveFinancialData(null)
@@ -149,6 +151,7 @@ const AI_Analysis: React.FC = () => {
       const groupSnap = await getDocs(groupQ);
       let userGroupId = "";
       let activeProposalId = "";
+      let foundGroupData: any = null;
       groupSnap.forEach((doc) => {
         const gData = doc.data();
         if (
@@ -157,8 +160,10 @@ const AI_Analysis: React.FC = () => {
         ) {
           userGroupId = doc.id;
           activeProposalId = (gData.isSetup && gData.status === "Active Business") ? (gData.activeProposalId || "") : "";
+          foundGroupData = { id: doc.id, ...gData };
         }
       });
+      setUserGroup(foundGroupData);
 
       if (userGroupId && activeProposalId) {
         const propQ = query(
@@ -185,6 +190,9 @@ const AI_Analysis: React.FC = () => {
             aiAnalysis: doc.data().aiAnalysis || null,
             products: doc.data().products || doc.data().financialData?.products || [],
             rawProposalData: doc.data(),
+            reportSubmitted: doc.data().reportSubmitted || false,
+            reportSubmissionDate: doc.data().reportSubmissionDate || null,
+            reportStatus: doc.data().reportStatus || null,
           }));
 
         const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
@@ -461,6 +469,11 @@ const AI_Analysis: React.FC = () => {
   };
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const isReportSubmitted = Boolean(
+    selectedProject?.reportSubmitted ||
+    userGroup?.reportSubmitted ||
+    selectedProject?.rawProposalData?.reportSubmitted
+  );
   const getInitials = (name: string) =>
     name
       ? name
@@ -845,16 +858,16 @@ const AI_Analysis: React.FC = () => {
                   />
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 mt-8">
                   <button
                     onClick={() =>
                       navigate("/financial-input", {
                         state: { projectId: selectedProjectId },
                       })
                     }
-                    className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-white border border-gray-200 rounded-xl sm:rounded-lg font-bold text-sm text-[#122244] hover:bg-gray-50 transition-all shadow-sm"
+                    className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 sm:py-2.5 bg-[#122244] hover:bg-[#1a3060] text-white rounded-xl sm:rounded-lg font-bold text-sm transition-all shadow-md cursor-pointer"
                   >
-                    <FileEdit className="w-4 h-4" /> Revise Financial Data
+                    <FileEdit className="w-4 h-4 text-[#c9a654]" /> Revise Financial Data
                   </button>
                   <button
                     onClick={() =>
@@ -866,6 +879,22 @@ const AI_Analysis: React.FC = () => {
                   >
                     <BarChart3 className="w-4 h-4" /> View Full Report
                   </button>
+                  {isReportSubmitted ? (
+                    <span className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold rounded-xl sm:rounded-lg shadow-sm">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Report Submitted to Adviser
+                    </span>
+                  ) : resolvedAiData ? (
+                    <button
+                      onClick={() =>
+                        navigate("/reports", {
+                          state: { projectId: selectedProjectId },
+                        })
+                      }
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg cursor-pointer transition-all"
+                    >
+                      <Send className="w-4 h-4 text-white" /> Submit Report in Reports
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )}

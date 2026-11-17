@@ -12,6 +12,8 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   LayoutDashboard,
@@ -35,7 +37,11 @@ import {
   ChevronUp,
   Store,
   Building2,
+  Send,
+  X,
 } from "lucide-react";
+import { notifyAdvisersForSection } from "./services/notificationService";
+import { logAuditEvent } from "./services/auditLogger";
 
 import domtoimage from "dom-to-image";
 import { jsPDF } from "jspdf";
@@ -52,7 +58,24 @@ const Reports: React.FC = () => {
 
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [userGroup, setUserGroup] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [showReportSubmitModal, setShowReportSubmitModal] = useState(false);
+  const [showVerdictBlockedModal, setShowVerdictBlockedModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [toastType, setToastType] = useState<"success" | "error" | "info">("success");
+
+  const triggerToast = (msg: string, type: "success" | "error" | "info" = "success") => {
+    setToastMessage(msg);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 4500);
+  };
 
   const [isDownloading, setIsDownloading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -64,13 +87,16 @@ const Reports: React.FC = () => {
 
       let userGroupId = "";
       let activeProposalId = "";
+      let foundGroupData: any = null;
       groupSnap.forEach((doc) => {
         const data = doc.data();
         if (data.leaderId === uid || (data.memberIds && data.memberIds.includes(uid))) {
           userGroupId = doc.id;
           activeProposalId = (data.isSetup && data.status === "Active Business") ? (data.activeProposalId || "") : "";
+          foundGroupData = { id: doc.id, ...data };
         }
       });
+      setUserGroup(foundGroupData);
 
       if (userGroupId && activeProposalId) {
         const propQ = query(collection(db, "proposals"), where("groupId", "==", userGroupId));
@@ -90,10 +116,14 @@ const Reports: React.FC = () => {
               products: pData.products || pData.financialData?.products || [],
               rawProposalData: pData,
               parentGroupId: userGroupId,
+              reportSubmitted: pData.reportSubmitted || false,
+              reportSubmissionDate: pData.reportSubmissionDate || null,
+              reportStatus: pData.reportStatus || null,
             };
           });
 
-        const activeProp = approvedProjects.find((p) => p.id === activeProposalId);
+        const navProjectId = (location.state as any)?.projectId || sessionStorage.getItem("lastSelectedProjectId");
+        const activeProp = (navProjectId && approvedProjects.find((p) => p.id === navProjectId)) || approvedProjects.find((p) => p.id === activeProposalId) || approvedProjects[0];
         if (activeProp) {
           setProjects([activeProp]);
           handleProjectSelect(activeProp.id);
@@ -553,6 +583,119 @@ const Reports: React.FC = () => {
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
+  const isReportSubmitted = Boolean(
+    selectedProject?.reportSubmitted ||
+    userGroup?.reportSubmitted ||
+    selectedProject?.rawProposalData?.reportSubmitted
+  );
+
+  const handleInitiateReportSubmit = () => {
+    if (!selectedProject) {
+      triggerToast("No active project selected.", "error");
+      return;
+    }
+    if (!selectedProject.aiAnalysis) {
+      triggerToast("Please run the AI Feasibility Analysis first before submitting your report.", "error");
+      return;
+    }
+
+    const status = ((selectedProject.aiAnalysis.status || "").toUpperCase()).trim();
+    const score = typeof selectedProject.aiAnalysis.score === "number" ? selectedProject.aiAnalysis.score : null;
+
+    // Passing Green verdict: status === "FEASIBLE" || (score !== null && score >= 80)
+    // Red / Not Passable: status === "NOT_FEASIBLE" || status === "NOT FEASIBLE" || (score !== null && score < 65)
+    const isRedOrNotPassable = status === "NOT_FEASIBLE" || status === "NOT FEASIBLE" || (score !== null && score < 65);
+    const isGreenVerdict = !isRedOrNotPassable && (status === "FEASIBLE" || (score !== null && score >= 80));
+
+    if (!isGreenVerdict) {
+      setShowVerdictBlockedModal(true);
+      return;
+    }
+
+    setShowReportSubmitModal(true);
+  };
+
+  const handleConfirmReportSubmit = async () => {
+    if (!selectedProject || !userGroup) {
+      triggerToast("Unable to identify group or proposal details.", "error");
+      return;
+    }
+    setIsSubmittingReport(true);
+    try {
+      const score = typeof selectedProject.aiAnalysis?.score === "number" ? selectedProject.aiAnalysis.score : 85;
+      const status = (selectedProject.aiAnalysis?.status || "FEASIBLE").toString();
+
+      const reportPayload = {
+        reportSubmitted: true,
+        reportSubmissionDate: serverTimestamp(),
+        reportStatus: "Submitted",
+        submittedReportScore: score,
+        submittedReportVerdict: status,
+      };
+
+      // 1. Update Firestore groups/{userGroupId}
+      const groupRef = doc(db, "groups", userGroup.id);
+      await updateDoc(groupRef, reportPayload);
+
+      // 2. Update Firestore proposals/{selectedProjectId}
+      const propRef = doc(db, "proposals", selectedProject.id);
+      await updateDoc(propRef, reportPayload);
+
+      // 3. Notify faculty advisers for section
+      const teamTitle = userGroup.companyName || userGroup.businessName || userGroup.title || selectedProject.name || "Your Team";
+      const targetSection = userGroup.section || "ALL";
+
+      await notifyAdvisersForSection(targetSection, {
+        title: "Feasibility Report Submitted 📊",
+        message: `Team "${teamTitle}" has submitted their passing Feasibility Report Result for your review.`,
+        type: "financial",
+        link: "/adviser/dashboard",
+        senderName: userName || "Student",
+      }).catch((err) => console.warn("Failed to notify adviser:", err));
+
+      // 4. Log audit event
+      await logAuditEvent({
+        userId: auth.currentUser?.uid || "",
+        userName: userName || "Student",
+        userRole: "student",
+        action: "SUBMIT",
+        sectionCode: targetSection,
+        description: `Submitted official Feasibility Report for "${teamTitle}" (Score: ${score}, Verdict: ${status})`,
+        recordId: selectedProject.id,
+        newValue: {
+          groupId: userGroup.id,
+          proposalId: selectedProject.id,
+          businessName: teamTitle,
+          score,
+          verdict: status,
+        },
+      }).catch((err) => console.warn("Failed to log audit event:", err));
+
+      // 5. Update local state
+      setUserGroup((prev: any) => (prev ? { ...prev, reportSubmitted: true, reportStatus: "Submitted" } : prev));
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === selectedProject.id
+            ? {
+                ...p,
+                reportSubmitted: true,
+                reportStatus: "Submitted",
+                rawProposalData: { ...p.rawProposalData, reportSubmitted: true },
+              }
+            : p
+        )
+      );
+
+      setShowReportSubmitModal(false);
+      triggerToast("Official Feasibility Report submitted successfully to your Faculty Adviser!", "success");
+    } catch (err: any) {
+      console.error("Error submitting report:", err);
+      triggerToast(err.message || "Failed to submit report. Please try again.", "error");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const financialOverview = useMemo(() => {
     if (!selectedProject) {
       return {
@@ -911,21 +1054,40 @@ const Reports: React.FC = () => {
               <h1 className="text-3xl font-extrabold text-[#3d2c23]">Executive Reports</h1>
               <p className="text-sm text-gray-500 mt-1 italic">Download and print your official AI-generated feasibility study documentation.</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button onClick={() => window.print()} disabled={!selectedProject?.aiAnalysis} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"><Printer className="w-4 h-4" /> Print Document</button>
               <button onClick={handleDownloadPDF} disabled={!selectedProject?.aiAnalysis || isDownloading} className="flex items-center gap-2 bg-[#c9a654] hover:bg-[#b59545] text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-md disabled:opacity-50"><Download className="w-4 h-4" /> {isDownloading ? "Generating..." : "Download PDF"}</button>
             </div>
           </div>
 
-          <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm print:hidden">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Project Document Under Evaluation</label>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">P#</div>
-              <div>
-                <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">{selectedProjectId && projects.length > 0 ? projects.find((p) => p.id === selectedProjectId)?.name : "No active project"}</h2>
-                {selectedProjectId && <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">Verified Approved Business</span>}
+          <div className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Project Document Under Evaluation</label>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black text-lg border border-blue-100">P#</div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#122244] tracking-tight">{selectedProjectId && projects.length > 0 ? projects.find((p) => p.id === selectedProjectId)?.name : "No active project"}</h2>
+                  {selectedProjectId && <span className="inline-block mt-1 text-[10px] font-black uppercase text-green-600 bg-green-50 px-2 py-0.5 rounded">Verified Approved Business</span>}
+                </div>
               </div>
             </div>
+            {selectedProject && (
+              <div className="shrink-0 flex items-center">
+                {isReportSubmitted ? (
+                  <div className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm rounded-xl shadow-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Report Submitted to Adviser
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleInitiateReportSubmit}
+                    disabled={isSubmittingReport}
+                    className="flex items-center gap-2 bg-[#122244] hover:bg-[#1f376b] text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4 text-[#c9a654]" /> Submit Report to Adviser
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {isLoading ? (
@@ -1208,6 +1370,116 @@ const Reports: React.FC = () => {
         {/* Floating Back to Top Button */}
         <ScrollToTopButton />
       </main>
+
+      {/* Verdict Blocked Modal */}
+      {showVerdictBlockedModal && selectedProject?.aiAnalysis && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowVerdictBlockedModal(false)} />
+          <div className="bg-white rounded-2xl p-6 sm:p-7 z-10 w-full max-w-lg shadow-2xl border border-red-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+              Submission Blocked: AI Verdict Not Feasible
+            </h3>
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">
+              Cannot Submit Report: Your AI Feasibility Analysis verdict is{" "}
+              <span className="font-bold text-red-600 uppercase">
+                {selectedProject.aiAnalysis.status || "NOT FEASIBLE"}
+              </span>{" "}
+              (Score:{" "}
+              <span className="font-bold text-red-600">
+                {typeof selectedProject.aiAnalysis.score === "number" ? selectedProject.aiAnalysis.score : "N/A"}/100
+              </span>
+              , Status: {selectedProject.aiAnalysis.status || "NOT FEASIBLE"}).
+            </p>
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed mb-6">
+              The feasibility report can only be submitted to your adviser when the AI verdict is <strong className="font-semibold text-emerald-800">GREEN / FEASIBLE</strong>. Please revise your financial data in Financial Planning and re-run the AI Feasibility Analysis.
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2.5">
+              <button
+                onClick={() => setShowVerdictBlockedModal(false)}
+                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowVerdictBlockedModal(false);
+                  navigate("/financial-input", { state: { projectId: selectedProjectId } });
+                }}
+                className="px-5 py-2.5 rounded-lg bg-[#122244] hover:bg-[#1a3060] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <FileEdit className="w-4 h-4 text-[#c9a654]" /> Revise Financial Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showReportSubmitModal && selectedProject && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={() => !isSubmittingReport && setShowReportSubmitModal(false)} />
+          <div className="bg-white rounded-2xl p-6 sm:p-7 z-10 w-full max-w-lg shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
+              <Send className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-extrabold text-[#122244] mb-2">
+              Submit Official Feasibility Report to Faculty Adviser?
+            </h3>
+            <p className="text-sm text-gray-600 leading-relaxed mb-3">
+              Your feasibility report has received a passing Green verdict (
+              <span className="font-bold text-emerald-700 uppercase">
+                {selectedProject.aiAnalysis?.status || "FEASIBLE"}
+              </span>
+              , Composite Score:{" "}
+              <span className="font-bold text-emerald-700">
+                {typeof selectedProject.aiAnalysis?.score === "number" ? selectedProject.aiAnalysis.score : 85}/100
+              </span>
+              ).
+            </p>
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed mb-6">
+              Submitting this report will notify your faculty adviser and unlock their access to view your complete Active Business feasibility study.
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2.5">
+              <button
+                disabled={isSubmittingReport}
+                onClick={() => setShowReportSubmitModal(false)}
+                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isSubmittingReport}
+                onClick={handleConfirmReportSubmit}
+                className="px-5 py-2.5 rounded-lg bg-[#122244] hover:bg-[#1a3060] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmittingReport ? (
+                  <>Submitting...</>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 text-[#c9a654]" /> Confirm & Submit Report
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border bg-white animate-in slide-in-from-bottom-5 duration-200">
+          {toastType === "success" && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
+          {toastType === "error" && <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />}
+          {toastType === "info" && <Lightbulb className="w-5 h-5 text-blue-600 shrink-0" />}
+          <span className="text-sm font-semibold text-gray-800">{toastMessage}</span>
+          <button onClick={() => setShowToast(false)} className="text-gray-400 hover:text-gray-600 p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">

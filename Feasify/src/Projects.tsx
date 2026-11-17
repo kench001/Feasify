@@ -67,6 +67,7 @@ import {
   TrendingDown,
   Lightbulb,
   RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
 import TextareaAutosize from 'react-textarea-autosize';
@@ -127,6 +128,8 @@ interface GroupData {
   mission?: string;
   vision?: string;
   objectives?: string[];
+  adviserRemarks?: string;
+  adviserScore?: number;
 }
 
 // Added FeedbackItem interface
@@ -136,6 +139,7 @@ interface FeedbackItem {
   authorName: string;
   role: string;
   date: string;
+  score?: number;
 }
 
 export {
@@ -186,6 +190,7 @@ interface ProposalData {
   status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Approved Proposal" | "APPROVED" | "Rejected" | "Pending" | "Revision";
   adviserRemarks?: string;
   adviserFeedback?: string;
+  adviserScore?: number;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
   submissionDate?: string;
   submittedData?: any;
@@ -488,7 +493,11 @@ const Projects: React.FC = () => {
       setUserGroup(g);
       setIsLeader(leader);
       setIsMember(member);
-      if (member && g.joinedMembers && g.joinedMembers.includes(uid))
+      const isGroupAcknowledged = Boolean(
+        (g.joinedMembers && g.joinedMembers.includes(uid)) ||
+        localStorage.getItem(`feasify_group_acknowledged_${g.id}_${uid}`) === "true"
+      );
+      if (isGroupAcknowledged)
         setHasJoined(true);
 
       const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
@@ -504,16 +513,16 @@ const Projects: React.FC = () => {
       // --- VIEW TRANSITIONS: driven by GROUP state changes only ---
       // This fires when the group document changes (isSetup, joinedMembers, activeProposalId).
       // It does NOT fire when proposals change, so typing in a form never triggers a view reset.
-      if (member && (!g.joinedMembers || !g.joinedMembers.includes(uid))) {
-        setActiveView("member-join");
-      } else if (g.isSetup && g.activeProposalId && g.status === "Active Business") {
+      if (g.isSetup && g.activeProposalId && g.status === "Active Business") {
         sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
         setActiveView("active-business");
+      } else if (!isGroupAcknowledged || (member && (!g.joinedMembers || !g.joinedMembers.includes(uid)))) {
+        setActiveView("group-assigned");
       } else {
         // No special group state — only reset view if currently in a stale/invalid state.
         // Preserve "dashboard" and any user-navigated position so open forms stay open.
         setActiveView(prev => {
-          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || (!g.isSetup && prev === "active-business")) {
+          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || prev === "group-assigned" || (!g.isSetup && prev === "active-business")) {
             return "dashboard";
           }
           return prev; // Keep current view — user may be filling out a form
@@ -654,18 +663,21 @@ const Projects: React.FC = () => {
         .slice(0, 2)
       : "U";
 
-  const handleJoinGroup = async () => {
+  const handleAcknowledgeGroup = async () => {
     if (!userGroup || !userUid) return;
     try {
       await updateDoc(doc(db, "groups", userGroup.id), {
         joinedMembers: arrayUnion(userUid),
       });
-      setHasJoined(true);
-      setActiveView("dashboard");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error("Group acknowledgment error:", err);
     }
+    localStorage.setItem(`feasify_group_acknowledged_${userGroup.id}_${userUid}`, "true");
+    setHasJoined(true);
+    setActiveView("dashboard");
   };
+
+  const handleJoinGroup = handleAcknowledgeGroup;
 
   const compressImage = (file: File, maxDim = 280, quality = 0.85): Promise<string> => {
     return new Promise((resolve) => {
@@ -2042,23 +2054,62 @@ const Projects: React.FC = () => {
             </div>
           )}
 
-          {activeView === "member-join" && (
+          {(activeView === "group-assigned" || activeView === "member-join") && (
             <div>
               <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                Company Name
+                Business Proposals
               </h1>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 border border-blue-100">
-                  <Bell className="w-8 h-8 text-blue-500" />
+              <p className="text-sm text-gray-500 mb-6">
+                Overview of your feasibility team and business proposal workspace.
+              </p>
+              <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-gray-100 p-8 sm:p-12 flex flex-col items-center text-center max-w-xl mx-auto my-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#122244] to-[#1d366f] flex items-center justify-center mb-6 shadow-md shadow-[#122244]/20">
+                  <Users className="w-10 h-10 text-[#c9a654]" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#122244] mb-2">
-                  You're added to a group!
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-black text-[#122244] uppercase tracking-wider mb-3">
+                  Group Assignment
+                </span>
+
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#122244] mb-2 tracking-tight">
+                  You are added to the group
                 </h2>
+
+                <p className="text-base font-semibold text-[#c9a654] mb-6">
+                  {isLeader
+                    ? "You are assigned as the Team Leader"
+                    : "You are assigned as a Team Member"}
+                </p>
+
+                {userGroup && (
+                  <div className="w-full bg-gray-50/80 border border-gray-200/80 rounded-xl p-4.5 mb-8 text-left space-y-2.5">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Section</span>
+                      <span className="font-bold text-[#122244]">{userGroup.section || "—"}</span>
+                    </div>
+                    <div className="border-t border-gray-200/60" />
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Assigned Role</span>
+                      <span className="font-bold text-[#122244]">
+                        {isLeader ? "Team Leader" : "Team Member"}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-200/60" />
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Team Leader</span>
+                      <span className="font-bold text-[#122244]">
+                        {userGroup.leaderName || (isLeader ? userName : "—")}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <button
-                  onClick={handleJoinGroup}
-                  className="flex items-center gap-2 px-8 py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all"
+                  onClick={handleAcknowledgeGroup}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] text-sm font-black rounded-xl shadow-lg shadow-[#c9a654]/25 transition-all duration-200 active:scale-95 cursor-pointer"
                 >
-                  <Check className="w-5 h-5" /> Join Workspace
+                  <span>Next</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -4182,6 +4233,28 @@ const Projects: React.FC = () => {
                             </button>
                           )}
                         </div>
+
+                        {((activeBusiness.adviserScore !== undefined && activeBusiness.adviserScore !== null) ||
+                          (userGroup?.adviserScore !== undefined && userGroup?.adviserScore !== null)) && (
+                          <div className="bg-gradient-to-r from-[#122244] to-[#1d366f] rounded-xl p-3.5 text-white flex items-center justify-between shadow-sm border border-white/10 mb-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/30 flex items-center justify-center shrink-0">
+                                <Star className="w-4 h-4 text-[#c9a654] fill-[#c9a654]" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black tracking-wide uppercase text-white">Adviser Score</p>
+                                <p className="text-[10px] text-gray-300 font-medium">Graded by Adviser</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-2xl font-black text-white">
+                                {activeBusiness.adviserScore ?? userGroup?.adviserScore}
+                              </span>{" "}
+                              <span className="text-xs font-bold text-gray-300">/ 100</span>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                           {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
                             <div className="text-center py-6 text-gray-400">
@@ -4196,9 +4269,18 @@ const Projects: React.FC = () => {
                                     <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
                                     <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
                                   </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {item.score !== undefined && item.score !== null && !isNaN(Number(item.score)) && (
+                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full border border-emerald-200">
+                                        Score: {item.score}/100
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <span className="text-[10px] text-gray-400 font-medium">{formatFeedbackDate(item.date)}</span>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                                {item.text && (
+                                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                                )}
                               </div>
                             ))
                           )}

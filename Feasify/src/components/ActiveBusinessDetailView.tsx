@@ -21,6 +21,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Star,
   Store,
   Target,
   TrendingUp,
@@ -62,6 +63,8 @@ export interface ActiveBusinessDetailViewProps {
   canPostFeedback?: boolean;
   feedbackInput?: string;
   onFeedbackInputChange?: (val: string) => void;
+  adviserScoreInput?: string;
+  onAdviserScoreChange?: (val: string) => void;
   onSubmitFeedback?: () => void;
   isSavingFeedback?: boolean;
   onExportAnalysis?: (aiData: ResolvedAIAnalysisData) => void;
@@ -118,6 +121,8 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
   canPostFeedback = false,
   feedbackInput = "",
   onFeedbackInputChange,
+  adviserScoreInput = "",
+  onAdviserScoreChange,
   onSubmitFeedback,
   isSavingFeedback = false,
   onExportAnalysis,
@@ -267,9 +272,10 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
       const itemEpoch = toEpochMs(item.date);
       const isDuplicate = deduped.some((prev) => {
         const textMatch = (prev.text || "").trim() === (item.text || "").trim();
+        const scoreMatch = prev.score === item.score;
         const authorMatch = prev.authorId && item.authorId ? prev.authorId === item.authorId : true;
         const timeDiff = Math.abs(toEpochMs(prev.date) - itemEpoch);
-        return textMatch && authorMatch && timeDiff < 15000;
+        return textMatch && scoreMatch && authorMatch && timeDiff < 15000;
       });
       if (isDuplicate) continue;
 
@@ -2472,6 +2478,35 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               </span>
             </div>
 
+            {/* Official Business Scorecard Banner */}
+            {((proposal?.adviserScore !== undefined && proposal?.adviserScore !== null) ||
+              (group?.adviserScore !== undefined && group?.adviserScore !== null)) && (
+              <div className="bg-gradient-to-r from-[#122244] to-[#1d366f] rounded-xl p-3.5 text-white flex items-center justify-between shadow-sm border border-white/10 mb-2 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/30 flex items-center justify-center shrink-0">
+                    <Star className="w-4 h-4 text-[#c9a654] fill-[#c9a654]" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black tracking-wide uppercase text-white">
+                      Official Business Score
+                    </p>
+                    <p className="text-[10px] text-gray-300 font-medium">
+                      Graded by Adviser
+                      {(group?.submittedReportScore || proposal?.submittedReportScore)
+                        ? ` (AI Report Score: ${group?.submittedReportScore || proposal?.submittedReportScore}/100)`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-white">
+                    {proposal?.adviserScore ?? group?.adviserScore}
+                  </span>{" "}
+                  <span className="text-xs font-bold text-gray-300">/ 100</span>
+                </div>
+              </div>
+            )}
+
             {/* Bulletin Feed (Scrollable history) */}
             <div className="space-y-3 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto pr-1 custom-scrollbar">
               {feedbackHistory.length === 0 ? (
@@ -2499,13 +2534,22 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                                   .pop()}`
                               : "Faculty Adviser")}
                         </span>
-                        <span className="text-gray-400">
-                          {formatBulletinTimestamp(item.date)}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {item.score !== undefined && item.score !== null && !isNaN(Number(item.score)) && (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full border border-emerald-200">
+                              Score: {item.score}/100
+                            </span>
+                          )}
+                          <span className="text-gray-400">
+                            {formatBulletinTimestamp(item.date)}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-[#c9a654]/40">
-                        {item.text}
-                      </p>
+                      {item.text && (
+                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-[#c9a654]/40">
+                          {item.text}
+                        </p>
+                      )}
                     </div>
                   ))
               )}
@@ -2513,25 +2557,46 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
 
             {/* Inline Composer (Adviser) vs View-Only Notice (Chairperson) */}
             {canPostFeedback ? (
-              <div className="pt-2 border-t border-gray-100 space-y-2 shrink-0">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                  Post Advisory Note
-                </label>
-                <textarea
-                  rows={3}
-                  value={feedbackInput}
-                  onChange={(e) => onFeedbackInputChange?.(e.target.value)}
-                  placeholder="Type guidance, required changes, or feedback for the students..."
-                  className="w-full text-xs p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none resize-none transition-all placeholder:text-gray-400"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault();
-                      if (feedbackInput.trim() && !isSavingFeedback) {
-                        onSubmitFeedback?.();
+              <div className="pt-2 border-t border-gray-100 space-y-2.5 shrink-0">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Score (/100)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={adviserScoreInput || ""}
+                      onChange={(e) => onAdviserScoreChange?.(e.target.value)}
+                      placeholder="e.g. 95"
+                      className="w-24 text-xs font-bold text-[#122244] p-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none"
+                    />
+                    <span className="text-xs font-bold text-gray-400">/ 100</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Feedback & Remarks
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={feedbackInput}
+                    onChange={(e) => onFeedbackInputChange?.(e.target.value)}
+                    placeholder="Type evaluation remarks, feedback, or instructions for the student team..."
+                    className="w-full text-xs p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none resize-none transition-all placeholder:text-gray-400"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        if ((feedbackInput.trim() || adviserScoreInput?.trim()) && !isSavingFeedback) {
+                          onSubmitFeedback?.();
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-[9px] text-gray-400 italic">
                     Press Ctrl + Enter to send
@@ -2539,11 +2604,11 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                   <button
                     type="button"
                     onClick={onSubmitFeedback}
-                    disabled={isSavingFeedback || !feedbackInput.trim()}
+                    disabled={isSavingFeedback || (!feedbackInput.trim() && !adviserScoreInput?.trim())}
                     className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    {isSavingFeedback ? "Posting..." : "Post Feedback"}
+                    {isSavingFeedback ? "Saving..." : "Submit Score & Feedback"}
                   </button>
                 </div>
               </div>

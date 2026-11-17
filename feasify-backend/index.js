@@ -20,12 +20,13 @@ const rateLimit = require("express-rate-limit");
 // ==========================================
 // FIREBASE ADMIN SDK — Audit Trail Security
 // ==========================================
+let admin = null;
 let adminApp = null;
 let adminFirestore = null;
 let adminAuth = null;
 
 try {
-  const admin = require("firebase-admin");
+  admin = require("firebase-admin");
 
   const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (serviceAccountEnv) {
@@ -872,7 +873,7 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
 // Endpoint to add bulletin feedback to a proposal with strict idempotency and duplicate suppression
 app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
   const { proposalId } = req.params;
-  const { text, authorName, role, idempotencyKey } = req.body || {};
+  const { text, authorName, role, idempotencyKey, score } = req.body || {};
 
   if (!text || !text.trim()) {
     return res.status(400).json({ error: "Feedback text is required." });
@@ -882,6 +883,15 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
   const cleanAuthor = (authorName || "Faculty Adviser").trim();
   const cleanRole = (role || "Adviser").trim();
   const feedbackId = idempotencyKey || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  let parsedScore;
+  if (score !== undefined && score !== null && typeof score !== "boolean" && String(score).trim() !== "") {
+    const candidateScore = Number(score);
+    if (!Number.isNaN(candidateScore) && candidateScore >= 0 && candidateScore <= 100) {
+      parsedScore = candidateScore;
+    }
+  }
+  const hasValidScore = typeof parsedScore === "number";
 
   if (adminFirestore) {
     try {
@@ -921,15 +931,40 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
         text: cleanText,
         authorName: cleanAuthor,
         role: cleanRole,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        ...(hasValidScore ? { score: parsedScore } : {})
       };
 
-      await propRef.update({
+      const propUpdates = {
         feedbackHistory: admin.firestore.FieldValue.arrayUnion(newFeedback),
         adviserFeedback: cleanText,
         adviserRemarks: cleanText,
         updatedAt: new Date().toISOString()
-      });
+      };
+      if (hasValidScore) {
+        propUpdates.adviserScore = parsedScore;
+      }
+
+      await propRef.update(propUpdates);
+
+      if (existingData.groupId) {
+        try {
+          const groupRef = adminFirestore.collection("groups").doc(existingData.groupId);
+          const groupDoc = await groupRef.get();
+          if (groupDoc.exists) {
+            const groupUpdate = {
+              adviserRemarks: cleanText,
+              updatedAt: new Date().toISOString()
+            };
+            if (hasValidScore) {
+              groupUpdate.adviserScore = parsedScore;
+            }
+            await groupRef.update(groupUpdate);
+          }
+        } catch (groupErr) {
+          console.warn(`[Backend post feedback] Group ${existingData.groupId} update warning:`, groupErr.message);
+        }
+      }
 
       return res.json({
         success: true,
@@ -946,7 +981,8 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
     text: cleanText,
     authorName: cleanAuthor,
     role: cleanRole,
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    ...(hasValidScore ? { score: parsedScore } : {})
   };
   res.json({ success: true, feedback: newFeedback });
 });
