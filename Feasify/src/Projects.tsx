@@ -28,6 +28,12 @@ import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, notifyAdvisersForSection } from "./services/notificationService";
 import { getOtherRelevantInformation } from "./utils/proposalDetails";
 import {
+  evaluateProposalHeuristic,
+  getProposalInputSignature,
+  PROPOSAL_PASSING_SCORE,
+  PROPOSAL_CATEGORIES,
+} from "./utils/proposalAnalysis";
+import {
   LayoutDashboard,
   Folder,
   FileEdit,
@@ -1031,17 +1037,66 @@ const Projects: React.FC = () => {
 
       const aiResult = await response.json();
 
+      // Normalize category scores (proposal-v2 standard: 25 pts each)
+      const catScores = aiResult.categoryScores || {};
+      const strategicScore = typeof catScores.strategicAlignment === "number"
+        ? (catScores.strategicAlignment <= 15 ? Math.round((catScores.strategicAlignment / 15) * 25) : catScores.strategicAlignment)
+        : Math.round((aiResult.score || 75) * 0.25);
+      const marketScore = typeof catScores.marketFeasibility === "number"
+        ? catScores.marketFeasibility
+        : (typeof catScores.marketViability === "number" ? catScores.marketViability : Math.round((aiResult.score || 75) * 0.25));
+      const operationalScore = typeof catScores.operationalFeasibility === "number"
+        ? catScores.operationalFeasibility
+        : Math.round((aiResult.score || 75) * 0.25);
+      const capitalScore = typeof catScores.capitalPlanning === "number"
+        ? catScores.capitalPlanning
+        : (typeof catScores.financialViability === "number" ? Math.round((catScores.financialViability / 35) * 25) : Math.round((aiResult.score || 75) * 0.25));
+
+      const rawScore = typeof aiResult.score === "number" ? aiResult.score : (strategicScore + marketScore + operationalScore + capitalScore);
+      const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
       const finalResult = {
         ...aiResult,
-        score: typeof aiResult.score === "number" ? aiResult.score : 75,
-        metrics: aiResult.metrics || { financial: 75, risk: 75, market: 75 },
-        strengths: (aiResult.insights || []).filter((i: any) => i.type === "positive").map(formatInsightItem),
-        weaknesses: (aiResult.insights || []).filter((i: any) => i.type === "warning").map(formatInsightItem),
-        recommendations: (aiResult.insights || []).filter((i: any) => i.type === "info" || i.type === "suggestion").map(formatInsightItem),
+        score,
+        rubricVersion: aiResult.rubricVersion || "proposal-v2",
+        passingScore: PROPOSAL_PASSING_SCORE,
+        verdict: score >= PROPOSAL_PASSING_SCORE ? "PASS" : score >= 70 ? "CONDITIONAL" : "FAIL",
+        status: score >= PROPOSAL_PASSING_SCORE ? "FEASIBLE" : score >= 70 ? "CONDITIONALLY_FEASIBLE" : "NOT_FEASIBLE",
+        categoryScores: {
+          strategicAlignment: strategicScore,
+          marketFeasibility: marketScore,
+          operationalFeasibility: operationalScore,
+          capitalPlanning: capitalScore,
+        },
+        metrics: {
+          financial: typeof aiResult.metrics?.financial === "number" ? aiResult.metrics.financial : Math.round((capitalScore / 25) * 100),
+          risk: typeof aiResult.metrics?.risk === "number" ? aiResult.metrics.risk : Math.round((operationalScore / 25) * 100),
+          market: typeof aiResult.metrics?.market === "number" ? aiResult.metrics.market : Math.round((marketScore / 25) * 100),
+          strategic: typeof aiResult.metrics?.strategic === "number" ? aiResult.metrics.strategic : Math.round((strategicScore / 25) * 100),
+        },
+        explanations: {
+          feasibility: aiResult.explanations?.feasibility || (score >= PROPOSAL_PASSING_SCORE ? "Proposal demonstrates high feasibility and meets academic criteria for adviser submission." : "Proposal requires refinement in key areas before adviser submission."),
+          financial: aiResult.explanations?.financial || aiResult.categoryRationales?.capitalPlanning || aiResult.categoryRationales?.financialViability || "Initial startup capital adequacy and equipment budgeting assessed.",
+          market: aiResult.explanations?.market || aiResult.categoryRationales?.marketFeasibility || aiResult.categoryRationales?.marketViability || "Target demographic and promotional strategy evaluated.",
+          risk: aiResult.explanations?.risk || aiResult.categoryRationales?.operationalFeasibility || "Venue location feasibility and operational assets assessed.",
+          strategic: aiResult.explanations?.strategic || aiResult.categoryRationales?.strategicAlignment || "Brand identity, mission, and vision alignment assessed.",
+        },
+        strengths: (Array.isArray(aiResult.strengths) && aiResult.strengths.length > 0)
+          ? aiResult.strengths.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "positive").map(formatInsightItem),
+        weaknesses: (Array.isArray(aiResult.weaknesses) && aiResult.weaknesses.length > 0)
+          ? aiResult.weaknesses.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "warning" || i?.type === "danger").map(formatInsightItem),
+        recommendations: (Array.isArray(aiResult.recommendations) && aiResult.recommendations.length > 0)
+          ? aiResult.recommendations.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "info" || i?.type === "suggestion").map(formatInsightItem),
         realityCheck: aiResult.realityCheck || "",
+        draftFeedback: aiResult.draftFeedback || "",
         lastRun: new Date().toISOString(),
         analysisType: "STUDENT_PROPOSAL_ANALYSIS",
         sourceModule: "student-proposal-form",
+        inputSignature: getProposalInputSignature(currentProposal),
+        _fallback: false,
       };
 
       setCurrentProposal((prev) => ({ ...prev, aiAnalysis: finalResult }));
@@ -1059,50 +1114,14 @@ const Projects: React.FC = () => {
     } catch (e: any) {
       console.warn("Live AI analysis call failed or timed out, applying heuristic evaluation fallback:", e);
       try {
-        const capitalNum = Number(String(currentProposal.totalCapital || "0").replace(/[^0-9.]/g, "")) || 0;
-        const finData = currentProposal.financialData || {};
-        const products = normalizeProposalProducts(finData, currentProposal.businessName);
-        const primaryProd = products[0];
-        const metrics = primaryProd ? computeProductMetrics(primaryProd) : { sellingPrice: 0, unitCost: 0 };
-        const marginPositive = metrics.sellingPrice > metrics.unitCost && metrics.unitCost > 0;
-
-        let evalScore = 78;
-        if (!marginPositive && metrics.sellingPrice > 0) evalScore -= 18;
-        if (capitalNum >= 50000) evalScore += 5;
-        if (currentProposal.missionStatement?.trim() && currentProposal.visionStatement?.trim()) evalScore += 5;
-        if (currentProposal.proposedLocation?.trim()) evalScore += 4;
-        evalScore = Math.min(95, Math.max(40, evalScore));
-
-        const fallbackAiResult = {
-          score: evalScore,
-          metrics: {
-            financial: marginPositive ? 82 : (metrics.sellingPrice > 0 ? 50 : 70),
-            risk: capitalNum > 30000 ? 80 : 65,
-            market: currentProposal.targetMarket?.trim() ? 78 : 65,
-          },
-          explanations: {
-            feasibility: `Preliminary heuristic evaluation. Declared capital: PHP ${capitalNum.toLocaleString()}.`,
-            financial: marginPositive ? "Calculated selling price covers unit production cost." : "Review product margins and unit costing details.",
-            risk: "Evaluated against startup feasibility standards and capital adequacy.",
-            market: "Target demographic and promotional strategy evaluated."
-          },
-          insights: [
-            { type: "positive", title: "Concept Scope", description: `Submitted business concept "${currentProposal.businessName}" under ${currentProposal.businessType || 'General'} sector.` },
-            { type: marginPositive ? "positive" : "warning", title: "Unit Margin Viability", description: marginPositive ? "Calculated unit selling price exceeds estimated unit cost." : "Selling price should comfortably exceed direct unit cost to ensure operating sustainability." },
-            { type: "info", title: "Actionable Recommendation", description: "Review equipment allocation, pricing margins, and promotional channels before submitting to your adviser." }
-          ],
-          realityCheck: `Capital of PHP ${capitalNum.toLocaleString()} declared for proposed venue at ${currentProposal.proposedLocation || 'designated location'}.`,
-          _fallback: true
-        };
+        const heuristicResult = evaluateProposalHeuristic(currentProposal);
 
         const finalResult = {
-          ...fallbackAiResult,
-          strengths: fallbackAiResult.insights.filter((i: any) => i.type === "positive").map(formatInsightItem),
-          weaknesses: fallbackAiResult.insights.filter((i: any) => i.type === "warning").map(formatInsightItem),
-          recommendations: fallbackAiResult.insights.filter((i: any) => i.type === "info").map(formatInsightItem),
+          ...heuristicResult,
           lastRun: new Date().toISOString(),
           analysisType: "STUDENT_PROPOSAL_ANALYSIS",
           sourceModule: "student-proposal-form",
+          inputSignature: getProposalInputSignature(currentProposal),
         };
 
         setCurrentProposal((prev) => ({ ...prev, aiAnalysis: finalResult }));
@@ -3595,7 +3614,7 @@ const Projects: React.FC = () => {
                               Ready for AI Feasibility Evaluation?
                             </h4>
                             <p className="text-sm text-gray-600 mb-6 max-w-md leading-relaxed">
-                              Run an AI evaluation on your proposal to assess unit economics, examine market alignment, identify key strengths, and uncover areas for improvement before your adviser's formal review.
+                              Run an AI evaluation on your proposal to assess strategic alignment, market feasibility, operational readiness, and capital planning before your adviser's formal review.
                             </p>
                             <button
                               type="button"
@@ -3616,7 +3635,12 @@ const Projects: React.FC = () => {
                               ? { label: "Moderate Feasibility", badgeClass: "bg-amber-100 text-amber-800 border-amber-200" }
                               : { label: "Needs Improvement", badgeClass: "bg-rose-100 text-rose-800 border-rose-200" };
 
-                          const metrics = analysis.metrics || { financial: 75, risk: 75, market: 75 };
+                          const metrics = analysis.metrics || {
+                            financial: typeof analysis.categoryScores?.capitalPlanning === "number" ? Math.round((analysis.categoryScores.capitalPlanning / 25) * 100) : 75,
+                            risk: typeof analysis.categoryScores?.operationalFeasibility === "number" ? Math.round((analysis.categoryScores.operationalFeasibility / 25) * 100) : 75,
+                            market: typeof analysis.categoryScores?.marketFeasibility === "number" ? Math.round((analysis.categoryScores.marketFeasibility / 25) * 100) : 75,
+                            strategic: typeof analysis.categoryScores?.strategicAlignment === "number" ? Math.round((analysis.categoryScores.strategicAlignment / 25) * 100) : 75,
+                          };
 
                           return (
                             <div className="space-y-6">
@@ -3678,47 +3702,61 @@ const Projects: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Metrics Breakdown */}
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              {/* Metrics Breakdown (4 Categories) */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                    Financial Viability
+                                    Strategic Foundation
                                   </span>
                                   <div className="flex items-baseline gap-2">
                                     <span className="text-2xl font-black text-[#122244]">
-                                      {metrics.financial ?? 75}%
+                                      {metrics.strategic ?? (analysis.categoryScores?.strategicAlignment ? Math.round((analysis.categoryScores.strategicAlignment / 25) * 100) : 75)}%
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-gray-600 leading-snug">
-                                    {analysis.explanations?.financial || "Unit margin and startup capital adequacy."}
+                                    {analysis.explanations?.strategic || analysis.categoryRationales?.strategicAlignment || "Brand identity, mission, and vision alignment."}
                                   </p>
                                 </div>
 
                                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                    Market Alignment
+                                    Market & Offering
                                   </span>
                                   <div className="flex items-baseline gap-2">
                                     <span className="text-2xl font-black text-[#122244]">
-                                      {metrics.market ?? 75}%
+                                      {metrics.market ?? (analysis.categoryScores?.marketFeasibility ? Math.round((analysis.categoryScores.marketFeasibility / 25) * 100) : 75)}%
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-gray-600 leading-snug">
-                                    {analysis.explanations?.market || "Target market clarity and promotional reach."}
+                                    {analysis.explanations?.market || analysis.categoryRationales?.marketFeasibility || "Target demographic and promotional reach."}
                                   </p>
                                 </div>
 
                                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                                    Risk Level
+                                    Operational Feasibility
                                   </span>
                                   <div className="flex items-baseline gap-2">
                                     <span className="text-2xl font-black text-[#122244]">
-                                      {metrics.risk ?? 75}%
+                                      {metrics.risk ?? (analysis.categoryScores?.operationalFeasibility ? Math.round((analysis.categoryScores.operationalFeasibility / 25) * 100) : 75)}%
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-gray-600 leading-snug">
-                                    {analysis.explanations?.risk || "Startup capital scale and operational dependencies."}
+                                    {analysis.explanations?.risk || analysis.categoryRationales?.operationalFeasibility || "Proposed venue location and operational assets fit."}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    Capital & Asset Planning
+                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-[#122244]">
+                                      {metrics.financial ?? (analysis.categoryScores?.capitalPlanning ? Math.round((analysis.categoryScores.capitalPlanning / 25) * 100) : 75)}%
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 leading-snug">
+                                    {analysis.explanations?.financial || analysis.categoryRationales?.capitalPlanning || "Initial startup capital adequacy and equipment budgeting."}
                                   </p>
                                 </div>
                               </div>
