@@ -152,9 +152,9 @@ async function runApiTests() {
   });
 
   await new Promise((resolve) => {
-    testServer = app.listen(0, () => {
+    testServer = app.listen(0, "127.0.0.1", () => {
       const port = testServer.address().port;
-      baseUrl = `http://localhost:${port}`;
+      baseUrl = `http://127.0.0.1:${port}`;
       console.log(`Test server running on ${baseUrl}`);
       resolve();
     });

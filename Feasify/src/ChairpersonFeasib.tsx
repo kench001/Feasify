@@ -304,7 +304,7 @@ const ChairpersonFeasib: React.FC = () => {
   const negativeFeasibilityCount = projects.filter(p => p.aiSentiment === "negative").length;
 
   return (
-    <div className="flex min-h-screen bg-gray-50/30">
+    <div className="flex min-h-screen w-full overflow-x-clip bg-gray-50/30">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -389,9 +389,9 @@ const ChairpersonFeasib: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0">
-        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+      <main className="flex-1 min-w-0 w-full transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3 text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
             <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
               className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
@@ -430,7 +430,7 @@ const ChairpersonFeasib: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => navigate("/admin/chairpersonnotification")}
               className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
@@ -474,19 +474,19 @@ const ChairpersonFeasib: React.FC = () => {
             canPostFeedback={false}
           />
         ) : (
-          <div className="p-6 md:p-8 max-w-7xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-[#3d2c23]">Business Feasibility Management</h1>
+          <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full min-w-0">
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#3d2c23] break-words">Business Feasibility Management</h1>
               <p className="text-sm text-gray-500 mt-2 italic">Oversee and track all business feasibility study projects.</p>
             </div>
 
             {/* Stats Cards Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-gray-200">
+                  <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 border-l-4 border-gray-200 min-w-0">
                     <div className="flex justify-between items-start">
-                      <div className="w-full">
+                      <div className="w-full min-w-0">
                         <Skeleton width={120} height={12} className="mb-2" />
                         <Skeleton width={40} height={32} />
                       </div>
@@ -496,43 +496,43 @@ const ChairpersonFeasib: React.FC = () => {
                 ))
               ) : (
                 <>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-[#c9a654]">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 border-l-4 border-l-[#c9a654] min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Studies</p>
-                        <p className="text-3xl font-extrabold text-[#122244]">{projects.length}</p>
+                        <p className="text-2xl sm:text-3xl font-extrabold text-[#122244] tabular-nums">{projects.length}</p>
                       </div>
-                      <FileText className="w-8 h-8 text-gray-200" />
+                      <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-gray-200 shrink-0" />
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-blue-500">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 border-l-4 border-l-blue-500 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Active Business</p>
-                        <p className="text-3xl font-extrabold text-[#122244]">{activeBusinessCount}</p>
+                        <p className="text-2xl sm:text-3xl font-extrabold text-[#122244] tabular-nums">{activeBusinessCount}</p>
                       </div>
-                      <Briefcase className="w-8 h-8 text-blue-100" />
+                      <Briefcase className="w-7 h-7 sm:w-8 sm:h-8 text-blue-100 shrink-0" />
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-green-500">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 border-l-4 border-l-green-500 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Positive Feasibility</p>
-                        <p className="text-3xl font-extrabold text-green-600">{positiveFeasibilityCount}</p>
+                        <p className="text-2xl sm:text-3xl font-extrabold text-green-600 tabular-nums">{positiveFeasibilityCount}</p>
                       </div>
-                      <CheckCircle2 className="w-8 h-8 text-green-100" />
+                      <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-green-100 shrink-0" />
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 border-l-4 border-l-red-500">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 border-l-4 border-l-red-500 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Negative Feasibility</p>
-                        <p className="text-3xl font-extrabold text-red-600">{negativeFeasibilityCount}</p>
+                        <p className="text-2xl sm:text-3xl font-extrabold text-red-600 tabular-nums">{negativeFeasibilityCount}</p>
                       </div>
-                      <AlertCircle className="w-8 h-8 text-red-100" />
+                      <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-red-100 shrink-0" />
                     </div>
                   </div>
                 </>
@@ -540,7 +540,7 @@ const ChairpersonFeasib: React.FC = () => {
             </div>
 
             {/* Primary Management Tabs */}
-            <div className="flex items-center space-x-6 border-b border-gray-200 mb-6 overflow-x-auto custom-scrollbar">
+            <div className="flex items-center gap-4 sm:gap-6 border-b border-gray-200 mb-6 w-full max-w-full overflow-x-auto custom-scrollbar">
               <button
                 type="button"
                 onClick={() => handleMainTabChange("proposals")}
@@ -593,8 +593,8 @@ const ChairpersonFeasib: React.FC = () => {
             {activeMainTab === "proposals" ? (
               <>
                 {/* Controls */}
-                <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="relative w-full xl:w-80 shrink-0">
+                <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-3 sm:gap-4 mb-6 bg-white p-3.5 sm:p-4 rounded-xl border border-gray-100 shadow-sm w-full min-w-0">
+                  <div className="relative w-full min-w-0 xl:w-80 shrink-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
@@ -605,34 +605,34 @@ const ChairpersonFeasib: React.FC = () => {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:justify-end text-sm">
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <span className="text-gray-500 font-semibold whitespace-nowrap">Section:</span>
+                  <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:justify-end text-sm min-w-0">
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                      <span className="text-gray-500 font-semibold whitespace-nowrap w-16 sm:w-auto shrink-0">Section:</span>
                       <CustomDropdown
                         value={selectedSection}
                         onChange={(val) => setSelectedSection(val)}
                         options={uniqueSections.map((sec) => ({ value: sec, label: sec }))}
-                        className="w-full sm:w-40"
+                        className="flex-1 sm:flex-initial min-w-0 sm:w-40"
                         buttonClassName="py-2 text-xs font-semibold"
                       />
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <span className="text-gray-500 font-semibold whitespace-nowrap">Adviser:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                      <span className="text-gray-500 font-semibold whitespace-nowrap w-16 sm:w-auto shrink-0">Adviser:</span>
                       <CustomDropdown
                         value={selectedAdviser}
                         onChange={(val) => setSelectedAdviser(val)}
                         options={uniqueAdvisers.map((adv) => ({ value: adv, label: adv }))}
-                        className="w-full sm:w-44"
+                        className="flex-1 sm:flex-initial min-w-0 sm:w-44"
                         buttonClassName="py-2 text-xs font-semibold"
                       />
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <span className="text-gray-500 font-semibold whitespace-nowrap">Status:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                      <span className="text-gray-500 font-semibold whitespace-nowrap w-16 sm:w-auto shrink-0">Status:</span>
                       <CustomDropdown
                         value={selectedStatus}
                         onChange={(val) => setSelectedStatus(val)}
                         options={STATUS_FILTER_OPTIONS.map((st) => ({ value: st, label: st }))}
-                        className="w-full sm:w-44"
+                        className="flex-1 sm:flex-initial min-w-0 sm:w-44"
                         buttonClassName="py-2 text-xs font-semibold"
                       />
                     </div>
@@ -640,27 +640,27 @@ const ChairpersonFeasib: React.FC = () => {
                 </div>
 
                 {/* Data Table */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm w-full min-w-0 overflow-hidden">
+                  <div className="w-full overflow-x-auto custom-scrollbar">
                     <table className="w-full text-sm text-left">
                       <thead className="text-gray-500 font-bold uppercase text-xs tracking-wider border-b border-gray-100">
                         <tr>
-                          <th className="px-6 py-5">Project/Business Name</th>
-                          <th className="px-6 py-5">Section</th>
-                          <th className="px-6 py-5">Leader</th>
-                          <th className="px-6 py-5">Status</th>
-                          <th className="px-6 py-5">Adviser</th>
+                          <th className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">Project/Business Name</th>
+                          <th className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">Section</th>
+                          <th className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">Leader</th>
+                          <th className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">Status</th>
+                          <th className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">Adviser</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {isLoading ? (
                           Array.from({ length: Math.min(parseInt(sessionStorage.getItem('adminProjectCount') || '5', 10) || 5, 10) }).map((_, i) => (
                             <tr key={i}>
-                              <td className="px-6 py-5"><Skeleton width={150} /></td>
-                              <td className="px-6 py-5"><Skeleton width={80} /></td>
-                              <td className="px-6 py-5"><Skeleton width={120} /></td>
-                              <td className="px-6 py-5"><Skeleton width={100} borderRadius={999} /></td>
-                              <td className="px-6 py-5"><Skeleton width={120} /></td>
+                              <td className="px-4 py-3.5 sm:px-6 sm:py-5"><Skeleton width={150} /></td>
+                              <td className="px-4 py-3.5 sm:px-6 sm:py-5"><Skeleton width={80} /></td>
+                              <td className="px-4 py-3.5 sm:px-6 sm:py-5"><Skeleton width={120} /></td>
+                              <td className="px-4 py-3.5 sm:px-6 sm:py-5"><Skeleton width={100} borderRadius={999} /></td>
+                              <td className="px-4 py-3.5 sm:px-6 sm:py-5"><Skeleton width={120} /></td>
                             </tr>
                           ))
                         ) : filteredProjects.length === 0 ? (
@@ -676,25 +676,25 @@ const ChairpersonFeasib: React.FC = () => {
 
                             return (
                               <tr key={project.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-6 py-5">
-                                  <div className="font-bold text-[#122244]">
+                                <td className="px-4 py-3.5 sm:px-6 sm:py-5 min-w-[200px]">
+                                  <div className="font-bold text-[#122244] break-words">
                                     {project.businessName || "Untitled"}
                                   </div>
-                                  <div className="text-[11px] text-gray-400 font-medium mt-0.5">
+                                  <div className="text-[11px] text-gray-400 font-medium mt-0.5 break-words">
                                     Proposal #{project.proposalNumber}
                                     {showCompanySubLabel ? ` • ${project.companyName}` : ""}
                                   </div>
                                 </td>
-                                <td className="px-6 py-5 font-semibold text-gray-700">{project.section || "N/A"}</td>
-                                <td className="px-6 py-5 text-gray-800">{project.leaderName || "Unknown"}</td>
-                                <td className="px-6 py-5">
+                                <td className="px-4 py-3.5 sm:px-6 sm:py-5 font-semibold text-gray-700 whitespace-nowrap">{project.section || "N/A"}</td>
+                                <td className="px-4 py-3.5 sm:px-6 sm:py-5 text-gray-800 whitespace-nowrap">{project.leaderName || "Unknown"}</td>
+                                <td className="px-4 py-3.5 sm:px-6 sm:py-5 whitespace-nowrap">
                                   <span
                                     className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${workflowBadgeClass}`}
                                   >
                                     {project.status || "Pending Review"}
                                   </span>
                                 </td>
-                                <td className="px-6 py-5 text-gray-800">{project.adviserName || "Unassigned"}</td>
+                                <td className="px-4 py-3.5 sm:px-6 sm:py-5 text-gray-800 whitespace-nowrap">{project.adviserName || "Unassigned"}</td>
                               </tr>
                             );
                           })
@@ -718,8 +718,8 @@ const ChairpersonFeasib: React.FC = () => {
             ) : (
               <>
                 {/* Active Business Kiosk Filters Bar */}
-                <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="relative w-full xl:w-96 shrink-0">
+                <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-3 sm:gap-4 mb-6 bg-white p-3.5 sm:p-4 rounded-xl border border-gray-100 shadow-sm w-full min-w-0">
+                  <div className="relative w-full min-w-0 xl:w-96 shrink-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
@@ -730,24 +730,24 @@ const ChairpersonFeasib: React.FC = () => {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:justify-end text-sm">
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <span className="text-gray-500 font-semibold whitespace-nowrap">Section:</span>
+                  <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:justify-end text-sm min-w-0">
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                      <span className="text-gray-500 font-semibold whitespace-nowrap w-16 sm:w-auto shrink-0">Section:</span>
                       <CustomDropdown
                         value={selectedSection}
                         onChange={(val) => setSelectedSection(val)}
                         options={uniqueSections.map((sec) => ({ value: sec, label: sec }))}
-                        className="w-full sm:w-40"
+                        className="flex-1 sm:flex-initial min-w-0 sm:w-40"
                         buttonClassName="py-2 text-xs font-semibold"
                       />
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <span className="text-gray-500 font-semibold whitespace-nowrap">Adviser:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                      <span className="text-gray-500 font-semibold whitespace-nowrap w-16 sm:w-auto shrink-0">Adviser:</span>
                       <CustomDropdown
                         value={selectedAdviser}
                         onChange={(val) => setSelectedAdviser(val)}
                         options={uniqueAdvisers.map((adv) => ({ value: adv, label: adv }))}
-                        className="w-full sm:w-44"
+                        className="flex-1 sm:flex-initial min-w-0 sm:w-44"
                         buttonClassName="py-2 text-xs font-semibold"
                       />
                     </div>
@@ -756,7 +756,7 @@ const ChairpersonFeasib: React.FC = () => {
 
                 {/* Active Business Kiosk Grid */}
                 {isLoading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                     {Array.from({ length: 6 }).map((_, idx) => (
                       <div
                         key={idx}
@@ -770,7 +770,7 @@ const ChairpersonFeasib: React.FC = () => {
                     ))}
                   </div>
                 ) : filteredActiveBusinesses.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center space-y-2 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-8 sm:p-12 text-center space-y-2 shadow-sm">
                     <Store className="w-10 h-10 text-gray-300 mx-auto" />
                     <h3 className="text-base font-bold text-[#122244]">
                       No Active Businesses Found
@@ -780,7 +780,7 @@ const ChairpersonFeasib: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                     {filteredActiveBusinesses.map((project) => (
                       <ActiveBusinessKioskCard
                         key={project.id}

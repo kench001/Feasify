@@ -28,6 +28,12 @@ import { logAuditEvent } from "./services/auditLogger";
 import { sendNotification, notifyAdvisersForSection } from "./services/notificationService";
 import { getOtherRelevantInformation } from "./utils/proposalDetails";
 import {
+  evaluateProposalHeuristic,
+  getProposalInputSignature,
+  PROPOSAL_PASSING_SCORE,
+  PROPOSAL_CATEGORIES,
+} from "./utils/proposalAnalysis";
+import {
   LayoutDashboard,
   Folder,
   FileEdit,
@@ -61,7 +67,15 @@ import {
   Upload,
   Image as ImageIcon,
   Building2,
+  Sparkles,
+  Brain,
+  ThumbsUp,
+  TrendingDown,
+  Lightbulb,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react";
+import AIAdvisoryDisclaimerBanner from "./components/AIAdvisoryDisclaimerBanner";
 import TextareaAutosize from 'react-textarea-autosize';
 import {
   fetchCopyrightDB,
@@ -120,6 +134,8 @@ interface GroupData {
   mission?: string;
   vision?: string;
   objectives?: string[];
+  adviserRemarks?: string;
+  adviserScore?: number;
 }
 
 // Added FeedbackItem interface
@@ -129,6 +145,7 @@ interface FeedbackItem {
   authorName: string;
   role: string;
   date: string;
+  score?: number;
 }
 
 export {
@@ -165,6 +182,8 @@ interface ProposalData {
   totalCapital: string;
   contributorsCount?: string;
   tagline: string;
+  problemStatement?: string;
+  solution?: string;
   targetMarket: string;
   missionStatement: string;
   visionStatement: string;
@@ -177,10 +196,13 @@ interface ProposalData {
   status: "Draft" | "Submitted" | "Under Review" | "Revision Required" | "Approved" | "Approved Proposal" | "APPROVED" | "Rejected" | "Pending" | "Revision";
   adviserRemarks?: string;
   adviserFeedback?: string;
+  adviserScore?: number;
   feedbackHistory?: FeedbackItem[]; // Added to read adviser feedback
   submissionDate?: string;
+  submittedData?: any;
   financialData?: FinancialProposalData;
   originalProposalFinancials?: any;
+  aiAnalysis?: any;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -321,6 +343,10 @@ const Projects: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState("All changes saved");
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [showAllFeedback, setShowAllFeedback] = useState(false);
+
+  // AI Feasibility Analysis State
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
 
   const [editBasicData, setEditBasicData] =
     useState<ProposalData>(initialProposalState);
@@ -473,7 +499,11 @@ const Projects: React.FC = () => {
       setUserGroup(g);
       setIsLeader(leader);
       setIsMember(member);
-      if (member && g.joinedMembers && g.joinedMembers.includes(uid))
+      const isGroupAcknowledged = Boolean(
+        (g.joinedMembers && g.joinedMembers.includes(uid)) ||
+        localStorage.getItem(`feasify_group_acknowledged_${g.id}_${uid}`) === "true"
+      );
+      if (isGroupAcknowledged)
         setHasJoined(true);
 
       const rawCompName = (g.companyName && g.companyName !== "Pending Business Name" && g.companyName !== "Pending Company Name")
@@ -489,16 +519,16 @@ const Projects: React.FC = () => {
       // --- VIEW TRANSITIONS: driven by GROUP state changes only ---
       // This fires when the group document changes (isSetup, joinedMembers, activeProposalId).
       // It does NOT fire when proposals change, so typing in a form never triggers a view reset.
-      if (member && (!g.joinedMembers || !g.joinedMembers.includes(uid))) {
-        setActiveView("member-join");
-      } else if (g.isSetup && g.activeProposalId && g.status === "Active Business") {
+      if (g.isSetup && g.activeProposalId && g.status === "Active Business") {
         sessionStorage.setItem("lastSelectedProjectId", g.activeProposalId);
         setActiveView("active-business");
+      } else if (!isGroupAcknowledged || (member && (!g.joinedMembers || !g.joinedMembers.includes(uid)))) {
+        setActiveView("group-assigned");
       } else {
         // No special group state — only reset view if currently in a stale/invalid state.
         // Preserve "dashboard" and any user-navigated position so open forms stay open.
         setActiveView(prev => {
-          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || (!g.isSetup && prev === "active-business")) {
+          if (prev === "loading" || prev === "no-group" || prev === "leader-setup" || prev === "member-join" || prev === "group-assigned" || (!g.isSetup && prev === "active-business")) {
             return "dashboard";
           }
           return prev; // Keep current view — user may be filling out a form
@@ -639,18 +669,21 @@ const Projects: React.FC = () => {
         .slice(0, 2)
       : "U";
 
-  const handleJoinGroup = async () => {
+  const handleAcknowledgeGroup = async () => {
     if (!userGroup || !userUid) return;
     try {
       await updateDoc(doc(db, "groups", userGroup.id), {
         joinedMembers: arrayUnion(userUid),
       });
-      setHasJoined(true);
-      setActiveView("dashboard");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error("Group acknowledgment error:", err);
     }
+    localStorage.setItem(`feasify_group_acknowledged_${userGroup.id}_${userUid}`, "true");
+    setHasJoined(true);
+    setActiveView("dashboard");
   };
+
+  const handleJoinGroup = handleAcknowledgeGroup;
 
   const compressImage = (file: File, maxDim = 280, quality = 0.85): Promise<string> => {
     return new Promise((resolve) => {
@@ -951,6 +984,164 @@ const Projects: React.FC = () => {
     updateFinancialData({ equipmentList: nextList });
   };
 
+  const handleRunAIProposalAnalysis = async () => {
+    const businessName = (currentProposal.businessName || "").trim();
+    if (!businessName) {
+      setToastTitle("Incomplete Proposal");
+      setToastMessage("Please enter at least your Business Name and key concept details before running AI Feasibility Analysis.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+      return;
+    }
+
+    setIsAiAnalyzing(true);
+    setAiAnalysisError(null);
+
+    const formatInsightItem = (i: any) => {
+      if (!i) return "";
+      if (typeof i === "string") return i;
+      if (i.title && i.description) return `${i.title}: ${i.description}`;
+      return i.description || i.title || "";
+    };
+
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
+      const response = await fetch(`${backendUrl}/api/analyze-proposal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: currentProposal.id,
+          businessName: currentProposal.businessName,
+          businessType: currentProposal.businessType,
+          totalCapital: currentProposal.totalCapital,
+          tagline: currentProposal.tagline,
+          targetMarket: currentProposal.targetMarket,
+          missionStatement: currentProposal.missionStatement,
+          visionStatement: currentProposal.visionStatement,
+          productDescription: currentProposal.productDescription,
+          priceRanges: currentProposal.priceRanges,
+          proposedLocation: currentProposal.proposedLocation,
+          promotionalStrategy: currentProposal.promotionalStrategy,
+          financialData: currentProposal.financialData || {},
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const aiResult = await response.json();
+
+      // Normalize category scores (proposal-v2 standard: 25 pts each)
+      const catScores = aiResult.categoryScores || {};
+      const strategicScore = typeof catScores.strategicAlignment === "number"
+        ? (catScores.strategicAlignment <= 15 ? Math.round((catScores.strategicAlignment / 15) * 25) : catScores.strategicAlignment)
+        : Math.round((aiResult.score || 75) * 0.25);
+      const marketScore = typeof catScores.marketFeasibility === "number"
+        ? catScores.marketFeasibility
+        : (typeof catScores.marketViability === "number" ? catScores.marketViability : Math.round((aiResult.score || 75) * 0.25));
+      const operationalScore = typeof catScores.operationalFeasibility === "number"
+        ? catScores.operationalFeasibility
+        : Math.round((aiResult.score || 75) * 0.25);
+      const capitalScore = typeof catScores.capitalPlanning === "number"
+        ? catScores.capitalPlanning
+        : (typeof catScores.financialViability === "number" ? Math.round((catScores.financialViability / 35) * 25) : Math.round((aiResult.score || 75) * 0.25));
+
+      const rawScore = typeof aiResult.score === "number" ? aiResult.score : (strategicScore + marketScore + operationalScore + capitalScore);
+      const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+      const finalResult = {
+        ...aiResult,
+        score,
+        rubricVersion: aiResult.rubricVersion || "proposal-v2",
+        passingScore: PROPOSAL_PASSING_SCORE,
+        verdict: score >= PROPOSAL_PASSING_SCORE ? "PASS" : score >= 70 ? "CONDITIONAL" : "FAIL",
+        status: score >= PROPOSAL_PASSING_SCORE ? "FEASIBLE" : score >= 70 ? "CONDITIONALLY_FEASIBLE" : "NOT_FEASIBLE",
+        categoryScores: {
+          strategicAlignment: strategicScore,
+          marketFeasibility: marketScore,
+          operationalFeasibility: operationalScore,
+          capitalPlanning: capitalScore,
+        },
+        metrics: {
+          financial: typeof aiResult.metrics?.financial === "number" ? aiResult.metrics.financial : Math.round((capitalScore / 25) * 100),
+          risk: typeof aiResult.metrics?.risk === "number" ? aiResult.metrics.risk : Math.round((operationalScore / 25) * 100),
+          market: typeof aiResult.metrics?.market === "number" ? aiResult.metrics.market : Math.round((marketScore / 25) * 100),
+          strategic: typeof aiResult.metrics?.strategic === "number" ? aiResult.metrics.strategic : Math.round((strategicScore / 25) * 100),
+        },
+        explanations: {
+          feasibility: aiResult.explanations?.feasibility || (score >= PROPOSAL_PASSING_SCORE ? "Proposal demonstrates high feasibility and meets academic criteria for adviser submission." : "Proposal requires refinement in key areas before adviser submission."),
+          financial: aiResult.explanations?.financial || aiResult.categoryRationales?.capitalPlanning || aiResult.categoryRationales?.financialViability || "Initial startup capital adequacy and equipment budgeting assessed.",
+          market: aiResult.explanations?.market || aiResult.categoryRationales?.marketFeasibility || aiResult.categoryRationales?.marketViability || "Target demographic and promotional strategy evaluated.",
+          risk: aiResult.explanations?.risk || aiResult.categoryRationales?.operationalFeasibility || "Venue location feasibility and operational assets assessed.",
+          strategic: aiResult.explanations?.strategic || aiResult.categoryRationales?.strategicAlignment || "Brand identity, mission, and vision alignment assessed.",
+        },
+        strengths: (Array.isArray(aiResult.strengths) && aiResult.strengths.length > 0)
+          ? aiResult.strengths.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "positive").map(formatInsightItem),
+        weaknesses: (Array.isArray(aiResult.weaknesses) && aiResult.weaknesses.length > 0)
+          ? aiResult.weaknesses.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "warning" || i?.type === "danger").map(formatInsightItem),
+        recommendations: (Array.isArray(aiResult.recommendations) && aiResult.recommendations.length > 0)
+          ? aiResult.recommendations.map(formatInsightItem)
+          : (aiResult.insights || []).filter((i: any) => i?.type === "info" || i?.type === "suggestion").map(formatInsightItem),
+        realityCheck: aiResult.realityCheck || "",
+        draftFeedback: aiResult.draftFeedback || "",
+        lastRun: new Date().toISOString(),
+        analysisType: "STUDENT_PROPOSAL_ANALYSIS",
+        sourceModule: "student-proposal-form",
+        inputSignature: getProposalInputSignature(currentProposal),
+        _fallback: false,
+      };
+
+      setCurrentProposal((prev) => ({ ...prev, aiAnalysis: finalResult }));
+
+      if (currentProposal.id) {
+        try {
+          await updateDoc(doc(db, "proposals", currentProposal.id), {
+            aiAnalysis: finalResult,
+            updatedAt: serverTimestamp(),
+          });
+        } catch (dbErr) {
+          console.warn("Could not persist AI analysis to Firestore:", dbErr);
+        }
+      }
+    } catch (e: any) {
+      console.warn("Live AI analysis call failed or timed out, applying heuristic evaluation fallback:", e);
+      try {
+        const heuristicResult = evaluateProposalHeuristic(currentProposal);
+
+        const finalResult = {
+          ...heuristicResult,
+          lastRun: new Date().toISOString(),
+          analysisType: "STUDENT_PROPOSAL_ANALYSIS",
+          sourceModule: "student-proposal-form",
+          inputSignature: getProposalInputSignature(currentProposal),
+        };
+
+        setCurrentProposal((prev) => ({ ...prev, aiAnalysis: finalResult }));
+
+        if (currentProposal.id) {
+          await updateDoc(doc(db, "proposals", currentProposal.id), {
+            aiAnalysis: finalResult,
+            updatedAt: serverTimestamp(),
+          }).catch((err) => console.warn("Could not save fallback AI analysis to Firestore:", err));
+        }
+        setAiAnalysisError(null);
+      } catch (fallbackErr: any) {
+        console.error("AI Proposal Analysis failed:", fallbackErr);
+        setAiAnalysisError(e.message || "Failed to analyze proposal. Server may be temporarily unreachable.");
+      }
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
+
   const handleAutoSave = async (dataToSave = currentProposal) => {
     if (!userGroup) return;
     // Only auto-save if we are in editing mode
@@ -1080,7 +1271,24 @@ const Projects: React.FC = () => {
         });
       }
 
-      // 2. Required Fields Check
+      // 2. AI Feasibility Analysis Verdict Check (Green Verdict / Score >= 80 required)
+      if (!currentProposal.aiAnalysis || typeof currentProposal.aiAnalysis.score !== "number") {
+        reasons.push({
+          type: "error",
+          title: "AI Feasibility Analysis Required",
+          description: "You must run the AI Feasibility Analysis before submitting this proposal. Proposals must be evaluated by the AI and achieve a passing Green verdict (High Feasibility / score of 80% or higher) before submitting to your adviser.",
+        });
+      } else if (currentProposal.aiAnalysis.score < 80) {
+        const score = currentProposal.aiAnalysis.score;
+        const scoreStatusLabel = score >= 65 ? "Moderate Feasibility" : "Needs Improvement";
+        reasons.push({
+          type: "error",
+          title: "AI Feasibility Verdict Not Passable",
+          description: `Your proposal's current AI Feasibility score is ${score}/100 (${scoreStatusLabel}). Proposals must achieve a passing Green verdict (High Feasibility, 80/100 or higher) before submitting to your adviser. Please review the AI recommendations, improve your proposal details, and click 'Re-analyze Proposal'.`,
+        });
+      }
+
+      // 3. Required Fields Check
       const missingLabels: string[] = [];
 
       const requiredFieldConfigs: { key: keyof ProposalData; label: string }[] = [
@@ -1198,7 +1406,7 @@ const Projects: React.FC = () => {
       const assignedProposalNumber = currentProposal.proposalNumber || (proposals.length + 1);
       const nowIso = new Date().toISOString();
       const resolvedFacultyId = adviserData?.id || adviserData?.facultyId || userGroup?.facultyId || currentProposal?.facultyId || "";
-      const proposalData = cleanFirestoreData({
+      const baseProposalData = {
         ...currentProposal,
         otherDetails: getOtherRelevantInformation(currentProposal),
         additionalFeasibilityDetails: "",
@@ -1206,11 +1414,47 @@ const Projects: React.FC = () => {
         teamName: userGroup.companyName || userGroup.title || "",
         facultyId: resolvedFacultyId || "",
         groupId: userGroup.id,
-        status: status === "Pending" ? "Submitted" : status,
+        status: status === "Pending" ? "Submitted" : (currentProposal.status || "Draft"),
         submissionDate: currentProposal.submissionDate || nowIso,
         adviserRemarks: currentProposal.adviserRemarks || "",
         originalProposalFinancials: currentProposal.originalProposalFinancials || currentProposal.financialData || null,
-      });
+      };
+
+      let proposalData: any;
+      if (status === "Pending") {
+        const submittedSnapshot = {
+          businessName: baseProposalData.businessName,
+          businessType: baseProposalData.businessType,
+          tagline: baseProposalData.tagline,
+          totalCapital: baseProposalData.totalCapital,
+          problemStatement: baseProposalData.problemStatement || "",
+          solution: baseProposalData.solution || "",
+          targetMarket: baseProposalData.targetMarket,
+          missionStatement: baseProposalData.missionStatement,
+          visionStatement: baseProposalData.visionStatement,
+          productDescription: baseProposalData.productDescription,
+          priceRanges: baseProposalData.priceRanges,
+          proposedLocation: baseProposalData.proposedLocation,
+          promotionalStrategy: baseProposalData.promotionalStrategy,
+          financialData: baseProposalData.financialData,
+          otherDetails: baseProposalData.otherDetails,
+          aiAnalysis: baseProposalData.aiAnalysis,
+          submissionDate: nowIso,
+          status: "Submitted",
+          adviserRemarks: baseProposalData.adviserRemarks || "",
+          adviserFeedback: baseProposalData.adviserFeedback || "",
+          feedbackHistory: baseProposalData.feedbackHistory || [],
+        };
+        proposalData = cleanFirestoreData({
+          ...baseProposalData,
+          submittedData: submittedSnapshot,
+          status: "Submitted",
+          submissionDate: nowIso,
+        });
+      } else {
+        proposalData = cleanFirestoreData(baseProposalData);
+      }
+
       if (currentProposal.id) {
         await updateDoc(doc(db, "proposals", currentProposal.id), {
           ...proposalData,
@@ -1633,10 +1877,12 @@ const Projects: React.FC = () => {
   const filteredProposals =
     dashboardTab === "All Proposals"
       ? proposals
-      : proposals.filter(
-        (p) =>
-          p.status === (dashboardTab === "Drafts" ? "Draft" : dashboardTab),
-      );
+      : proposals.filter((p) => {
+          if (dashboardTab === "Drafts") return p.status === "Draft";
+          if (dashboardTab === "Pending") return p.status === "Pending" || p.status === "Submitted" || p.status === "Under Review";
+          if (dashboardTab === "Revision") return p.status === "Revision" || p.status === "Revision Required";
+          return p.status === dashboardTab;
+        });
 
   if (activeView === "loading") {
     const cachedCount = parseInt(sessionStorage.getItem('projectsProposalCount') || '3', 10) || 3;
@@ -1827,23 +2073,62 @@ const Projects: React.FC = () => {
             </div>
           )}
 
-          {activeView === "member-join" && (
+          {(activeView === "group-assigned" || activeView === "member-join") && (
             <div>
               <h1 className="text-3xl font-extrabold text-[#3d2c23] mb-1">
-                Company Name
+                Business Proposals
               </h1>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center text-center min-h-[400px] justify-center">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 border border-blue-100">
-                  <Bell className="w-8 h-8 text-blue-500" />
+              <p className="text-sm text-gray-500 mb-6">
+                Overview of your feasibility team and business proposal workspace.
+              </p>
+              <div className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-gray-100 p-8 sm:p-12 flex flex-col items-center text-center max-w-xl mx-auto my-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#122244] to-[#1d366f] flex items-center justify-center mb-6 shadow-md shadow-[#122244]/20">
+                  <Users className="w-10 h-10 text-[#c9a654]" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#122244] mb-2">
-                  You're added to a group!
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-black text-[#122244] uppercase tracking-wider mb-3">
+                  Group Assignment
+                </span>
+
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#122244] mb-2 tracking-tight">
+                  You are added to the group
                 </h2>
+
+                <p className="text-base font-semibold text-[#c9a654] mb-6">
+                  {isLeader
+                    ? "You are assigned as the Team Leader"
+                    : "You are assigned as a Team Member"}
+                </p>
+
+                {userGroup && (
+                  <div className="w-full bg-gray-50/80 border border-gray-200/80 rounded-xl p-4.5 mb-8 text-left space-y-2.5">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Section</span>
+                      <span className="font-bold text-[#122244]">{userGroup.section || "—"}</span>
+                    </div>
+                    <div className="border-t border-gray-200/60" />
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Assigned Role</span>
+                      <span className="font-bold text-[#122244]">
+                        {isLeader ? "Team Leader" : "Team Member"}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-200/60" />
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-gray-500 font-medium">Team Leader</span>
+                      <span className="font-bold text-[#122244]">
+                        {userGroup.leaderName || (isLeader ? userName : "—")}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <button
-                  onClick={handleJoinGroup}
-                  className="flex items-center gap-2 px-8 py-3 bg-[#c9a654] text-white font-bold rounded-lg hover:bg-[#b59545] shadow-md transition-all"
+                  onClick={handleAcknowledgeGroup}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] text-sm font-black rounded-xl shadow-lg shadow-[#c9a654]/25 transition-all duration-200 active:scale-95 cursor-pointer"
                 >
-                  <Check className="w-5 h-5" /> Join Workspace
+                  <span>Next</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -2239,15 +2524,15 @@ const Projects: React.FC = () => {
                                         setSaveStatus("All changes saved");
                                         setActiveView("form");
                                       }}
-                                      disabled={proposal.status === 'Pending'}
-                                      className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${proposal.status === 'Pending'
+                                      disabled={proposal.status === 'Pending' || proposal.status === 'Submitted' || proposal.status === 'Under Review'}
+                                      className={`px-5 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${proposal.status === 'Pending' || proposal.status === 'Submitted' || proposal.status === 'Under Review'
                                         ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-70"
                                         : "bg-blue-50 text-[#4285F4] hover:bg-blue-100"
                                         }`}
                                     >
                                       <Edit className="w-4 h-4" /> Edit
                                     </button>
-                                    {proposal.status === 'Pending' && (
+                                    {(proposal.status === 'Pending' || proposal.status === 'Submitted' || proposal.status === 'Under Review') && (
                                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-1.5 bg-[#122244] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-150 pointer-events-none whitespace-nowrap shadow-xl z-50 flex flex-col items-center border border-white/10">
                                         Wait for Revision
                                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#122244]"></div>
@@ -2319,7 +2604,31 @@ const Projects: React.FC = () => {
                       <ChevronLeft className="w-4 h-4" /> Back to Proposals
                     </button>
                   </div>
-                  <div className="flex gap-3 w-full sm:w-auto items-center">
+                  <div className="flex gap-3 w-full sm:w-auto items-center flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleRunAIProposalAnalysis}
+                      disabled={isAiAnalyzing}
+                      className="flex items-center gap-2 px-3.5 py-1.5 bg-[#122244] text-white hover:bg-[#1a3060] rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-60 cursor-pointer"
+                      title="Evaluate proposal draft with AI"
+                    >
+                      {isAiAnalyzing ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c9a654]" />
+                          <span>Evaluating Proposal...</span>
+                        </>
+                      ) : currentProposal.aiAnalysis?.score != null ? (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-[#c9a654]" />
+                          <span>AI Score: {currentProposal.aiAnalysis.score}/100</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-[#c9a654]" />
+                          <span>Run AI Feasibility Analysis</span>
+                        </>
+                      )}
+                    </button>
                     {isEditingMode && (
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-100 shadow-2xs">
                         <span
@@ -3239,6 +3548,316 @@ const Projects: React.FC = () => {
                       </div>
                     </section>
 
+                    {/* === AI FEASIBILITY ANALYSIS SECTION === */}
+                    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-gray-200 transition-colors">
+                      <div className="px-6 py-4 border-b border-gray-50 bg-gradient-to-r from-amber-50/60 to-blue-50/40 flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-yellow-100 text-[#c9a654] rounded-lg">
+                            <Sparkles className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
+                              AI Feasibility Analysis
+                            </h3>
+                            <p className="text-[11px] text-gray-500 font-medium">
+                              AI evaluates your proposal draft against feasibility standards, highlights strengths, flags risks, and offers recommendations before you submit to your adviser.
+                            </p>
+                          </div>
+                        </div>
+                        {currentProposal.aiAnalysis && !isAiAnalyzing && (
+                          <button
+                            type="button"
+                            onClick={handleRunAIProposalAnalysis}
+                            className="text-xs font-bold text-gray-500 hover:text-[#c9a654] flex items-center gap-1.5 transition-colors bg-white px-3.5 py-1.5 rounded-full border border-gray-200 shadow-xs cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" /> Re-analyze Proposal
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="p-6 md:p-8">
+                        {isAiAnalyzing ? (
+                          <div className="flex flex-col items-center justify-center py-16 space-y-5 text-center">
+                            <div className="relative w-20 h-20">
+                              <div className="absolute inset-0 rounded-full border-[3px] border-gray-100" />
+                              <div className="absolute inset-0 rounded-full border-[3px] border-[#c9a654] border-t-transparent animate-spin" />
+                              <Brain className="absolute inset-0 m-auto w-8 h-8 text-[#c9a654] animate-pulse" />
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-[#122244] text-lg">Evaluating Proposal</p>
+                              <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">
+                                Evaluating proposal against market & financial standards...
+                              </p>
+                            </div>
+                          </div>
+                        ) : aiAnalysisError ? (
+                          <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-red-200/70 rounded-2xl p-6 bg-red-50/40">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 border border-red-200/50">
+                              <AlertCircle className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h4 className="text-base font-extrabold text-[#122244] mb-1">Analysis Failed</h4>
+                            <p className="text-sm text-red-600 mb-6 max-w-md">{aiAnalysisError}</p>
+                            <button
+                              type="button"
+                              onClick={handleRunAIProposalAnalysis}
+                              className="px-6 py-2.5 bg-red-600 text-white font-bold text-xs rounded-xl hover:bg-red-700 transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Try Again
+                            </button>
+                          </div>
+                        ) : !currentProposal.aiAnalysis ? (
+                          <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl p-8 bg-gray-50/40">
+                            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 border border-blue-100">
+                              <Brain className="w-8 h-8 text-[#122244]" />
+                            </div>
+                            <h4 className="text-lg font-extrabold text-[#122244] mb-2">
+                              Ready for AI Feasibility Evaluation?
+                            </h4>
+                            <p className="text-sm text-gray-600 mb-6 max-w-md leading-relaxed">
+                              Run an AI evaluation on your proposal to assess strategic alignment, market feasibility, operational readiness, and capital planning before your adviser's formal review.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleRunAIProposalAnalysis}
+                              className="px-8 py-3 bg-[#122244] text-white font-extrabold text-sm rounded-xl hover:bg-[#1a3060] transition-all shadow-md hover:shadow-lg flex items-center gap-2.5 transform hover:-translate-y-0.5 cursor-pointer"
+                            >
+                              <Sparkles className="w-4 h-4 text-[#c9a654]" />
+                              <span>Analyze Proposal with AI</span>
+                            </button>
+                          </div>
+                        ) : (() => {
+                          const analysis = currentProposal.aiAnalysis;
+                          const score = typeof analysis.score === "number" ? analysis.score : 75;
+                          const scoreStatus =
+                            score >= 80
+                              ? { label: "High Feasibility", badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200" }
+                              : score >= 65
+                              ? { label: "Moderate Feasibility", badgeClass: "bg-amber-100 text-amber-800 border-amber-200" }
+                              : { label: "Needs Improvement", badgeClass: "bg-rose-100 text-rose-800 border-rose-200" };
+
+                          const metrics = analysis.metrics || {
+                            financial: typeof analysis.categoryScores?.capitalPlanning === "number" ? Math.round((analysis.categoryScores.capitalPlanning / 25) * 100) : 75,
+                            risk: typeof analysis.categoryScores?.operationalFeasibility === "number" ? Math.round((analysis.categoryScores.operationalFeasibility / 25) * 100) : 75,
+                            market: typeof analysis.categoryScores?.marketFeasibility === "number" ? Math.round((analysis.categoryScores.marketFeasibility / 25) * 100) : 75,
+                            strategic: typeof analysis.categoryScores?.strategicAlignment === "number" ? Math.round((analysis.categoryScores.strategicAlignment / 25) * 100) : 75,
+                          };
+
+                          return (
+                            <div className="space-y-6">
+                              {/* Feasibility Score Card */}
+                              <div className="bg-gradient-to-r from-[#122244] via-[#1a3060] to-[#122244] p-6 rounded-2xl border border-amber-300/30 text-white shadow-md relative overflow-hidden">
+                                <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                                  <div>
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-[#c9a654]">
+                                      Overall Feasibility Score
+                                    </span>
+                                    <div className="flex items-baseline gap-3 mt-1">
+                                      <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">
+                                        {score}
+                                      </span>
+                                      <span className="text-lg font-bold text-gray-300">/ 100</span>
+                                      <span className={`ml-2 px-3 py-1 rounded-full text-xs font-black border ${scoreStatus.badgeClass}`}>
+                                        {scoreStatus.label}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-300 mt-2 max-w-md">
+                                      {analysis.explanations?.feasibility || "Proposal evaluated against academic feasibility rubrics and initial financial targets."}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={handleRunAIProposalAnalysis}
+                                    className="self-start sm:self-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5" /> Re-analyze Proposal
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* AI Feasibility Verdict Banner (Passing vs Blocked) */}
+                              {score >= 80 ? (
+                                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                                      Passing Verdict — Eligible for Adviser Submission
+                                    </p>
+                                    <p className="text-xs text-emerald-700 mt-0.5">
+                                      Your proposal has achieved a High Feasibility score ({score}/100) and meets the criteria for adviser review.
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3">
+                                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs font-black text-rose-900 uppercase tracking-wider">
+                                      Verdict Not Passable — Submission Blocked
+                                    </p>
+                                    <p className="text-xs text-rose-700 mt-0.5">
+                                      Score: {score}/100 ({scoreStatus.label}). Proposals must achieve a Green verdict (80/100 or higher) before submitting to your adviser. Please address the areas of concern and recommendations below, then click 'Re-analyze Proposal'.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Metrics Breakdown (4 Categories) */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    Strategic Foundation
+                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-[#122244]">
+                                      {metrics.strategic ?? (analysis.categoryScores?.strategicAlignment ? Math.round((analysis.categoryScores.strategicAlignment / 25) * 100) : 75)}%
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 leading-snug">
+                                    {analysis.explanations?.strategic || analysis.categoryRationales?.strategicAlignment || "Brand identity, mission, and vision alignment."}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    Market & Offering
+                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-[#122244]">
+                                      {metrics.market ?? (analysis.categoryScores?.marketFeasibility ? Math.round((analysis.categoryScores.marketFeasibility / 25) * 100) : 75)}%
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 leading-snug">
+                                    {analysis.explanations?.market || analysis.categoryRationales?.marketFeasibility || "Target demographic and promotional reach."}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    Operational Feasibility
+                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-[#122244]">
+                                      {metrics.risk ?? (analysis.categoryScores?.operationalFeasibility ? Math.round((analysis.categoryScores.operationalFeasibility / 25) * 100) : 75)}%
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 leading-snug">
+                                    {analysis.explanations?.risk || analysis.categoryRationales?.operationalFeasibility || "Proposed venue location and operational assets fit."}
+                                  </p>
+                                </div>
+
+                                <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 space-y-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    Capital & Asset Planning
+                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-[#122244]">
+                                      {metrics.financial ?? (analysis.categoryScores?.capitalPlanning ? Math.round((analysis.categoryScores.capitalPlanning / 25) * 100) : 75)}%
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-600 leading-snug">
+                                    {analysis.explanations?.financial || analysis.categoryRationales?.capitalPlanning || "Initial startup capital adequacy and equipment budgeting."}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* AI Advisory Disclaimer Banner */}
+                              <AIAdvisoryDisclaimerBanner />
+
+                              {/* Fallback Notice if active */}
+                              {analysis._fallback && (
+                                <div className="p-4 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center gap-3 text-xs text-amber-800">
+                                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                  <p>
+                                    Live AI server is currently offline or unreachable. Results above were generated using preliminary heuristic feasibility checks.
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Strengths & Weaknesses */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-green-50/50 border border-green-200/60 rounded-xl p-5 shadow-2xs space-y-3">
+                                  <h4 className="text-xs font-extrabold text-green-800 flex items-center gap-2">
+                                    <ThumbsUp className="w-4 h-4 text-green-600" /> Key Strengths
+                                  </h4>
+                                  {analysis.strengths && analysis.strengths.length > 0 ? (
+                                    <ul className="space-y-2">
+                                      {analysis.strengths.map((s: any, i: number) => {
+                                        const text = typeof s === 'string' ? s : (s?.title && s?.description ? `${s.title}: ${s.description}` : s?.description || s?.title || '');
+                                        return (
+                                          <li key={i} className="text-xs text-green-900 leading-relaxed flex items-start gap-2">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" />
+                                            <span>{text}</span>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-xs text-green-800">No specific strengths noted yet.</p>
+                                  )}
+                                </div>
+
+                                <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-5 shadow-2xs space-y-3">
+                                  <h4 className="text-xs font-extrabold text-amber-800 flex items-center gap-2">
+                                    <TrendingDown className="w-4 h-4 text-amber-600" /> Areas of Concern & Risks
+                                  </h4>
+                                  {analysis.weaknesses && analysis.weaknesses.length > 0 ? (
+                                    <ul className="space-y-2">
+                                      {analysis.weaknesses.map((w: any, i: number) => {
+                                        const text = typeof w === 'string' ? w : (w?.title && w?.description ? `${w.title}: ${w.description}` : w?.description || w?.title || '');
+                                        return (
+                                          <li key={i} className="text-xs text-amber-900 leading-relaxed flex items-start gap-2">
+                                            <AlertCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+                                            <span>{text}</span>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-xs text-green-800">No major critical risk flags detected in this concept draft.</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Reality Check */}
+                              {analysis.realityCheck && (
+                                <div className="bg-red-50/40 border border-red-200/60 rounded-xl p-5 shadow-2xs space-y-2">
+                                  <h4 className="text-xs font-extrabold text-red-800 flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 text-red-600" /> Feasibility Reality Check
+                                  </h4>
+                                  <p className="text-xs text-red-900 leading-relaxed italic">
+                                    "{analysis.realityCheck}"
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Actionable Recommendations */}
+                              {analysis.recommendations && analysis.recommendations.length > 0 && (
+                                <div className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-2xs space-y-3">
+                                  <h4 className="text-xs font-extrabold text-[#122244] flex items-center gap-2">
+                                    <Lightbulb className="w-4 h-4 text-[#c9a654]" /> Actionable Recommendations
+                                  </h4>
+                                  <ul className="space-y-2.5">
+                                    {analysis.recommendations.map((r: any, i: number) => {
+                                      const text = typeof r === 'string' ? r : (r?.title && r?.description ? `${r.title}: ${r.description}` : r?.description || r?.title || '');
+                                      return (
+                                        <li key={i} className="text-xs text-gray-700 leading-relaxed flex items-start gap-2.5 bg-gray-50/60 p-3 rounded-lg border border-gray-100">
+                                          <span className="bg-[#122244] text-white font-bold rounded-md w-5 h-5 flex items-center justify-center shrink-0 text-[10px] mt-0.5 shadow-xs">
+                                            {i + 1}
+                                          </span>
+                                          <span>{text}</span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </section>
+
                     {/* === BOTTOM SUBMIT & ACTION BAR === */}
                     {isEditingMode && (
                       <div className="pt-8 border-t-2 border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -3258,23 +3877,31 @@ const Projects: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveProposal("Pending")}
-                          disabled={isSubmitting}
-                          className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
-                            }`}
-                          title={isSubmitting ? "Submitting..." : "Submit proposal to adviser for review"}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin text-white" />
-                              <span>Submitting to Adviser...</span>
-                            </>
-                          ) : (
-                            "Submit to Adviser"
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
+                          {(!currentProposal.aiAnalysis || typeof currentProposal.aiAnalysis.score !== "number" || currentProposal.aiAnalysis.score < 80) && (
+                            <div className="text-xs text-rose-600 font-bold flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
+                              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                              <span>Requires Green AI Verdict (80%+) to Submit</span>
+                            </div>
                           )}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveProposal("Pending")}
+                            disabled={isSubmitting}
+                            className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
+                              }`}
+                            title={isSubmitting ? "Submitting..." : "Submit proposal to adviser for review"}
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                <span>Submitting to Adviser...</span>
+                              </>
+                            ) : (
+                              "Submit to Adviser"
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -3644,6 +4271,28 @@ const Projects: React.FC = () => {
                             </button>
                           )}
                         </div>
+
+                        {((activeBusiness.adviserScore !== undefined && activeBusiness.adviserScore !== null) ||
+                          (userGroup?.adviserScore !== undefined && userGroup?.adviserScore !== null)) && (
+                          <div className="bg-gradient-to-r from-[#122244] to-[#1d366f] rounded-xl p-3.5 text-white flex items-center justify-between shadow-sm border border-white/10 mb-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/30 flex items-center justify-center shrink-0">
+                                <Star className="w-4 h-4 text-[#c9a654] fill-[#c9a654]" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black tracking-wide uppercase text-white">Adviser Score</p>
+                                <p className="text-[10px] text-gray-300 font-medium">Graded by Adviser</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-2xl font-black text-white">
+                                {activeBusiness.adviserScore ?? userGroup?.adviserScore}
+                              </span>{" "}
+                              <span className="text-xs font-bold text-gray-300">/ 100</span>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                           {!activeBusiness.feedbackHistory || activeBusiness.feedbackHistory.length === 0 ? (
                             <div className="text-center py-6 text-gray-400">
@@ -3658,9 +4307,18 @@ const Projects: React.FC = () => {
                                     <span className="font-bold text-sm text-[#122244]">{item.authorName}</span>
                                     <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider">{item.role}</span>
                                   </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {item.score !== undefined && item.score !== null && !isNaN(Number(item.score)) && (
+                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full border border-emerald-200">
+                                        Score: {item.score}/100
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <span className="text-[10px] text-gray-400 font-medium">{formatFeedbackDate(item.date)}</span>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                                {item.text && (
+                                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                                )}
                               </div>
                             ))
                           )}

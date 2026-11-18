@@ -16,16 +16,22 @@ const cors = require("cors");
 const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const rateLimit = require("express-rate-limit");
+const {
+  normalizeProposalInput,
+  buildProposalPrompt,
+  normalizeProposalResult,
+} = require("./services/proposalAnalysis");
 
 // ==========================================
 // FIREBASE ADMIN SDK — Audit Trail Security
 // ==========================================
+let admin = null;
 let adminApp = null;
 let adminFirestore = null;
 let adminAuth = null;
 
 try {
-  const admin = require("firebase-admin");
+  admin = require("firebase-admin");
 
   const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (serviceAccountEnv) {
@@ -872,7 +878,7 @@ app.put("/api/proposals/:proposalId/status", async (req, res) => {
 // Endpoint to add bulletin feedback to a proposal with strict idempotency and duplicate suppression
 app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
   const { proposalId } = req.params;
-  const { text, authorName, role, idempotencyKey } = req.body || {};
+  const { text, authorName, role, idempotencyKey, score } = req.body || {};
 
   if (!text || !text.trim()) {
     return res.status(400).json({ error: "Feedback text is required." });
@@ -882,6 +888,15 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
   const cleanAuthor = (authorName || "Faculty Adviser").trim();
   const cleanRole = (role || "Adviser").trim();
   const feedbackId = idempotencyKey || `fb_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  let parsedScore;
+  if (score !== undefined && score !== null && typeof score !== "boolean" && String(score).trim() !== "") {
+    const candidateScore = Number(score);
+    if (!Number.isNaN(candidateScore) && candidateScore >= 0 && candidateScore <= 100) {
+      parsedScore = candidateScore;
+    }
+  }
+  const hasValidScore = typeof parsedScore === "number";
 
   if (adminFirestore) {
     try {
@@ -921,15 +936,40 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
         text: cleanText,
         authorName: cleanAuthor,
         role: cleanRole,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        ...(hasValidScore ? { score: parsedScore } : {})
       };
 
-      await propRef.update({
+      const propUpdates = {
         feedbackHistory: admin.firestore.FieldValue.arrayUnion(newFeedback),
         adviserFeedback: cleanText,
         adviserRemarks: cleanText,
         updatedAt: new Date().toISOString()
-      });
+      };
+      if (hasValidScore) {
+        propUpdates.adviserScore = parsedScore;
+      }
+
+      await propRef.update(propUpdates);
+
+      if (existingData.groupId) {
+        try {
+          const groupRef = adminFirestore.collection("groups").doc(existingData.groupId);
+          const groupDoc = await groupRef.get();
+          if (groupDoc.exists) {
+            const groupUpdate = {
+              adviserRemarks: cleanText,
+              updatedAt: new Date().toISOString()
+            };
+            if (hasValidScore) {
+              groupUpdate.adviserScore = parsedScore;
+            }
+            await groupRef.update(groupUpdate);
+          }
+        } catch (groupErr) {
+          console.warn(`[Backend post feedback] Group ${existingData.groupId} update warning:`, groupErr.message);
+        }
+      }
 
       return res.json({
         success: true,
@@ -946,7 +986,8 @@ app.post("/api/proposals/:proposalId/feedback", async (req, res) => {
     text: cleanText,
     authorName: cleanAuthor,
     role: cleanRole,
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    ...(hasValidScore ? { score: parsedScore } : {})
   };
   res.json({ success: true, feedback: newFeedback });
 });
@@ -1782,10 +1823,10 @@ IMPORTANT: The response MUST be strictly valid JSON without markdown wrapping or
   }
 );
 
-// ENDPOINT 2: Adviser-Facing Proposal Grading (Supports Free Tier)
+// ENDPOINT 2: Proposal-stage AI review for the student proposal flow
 app.post(
   [
-    "/api/analyze-proposal", // Aligns with the fetch URL in AdviserDashboard.tsx
+    "/api/analyze-proposal",
     "/api/evaluate-proposal",
     "/api/ai/evaluate-proposal",
     "/api/ai/analyze-proposal"
@@ -1793,154 +1834,41 @@ app.post(
   proposalLimiter,
   async (req, res) => {
     try {
-      const payload = req.body || {};
-
-      const kb = getKnowledgeBase();
-
-      if (!kb) {
-        return res.status(500).json({ error: "Local knowledge base database missing." });
-      }
-
       if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Missing API authorization key." });
+        return res.status(503).json({
+          code: "PROPOSAL_ANALYSIS_UNAVAILABLE",
+          error: "Proposal AI review is temporarily unavailable. Please try again later."
+        });
       }
 
-      // Map keys directly from top-level payload parameters with fallback values
-      const businessName = payload.businessName || payload.title || "Untitled";
-      const businessType = payload.businessType || payload.category || "General";
-      const proposedLocation = payload.proposedLocation || payload.location || "N/A";
-      const missionStatement = payload.missionStatement || payload.mission || "N/A";
-      const visionStatement = payload.visionStatement || payload.vision || "N/A";
-      const targetMarket = payload.targetMarket || "N/A";
-      const promotionalStrategy = payload.promotionalStrategy || "N/A";
-      const totalCapital = payload.totalCapital || "0";
-      const productDescription = payload.productDescription || "N/A";
-      const priceRanges = payload.priceRanges || "N/A";
-      const financialDataString = payload.financialData && Object.keys(payload.financialData).length > 0 
-        ? JSON.stringify(payload.financialData, null, 2) 
-        : "No detailed financial data provided yet.";
-
-      // Sanitize customAIRules to prevent prompt injection attacks
-      const sanitizeRuleInput = (val, maxLen = 300) => {
-        if (!val || typeof val !== "string") return "";
-        return val
-          .slice(0, maxLen)
-          .replace(/(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous\s+)?(?:instructions|rules|prompts)/gi, "[filtered]")
-          .replace(/(?:system\s+prompt|developer\s+mode|jailbreak)/gi, "[filtered]")
-          .trim();
-      };
-
-      const safeCustomRules = {
-        tone: sanitizeRuleInput(payload.customAIRules?.tone) || 'Default academic and constructive tone.',
-        dealbreakers: sanitizeRuleInput(payload.customAIRules?.dealbreakers) || 'None specific.',
-        focusAreas: sanitizeRuleInput(payload.customAIRules?.focusAreas) || 'General feasibility and consistency.',
-        formatting: sanitizeRuleInput(payload.customAIRules?.formatting) || 'Follow standard output structure.',
-      };
-
-      // Pass target criteria and exemplars as few-shot data structures
-      const prompt = `
-You are an expert academic feasibility study evaluator assessing a BUSINESS PROPOSAL with attached FINANCIAL PROJECTIONS.
-Do not use general world-wide knowledge. Rely purely on the local data.
-
-LOCAL GRADING MATRIX CONTEXT:
-${JSON.stringify(kb.evaluation_framework, null, 2)}
-
-FEW-SHOT PASSING EXEMPLARS FOR REFERENCE STYLE AND QUALITY:
-${JSON.stringify(dynamicExemplars.getCategoryMatchedExemplars(businessType, kb.exemplars), null, 2)}
-
-SUBMITTED PROPOSAL TO EVALUATE:
-- Business Name: "${businessName}"
-- Business Type: "${businessType}"
-- Total Declared Capital: PHP ${totalCapital}
-- Mission Statement: "${missionStatement}"
-- Vision Statement: "${visionStatement}"
-- Product Description: "${productDescription}"
-- Price Ranges: "${priceRanges}"
-- Proposed Location: "${proposedLocation}"
-- Promotional Strategy: "${promotionalStrategy}"
-- Target Market: "${targetMarket}"
-
-SUBMITTED FINANCIAL DATA (QUANTITATIVE INPUTS):
-${financialDataString}
-
-INSTRUCTIONS:
-1. Evaluate Category 1 (Financial Viability & Risk) based on the realism of the total capital, price ranges, and the detailed FINANCIAL DATA provided (e.g., OPEX, COGS, equipment costs). If the detailed financial data contradicts the qualitative proposal or seems unrealistic for the business type and location, flag it as a weakness.
-2. Evaluate Category 2 (Operational & Location Feasibility) on proposed location matching, operational setup, and whether the declared capital/equipment makes sense for this setup.
-3. Evaluate Category 3 (Target Market & Marketing) on target demographic mapping and promotion, ensuring they align with the proposed price ranges and product description.
-4. Evaluate Category 4 (Mission & Vision) on identity cohesion.
-5. Scores must be integers.
-6. Keep the 'draftFeedback' extremely short, concise, specific, and direct. Do not include greetings (like "Dear Students"), introductions, formal letter structures, or closing signatures (like "Sincerely, ..."). Just output the specific, actionable feedback directly.
-
-ADVISER'S CUSTOM AI RULES (OVERRIDE DEFAULTS IF CONFLICTING):
-- Tone & Style: ${safeCustomRules.tone}
-- Dealbreakers: ${safeCustomRules.dealbreakers}
-- Focus Areas: ${safeCustomRules.focusAreas}
-- Formatting: ${safeCustomRules.formatting}
-
-WARNING: You MUST adopt the general tone specified in the custom rules above while maintaining strict academic grading integrity. Never alter the required JSON schema or ignore quantitative financial discrepancies.
-
-Your response must be a single stringified JSON object matching this structure:
-{
-  "score": 85,
-  "metrics": {
-    "financial": 85,
-    "risk": 80,
-    "market": 75
-  },
-  "explanations": {
-    "feasibility": "Brief summary of overall feasibility alignment.",
-    "financial": "Summary of capital adequacy, pricing logic, and provided financial data realism.",
-    "risk": "Summary of strategic buffers.",
-    "market": "Summary of marketing feasibility."
-  },
-  "insights": [
-    { "type": "positive", "title": "Strength Title", "description": "Strength details matching Category 1-4 excellent descriptors" },
-    { "type": "warning", "title": "Area of Concern", "description": "Concerns matching lower rubric descriptors (evaluate both qualitative concepts and quantitative financial logic)" },
-    { "type": "info", "title": "Recommendation", "description": "Clear step-by-step instruction to improve the proposal and its financials" }
-  ],
-  "realityCheck": "A direct, realistic statement matching high-level capital of PHP ${totalCapital} and the detailed financial data with the described location and business type.",
-  "draftFeedback": "A short, concise, and highly specific feedback statement focusing strictly on key issues and exact improvements needed. No letter format, no greetings, and no sign-offs."
-}
-
-IMPORTANT: The response MUST be strictly valid JSON. Do not include comments, typescript annotations, or trailing commas in the JSON response. For the 'type' field in the 'insights' array, you must select one of: 'positive', 'warning', 'info', or 'suggestion'.
-`;
-
+      // Whitelist proposal-form inputs; financial-stage defaults cannot affect this review.
+      const input = normalizeProposalInput(req.body || {});
+      const prompt = buildProposalPrompt(input);
       const { result, modelName } = await callGeminiCascade(prompt, {
         responseMimeType: "application/json"
       });
-      const textResponse = result.response.text();
-      const parsedProposal = cleanAndParseJSON(textResponse);
-      parsedProposal._fallback = false;
-      parsedProposal._model = modelName;
-      res.json(sanitizeUserFacingText(parsedProposal));
-
+      const parsedProposal = cleanAndParseJSON(result.response.text());
+      const analysis = normalizeProposalResult(parsedProposal, input);
+      res.json(sanitizeUserFacingText({
+        ...analysis,
+        _fallback: false,
+        _model: modelName
+      }));
     } catch (error) {
-      console.error("AI Evaluation Error:", error);
-      try {
-        fs.appendFileSync(
-          path.join(__dirname, "error.log"),
-          `[${new Date().toISOString()}] AI Evaluation Error:\nRequest: ${JSON.stringify(req.body, null, 2)}\nError: ${error.stack || error.message || error}\n\n`,
-          "utf-8"
-        );
-      } catch (logErr) {
-        console.error("Failed writing to error.log:", logErr);
+      if (error?.code === "INVALID_PROPOSAL_INPUT") {
+        return res.status(400).json({
+          code: "INVALID_PROPOSAL_INPUT",
+          error: error.message || "Invalid proposal input data."
+        });
       }
-      // Fallback response for Adviser
-      res.json({
-        score: 75,
-        metrics: { financial: 75, risk: 75, market: 75 },
-        explanations: {
-          feasibility: "AI temporarily unavailable. Manual review required.",
-          financial: "AI temporarily unavailable.",
-          risk: "AI temporarily unavailable.",
-          market: "AI temporarily unavailable."
-        },
-        insights: [
-          { type: "warning", title: "AI Unavailable", description: "The AI service is currently unavailable. Please review this proposal manually." }
-        ],
-        realityCheck: "N/A",
-        draftFeedback: "The AI service is currently unavailable. Please provide manual feedback.",
-        _fallback: true
+      // Do not log proposal content or return a made-up grade when review fails.
+      const code = error?.code === "INVALID_PROPOSAL_ANALYSIS"
+        ? "INVALID_PROPOSAL_ANALYSIS"
+        : "PROPOSAL_ANALYSIS_UNAVAILABLE";
+      console.error("Proposal AI review failed:", code, error?.message);
+      res.status(503).json({
+        code,
+        error: "Proposal AI review could not produce a valid result. Please try again."
       });
     }
   }

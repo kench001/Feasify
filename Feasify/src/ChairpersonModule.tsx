@@ -652,7 +652,7 @@ const ChairpersonModule: React.FC = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50/30">
+    <div className="flex min-h-screen w-full overflow-x-clip bg-gray-50/30">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -734,9 +734,9 @@ const ChairpersonModule: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0">
-        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+      <main className="flex-1 min-w-0 w-full transition-all duration-300 ease-in-out min-h-screen lg:ml-16 ml-0">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3 text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
             <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
               className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
@@ -752,7 +752,7 @@ const ChairpersonModule: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => navigate("/admin/chairpersonnotification")}
               className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
@@ -781,46 +781,46 @@ const ChairpersonModule: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#3d2c23]">User Account Management</h1>
+        <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full min-w-0">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#3d2c23] break-words">User Account Management</h1>
             <p className="text-sm text-gray-500 mt-2 italic">Manage system access by adding, editing, or deleting accounts for students and faculty.</p>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {isLoading ? (
               Array.from({length: 4}).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-gray-200">
+                <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 border-l-4 border-gray-200 min-w-0">
                   <Skeleton width={100} height={16} className="mb-2" />
                   <Skeleton width={50} height={36} />
                 </div>
               ))
             ) : (
               <>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-blue-500">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 border-l-4 border-l-blue-500 min-w-0">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Students</p>
-              <p className="text-3xl font-bold text-[#3d2c23]">{totalStudents}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[#3d2c23] tabular-nums">{totalStudents}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-green-500">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 border-l-4 border-l-green-500 min-w-0">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Faculty</p>
-              <p className="text-3xl font-bold text-[#3d2c23]">{totalAdvisers}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[#3d2c23] tabular-nums">{totalAdvisers}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-purple-500">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 border-l-4 border-l-purple-500 min-w-0">
               <p className="text-sm font-semibold text-gray-500 mb-2">Total Sections</p>
-              <p className="text-3xl font-bold text-[#3d2c23]">{totalSections}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[#3d2c23] tabular-nums">{totalSections}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 border-l-4 border-l-orange-500">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 border-l-4 border-l-orange-500 min-w-0">
               <p className="text-sm font-semibold text-gray-500 mb-2">Active Users (7d)</p>
-              <p className="text-3xl font-bold text-[#3d2c23]">{activeStudentsCount}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[#3d2c23] tabular-nums">{activeStudentsCount}</p>
             </div>
               </>
             )}
           </div>
 
           {/* Search and Action Buttons */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="relative w-full md:w-72">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 sm:gap-4 mb-6 w-full min-w-0">
+            <div className="relative w-full md:w-72 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text" 
@@ -831,30 +831,30 @@ const ChairpersonModule: React.FC = () => {
               />
             </div>
             
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
               <button 
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#4285F4] text-[#4285F4] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#4285F4] text-[#4285F4] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm cursor-pointer"
               >
-                <Upload className="w-4 h-4" /> Create Multiple Accounts
+                <Upload className="w-4 h-4 shrink-0" /> Create Multiple Accounts
               </button>
               <button 
                 onClick={openAddModal}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#c9a654] text-white text-sm font-semibold rounded-lg hover:bg-[#b59545] transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#c9a654] text-white text-sm font-semibold rounded-lg hover:bg-[#b59545] transition-colors shadow-sm cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Add User
+                <Plus className="w-4 h-4 shrink-0" /> Add User
               </button>
             </div>
           </div>
 
           {/* Table and Tabs Card */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm w-full min-w-0 overflow-hidden">
             
             {/* TABS NAVIGATION */}
-            <div className="flex border-b border-gray-100 px-6 pt-2 bg-gray-50/30">
+            <div className="flex border-b border-gray-100 px-4 sm:px-6 pt-2 bg-gray-50/30 w-full max-w-full overflow-x-auto custom-scrollbar">
               <button
                 onClick={() => setActiveTab("Students")}
-                className={`pb-4 pt-2 px-4 text-sm font-bold border-b-2 transition-colors ${
+                className={`pb-4 pt-2 px-3 sm:px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === "Students"
                     ? "border-[#c9a654] text-[#c9a654]"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
@@ -864,7 +864,7 @@ const ChairpersonModule: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab("Advisers")}
-                className={`pb-4 pt-2 px-4 text-sm font-bold border-b-2 transition-colors ${
+                className={`pb-4 pt-2 px-3 sm:px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === "Advisers"
                     ? "border-[#c9a654] text-[#c9a654]"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
@@ -875,30 +875,30 @@ const ChairpersonModule: React.FC = () => {
             </div>
 
             {/* Data Table */}
-            <div className="overflow-x-auto">
+            <div className="w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50/50 text-gray-500 font-semibold uppercase text-[11px] tracking-wider border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4">ID Number</th>
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Section</th>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">ID Number</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">Name</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">Role</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">Section</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3.5 sm:px-6 sm:py-4 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {isLoading ? (
                     Array.from({length: Math.min(parseInt(sessionStorage.getItem('adminUserCount') || '5', 10) || 5, 10)}).map((_, i) => (
                       <tr key={i}>
-                        <td className="px-6 py-4"><Skeleton width={80} /></td>
-                        <td className="px-6 py-4"><Skeleton width={150} /></td>
-                        <td className="px-6 py-4"><Skeleton width={60} borderRadius={999} /></td>
-                        <td className="px-6 py-4"><Skeleton width={80} /></td>
-                        <td className="px-6 py-4"><Skeleton width={180} /></td>
-                        <td className="px-6 py-4"><Skeleton width={50} /></td>
-                        <td className="px-6 py-4 text-right"><Skeleton width={100} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={80} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={150} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={60} borderRadius={999} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={80} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={180} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4"><Skeleton width={50} /></td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 text-right"><Skeleton width={100} /></td>
                       </tr>
                     ))
                   ) : filteredUsers.length === 0 ? (
@@ -913,23 +913,23 @@ const ChairpersonModule: React.FC = () => {
                   ) : (
                     paginatedUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900">{user.studentId || "—"}</td>
-                        <td className="px-6 py-4 font-bold text-[#122244]">{`${user.firstName || ''} ${user.lastName || ''}`}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 font-medium text-gray-900 whitespace-nowrap">{user.studentId || "—"}</td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 font-bold text-[#122244] whitespace-nowrap">{`${user.firstName || ''} ${user.lastName || ''}`}</td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 whitespace-nowrap">
                           <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${user.role === 'Adviser' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
                             {user.role === 'Adviser' ? 'Faculty' : user.role || 'Student'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{user.section || "—"}</td>
-                        <td className="px-6 py-4 text-gray-600">{user.email || "—"}</td>
-                        <td className="px-6 py-4 font-bold">
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 text-gray-600 whitespace-nowrap">{user.section || "—"}</td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 text-gray-600 whitespace-nowrap">{user.email || "—"}</td>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 font-bold whitespace-nowrap">
                           <span className={isUserActive(user) ? "text-green-600" : "text-red-500"}>
                             {isUserActive(user) ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <button onClick={() => handleEditClick(user)} className="text-[#4285F4] font-semibold hover:underline mr-4">Edit</button>
-                          <button onClick={() => setUserToDelete(user.id)} className="text-red-500 font-semibold hover:underline">Delete</button>
+                        <td className="px-4 py-3.5 sm:px-6 sm:py-4 text-right whitespace-nowrap">
+                          <button onClick={() => handleEditClick(user)} className="text-[#4285F4] font-semibold hover:underline mr-4 cursor-pointer">Edit</button>
+                          <button onClick={() => setUserToDelete(user.id)} className="text-red-500 font-semibold hover:underline cursor-pointer">Delete</button>
                         </td>
                       </tr>
                     ))
@@ -954,9 +954,9 @@ const ChairpersonModule: React.FC = () => {
       {/* IMPORT ACCOUNTS MODAL */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-2xl font-bold text-[#3d2c23]">Create Multiple Accounts</h2>
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 shrink-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#3d2c23]">Create Multiple Accounts</h2>
               <button 
                 onClick={() => !isImporting && setIsImportModalOpen(false)} 
                 className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100 disabled:opacity-50"
@@ -966,21 +966,21 @@ const ChairpersonModule: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="flex items-center justify-between bg-[#f0f4ff] border border-[#d6e4ff] rounded-xl p-4 mb-8">
+            <div className="p-4 sm:p-8 overflow-y-auto flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[#f0f4ff] border border-[#d6e4ff] rounded-xl p-4 mb-6 sm:mb-8">
                 <div className="flex items-center gap-3 text-[#2f54eb]">
-                  <Info className="w-5 h-5" />
+                  <Info className="w-5 h-5 shrink-0" />
                   <span className="text-sm font-semibold">Please use the required format.</span>
                 </div>
                 <button 
                   onClick={downloadTemplate}
-                  className="flex items-center gap-2 text-sm font-bold text-[#2f54eb] hover:underline"
+                  className="flex items-center gap-2 text-sm font-bold text-[#2f54eb] hover:underline self-start sm:self-auto"
                 >
-                  <Download className="w-4 h-4" /> Download Template Here
+                  <Download className="w-4 h-4 shrink-0" /> Download Template Here
                 </button>
               </div>
 
-              <div className={`border-2 border-dashed rounded-2xl transition-all p-12 text-center relative ${
+              <div className={`border-2 border-dashed rounded-2xl transition-all p-6 sm:p-12 text-center relative ${
                 isDraggingOver 
                   ? 'border-[#2f54eb] bg-[#f0f4ff]' 
                   : 'border-gray-300 bg-gray-50/50 hover:bg-gray-50'
@@ -1033,18 +1033,18 @@ const ChairpersonModule: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+            <div className="flex flex-wrap justify-end gap-3 p-4 sm:p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl shrink-0">
               <button 
                 onClick={() => setIsImportModalOpen(false)} 
                 disabled={isImporting}
-                className="px-6 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                className="px-5 sm:px-6 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
                 onClick={processImport}
                 disabled={!selectedFile || isImporting}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-[#4285F4] hover:bg-blue-600 rounded-lg shadow-md transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-5 sm:px-6 py-2.5 text-sm font-bold text-white bg-[#4285F4] hover:bg-blue-600 rounded-lg shadow-md transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isImporting ? "Processing..." : "Upload & Create"}
               </button>
@@ -1056,9 +1056,9 @@ const ChairpersonModule: React.FC = () => {
       {/* MODAL: Add/Edit User */}
       {isAddUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-[#122244]">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 shrink-0">
+              <h2 className="text-lg sm:text-xl font-bold text-[#122244]">
                 {editingUserId ? "Edit Account" : `Add New ${userForm.role === 'Adviser' ? 'Faculty' : userForm.role}`}
               </h2>
               <button onClick={() => setIsAddUserModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100">
@@ -1066,7 +1066,7 @@ const ChairpersonModule: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+            <form onSubmit={handleSaveUser} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="text-sm font-bold text-gray-700 block mb-1">Role</label>
                 <CustomDropdown
@@ -1094,12 +1094,12 @@ const ChairpersonModule: React.FC = () => {
                 />
               </div>
 
-              <div className="flex gap-4">
-                <div className="flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="min-w-0">
                   <label className="text-sm font-bold text-gray-700 block mb-1">First Name</label>
                   <input type="text" required value={userForm.firstName} onChange={(e) => setUserForm({...userForm, firstName: e.target.value})} placeholder="Juan" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none transition-shadow" />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0">
                   <label className="text-sm font-bold text-gray-700 block mb-1">Last Name</label>
                   <input type="text" required value={userForm.lastName} onChange={(e) => setUserForm({...userForm, lastName: e.target.value})} placeholder="Dela Cruz" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#c9a654]/50 outline-none transition-shadow" />
                 </div>
@@ -1181,8 +1181,8 @@ const ChairpersonModule: React.FC = () => {
               <p className="text-sm text-gray-500">The account list has been processed. Here is the summary:</p>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
-              <div className="grid grid-cols-2 gap-4 w-full mb-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-gray-50/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full mb-6">
                 <div className="bg-white border border-green-200 rounded-xl p-4 shadow-sm text-center">
                   <p className="text-2xl font-bold text-green-600">{importSummary.success}</p>
                   <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest mt-1">Successful</p>

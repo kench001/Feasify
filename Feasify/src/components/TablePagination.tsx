@@ -91,8 +91,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   const pageNumbers = buildPageNumbers(safePage, totalPages);
 
   return (
-    <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-      <p className="text-gray-500 font-medium">
+    <div className="w-full min-w-0 px-4 sm:px-6 py-3.5 sm:py-4 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <p className="text-gray-500 font-medium text-center sm:text-left">
         Showing{" "}
         <span className="font-bold text-[#122244]">
           {showingStart}–{showingEnd}
@@ -104,12 +104,12 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
         {itemLabel}
       </p>
 
-      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+      <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap justify-center max-w-full">
         <button
           type="button"
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
           disabled={safePage <= 1}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
           Previous
@@ -119,7 +119,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           pageItem === "ellipsis" ? (
             <span
               key={`ellipsis-${pIdx}`}
-              className="px-2 py-1 text-gray-400 font-bold select-none"
+              className="px-1.5 sm:px-2 py-1 text-gray-400 font-bold select-none"
             >
               …
             </span>
@@ -129,7 +129,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               type="button"
               onClick={() => onPageChange(pageItem)}
               aria-current={safePage === pageItem ? "page" : undefined}
-              className={`min-w-[32px] h-8 px-2.5 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`min-w-[28px] sm:min-w-[32px] h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg font-bold transition-all cursor-pointer ${
                 safePage === pageItem
                   ? "bg-[#122244] text-white shadow-xs"
                   : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
@@ -144,7 +144,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
           disabled={safePage >= totalPages}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           Next
           <ChevronRight className="w-3.5 h-3.5" />

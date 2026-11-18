@@ -483,7 +483,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50 font-sans">
+    <div className="flex min-h-screen w-full overflow-x-clip bg-gray-50/50 font-sans">
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div
@@ -567,10 +567,10 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 transition-all duration-300 ease-in-out min-h-screen flex flex-col lg:ml-16 ml-0"
+        className="flex-1 min-w-0 w-full transition-all duration-300 ease-in-out min-h-screen flex flex-col lg:ml-16 ml-0"
       >
-        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between text-sm text-gray-500 sticky top-0 z-30">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+        <div className="bg-white border-b border-gray-100 shadow-[0_3px_10px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3 text-sm text-gray-500 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
             <MobileBurgerButton onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
             <span
               className="font-semibold text-gray-900 hover:text-[#c9a654] cursor-pointer transition-colors shrink-0"
@@ -586,7 +586,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => navigate("/admin/chairpersonnotification")}
               className="p-2 text-gray-500 hover:text-[#122244] hover:bg-gray-100 rounded-lg transition-all relative"
@@ -615,20 +615,20 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           </div>
         </div>
 
-        <div className="p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full min-w-0 space-y-6">
           {/* HEADER */}
           <div>
-            <h1 className="text-3xl font-extrabold text-[#122244]">Chairperson Settings</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#122244] break-words">Chairperson Settings</h1>
             <p className="text-sm text-gray-500 mt-1">
               Configure profile information, adjust system-wide options, and review full university audit logs.
             </p>
           </div>
 
           {/* TABS NAVIGATION */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3">
+          <div className="flex items-center gap-2 border-b border-gray-200 pb-3 w-full max-w-full overflow-x-auto custom-scrollbar">
             <button
               onClick={() => handleTabChange("profile")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
+              className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
                 activeTab === "profile"
                   ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
                   : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
@@ -640,7 +640,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
 
             <button
               onClick={() => handleTabChange("system")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
+              className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
                 activeTab === "system"
                   ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
                   : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
@@ -652,7 +652,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
 
             <button
               onClick={() => handleTabChange("audit")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
+              className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-xs ${
                 activeTab === "audit"
                   ? "bg-[#122244] text-white shadow-md shadow-[#122244]/20"
                   : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
@@ -666,27 +666,27 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           {/* TAB 1: PROFILE SETTINGS */}
           {activeTab === "profile" && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* CHAIRPERSON PROFILE CARD */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col items-center text-center">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 flex flex-col items-center text-center min-w-0">
                   <div className="w-24 h-24 rounded-full bg-[#c9a654] flex items-center justify-center text-white text-3xl font-black mb-4 shadow-md">
                     {getInitials(userName)}
                   </div>
-                  <h3 className="text-xl font-bold text-[#122244] mb-4">{userName}</h3>
+                  <h3 className="text-xl font-bold text-[#122244] mb-4 break-words">{userName}</h3>
                   <div className="w-full space-y-3 pt-4 mt-4 border-t border-gray-200">
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                    <div className="flex justify-between items-center gap-2 text-xs font-bold text-gray-500">
                       <span>DEPARTMENT</span>
-                      <span className="text-[#122244] font-semibold">Financial Management</span>
+                      <span className="text-[#122244] font-semibold text-right">Financial Management</span>
                     </div>
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                    <div className="flex justify-between items-center gap-2 text-xs font-bold text-gray-500">
                       <span>ROLE</span>
-                      <span className="text-[#c9a654] font-semibold">FM Chairperson</span>
+                      <span className="text-[#c9a654] font-semibold text-right">FM Chairperson</span>
                     </div>
                   </div>
                 </div>
 
                 {/* ACCOUNT DETAILS CARD */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 flex flex-col justify-between min-w-0">
                   <div>
                     <h2 className="text-lg font-bold mb-5 text-[#122244]">Account Settings</h2>
                     <div className="space-y-4">
@@ -694,15 +694,15 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                           Email Address
                         </label>
-                        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
-                          <span className="truncate">{profileData.email}</span>
+                        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1 min-w-0 overflow-hidden">
+                          <span className="block truncate">{profileData.email}</span>
                         </div>
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                           Full Name
                         </label>
-                        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1">
+                        <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 mt-1 min-w-0">
                           <span className="truncate">{userName}</span>
                           <button
                             onClick={() => {
@@ -714,7 +714,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                               setModalSuccess("");
                               setShowNameModal(true);
                             }}
-                            className="text-[#c9a654] hover:text-[#b59545] font-bold text-xs ml-2 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 rounded-md transition-colors"
+                            className="text-[#c9a654] hover:text-[#b59545] font-bold text-xs px-2.5 py-1 bg-amber-50 hover:bg-amber-100 rounded-md transition-colors shrink-0"
                           >
                             Update
                           </button>
@@ -723,8 +723,8 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
-                    <div>
+                  <div className="pt-4 mt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-gray-800">Password Security</p>
                       <p className="text-[11px] text-gray-500">Update your administrator password.</p>
                     </div>
@@ -734,7 +734,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                         setModalSuccess("");
                         setShowPasswordModal(true);
                       }}
-                      className="px-3 py-1.5 bg-[#122244] hover:bg-[#1c3260] text-white text-xs font-bold rounded-lg transition-colors"
+                      className="px-3 py-1.5 bg-[#122244] hover:bg-[#1c3260] text-white text-xs font-bold rounded-lg transition-colors shrink-0"
                     >
                       Change Password
                     </button>
@@ -748,15 +748,15 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           {activeTab === "system" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Preferences */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible relative z-30">
-                <div className="p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible relative z-30 w-full min-w-0">
+                <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
                   <h3 className="font-bold text-[#122244]">Chairperson System Preferences</h3>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  <div className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Bell className="w-5 h-5 text-gray-400" />
-                      <div>
+                  <div className="p-4 sm:p-5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Bell className="w-5 h-5 text-gray-400 shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">System Activity Notifications</p>
                         <p className="text-xs text-gray-500">
                           Receive alerts for important platform updates and user registrations.
@@ -765,7 +765,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     </div>
                     <button
                       onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${
+                      className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${
                         notificationsEnabled ? "bg-[#c9a654]" : "bg-gray-300"
                       }`}
                     >
@@ -777,17 +777,17 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     </button>
                   </div>
 
-                  <div className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Moon className={`w-5 h-5 transition-colors ${darkModeEnabled ? "text-[#c9a654]" : "text-gray-400"}`} />
-                      <div>
+                  <div className="p-4 sm:p-5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Moon className={`w-5 h-5 transition-colors shrink-0 ${darkModeEnabled ? "text-[#c9a654]" : "text-gray-400"}`} />
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">Dark Mode (Beta)</p>
                         <p className="text-xs text-gray-500">Toggle dark appearance for the application.</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleToggleDarkMode(!darkModeEnabled)}
-                      className={`w-12 h-6 rounded-full transition-all relative cursor-pointer border ${
+                      className={`w-12 h-6 rounded-full transition-all relative cursor-pointer border shrink-0 ${
                         darkModeEnabled
                           ? "bg-[#c9a654] border-[#c9a654] shadow-[0_0_12px_rgba(201,166,84,0.45)]"
                           : "bg-gray-300 dark:bg-gray-700 border-gray-400/40 dark:border-gray-500"
@@ -802,15 +802,15 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     </button>
                   </div>
 
-                  <div className="p-5 flex items-center justify-between rounded-b-2xl">
-                    <div className="flex items-center gap-3">
-                      <Globe className="w-5 h-5 text-gray-400" />
-                      <div>
+                  <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-b-2xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Globe className="w-5 h-5 text-gray-400 shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">Language</p>
                         <p className="text-xs text-gray-500">Currently active language for FeasiFy.</p>
                       </div>
                     </div>
-                    <div className="w-48">
+                    <div className="w-full sm:w-48 min-w-0">
                       <CustomDropdown
                         value={language}
                         onChange={(val) => handleChangeLanguage(val)}
@@ -827,15 +827,15 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
               </div>
 
               {/* Security Card */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative z-10">
-                <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative z-10 w-full min-w-0">
+                <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
                   <h3 className="font-bold text-[#122244]">Security & Authentication</h3>
                 </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Lock className="w-5 h-5 text-gray-400" />
-                      <div>
+                <div className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Lock className="w-5 h-5 text-gray-400 shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">Chairperson Password</p>
                         <p className="text-xs text-gray-500">Ensure high administrative security.</p>
                       </div>
@@ -846,7 +846,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                         setModalSuccess("");
                         setShowPasswordModal(true);
                       }}
-                      className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors shadow-xs"
+                      className="px-4 py-2 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors shadow-xs self-start sm:self-auto shrink-0"
                     >
                       Change Password
                     </button>
@@ -860,17 +860,17 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
           {activeTab === "audit" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* FILTERS TOOLBAR */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
+              <div className="bg-white rounded-2xl border border-gray-200 p-3.5 sm:p-4 shadow-xs space-y-3 w-full min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-[#c9a654]" />
-                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Filter className="w-4 h-4 text-[#c9a654] shrink-0" />
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider truncate">
                       Full University Audit Trail
                     </span>
                   </div>
                   <button
                     onClick={handleResetFilters}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-[#122244] hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-[#122244] hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
                     title="Reset all filters"
                   >
                     <RotateCcw className="w-3 h-3" /> Reset Filters
@@ -879,7 +879,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* SECTION FILTER */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Section
                     </label>
@@ -898,7 +898,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                   </div>
 
                   {/* USER / MEMBER FILTER */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Member / User
                     </label>
@@ -917,7 +917,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                   </div>
 
                   {/* ACTION FILTER */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Action
                     </label>
@@ -943,7 +943,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                   </div>
 
                   {/* SINGLE DATE FILTER */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                       Date
                     </label>
@@ -954,7 +954,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                         setSelectedDate(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
+                      className="w-full min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c9a654]/50 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -976,36 +976,36 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
               </div>
 
               {/* AUDIT LOGS TABLE */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-xs w-full min-w-0 overflow-hidden">
+                <div className="w-full overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-gray-50/70 text-gray-500 font-bold uppercase tracking-wider text-[11px] border-b border-gray-100">
                       <tr>
-                        <th className="px-5 py-3.5">Date & Time</th>
-                        <th className="px-5 py-3.5">Action</th>
-                        <th className="px-5 py-3.5">Section</th>
-                        <th className="px-5 py-3.5">Description</th>
-                        <th className="px-5 py-3.5">Member / User</th>
-                        <th className="px-5 py-3.5">Role</th>
-                        <th className="px-5 py-3.5 text-right">Details</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Date & Time</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Action</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Section</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Description</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Member / User</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">Role</th>
+                        <th className="px-4 py-3 sm:px-5 sm:py-3.5 text-right whitespace-nowrap">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 font-medium">
                       {isLoadingLogs ? (
                         Array.from({ length: 6 }).map((_, i) => (
                           <tr key={i}>
-                            <td className="px-5 py-3.5"><Skeleton width={120} /></td>
-                            <td className="px-5 py-3.5"><Skeleton width={60} height={18} borderRadius={6} /></td>
-                            <td className="px-5 py-3.5"><Skeleton width={50} /></td>
-                            <td className="px-5 py-3.5"><Skeleton width={220} /></td>
-                            <td className="px-5 py-3.5"><Skeleton width={110} /></td>
-                            <td className="px-5 py-3.5"><Skeleton width={70} /></td>
-                            <td className="px-5 py-3.5 text-right"><Skeleton width={40} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={120} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={60} height={18} borderRadius={6} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={50} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={220} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={110} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5"><Skeleton width={70} /></td>
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 text-right"><Skeleton width={40} /></td>
                           </tr>
                         ))
                       ) : filteredLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
+                          <td colSpan={7} className="px-4 py-8 sm:px-5 sm:py-10 text-center text-gray-400">
                             <Clock className="w-7 h-7 text-gray-300 mx-auto mb-2" />
                             <p className="font-semibold text-gray-600">No audit records match your filters</p>
                             <p className="text-[11px] text-gray-400 mt-1">Try resetting search or section filter criteria.</p>
@@ -1020,10 +1020,10 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                       ) : (
                         paginatedLogs.map((log) => (
                           <tr key={log.id} className="hover:bg-amber-50/30 transition-colors">
-                            <td className="px-5 py-3.5 text-gray-600 whitespace-nowrap">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 text-gray-600 whitespace-nowrap">
                               {formatDate(log.createdAt)}
                             </td>
-                            <td className="px-5 py-3.5 whitespace-nowrap">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${getActionBadgeColor(
                                   log.action
@@ -1032,23 +1032,23 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                                 {log.action}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 whitespace-nowrap font-bold text-[#122244]">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap font-bold text-[#122244]">
                               <span className="inline-block bg-gray-100 text-gray-800 px-2 py-0.5 rounded font-mono text-[10px]">
                                 {log.sectionCode || "N/A"}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 text-gray-900 font-semibold max-w-xs truncate">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 text-gray-900 font-semibold max-w-xs truncate">
                               {log.description}
                             </td>
-                            <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap text-gray-700">
                               <div className="font-semibold">{log.userName || "System"}</div>
                             </td>
-                            <td className="px-5 py-3.5 whitespace-nowrap">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 whitespace-nowrap">
                               <span className="inline-block bg-purple-50 text-purple-700 border border-purple-200/70 px-2 py-0.5 rounded text-[10px] font-bold">
                                 {log.userRole || "User"}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                            <td className="px-4 py-3 sm:px-5 sm:py-3.5 text-right whitespace-nowrap">
                               <button
                                 onClick={() => setSelectedLog(log)}
                                 className="p-1.5 text-gray-500 hover:text-[#c9a654] hover:bg-amber-50 rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-[11px] cursor-pointer"
@@ -1065,8 +1065,8 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                 </div>
 
                 {/* 10 ROWS PER PAGE PAGINATION BAR */}
-                <div className="px-5 py-3.5 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
-                  <div className="flex items-center gap-2 font-medium">
+                <div className="px-4 sm:px-5 py-3.5 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 font-medium text-center sm:text-left">
                     <span>
                       Showing{" "}
                       <strong className="text-gray-900">
@@ -1078,12 +1078,12 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                       </strong>{" "}
                       of <strong className="text-gray-900">{filteredLogs.length}</strong> records (10 rows/page)
                     </span>
-                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-300 hidden sm:inline">|</span>
                     <span className="text-[11px] text-gray-500">Page {currentPage} of {totalPages}</span>
                   </div>
 
                   {/* Pagination Controls */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center justify-center gap-1 max-w-full">
                     <button
                       onClick={() => setCurrentPage(1)}
                       disabled={currentPage === 1}
@@ -1345,22 +1345,22 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
       {/* DETAIL MODAL: AUDIT LOG */}
       {selectedLog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-5 bg-[#122244] text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-[#c9a654]" />
-                <h3 className="font-bold text-base">Audit Trail Entry Details</h3>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 sm:p-5 bg-[#122244] text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock className="w-5 h-5 text-[#c9a654] shrink-0" />
+                <h3 className="font-bold text-base truncate">Audit Trail Entry Details</h3>
               </div>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="p-1 text-gray-400 hover:text-white rounded-lg transition-colors"
+                className="p-1 text-gray-400 hover:text-white rounded-lg transition-colors shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-              <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold block">Timestamp</span>
                   <span className="font-semibold text-gray-800">{formatDate(selectedLog.createdAt)}</span>
@@ -1377,15 +1377,15 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
                     {selectedLog.action}
                   </span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] text-gray-400 uppercase font-bold block">User</span>
-                  <span className="font-semibold text-gray-800">{selectedLog.userName} ({selectedLog.userRole || "User"})</span>
+                  <span className="font-semibold text-gray-800 break-words">{selectedLog.userName} ({selectedLog.userRole || "User"})</span>
                 </div>
               </div>
 
               <div>
                 <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Description</span>
-                <p className="p-3 bg-gray-50 rounded-xl text-gray-900 font-medium border border-gray-100">
+                <p className="p-3 bg-gray-50 rounded-xl text-gray-900 font-medium border border-gray-100 break-words">
                   {selectedLog.description}
                 </p>
               </div>
@@ -1393,7 +1393,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
               {selectedLog.recordId && (
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Record ID</span>
-                  <code className="block p-2 bg-gray-100 rounded-lg text-gray-700 font-mono text-[11px]">
+                  <code className="block p-2 bg-gray-100 rounded-lg text-gray-700 font-mono text-[11px] break-all">
                     {selectedLog.recordId}
                   </code>
                 </div>
@@ -1402,7 +1402,7 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
               {selectedLog.oldValue && (
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Previous State</span>
-                  <pre className="p-3 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto text-[10px] font-mono">
+                  <pre className="p-3 bg-gray-900 text-gray-100 rounded-xl max-w-full overflow-x-auto whitespace-pre-wrap break-words text-[10px] font-mono">
                     {JSON.stringify(selectedLog.oldValue, null, 2)}
                   </pre>
                 </div>
@@ -1411,14 +1411,14 @@ const ChairpersonSettings: React.FC<ChairpersonSettingsProps> = ({ defaultTab = 
               {selectedLog.newValue && (
                 <div>
                   <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">New State</span>
-                  <pre className="p-3 bg-gray-900 text-emerald-300 rounded-xl overflow-x-auto text-[10px] font-mono">
+                  <pre className="p-3 bg-gray-900 text-emerald-300 rounded-xl max-w-full overflow-x-auto whitespace-pre-wrap break-words text-[10px] font-mono">
                     {JSON.stringify(selectedLog.newValue, null, 2)}
                   </pre>
                 </div>
               )}
             </div>
 
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
               <button
                 onClick={() => setSelectedLog(null)}
                 className="px-4 py-2 bg-[#122244] text-white font-semibold rounded-xl text-xs hover:bg-[#1c3260] transition-colors"

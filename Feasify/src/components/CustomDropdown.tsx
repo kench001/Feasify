@@ -68,12 +68,12 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
   };
 
   return (
-    <div className={`relative w-full ${className}`} ref={dropdownRef}>
+    <div className={`relative w-full min-w-0 ${className}`} ref={dropdownRef}>
       <button
         type="button"
         disabled={disabled}
         onClick={handleToggle}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-white border ${
+        className={`w-full min-w-0 flex items-center justify-between px-3.5 py-2.5 bg-white border ${
           isOpen
             ? "border-[#c9a654] ring-2 ring-[#c9a654]/20 shadow-xs"
             : "border-gray-200 hover:border-[#c9a654]/60"
