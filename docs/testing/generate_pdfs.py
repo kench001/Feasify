@@ -407,7 +407,9 @@ def main():
         "09_Performance_Stress_Test.md",
         "10_Bug_And_Issue_Registry.md",
         "11_Test_Execution_Summary.md",
-        "12_Final_QA_Report.md"
+        "12_Final_QA_Report.md",
+        "13_AI_Analysis_E2E_Testing_Report.md",
+        "14_Company_Setup_And_Chart_Fix_Report.md"
     ]
 
     generated_count = 0
@@ -456,6 +458,12 @@ def main():
         size_kb = os.path.getsize(master_pdf_path) / 1024
         print(f"  [OK] [MASTER PDF GENERATED] Feasify_Complete_QA_Documentation_Package.pdf ({size_kb:.1f} KB)")
         generated_count += 1
+        
+        # Copy to root workspace
+        import shutil
+        root_dest = os.path.abspath(r"C:\Users\CJ Baldonado\Documents\GitHub\New folder\Feasify\FEASIFY_COMPLETE_MASTER_ALL_QA_REPORTS.pdf")
+        shutil.copy2(master_pdf_path, root_dest)
+        print(f"  [OK] Copied master PDF to: {root_dest}")
 
     print("\n=================================================================")
     print(f"SUMMARY: {generated_count} PDF Documents Successfully Created!")

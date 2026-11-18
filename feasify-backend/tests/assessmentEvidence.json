@@ -12,11 +12,11 @@
       "successCount": 2,
       "errorCount": 0,
       "errorRate": "0.0%",
-      "wallTimeMs": 9.036900000000003,
-      "reqPerSec": 221.31,
-      "avgLatencyMs": 4.48,
-      "medianLatencyMs": 5.52,
-      "p95LatencyMs": 5.52
+      "wallTimeMs": 13.096199999999953,
+      "reqPerSec": 152.72,
+      "avgLatencyMs": 6.48,
+      "medianLatencyMs": 9.82,
+      "p95LatencyMs": 9.82
     },
     {
       "virtualUsers": 10,
@@ -24,11 +24,11 @@
       "successCount": 20,
       "errorCount": 0,
       "errorRate": "0.0%",
-      "wallTimeMs": 73.12759999999997,
-      "reqPerSec": 273.49,
-      "avgLatencyMs": 33.02,
-      "medianLatencyMs": 35.49,
-      "p95LatencyMs": 58.62
+      "wallTimeMs": 81.79029999999989,
+      "reqPerSec": 244.53,
+      "avgLatencyMs": 36.31,
+      "medianLatencyMs": 37.19,
+      "p95LatencyMs": 62.93
     },
     {
       "virtualUsers": 25,
@@ -36,11 +36,11 @@
       "successCount": 50,
       "errorCount": 0,
       "errorRate": "0.0%",
-      "wallTimeMs": 144.5313,
-      "reqPerSec": 345.95,
-      "avgLatencyMs": 63.9,
-      "medianLatencyMs": 70.74,
-      "p95LatencyMs": 103.13
+      "wallTimeMs": 223.64800000000014,
+      "reqPerSec": 223.57,
+      "avgLatencyMs": 99.65,
+      "medianLatencyMs": 98.32,
+      "p95LatencyMs": 163.32
     },
     {
       "virtualUsers": 50,
@@ -48,11 +48,11 @@
       "successCount": 100,
       "errorCount": 0,
       "errorRate": "0.0%",
-      "wallTimeMs": 221.38530000000003,
-      "reqPerSec": 451.7,
-      "avgLatencyMs": 98.13,
-      "medianLatencyMs": 98.61,
-      "p95LatencyMs": 169.02
+      "wallTimeMs": 264.47979999999984,
+      "reqPerSec": 378.1,
+      "avgLatencyMs": 119.88,
+      "medianLatencyMs": 111.19,
+      "p95LatencyMs": 209.35
     },
     {
       "virtualUsers": 100,
@@ -60,12 +60,12 @@
       "successCount": 200,
       "errorCount": 0,
       "errorRate": "0.0%",
-      "wallTimeMs": 415.82209999999986,
-      "reqPerSec": 480.97,
-      "avgLatencyMs": 181.07,
-      "medianLatencyMs": 195.57,
-      "p95LatencyMs": 312.33
+      "wallTimeMs": 507.71090000000004,
+      "reqPerSec": 393.92,
+      "avgLatencyMs": 219.23,
+      "medianLatencyMs": 217.97,
+      "p95LatencyMs": 373.51
     }
   ],
-  "timestamp": "2026-11-12T14:18:35.661Z"
+  "timestamp": "2026-11-18T11:09:35.219Z"
 }
