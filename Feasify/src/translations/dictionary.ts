@@ -373,6 +373,12 @@ export const phraseDictionary: Record<string, string> = {
   "official business score": "Opisyal na Iskor ng Negosyo",
   "score (/100)": "Iskor (/100)",
   "submit score & feedback": "Isumite ang Iskor at Feedback",
+  "adviser grading & feedback hub": "Sentro ng Pagmamarka at Puna ng Tagapayo",
+  "official academic evaluation & defense advisory": "Opisyal na Akademikong Ebalwasyon at Tagapayo sa Depensa",
+  "official adviser score": "Opisyal na Marka ng Tagapayo",
+  "quick grade presets": "Mabilisang Preset ng Marka",
+  "evaluation remarks & feedback": "Mga Puna at Feedback sa Ebalwasyon",
+  "view-only evaluation feed": "Talaan ng Ebalwasyon (Pang-tingin Lamang)",
   "approve proposal": "Aprubahan ang Proposal",
   "request revision": "Humiling ng Rebisyon",
   "reject proposal": "Tanggihan ang Proposal",
@@ -646,6 +652,13 @@ export function translateToFilipino(text: string): string {
     [/ADVISER SCORE/gi, "ISKOR NG TAGAPAYO"],
     [/Score \(\/100\)/gi, "Iskor (/100)"],
     [/Submit Score & Feedback/gi, "Isumite ang Iskor at Feedback"],
+    [/Adviser Grading & Feedback Hub/gi, "Sentro ng Pagmamarka at Puna ng Tagapayo"],
+    [/Official Academic Evaluation & Defense Advisory/gi, "Opisyal na Akademikong Ebalwasyon at Tagapayo sa Depensa"],
+    [/OFFICIAL ADVISER SCORE/gi, "OPISYAL NA MARKA NG TAGAPAYO"],
+    [/Official Adviser Score/gi, "Opisyal na Marka ng Tagapayo"],
+    [/Quick Grade Presets/gi, "Mabilisang Preset ng Marka"],
+    [/Evaluation Remarks & Feedback/gi, "Mga Puna at Feedback sa Ebalwasyon"],
+    [/View-Only Evaluation Feed/gi, "Talaan ng Ebalwasyon (Pang-tingin Lamang)"],
   ];
 
   for (const [pattern, repl] of multiReplacements) {

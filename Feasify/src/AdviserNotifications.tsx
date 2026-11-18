@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import {
   markNotificationAsRead,
@@ -43,7 +44,7 @@ interface NotificationItem {
   userId: string;
   title: string;
   message: string;
-  type: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial';
+  type: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial' | 'report';
   link?: string;
   senderName?: string;
   timestamp: string;
@@ -273,6 +274,8 @@ const AdviserNotifications: React.FC = () => {
         return <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 flex-shrink-0"><Users className="w-5 h-5" /></div>;
       case 'approval':
         return <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 flex-shrink-0"><Sparkles className="w-5 h-5" /></div>;
+      case 'report':
+        return <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 flex-shrink-0"><FileText className="w-5 h-5" /></div>;
       case 'financial':
         return <div className="p-2.5 bg-teal-50 text-teal-600 rounded-xl border border-teal-100 flex-shrink-0"><DollarSign className="w-5 h-5" /></div>;
       default:

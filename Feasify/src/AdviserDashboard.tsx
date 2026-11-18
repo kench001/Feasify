@@ -8,7 +8,7 @@ import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp
 import {
   Settings, ShieldAlert, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw,
-  MoreVertical, Trash2, Edit2, FileText, ChevronLeft, Clock, Loader2, MessageCircle, Target, DollarSign, Send, UserPlus, Check, Download,
+  MoreVertical, Trash2, Edit2, FileText, FileCheck, ChevronLeft, Clock, Loader2, MessageCircle, Target, DollarSign, Send, UserPlus, Check, Download,
   Bell, Calculator, Info,
   FileSpreadsheet, PieChart, ArrowUp, Cpu, Eye, Lock,
   Compass, Sparkles, ThumbsUp, TrendingDown, Lightbulb, Brain
@@ -251,10 +251,16 @@ const AdviserDashboard: React.FC = () => {
     groupName: string;
     proposalId?: string;
     proposalName?: string;
+    type?: 'proposal' | 'report';
+    title?: string;
+    message?: string;
   } | null>(null);
   const [highlightedProposalIds, setHighlightedProposalIds] = useState<string[]>([]);
   const knownSubmittedProposalIds = useRef<Set<string>>(new Set());
   const knownProposalStatuses = useRef<Map<string, string>>(new Map());
+  const knownReportSubmittedGroupIds = useRef<Set<string>>(new Set());
+  const knownReportSubmittedPropIds = useRef<Set<string>>(new Set());
+  const isInitialGroupsSnapshot = useRef<boolean>(true);
   const isInitialProposalsSnapshot = useRef<boolean>(true);
   const isInitialNotifsSnapshot = useRef<boolean>(true);
   const knownNotifIds = useRef<Set<string>>(new Set());
@@ -316,12 +322,18 @@ const AdviserDashboard: React.FC = () => {
                 const notifData = change.doc.data();
 
                 if (!isInitialNotifsSnapshot.current && !knownNotifIds.current.has(notifId)) {
+                  const isReportNotif =
+                    notifData.type === "report" ||
+                    notifData.metadata?.type === "report" ||
+                    (typeof notifData.title === "string" && notifData.title.toLowerCase().includes("report")) ||
+                    (typeof notifData.message === "string" && notifData.message.toLowerCase().includes("report"));
+
                   const isProposalNotif =
                     notifData.type === "proposal" ||
                     (typeof notifData.message === "string" && notifData.message.toLowerCase().includes("proposal")) ||
                     (typeof notifData.title === "string" && notifData.title.toLowerCase().includes("proposal"));
 
-                  if (isProposalNotif) {
+                  if (isReportNotif) {
                     const meta = notifData.metadata || {};
                     let resolvedGroupName = meta.groupName || meta.companyName || "";
 
@@ -340,7 +352,32 @@ const AdviserDashboard: React.FC = () => {
                       groupId: targetGroupId,
                       groupName: resolvedGroupName || "A group",
                       proposalId: targetPropId,
-                      proposalName: targetPropName
+                      proposalName: targetPropName || "Feasibility Report",
+                      type: "report",
+                      title: notifData.title || "Feasibility Report Submitted",
+                      message: notifData.message || `Team "${resolvedGroupName}" submitted a feasibility report.`
+                    });
+                  } else if (isProposalNotif) {
+                    const meta = notifData.metadata || {};
+                    let resolvedGroupName = meta.groupName || meta.companyName || "";
+
+                    if (!resolvedGroupName && notifData.message) {
+                      const match = notifData.message.match(/Team\s+["']([^"']+)["']/i) || notifData.message.match(/Group\s+["']?([^"']+)["']?/i);
+                      if (match && match[1]) {
+                        resolvedGroupName = match[1];
+                      }
+                    }
+
+                    const targetGroupId = meta.groupId || "";
+                    const targetPropId = meta.proposalId || "";
+                    const targetPropName = meta.proposalName || meta.businessName || "";
+
+                    setTopProposalNotification({
+                      groupId: targetGroupId,
+                      groupName: resolvedGroupName || "A group",
+                      proposalId: targetPropId,
+                      proposalName: targetPropName,
+                      type: "proposal"
                     });
 
                     if (targetPropId) {
@@ -460,6 +497,35 @@ const AdviserDashboard: React.FC = () => {
       });
       const groupIds = groupDocs.map(d => d.id);
 
+      // Track live report submissions on groups
+      const newlyReportSubmittedGroups: { id: string; name: string }[] = [];
+      groupDocs.forEach(gd => {
+        const gData = gd.data();
+        const isRepSub = gData.reportSubmitted === true;
+        if (isRepSub) {
+          if (!isInitialGroupsSnapshot.current && !knownReportSubmittedGroupIds.current.has(gd.id)) {
+            newlyReportSubmittedGroups.push({
+              id: gd.id,
+              name: gData.companyName || gData.businessName || gData.title || "A group"
+            });
+          }
+          knownReportSubmittedGroupIds.current.add(gd.id);
+        }
+      });
+
+      if (isInitialGroupsSnapshot.current) {
+        isInitialGroupsSnapshot.current = false;
+      } else if (newlyReportSubmittedGroups.length > 0) {
+        const latestRep = newlyReportSubmittedGroups[newlyReportSubmittedGroups.length - 1];
+        setTopProposalNotification({
+          groupId: latestRep.id,
+          groupName: latestRep.name,
+          type: "report",
+          title: "Feasibility Report Submitted",
+          message: `Team "${latestRep.name}" has submitted their passing Feasibility Report.`
+        });
+      }
+
       // Clean up old proposals listener, set up new one
       if (unsubProposals) { unsubProposals(); }
 
@@ -479,11 +545,20 @@ const AdviserDashboard: React.FC = () => {
         const proposalMap: Record<string, { businessName?: string; businessLogo?: string }> = {};
         const byGroup: Record<string, ProposalData[]> = {};
         const newlySubmittedList: ProposalData[] = [];
+        const newlyReportSubmittedProps: ProposalData[] = [];
 
         propSnap.docs.forEach(pd => {
           const pdata = { id: pd.id, ...pd.data() } as ProposalData;
           const isSub = isProposalSubmitted(pdata);
           const prevStatus = knownProposalStatuses.current.get(pd.id);
+
+          const isRepSub = (pdata as any).reportSubmitted === true;
+          if (isRepSub) {
+            if (!isInitialProposalsSnapshot.current && !knownReportSubmittedPropIds.current.has(pd.id)) {
+              newlyReportSubmittedProps.push(pdata);
+            }
+            knownReportSubmittedPropIds.current.add(pd.id);
+          }
 
           if (isSub) {
             const isNewlyDiscovered = !knownSubmittedProposalIds.current.has(pd.id);
@@ -511,6 +586,21 @@ const AdviserDashboard: React.FC = () => {
 
         if (isInitialProposalsSnapshot.current) {
           isInitialProposalsSnapshot.current = false;
+        } else if (newlyReportSubmittedProps.length > 0) {
+          const newestRep = newlyReportSubmittedProps[newlyReportSubmittedProps.length - 1];
+          const matchedGroup = groupDocs.find(d => d.id === newestRep.groupId);
+          const gData = matchedGroup ? matchedGroup.data() : null;
+          const grpName = gData?.companyName || gData?.title || gData?.businessName || "A group";
+
+          setTopProposalNotification({
+            groupId: newestRep.groupId,
+            groupName: grpName,
+            proposalId: newestRep.id,
+            proposalName: newestRep.businessName || "Feasibility Report",
+            type: "report",
+            title: "Feasibility Report Submitted",
+            message: `Team "${grpName}" has submitted their passing Feasibility Report.`
+          });
         } else if (newlySubmittedList.length > 0) {
           const newest = newlySubmittedList[newlySubmittedList.length - 1];
           const matchedGroup = groupDocs.find(d => d.id === newest.groupId);
@@ -521,7 +611,8 @@ const AdviserDashboard: React.FC = () => {
             groupId: newest.groupId,
             groupName: grpName,
             proposalId: newest.id,
-            proposalName: newest.businessName || "Business Proposal"
+            proposalName: newest.businessName || "Business Proposal",
+            type: "proposal"
           });
 
           setHighlightedProposalIds(prev => Array.from(new Set([...prev, ...newlySubmittedList.map(p => p.id || "").filter(Boolean)])));
@@ -718,14 +809,14 @@ const AdviserDashboard: React.FC = () => {
 
   const handleViewHighlightedProposal = () => {
     if (!topProposalNotification) return;
-    const { groupId, proposalId } = topProposalNotification;
+    const { groupId, proposalId, type } = topProposalNotification;
 
     // Dismiss top banner
     setTopProposalNotification(null);
 
-    // Return to overview if in sub-views
-    if (activeView !== 'overview') {
-      setActiveView('overview');
+    // Return to dashboard if in sub-views
+    if (activeView !== 'dashboard') {
+      setActiveView('dashboard');
     }
     if (activeDashboardTab !== 'All Groups') {
       setActiveDashboardTab('All Groups');
@@ -751,6 +842,11 @@ const AdviserDashboard: React.FC = () => {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 150);
+
+      if (type === 'report') {
+        handleOpenActiveBusiness(targetGroup);
+        return;
+      }
 
       const teamProps = (proposalsByGroup[targetGroup.id] || []).filter(isProposalSubmitted);
       const targetProp = proposalId
@@ -2084,58 +2180,42 @@ const AdviserDashboard: React.FC = () => {
                     }`}
                   >
                     {/* CARD HEADER: TEAM NAME & PROPOSALS COUNTER */}
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 gap-2">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {group.companyLogo ? (
-                            <img src={group.companyLogo} alt="Team Logo" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
-                              {getInitials(teamDisplayName)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-extrabold text-[#122244] text-sm truncate" title={teamDisplayName}>
-                            {teamDisplayName}
-                          </h3>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.2 rounded">
-                              Group {originalIndex}
-                            </span>
-                            {activeSection === "ALL" && (
-                              <span className="px-1.5 py-0.2 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-extrabold rounded uppercase tracking-wider">
-                                {group.section}
-                              </span>
-                            )}
-                            {hasNewSubmission && !isActivated && (
-                              <span className="px-2 py-0.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black rounded-full shadow-xs flex items-center gap-1 animate-pulse">
-                                <Sparkles className="w-3 h-3" /> New Submission
-                              </span>
+                    <div className="p-4 border-b border-gray-100 flex flex-col bg-gray-50/70 gap-2.5">
+                      {/* Primary Row: Avatar, Team Name & Tags, Kebab Menu */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {group.companyLogo ? (
+                              <img src={group.companyLogo} alt="Team Logo" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-[#122244] text-white flex items-center justify-center font-bold text-xs tracking-wider">
+                                {getInitials(teamDisplayName)}
+                              </div>
                             )}
                           </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-extrabold text-[#122244] text-sm truncate" title={teamDisplayName}>
+                              {teamDisplayName}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                Group {originalIndex}
+                              </span>
+                              {activeSection === "ALL" && (
+                                <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-200 text-[#4285F4] text-[9px] font-extrabold rounded uppercase tracking-wider whitespace-nowrap">
+                                  {group.section}
+                                </span>
+                              )}
+                              {hasNewSubmission && !isActivated && (
+                                <span className="px-2 py-0.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black rounded-full shadow-xs flex items-center gap-1 animate-pulse whitespace-nowrap">
+                                  <Sparkles className="w-3 h-3" /> New Submission
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {/* Proposals Counter: Proposals: X / 3 OR Active Business */}
-                        {isActivated ? (
-                          reportReady ? (
-                            <span className="px-2.5 py-1 text-xs font-black rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active Business (Report Submitted)
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 text-xs font-black rounded-full border bg-amber-50 text-amber-800 border-amber-200 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" /> Report In Progress
-                            </span>
-                          )
-                        ) : (
-                          <span className={`px-2.5 py-1 text-xs font-black rounded-full border ${proposalCount >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
-                            Proposals: {proposalCount} / 3
-                          </span>
-                        )}
-
-                        <div className="relative">
+                        <div className="relative flex-shrink-0">
                           <button onClick={() => setOpenDropdownId(openDropdownId === group.id ? null : (group.id || null))} className="p-1 text-gray-400 hover:text-gray-800 rounded-md hover:bg-gray-200 transition-colors">
                             <MoreVertical className="w-4 h-4" />
                           </button>
@@ -2151,6 +2231,25 @@ const AdviserDashboard: React.FC = () => {
                             </div>
                           )}
                         </div>
+                      </div>
+
+                      {/* Status Sub-row: Dedicated space for Proposals Counter or Active Business */}
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        {isActivated ? (
+                          reportReady ? (
+                            <span className="px-2.5 py-1 text-xs font-black rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1 whitespace-nowrap">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Active Business (Report Submitted)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 text-xs font-black rounded-full border bg-amber-50 text-amber-800 border-amber-200 flex items-center gap-1 whitespace-nowrap">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" /> Report In Progress
+                            </span>
+                          )
+                        ) : (
+                          <span className={`px-2.5 py-1 text-xs font-black rounded-full border whitespace-nowrap ${proposalCount >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+                            Proposals: {proposalCount} / 3
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -3838,27 +3937,61 @@ const AdviserDashboard: React.FC = () => {
       {/* Top-Center Floating Notification Banner: New Proposal Submitted */}
       {topProposalNotification && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] max-w-lg w-[92%] sm:w-auto animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="bg-[#122244] border border-white/10 shadow-2xl shadow-black/40 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 text-white">
-            <span className="text-sm font-bold text-gray-100 whitespace-nowrap">
-              New proposal submitted
-            </span>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={handleViewHighlightedProposal}
-                className="px-3.5 py-1.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] text-xs font-black rounded-lg transition-transform active:scale-95 shadow-md flex items-center gap-1 cursor-pointer"
-              >
-                View
-              </button>
-              <button
-                onClick={() => setTopProposalNotification(null)}
-                className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-                title="Dismiss"
-                aria-label="Dismiss notification"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          {topProposalNotification.type === "report" ? (
+            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-[#122244] border border-emerald-500/40 shadow-2xl shadow-emerald-950/50 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 text-white ring-1 ring-emerald-400/30">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-emerald-300 uppercase tracking-wider">
+                    Feasibility Report Submitted
+                  </p>
+                  <p className="text-xs font-semibold text-gray-200 truncate">
+                    {topProposalNotification.groupName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleViewHighlightedProposal}
+                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black rounded-lg transition-transform active:scale-95 shadow-md flex items-center gap-1 cursor-pointer"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => setTopProposalNotification(null)}
+                  className="p-1 text-emerald-300/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                  title="Dismiss"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-[#122244] border border-white/10 shadow-2xl shadow-black/40 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 text-white">
+              <span className="text-sm font-bold text-gray-100 whitespace-nowrap">
+                New proposal submitted
+              </span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleViewHighlightedProposal}
+                  className="px-3.5 py-1.5 bg-[#c9a654] hover:bg-[#b59545] text-[#122244] text-xs font-black rounded-lg transition-transform active:scale-95 shadow-md flex items-center gap-1 cursor-pointer"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => setTopProposalNotification(null)}
+                  className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                  title="Dismiss"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
