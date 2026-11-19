@@ -648,9 +648,18 @@ const Reports: React.FC = () => {
       await notifyAdvisersForSection(targetSection, {
         title: "Feasibility Report Submitted 📊",
         message: `Team "${teamTitle}" has submitted their passing Feasibility Report Result for your review.`,
-        type: "financial",
+        type: "report",
         link: "/adviser/dashboard",
         senderName: userName || "Student",
+        metadata: {
+          groupId: userGroup.id,
+          groupName: teamTitle,
+          proposalId: selectedProject.id,
+          proposalName: selectedProject.name || teamTitle,
+          type: "report",
+          score,
+          verdict: status,
+        }
       }).catch((err) => console.warn("Failed to notify adviser:", err));
 
       // 4. Log audit event

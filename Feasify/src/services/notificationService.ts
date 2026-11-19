@@ -6,7 +6,7 @@ export interface AppNotification {
   userId: string;
   title: string;
   message: string;
-  type: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial';
+  type: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial' | 'report';
   link?: string;
   timestamp: string;
   isRead: boolean;
@@ -19,7 +19,7 @@ export interface SendNotificationParams {
   userId: string;
   title: string;
   message: string;
-  type?: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial';
+  type?: 'proposal' | 'feedback' | 'message' | 'group' | 'system' | 'approval' | 'financial' | 'report';
   link?: string;
   senderName?: string;
   metadata?: Record<string, any>;

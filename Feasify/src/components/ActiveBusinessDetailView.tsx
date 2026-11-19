@@ -1,20 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  Award,
   BarChart3,
   Calculator,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  Clock,
   Download,
   FileText,
   Folder,
+  GraduationCap,
   Layers,
   Lock,
   Loader2,
   MapPin,
   MessageCircle,
+  MessageSquare,
   Package,
   PhilippinePeso,
   RefreshCw,
@@ -104,6 +108,55 @@ const formatBulletinTimestamp = (rawDate: any): string => {
     });
   }
   return "Recently";
+};
+
+interface ScorePreset {
+  label: string;
+  value: number;
+}
+
+const SCORE_PRESETS: ScorePreset[] = [
+  { label: "100 (Max)", value: 100 },
+  { label: "95 (Exemplary)", value: 95 },
+  { label: "90 (Superior)", value: 90 },
+  { label: "85 (Proficient)", value: 85 },
+  { label: "80 (Passing)", value: 80 },
+];
+
+const getAdviserScoreVerdict = (score: number) => {
+  if (score >= 90) {
+    return {
+      label: "Excellent (High Pass)",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      pillDot: "bg-emerald-500",
+    };
+  }
+  if (score >= 80) {
+    return {
+      label: "Very Good (Pass)",
+      badgeClass: "bg-teal-50 text-teal-700 border-teal-200",
+      pillDot: "bg-teal-500",
+    };
+  }
+  if (score >= 75) {
+    return {
+      label: "Satisfactory (Pass)",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+      pillDot: "bg-blue-500",
+    };
+  }
+  if (score >= 65) {
+    return {
+      label: "Conditional / Needs Revision",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      pillDot: "bg-amber-500",
+    };
+  }
+  return {
+    label: "Did Not Meet Standards",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+    pillDot: "bg-rose-500",
+  };
 };
 
 const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
@@ -2367,7 +2420,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
             })()}
         </div>
 
-        {/* RIGHT SIDE: ROSTER + ADVISORY BULLETIN BOARD */}
+        {/* RIGHT SIDE: ROSTER + ADVISER GRADING & FEEDBACK HUB */}
         <div className="lg:col-span-1 space-y-6">
           {/* PROJECT ROSTER CARD */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -2465,131 +2518,260 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
             </div>
           </div>
 
-          {/* ADVISORY BULLETIN / FEEDBACK BOARD */}
+          {/* ADVISER GRADING & FEEDBACK HUB */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-6.5rem)] lg:flex lg:flex-col">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
-              <h3 className="text-xs font-extrabold text-[#122244] uppercase tracking-widest flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-[#c9a654]" /> Advisory
-                Bulletin Board
-              </h3>
-              <span className="text-[10px] font-black text-gray-400 uppercase">
+              <div className="space-y-0.5">
+                <h3 className="text-xs font-black text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                  <Award className="w-4 h-4 text-[#c9a654]" />
+                  <span>Adviser Grading &amp; Feedback Hub</span>
+                </h3>
+                <p className="text-[10px] text-gray-400 font-medium">
+                  Official Academic Evaluation &amp; Defense Advisory
+                </p>
+              </div>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80 shrink-0">
                 {feedbackHistory.length}{" "}
-                {feedbackHistory.length === 1 ? "Note" : "Notes"}
+                {feedbackHistory.length === 1 ? "Record" : "Records"}
               </span>
             </div>
 
             {/* Official Business Scorecard Banner */}
             {((proposal?.adviserScore !== undefined && proposal?.adviserScore !== null) ||
-              (group?.adviserScore !== undefined && group?.adviserScore !== null)) && (
-              <div className="bg-gradient-to-r from-[#122244] to-[#1d366f] rounded-xl p-3.5 text-white flex items-center justify-between shadow-sm border border-white/10 mb-2 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/30 flex items-center justify-center shrink-0">
-                    <Star className="w-4 h-4 text-[#c9a654] fill-[#c9a654]" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-black tracking-wide uppercase text-white">
-                      Official Business Score
-                    </p>
-                    <p className="text-[10px] text-gray-300 font-medium">
-                      Graded by Adviser
-                      {(group?.submittedReportScore || proposal?.submittedReportScore)
-                        ? ` (AI Report Score: ${group?.submittedReportScore || proposal?.submittedReportScore}/100)`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-white">
-                    {proposal?.adviserScore ?? group?.adviserScore}
-                  </span>{" "}
-                  <span className="text-xs font-bold text-gray-300">/ 100</span>
-                </div>
-              </div>
-            )}
+              (group?.adviserScore !== undefined && group?.adviserScore !== null)) && (() => {
+              const currentOfficialScore = proposal?.adviserScore ?? group?.adviserScore;
+              const currentOfficialScoreNum = Number(currentOfficialScore);
+              const verdict = !isNaN(currentOfficialScoreNum) ? getAdviserScoreVerdict(currentOfficialScoreNum) : null;
+              const aiScore = group?.submittedReportScore || proposal?.submittedReportScore;
 
-            {/* Bulletin Feed (Scrollable history) */}
+              return (
+                <div className="bg-gradient-to-r from-[#122244] via-[#162a54] to-[#1d366f] rounded-xl p-3.5 text-white shadow-sm border border-white/10 mb-2 shrink-0 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center shrink-0 shadow-inner">
+                        <Award className="w-5 h-5 text-[#c9a654]" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black tracking-wide uppercase text-white">
+                          Official Business Score
+                        </p>
+                        <p className="text-[10px] text-gray-300 font-medium">
+                          Graded by Faculty Adviser
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-white tracking-tight">
+                        {currentOfficialScore}
+                      </span>{" "}
+                      <span className="text-xs font-bold text-gray-300">/ 100</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[10px]">
+                    {verdict && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold bg-white/10 text-white border border-white/15">
+                        <span className={`w-1.5 h-1.5 rounded-full ${verdict.pillDot}`} />
+                        {verdict.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Evaluation Feed (Scrollable history) */}
             <div className="space-y-3 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto pr-1 custom-scrollbar">
               {feedbackHistory.length === 0 ? (
-                <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-400 italic">
-                  {canPostFeedback
-                    ? "No feedback posted on the bulletin board yet. Write a note below to advise this group."
-                    : "No adviser feedback notes have been posted for this business yet."}
+                <div className="p-6 bg-slate-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-2">
+                  <div className="w-10 h-10 mx-auto rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                    <MessageSquare className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-xs font-bold text-gray-600">
+                    No evaluation notes or grades recorded yet.
+                  </p>
+                  <p className="text-[11px] text-gray-400 max-w-xs mx-auto leading-relaxed">
+                    {canPostFeedback
+                      ? "Use the grading form below to record official feedback for this student team."
+                      : "Official evaluation remarks and scores from the assigned faculty adviser will appear here."}
+                  </p>
                 </div>
               ) : (
                 feedbackHistory
                   .slice()
                   .reverse()
-                  .map((item: any, idx: number) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-3.5 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-1.5 shadow-sm"
-                    >
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="font-bold text-[#122244] flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#c9a654]"></span>
-                          {item.authorName ||
-                            (normalizedAdvisers[0]
-                              ? `Prof. ${normalizedAdvisers[0]
-                                  .split(" ")
-                                  .pop()}`
-                              : "Faculty Adviser")}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {item.score !== undefined && item.score !== null && !isNaN(Number(item.score)) && (
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full border border-emerald-200">
-                              Score: {item.score}/100
+                  .map((item: any, idx: number) => {
+                    const itemScoreNum = Number(item.score);
+                    const hasItemScore =
+                      item.score !== undefined &&
+                      item.score !== null &&
+                      !isNaN(itemScoreNum);
+                    const itemVerdict = hasItemScore
+                      ? getAdviserScoreVerdict(itemScoreNum)
+                      : null;
+
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className="p-3.5 bg-gradient-to-b from-white to-amber-50/20 border border-amber-200/80 rounded-xl space-y-2 shadow-2xs hover:border-amber-300 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-2 text-[10px]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-md bg-[#122244] text-[#c9a654] flex items-center justify-center font-bold text-[9px] shrink-0">
+                              <GraduationCap className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <span className="font-bold text-[#122244] block leading-tight">
+                                {item.authorName ||
+                                  (normalizedAdvisers[0]
+                                    ? `Prof. ${normalizedAdvisers[0].split(" ").pop()}`
+                                    : "Faculty Adviser")}
+                              </span>
+                              <span className="text-[9px] text-gray-400 font-medium">
+                                Faculty Adviser
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {hasItemScore && itemVerdict && (
+                              <span
+                                className={`px-2 py-0.5 font-black text-[10px] rounded-md border flex items-center gap-1 ${itemVerdict.badgeClass}`}
+                              >
+                                <Award className="w-3 h-3" />
+                                Score: {item.score}/100
+                              </span>
+                            )}
+                            <span className="text-gray-400 text-[10px] font-medium flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-gray-400" />
+                              {formatBulletinTimestamp(item.date)}
                             </span>
-                          )}
-                          <span className="text-gray-400">
-                            {formatBulletinTimestamp(item.date)}
-                          </span>
+                          </div>
                         </div>
+                        {item.text && (
+                          <div className="pl-3 border-l-3 border-[#c9a654] py-0.5">
+                            <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                              {item.text}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      {item.text && (
-                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-[#c9a654]/40">
-                          {item.text}
-                        </p>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
               )}
             </div>
 
             {/* Inline Composer (Adviser) vs View-Only Notice (Chairperson) */}
             {canPostFeedback ? (
-              <div className="pt-2 border-t border-gray-100 space-y-2.5 shrink-0">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Score (/100)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={adviserScoreInput || ""}
-                      onChange={(e) => onAdviserScoreChange?.(e.target.value)}
-                      placeholder="e.g. 95"
-                      className="w-24 text-xs font-bold text-[#122244] p-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none"
-                    />
-                    <span className="text-xs font-bold text-gray-400">/ 100</span>
+              <div className="pt-3 border-t border-gray-100 space-y-3 shrink-0">
+                {/* Enhanced Official Adviser Scoring Card */}
+                <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-3.5 space-y-3">
+                  {/* Header with Title */}
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-black text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 text-[#c9a654]" />
+                      OFFICIAL ADVISER SCORE
+                    </label>
+                  </div>
+
+                  {/* Prominent Score Input & Dynamic Verdict Preview */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1 shadow-2xs focus-within:border-[#c9a654] focus-within:ring-2 focus-within:ring-[#c9a654]/20 transition-all">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={adviserScoreInput || ""}
+                        onChange={(e) => onAdviserScoreChange?.(e.target.value)}
+                        placeholder="0"
+                        className="w-16 text-xl font-black text-[#122244] text-center bg-transparent outline-none py-1"
+                      />
+                      <span className="text-xs font-extrabold text-gray-400 select-none">/ 100</span>
+                    </div>
+
+                    {/* Dynamic Grade / Verdict Preview Chip */}
+                    <div className="flex-1 min-w-[140px]">
+                      {(() => {
+                        const numericScore = parseFloat(adviserScoreInput);
+                        const hasScore = adviserScoreInput.trim() !== "";
+                        const isScoreOutOfRange = hasScore && (isNaN(numericScore) || numericScore < 0 || numericScore > 100);
+                        if (isScoreOutOfRange) {
+                          return (
+                            <span className="text-[10px] text-rose-600 font-bold block leading-tight">
+                              ⚠️ Score must be between 0 and 100
+                            </span>
+                          );
+                        }
+                        const isValid = !isNaN(numericScore) && hasScore && numericScore >= 0 && numericScore <= 100;
+                        if (!isValid) {
+                          return (
+                            <span className="text-[10px] text-gray-400 font-medium italic block leading-tight">
+                              Enter grade (0–100) or pick a preset below
+                            </span>
+                          );
+                        }
+                        const verdict = getAdviserScoreVerdict(numericScore);
+                        return (
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-black shadow-2xs transition-all ${verdict.badgeClass}`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${verdict.pillDot}`} />
+                            <span>{verdict.label}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Chips */}
+                  <div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      Quick Grade Presets
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SCORE_PRESETS.map((preset) => {
+                        const isSelected = adviserScoreInput === preset.value.toString();
+                        return (
+                          <button
+                            type="button"
+                            key={preset.value}
+                            onClick={() => onAdviserScoreChange?.(preset.value.toString())}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[#122244] text-[#c9a654] border-[#122244] shadow-xs"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-[#c9a654] hover:text-[#122244]"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Feedback & Remarks
-                  </label>
+                {/* Enlarged Textarea for Remarks */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 text-[#c9a654]" />
+                      Evaluation Remarks &amp; Feedback
+                    </label>
+                    <span className="text-[10px] font-medium text-gray-400">
+                      {feedbackInput.length} characters
+                    </span>
+                  </div>
                   <textarea
-                    rows={3}
+                    rows={5}
                     value={feedbackInput}
                     onChange={(e) => onFeedbackInputChange?.(e.target.value)}
-                    placeholder="Type evaluation remarks, feedback, or instructions for the student team..."
-                    className="w-full text-xs p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] outline-none resize-none transition-all placeholder:text-gray-400"
+                    placeholder="Type official academic evaluation remarks, defense recommendations, or revision guidance for the student team..."
+                    className="w-full min-h-[140px] text-xs sm:text-sm leading-relaxed p-3.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none resize-y transition-all placeholder:text-gray-400 text-gray-800"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                         e.preventDefault();
-                        if ((feedbackInput.trim() || adviserScoreInput?.trim()) && !isSavingFeedback) {
+                        const numScore = parseFloat(adviserScoreInput);
+                        const isScoreBad = adviserScoreInput.trim() !== "" && (isNaN(numScore) || numScore < 0 || numScore > 100);
+                        if ((feedbackInput.trim() || adviserScoreInput?.trim()) && !isSavingFeedback && !isScoreBad) {
                           onSubmitFeedback?.();
                         }
                       }
@@ -2597,18 +2779,43 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                   />
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-[9px] text-gray-400 italic">
-                    Press Ctrl + Enter to send
+                {/* Footer with Keyboard Shortcut & Submit Button */}
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-[10px] text-gray-400 flex items-center gap-1 select-none">
+                    Press{" "}
+                    <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono text-gray-600 font-bold">
+                      Ctrl
+                    </kbd>{" "}
+                    +{" "}
+                    <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono text-gray-600 font-bold">
+                      Enter
+                    </kbd>{" "}
+                    to submit
                   </span>
                   <button
                     type="button"
                     onClick={onSubmitFeedback}
-                    disabled={isSavingFeedback || (!feedbackInput.trim() && !adviserScoreInput?.trim())}
+                    disabled={
+                      isSavingFeedback ||
+                      (!feedbackInput.trim() && !adviserScoreInput?.trim()) ||
+                      (adviserScoreInput.trim() !== "" &&
+                        (isNaN(parseFloat(adviserScoreInput)) ||
+                          parseFloat(adviserScoreInput) < 0 ||
+                          parseFloat(adviserScoreInput) > 100))
+                    }
                     className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    {isSavingFeedback ? "Saving..." : "Submit Score & Feedback"}
+                    {isSavingFeedback ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c9a654]" />
+                        <span>Saving Evaluation...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5 text-[#c9a654]" />
+                        <span>Submit Score &amp; Feedback</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -2616,10 +2823,10 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               <div className="pt-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between text-[11px] text-gray-500">
                 <span className="inline-flex items-center gap-1.5 font-semibold text-gray-500">
                   <Lock className="w-3.5 h-3.5 text-[#c9a654]" />
-                  View-Only Bulletin Feed
+                  View-Only Evaluation Feed
                 </span>
-                <span className="text-[10px] text-gray-400">
-                  Read-only archive
+                <span className="text-[10px] font-medium text-gray-400">
+                  Official archive
                 </span>
               </div>
             )}
