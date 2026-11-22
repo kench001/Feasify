@@ -13,6 +13,7 @@ import {
   FileText,
   Folder,
   GraduationCap,
+  History,
   Layers,
   Lock,
   Loader2,
@@ -2518,9 +2519,9 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
             </div>
           </div>
 
-          {/* ADVISER GRADING & FEEDBACK HUB */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-6.5rem)] lg:flex lg:flex-col">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+          {/* ADVISER GRADING & FEEDBACK HUB CARD */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+            <div className="border-b border-gray-100 pb-3">
               <div className="space-y-0.5">
                 <h3 className="text-xs font-black text-[#122244] uppercase tracking-wider flex items-center gap-2">
                   <Award className="w-4 h-4 text-[#c9a654]" />
@@ -2530,10 +2531,6 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                   Official Academic Evaluation &amp; Defense Advisory
                 </p>
               </div>
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80 shrink-0">
-                {feedbackHistory.length}{" "}
-                {feedbackHistory.length === 1 ? "Record" : "Records"}
-              </span>
             </div>
 
             {/* Official Business Scorecard Banner */}
@@ -2545,7 +2542,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               const aiScore = group?.submittedReportScore || proposal?.submittedReportScore;
 
               return (
-                <div className="bg-gradient-to-r from-[#122244] via-[#162a54] to-[#1d366f] rounded-xl p-3.5 text-white shadow-sm border border-white/10 mb-2 shrink-0 space-y-2">
+                <div className="bg-gradient-to-r from-[#122244] via-[#162a54] to-[#1d366f] rounded-xl p-3.5 text-white shadow-sm border border-white/10 mb-2 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-lg bg-[#c9a654]/20 border border-[#c9a654]/40 flex items-center justify-center shrink-0 shadow-inner">
@@ -2580,8 +2577,187 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
               );
             })()}
 
-            {/* Evaluation Feed (Scrollable history) */}
-            <div className="space-y-3 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+            {/* Inline Composer (Adviser) vs View-Only Notice (Chairperson) */}
+            {canPostFeedback ? (
+              <div className="space-y-3">
+                {/* Enhanced Official Adviser Scoring Card */}
+                <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-3.5 space-y-3">
+                  {/* Header with Title */}
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-black text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 text-[#c9a654]" />
+                      OFFICIAL ADVISER SCORE
+                    </label>
+                  </div>
+
+                  {/* Prominent Score Input & Dynamic Verdict Preview */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1 shadow-2xs focus-within:border-[#c9a654] focus-within:ring-2 focus-within:ring-[#c9a654]/20 transition-all">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={adviserScoreInput || ""}
+                        onChange={(e) => onAdviserScoreChange?.(e.target.value)}
+                        placeholder="0"
+                        className="w-16 text-xl font-black text-[#122244] text-center bg-transparent outline-none py-1"
+                      />
+                      <span className="text-xs font-extrabold text-gray-400 select-none">/ 100</span>
+                    </div>
+
+                    {/* Dynamic Grade / Verdict Preview Chip */}
+                    <div className="flex-1 min-w-[140px]">
+                      {(() => {
+                        const numericScore = parseFloat(adviserScoreInput || "");
+                        const hasScore = (adviserScoreInput || "").trim() !== "";
+                        const isScoreOutOfRange = hasScore && (isNaN(numericScore) || numericScore < 0 || numericScore > 100);
+                        if (isScoreOutOfRange) {
+                          return (
+                            <span className="text-[10px] text-rose-600 font-bold block leading-tight">
+                              ⚠️ Score must be between 0 and 100
+                            </span>
+                          );
+                        }
+                        const isValid = !isNaN(numericScore) && hasScore && numericScore >= 0 && numericScore <= 100;
+                        if (!isValid) {
+                          return (
+                            <span className="text-[10px] text-gray-400 font-medium italic block leading-tight">
+                              Enter grade (0–100) or pick a preset below
+                            </span>
+                          );
+                        }
+                        const verdict = getAdviserScoreVerdict(numericScore);
+                        return (
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-black shadow-2xs transition-all ${verdict.badgeClass}`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${verdict.pillDot}`} />
+                            <span>{verdict.label}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Chips */}
+                  <div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      Quick Grade Presets
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SCORE_PRESETS.map((preset) => {
+                        const isSelected = adviserScoreInput === preset.value.toString();
+                        return (
+                          <button
+                            type="button"
+                            key={preset.value}
+                            onClick={() => onAdviserScoreChange?.(preset.value.toString())}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[#122244] text-[#c9a654] border-[#122244] shadow-xs"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-[#c9a654] hover:text-[#122244]"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Enlarged Textarea for Remarks */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 text-[#c9a654]" />
+                      Evaluation Remarks &amp; Feedback
+                    </label>
+                    <span className="text-[10px] font-medium text-gray-400">
+                      {(feedbackInput || "").length} characters
+                    </span>
+                  </div>
+                  <textarea
+                    rows={5}
+                    value={feedbackInput || ""}
+                    onChange={(e) => onFeedbackInputChange?.(e.target.value)}
+                    placeholder="Type official academic evaluation remarks, defense recommendations, or revision guidance for the student team..."
+                    className="w-full min-h-[140px] text-xs sm:text-sm leading-relaxed p-3.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none resize-y transition-all placeholder:text-gray-400 text-gray-800"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        const numScore = parseFloat(adviserScoreInput || "");
+                        const isScoreBad = (adviserScoreInput || "").trim() !== "" && (isNaN(numScore) || numScore < 0 || numScore > 100);
+                        if (((feedbackInput || "").trim() || adviserScoreInput?.trim()) && !isSavingFeedback && !isScoreBad) {
+                          onSubmitFeedback?.();
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Footer with Submit Button */}
+                <div className="flex justify-end items-center pt-1">
+                  <button
+                    type="button"
+                    onClick={onSubmitFeedback}
+                    disabled={
+                      isSavingFeedback ||
+                      (!(feedbackInput || "").trim() && !adviserScoreInput?.trim()) ||
+                      ((adviserScoreInput || "").trim() !== "" &&
+                        (isNaN(parseFloat(adviserScoreInput || "")) ||
+                          parseFloat(adviserScoreInput || "") < 0 ||
+                          parseFloat(adviserScoreInput || "") > 100))
+                    }
+                    className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {isSavingFeedback ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c9a654]" />
+                        <span>Saving Evaluation...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5 text-[#c9a654]" />
+                        <span>Submit Score &amp; Feedback</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="pt-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between text-[11px] text-gray-500">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-gray-500">
+                  <Lock className="w-3.5 h-3.5 text-[#c9a654]" />
+                  View-Only Evaluation Feed
+                </span>
+                <span className="text-[10px] font-medium text-gray-400">
+                  Official archive
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* HISTORY FEEDBACKS & REMARKS CARD */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="space-y-0.5">
+                <h3 className="text-xs font-black text-[#122244] uppercase tracking-wider flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#c9a654]" />
+                  <span>History Feedbacks &amp; Remarks</span>
+                </h3>
+                <p className="text-[10px] text-gray-400 font-medium">
+                  Past adviser reviews, evaluation scores, and defense guidance
+                </p>
+              </div>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80 shrink-0">
+                {feedbackHistory.length}{" "}
+                {feedbackHistory.length === 1 ? "Record" : "Records"}
+              </span>
+            </div>
+
+            {/* Feedback Records List or Empty State */}
+            <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-1 custom-scrollbar">
               {feedbackHistory.length === 0 ? (
                 <div className="p-6 bg-slate-50/70 rounded-xl border border-dashed border-gray-200 text-center space-y-2">
                   <div className="w-10 h-10 mx-auto rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -2592,7 +2768,7 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                   </p>
                   <p className="text-[11px] text-gray-400 max-w-xs mx-auto leading-relaxed">
                     {canPostFeedback
-                      ? "Use the grading form below to record official feedback for this student team."
+                      ? "Use the grading form above to record official feedback for this student team."
                       : "Official evaluation remarks and scores from the assigned faculty adviser will appear here."}
                   </p>
                 </div>
@@ -2659,177 +2835,6 @@ const ActiveBusinessDetailView: React.FC<ActiveBusinessDetailViewProps> = ({
                   })
               )}
             </div>
-
-            {/* Inline Composer (Adviser) vs View-Only Notice (Chairperson) */}
-            {canPostFeedback ? (
-              <div className="pt-3 border-t border-gray-100 space-y-3 shrink-0">
-                {/* Enhanced Official Adviser Scoring Card */}
-                <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-3.5 space-y-3">
-                  {/* Header with Title */}
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-[10px] font-black text-[#122244] uppercase tracking-wider flex items-center gap-1.5">
-                      <Award className="w-3.5 h-3.5 text-[#c9a654]" />
-                      OFFICIAL ADVISER SCORE
-                    </label>
-                  </div>
-
-                  {/* Prominent Score Input & Dynamic Verdict Preview */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1 shadow-2xs focus-within:border-[#c9a654] focus-within:ring-2 focus-within:ring-[#c9a654]/20 transition-all">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={adviserScoreInput || ""}
-                        onChange={(e) => onAdviserScoreChange?.(e.target.value)}
-                        placeholder="0"
-                        className="w-16 text-xl font-black text-[#122244] text-center bg-transparent outline-none py-1"
-                      />
-                      <span className="text-xs font-extrabold text-gray-400 select-none">/ 100</span>
-                    </div>
-
-                    {/* Dynamic Grade / Verdict Preview Chip */}
-                    <div className="flex-1 min-w-[140px]">
-                      {(() => {
-                        const numericScore = parseFloat(adviserScoreInput);
-                        const hasScore = adviserScoreInput.trim() !== "";
-                        const isScoreOutOfRange = hasScore && (isNaN(numericScore) || numericScore < 0 || numericScore > 100);
-                        if (isScoreOutOfRange) {
-                          return (
-                            <span className="text-[10px] text-rose-600 font-bold block leading-tight">
-                              ⚠️ Score must be between 0 and 100
-                            </span>
-                          );
-                        }
-                        const isValid = !isNaN(numericScore) && hasScore && numericScore >= 0 && numericScore <= 100;
-                        if (!isValid) {
-                          return (
-                            <span className="text-[10px] text-gray-400 font-medium italic block leading-tight">
-                              Enter grade (0–100) or pick a preset below
-                            </span>
-                          );
-                        }
-                        const verdict = getAdviserScoreVerdict(numericScore);
-                        return (
-                          <div
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-black shadow-2xs transition-all ${verdict.badgeClass}`}
-                          >
-                            <span className={`w-2 h-2 rounded-full ${verdict.pillDot}`} />
-                            <span>{verdict.label}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Quick Preset Chips */}
-                  <div>
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      Quick Grade Presets
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {SCORE_PRESETS.map((preset) => {
-                        const isSelected = adviserScoreInput === preset.value.toString();
-                        return (
-                          <button
-                            type="button"
-                            key={preset.value}
-                            onClick={() => onAdviserScoreChange?.(preset.value.toString())}
-                            className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                              isSelected
-                                ? "bg-[#122244] text-[#c9a654] border-[#122244] shadow-xs"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-[#c9a654] hover:text-[#122244]"
-                            }`}
-                          >
-                            {preset.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enlarged Textarea for Remarks */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <MessageSquare className="w-3 h-3 text-[#c9a654]" />
-                      Evaluation Remarks &amp; Feedback
-                    </label>
-                    <span className="text-[10px] font-medium text-gray-400">
-                      {feedbackInput.length} characters
-                    </span>
-                  </div>
-                  <textarea
-                    rows={5}
-                    value={feedbackInput}
-                    onChange={(e) => onFeedbackInputChange?.(e.target.value)}
-                    placeholder="Type official academic evaluation remarks, defense recommendations, or revision guidance for the student team..."
-                    className="w-full min-h-[140px] text-xs sm:text-sm leading-relaxed p-3.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:border-[#c9a654] focus:ring-2 focus:ring-[#c9a654]/20 outline-none resize-y transition-all placeholder:text-gray-400 text-gray-800"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                        e.preventDefault();
-                        const numScore = parseFloat(adviserScoreInput);
-                        const isScoreBad = adviserScoreInput.trim() !== "" && (isNaN(numScore) || numScore < 0 || numScore > 100);
-                        if ((feedbackInput.trim() || adviserScoreInput?.trim()) && !isSavingFeedback && !isScoreBad) {
-                          onSubmitFeedback?.();
-                        }
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Footer with Keyboard Shortcut & Submit Button */}
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-[10px] text-gray-400 flex items-center gap-1 select-none">
-                    Press{" "}
-                    <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono text-gray-600 font-bold">
-                      Ctrl
-                    </kbd>{" "}
-                    +{" "}
-                    <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[9px] font-mono text-gray-600 font-bold">
-                      Enter
-                    </kbd>{" "}
-                    to submit
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onSubmitFeedback}
-                    disabled={
-                      isSavingFeedback ||
-                      (!feedbackInput.trim() && !adviserScoreInput?.trim()) ||
-                      (adviserScoreInput.trim() !== "" &&
-                        (isNaN(parseFloat(adviserScoreInput)) ||
-                          parseFloat(adviserScoreInput) < 0 ||
-                          parseFloat(adviserScoreInput) > 100))
-                    }
-                    className="px-4 py-2 bg-[#122244] hover:bg-[#1a2f55] text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    {isSavingFeedback ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c9a654]" />
-                        <span>Saving Evaluation...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5 text-[#c9a654]" />
-                        <span>Submit Score &amp; Feedback</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="pt-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between text-[11px] text-gray-500">
-                <span className="inline-flex items-center gap-1.5 font-semibold text-gray-500">
-                  <Lock className="w-3.5 h-3.5 text-[#c9a654]" />
-                  View-Only Evaluation Feed
-                </span>
-                <span className="text-[10px] font-medium text-gray-400">
-                  Official archive
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>

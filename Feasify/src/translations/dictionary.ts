@@ -379,6 +379,8 @@ export const phraseDictionary: Record<string, string> = {
   "quick grade presets": "Mabilisang Preset ng Marka",
   "evaluation remarks & feedback": "Mga Puna at Feedback sa Ebalwasyon",
   "view-only evaluation feed": "Talaan ng Ebalwasyon (Pang-tingin Lamang)",
+  "history feedbacks & remarks": "Kasaysayan ng mga Feedback at Komento",
+  "past adviser reviews, evaluation scores, and defense guidance": "Mga nakaraang pagsusuri ng tagapayo, marka ng ebalwasyon, at gabay sa depensa",
   "approve proposal": "Aprubahan ang Proposal",
   "request revision": "Humiling ng Rebisyon",
   "reject proposal": "Tanggihan ang Proposal",
