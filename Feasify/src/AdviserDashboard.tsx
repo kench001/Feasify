@@ -9,7 +9,7 @@ import {
   Settings, ShieldAlert, Search, Users, Archive,
   CheckCircle2, AlertCircle, X, Star, FlaskConical, RefreshCw,
   MoreVertical, Trash2, Edit2, FileText, FileCheck, ChevronLeft, Clock, Loader2, MessageCircle, Target, DollarSign, Send, UserPlus, Check, Download,
-  Bell, Calculator, Info,
+  Bell, Calculator, Info, History,
   FileSpreadsheet, PieChart, ArrowUp, Cpu, Eye, Lock,
   Compass, Sparkles, ThumbsUp, TrendingDown, Lightbulb, Brain
 } from "lucide-react";
@@ -1377,6 +1377,14 @@ const AdviserDashboard: React.FC = () => {
   ) => {
     const targetGroup = selectedGroup || groups.find(g => g.id === proposal.groupId);
     if (!targetGroup || !proposal.id) return;
+
+    if (action !== 'Save Remarks') {
+      const isActivelySubmitted = ["Submitted", "Pending", "Under Review"].includes(proposal.status);
+      if (!isActivelySubmitted) {
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       let newStatus: ProposalData['status'] = proposal.status;
@@ -2271,108 +2279,177 @@ const AdviserDashboard: React.FC = () => {
                         <span className="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold rounded-full flex-shrink-0">{totalMembers} members</span>
                       </div>
 
-                      {/* Proposals Section: ALWAYS show all proposals, highlight ONLY the active one in green */}
+                      {/* Proposals Section */}
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                          <span className="text-gray-500">Team Proposals</span>
-                          <span className="text-gray-400 font-semibold">{proposalCount} of 3 created</span>
-                        </div>
+                        {isActivated ? (
+                          <>
+                            <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                              <span className="text-gray-500">Active Business Proposal</span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenGroupDetails(group)}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#122244] hover:text-[#c9a654] transition-colors cursor-pointer normal-case"
+                              >
+                                <History className="w-3.5 h-3.5 text-[#c9a654]" />
+                                <span>View Past Proposals</span>
+                              </button>
+                            </div>
 
-                        {[1, 2, 3].map(slotNum => {
-                          const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
-                          if (prop) {
-                            const isThisPropActive = Boolean(
-                              (group.activeProposalId && prop.id === group.activeProposalId) ||
-                              (isActivated && activatedProp && prop.id === activatedProp.id) ||
-                              (isActivated && prop.status === 'Approved')
-                            );
-
-                            const isNewSubmission = (prop.status === 'Submitted' || prop.status === 'Pending' || (prop.id && highlightedProposalIds.includes(prop.id))) && !isThisPropActive;
-
-                            return (
+                            {activatedProp ? (
                               <div
-                                key={prop.id || slotNum}
-                                className={`p-3 rounded-xl border transition-all ${
-                                  isThisPropActive
-                                    ? 'bg-emerald-50/80 border-emerald-400 ring-1 ring-emerald-500/30'
-                                    : isNewSubmission
-                                    ? 'bg-gradient-to-r from-amber-50/90 to-yellow-50/80 border-amber-300 ring-2 ring-amber-400/50 shadow-xs'
-                                    : 'bg-gray-50/90 border-gray-200 hover:border-blue-300'
-                                }`}
+                                key={activatedProp.id || "active"}
+                                className="p-3 rounded-xl border transition-all bg-emerald-50/80 border-emerald-400 ring-1 ring-emerald-500/30"
                               >
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                      <span
-                                        className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                          isThisPropActive
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : isNewSubmission
-                                            ? 'bg-amber-100 text-amber-900'
-                                            : 'bg-blue-100 text-blue-800'
-                                        }`}
-                                      >
-                                        Proposal {slotNum}
+                                      <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                        Proposal {activatedProp.proposalNumber || 1}
                                       </span>
-                                      {isThisPropActive ? (
-                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1 border border-emerald-200">
-                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
-                                        </span>
-                                      ) : (
-                                        getProposalStatusBadge(prop.status)
-                                      )}
-                                      {isNewSubmission && (
-                                        <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1 shadow-2xs animate-pulse">
-                                          <Sparkles className="w-2.5 h-2.5" /> NEW
-                                        </span>
-                                      )}
-                                      {prop.businessType && (
+                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1 border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
+                                      </span>
+                                      {activatedProp.businessType && (
                                         <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-semibold rounded">
-                                          {prop.businessType}
+                                          {activatedProp.businessType}
                                         </span>
                                       )}
                                     </div>
-                                    <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
-                                      {prop.businessName || "Untitled Proposal"}
+                                    <h4 className="text-xs font-bold text-[#122244] truncate" title={activatedProp.businessName || "Active Business Proposal"}>
+                                      {activatedProp.businessName || "Untitled Proposal"}
                                     </h4>
                                     <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-                                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
+                                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(activatedProp)}
                                     </p>
                                   </div>
                                   <button
-                                    onClick={() => handleOpenProposalModal(prop, group)}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1 cursor-pointer ${
-                                      isThisPropActive
-                                        ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                                        : isNewSubmission
-                                        ? 'bg-amber-500 hover:bg-amber-600 text-[#122244] font-black'
-                                        : 'bg-[#122244] hover:bg-[#1f376b] text-white'
-                                    }`}
-                                    title={`Open Proposal ${slotNum}`}
+                                    onClick={() => handleOpenProposalModal(activatedProp, group)}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1 cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white"
+                                    title="Open Active Proposal"
                                   >
                                     <FileText className="w-3.5 h-3.5" /> Open
                                   </button>
                                 </div>
-                                <div className={`pt-2 border-t text-[11px] flex items-start gap-1 ${isThisPropActive ? 'border-emerald-200/70' : isNewSubmission ? 'border-amber-200/80' : 'border-gray-200/80'}`}>
+                                <div className="pt-2 border-t text-[11px] flex items-start gap-1 border-emerald-200/70">
                                   <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
                                   <span
-                                    className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`}
-                                    title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                    className={`line-clamp-2 ${activatedProp.adviserRemarks || activatedProp.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`}
+                                    title={activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}
                                   >
-                                    {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                    {activatedProp.adviserRemarks || activatedProp.adviserFeedback || "No remarks yet"}
                                   </span>
                                 </div>
                               </div>
-                            );
-                          }
-
-                          return (
-                            <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
-                              <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
-                              <span className="text-[10px] italic">Slot available (Not created)</span>
+                            ) : (
+                              <div className="p-3 rounded-xl border border-dashed border-gray-200 text-xs text-gray-400 text-center">
+                                No active business proposal found
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                              <span className="text-gray-500">Team Proposals</span>
+                              <span className="text-gray-400 font-semibold">{proposalCount} of 3 created</span>
                             </div>
-                          );
-                        })}
+
+                            {[1, 2, 3].map(slotNum => {
+                              const prop = teamProps.find(p => p.proposalNumber === slotNum) || (!teamProps.some(p => p.proposalNumber) ? teamProps[slotNum - 1] : undefined);
+                              if (prop) {
+                                const isThisPropActive = Boolean(
+                                  (group.activeProposalId && prop.id === group.activeProposalId) ||
+                                  (isActivated && activatedProp && prop.id === activatedProp.id) ||
+                                  (isActivated && prop.status === 'Approved')
+                                );
+
+                                const isNewSubmission = (prop.status === 'Submitted' || prop.status === 'Pending' || (prop.id && highlightedProposalIds.includes(prop.id))) && !isThisPropActive;
+
+                                return (
+                                  <div
+                                    key={prop.id || slotNum}
+                                    className={`p-3 rounded-xl border transition-all ${
+                                      isThisPropActive
+                                        ? 'bg-emerald-50/80 border-emerald-400 ring-1 ring-emerald-500/30'
+                                        : isNewSubmission
+                                        ? 'bg-gradient-to-r from-amber-50/90 to-yellow-50/80 border-amber-300 ring-2 ring-amber-400/50 shadow-xs'
+                                        : 'bg-gray-50/90 border-gray-200 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                          <span
+                                            className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                              isThisPropActive
+                                                ? 'bg-emerald-100 text-emerald-800'
+                                                : isNewSubmission
+                                                ? 'bg-amber-100 text-amber-900'
+                                                : 'bg-blue-100 text-blue-800'
+                                            }`}
+                                          >
+                                            Proposal {slotNum}
+                                          </span>
+                                          {isThisPropActive ? (
+                                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1 border border-emerald-200">
+                                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active Business
+                                            </span>
+                                          ) : (
+                                            getProposalStatusBadge(prop.status)
+                                          )}
+                                          {isNewSubmission && (
+                                            <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1 shadow-2xs animate-pulse">
+                                              <Sparkles className="w-2.5 h-2.5" /> NEW
+                                            </span>
+                                          )}
+                                          {prop.businessType && (
+                                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-semibold rounded">
+                                              {prop.businessType}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <h4 className="text-xs font-bold text-[#122244] truncate" title={prop.businessName || `Proposal ${slotNum}`}>
+                                          {prop.businessName || "Untitled Proposal"}
+                                        </h4>
+                                        <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                          <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" /> Submitted: {formatProposalDate(prop)}
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={() => handleOpenProposalModal(prop, group)}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 shadow-xs flex items-center gap-1 cursor-pointer ${
+                                          isThisPropActive
+                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                                            : isNewSubmission
+                                            ? 'bg-amber-500 hover:bg-amber-600 text-[#122244] font-black'
+                                            : 'bg-[#122244] hover:bg-[#1f376b] text-white'
+                                        }`}
+                                        title={`Open Proposal ${slotNum}`}
+                                      >
+                                        <FileText className="w-3.5 h-3.5" /> Open
+                                      </button>
+                                    </div>
+                                    <div className={`pt-2 border-t text-[11px] flex items-start gap-1 ${isThisPropActive ? 'border-emerald-200/70' : isNewSubmission ? 'border-amber-200/80' : 'border-gray-200/80'}`}>
+                                      <span className="font-bold text-gray-600 flex-shrink-0">Remarks:</span>
+                                      <span
+                                        className={`line-clamp-2 ${prop.adviserRemarks || prop.adviserFeedback ? "text-gray-800 font-medium italic" : "text-gray-400 italic"}`}
+                                        title={prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                      >
+                                        {prop.adviserRemarks || prop.adviserFeedback || "No remarks yet"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div key={slotNum} className="p-2.5 bg-gray-50/40 rounded-xl border border-dashed border-gray-200 flex items-center justify-between text-xs text-gray-400">
+                                  <span className="font-semibold text-[11px] text-gray-400">Proposal {slotNum}</span>
+                                  <span className="text-[10px] italic">Slot available (Not created)</span>
+                                </div>
+                              );
+                            })}
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -3352,34 +3429,86 @@ const AdviserDashboard: React.FC = () => {
                 </div>
 
                 {/* Bottom Decision Action Buttons */}
-                <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem] space-y-2">
-                  <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
-                    Adviser Decision
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleProposalAction(viewingProposal, 'Revision Required')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
-                      <Edit2 className="w-3.5 h-3.5" /> Needs Revision
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
-                      <X className="w-3.5 h-3.5" /> Reject
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleProposalAction(viewingProposal, 'Approved')}
-                      disabled={isSaving}
-                      className="flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50 cursor-pointer">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                    </button>
-                  </div>
-                </div>
+                {(() => {
+                  const isActivelySubmitted = Boolean(
+                    viewingProposal &&
+                    ['Submitted', 'Pending', 'Under Review'].includes(viewingProposal.status)
+                  );
+
+                  return (
+                    <div className="border-t border-gray-200 bg-white p-4 md:p-6 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.08)] z-20 mt-auto rounded-br-[1.5rem] space-y-3">
+                      {!isActivelySubmitted && (
+                        <div>
+                          {(viewingProposal.status === 'Revision Required' || viewingProposal.status === 'Revision' || viewingProposal.status === 'Needs Revision') && (
+                            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-semibold">
+                              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span>Awaiting student team revisions. Decision controls will unlock once the student resubmits.</span>
+                            </div>
+                          )}
+                          {(viewingProposal.status === 'Approved' || viewingProposal.status === 'Approved Proposal' || (viewingProposal.status as string) === 'APPROVED') && (
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 text-green-900 rounded-xl text-xs font-semibold">
+                              <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                              <span>This proposal is already approved.</span>
+                            </div>
+                          )}
+                          {viewingProposal.status === 'Rejected' && (
+                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-900 rounded-xl text-xs font-semibold">
+                              <X className="w-4 h-4 text-red-600 shrink-0" />
+                              <span>This proposal has been rejected.</span>
+                            </div>
+                          )}
+                          {(viewingProposal.status === 'Draft' || (viewingProposal.status as string) === 'Drafting') && (
+                            <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold">
+                              <Clock className="w-4 h-4 text-gray-500 shrink-0" />
+                              <span>This proposal is still a draft and has not been submitted yet.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                          Adviser Decision
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleProposalAction(viewingProposal, 'Revision Required')}
+                            disabled={isSaving || !isActivelySubmitted}
+                            className={`flex-1 min-w-[120px] py-2.5 px-3 bg-amber-500 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
+                              isSaving || !isActivelySubmitted
+                                ? 'opacity-40 cursor-not-allowed'
+                                : 'hover:bg-amber-600 active:scale-95 cursor-pointer'
+                            }`}>
+                            <Edit2 className="w-3.5 h-3.5" /> Needs Revision
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProposalAction(viewingProposal, 'Rejected')}
+                            disabled={isSaving || !isActivelySubmitted}
+                            className={`flex-1 min-w-[120px] py-2.5 px-3 bg-red-600 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
+                              isSaving || !isActivelySubmitted
+                                ? 'opacity-40 cursor-not-allowed'
+                                : 'hover:bg-red-700 active:scale-95 cursor-pointer'
+                            }`}>
+                            <X className="w-3.5 h-3.5" /> Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProposalAction(viewingProposal, 'Approved')}
+                            disabled={isSaving || !isActivelySubmitted}
+                            className={`flex-1 min-w-[120px] py-2.5 px-3 bg-green-600 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
+                              isSaving || !isActivelySubmitted
+                                ? 'opacity-40 cursor-not-allowed'
+                                : 'hover:bg-green-700 active:scale-95 cursor-pointer'
+                            }`}>
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

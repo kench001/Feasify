@@ -339,6 +339,7 @@ const Projects: React.FC = () => {
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [proposalToDelete, setProposalToDelete] = useState<ProposalData | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [proposalBaselineSignature, setProposalBaselineSignature] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("All changes saved");
   const [isEditingMode, setIsEditingMode] = useState(false);
@@ -372,6 +373,15 @@ const Projects: React.FC = () => {
       setCopyrightDB(dbData);
     });
   }, []);
+
+  useEffect(() => {
+    if (currentProposal.id && !proposalBaselineSignature) {
+      const sig = currentProposal.submittedData
+        ? getProposalInputSignature(currentProposal.submittedData)
+        : getProposalInputSignature(currentProposal);
+      setProposalBaselineSignature(sig);
+    }
+  }, [currentProposal.id, currentProposal.submittedData]);
 
   useEffect(() => {
     let unsubGroup: (() => void) | undefined;
@@ -1196,6 +1206,23 @@ const Projects: React.FC = () => {
     }
   };
 
+  const isRevisionStatus = Boolean(
+    currentProposal.status === "Revision Required" ||
+    currentProposal.status === "Revision" ||
+    currentProposal.status === "Needs Revision"
+  );
+
+  const currentSignature = getProposalInputSignature(currentProposal);
+  const baselineToCompare = currentProposal.submittedData
+    ? getProposalInputSignature(currentProposal.submittedData)
+    : proposalBaselineSignature;
+
+  const hasNoChangesForRevision = Boolean(
+    isRevisionStatus &&
+    baselineToCompare &&
+    currentSignature === baselineToCompare
+  );
+
   const handleSaveProposal = async (status: "Draft" | "Pending") => {
     if (!userGroup) {
       setToastTitle("Submission Failed");
@@ -1255,6 +1282,21 @@ const Projects: React.FC = () => {
       setIsSaving(true);
     } else {
       // status === "Pending" (Submit to Adviser)
+      if (hasNoChangesForRevision) {
+        const revisionReason = {
+          type: "error" as const,
+          title: "Proposal Revisions Required",
+          description: "Revisions Required: Please edit and update your proposal inputs before resubmitting to your adviser.",
+        };
+        setSubmissionFailureReasons([revisionReason]);
+        setShowSubmissionFailureModal(true);
+        setToastTitle("Revisions Required");
+        setToastMessage("Revisions Required: Please edit and update your proposal inputs before resubmitting to your adviser.");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 6000);
+        return;
+      }
+
       const reasons: {
         type: "missing" | "copyright" | "capital" | "quota" | "error";
         title: string;
@@ -1510,6 +1552,7 @@ const Projects: React.FC = () => {
       await fetchProposals(userGroup.id);
       setActiveView("dashboard");
       setCurrentProposal(initialProposalState);
+      setProposalBaselineSignature("");
       setHighlightMissingFields(false);
       setShowSubmissionFailureModal(false);
       setSubmissionFailureReasons([]);
@@ -2327,6 +2370,7 @@ const Projects: React.FC = () => {
                           return;
                         }
                         setCurrentProposal(initialProposalState);
+                        setProposalBaselineSignature("");
                         setHighlightMissingFields(false);
                         setShowSubmissionFailureModal(false);
                         setSubmissionFailureReasons([]);
@@ -2502,6 +2546,10 @@ const Projects: React.FC = () => {
                               <button
                                 onClick={() => {
                                   setCurrentProposal(proposal);
+                                  const baseSig = proposal.submittedData
+                                    ? getProposalInputSignature(proposal.submittedData)
+                                    : getProposalInputSignature(proposal);
+                                  setProposalBaselineSignature(baseSig);
                                   setHighlightMissingFields(false);
                                   setShowSubmissionFailureModal(false);
                                   setSubmissionFailureReasons([]);
@@ -2517,6 +2565,10 @@ const Projects: React.FC = () => {
                                     <button
                                       onClick={() => {
                                         setCurrentProposal(proposal);
+                                        const baseSig = proposal.submittedData
+                                          ? getProposalInputSignature(proposal.submittedData)
+                                          : getProposalInputSignature(proposal);
+                                        setProposalBaselineSignature(baseSig);
                                         setHighlightMissingFields(false);
                                         setShowSubmissionFailureModal(false);
                                         setSubmissionFailureReasons([]);
@@ -3884,13 +3936,26 @@ const Projects: React.FC = () => {
                               <span>Requires Green AI Verdict (80%+) to Submit</span>
                             </div>
                           )}
+                          {hasNoChangesForRevision && (
+                            <div className="text-xs text-amber-800 font-bold flex items-center gap-1.5 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-lg">
+                              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                              <span>Revisions Required: Please edit and update your proposal inputs before resubmitting to your adviser.</span>
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleSaveProposal("Pending")}
-                            disabled={isSubmitting}
-                            className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${isSubmitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
-                              }`}
-                            title={isSubmitting ? "Submitting..." : "Submit proposal to adviser for review"}
+                            disabled={isSubmitting || hasNoChangesForRevision}
+                            className={`w-full sm:w-auto px-8 py-3 bg-[#c9a654] text-white font-bold text-sm rounded-lg hover:bg-[#b59545] shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                              isSubmitting || hasNoChangesForRevision ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                            title={
+                              hasNoChangesForRevision
+                                ? "Revisions Required: Please edit and update your proposal inputs before resubmitting"
+                                : isSubmitting
+                                ? "Submitting..."
+                                : "Submit proposal to adviser for review"
+                            }
                           >
                             {isSubmitting ? (
                               <>
